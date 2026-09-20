@@ -26,9 +26,7 @@ export function calculateSpearmanRankCorrelation(x, y) {
   const n = x.length;
 
   const toRanks = (arr) => {
-    const sorted = arr
-      .map((val, idx) => ({ val, idx }))
-      .sort((a, b) => b.val - a.val); // Descending (higher score = rank 1)
+    const sorted = arr.map((val, idx) => ({ val, idx })).sort((a, b) => b.val - a.val); // Descending (higher score = rank 1)
 
     const ranks = new Array(n);
     for (let i = 0; i < n; i++) {
@@ -120,11 +118,7 @@ export function calculateRootMeanSquaredError(x, y) {
  * @param {number} [params.threshold=70]
  * @returns {{ falsePositiveRate: number, falseNegativeRate: number, accuracy: number, confusionMatrix: object }}
  */
-export function evaluateClassificationMetrics({
-  engineScores,
-  benchmarkScores,
-  threshold = 70,
-}) {
+export function evaluateClassificationMetrics({ engineScores, benchmarkScores, threshold = 70 }) {
   let fp = 0;
   let fn = 0;
   let tp = 0;
@@ -143,8 +137,10 @@ export function evaluateClassificationMetrics({
   const actualNegative = fp + tn;
   const actualPositive = tp + fn;
 
-  const falsePositiveRate = actualNegative > 0 ? Math.round((fp / actualNegative) * 1000) / 1000 : 0.0;
-  const falseNegativeRate = actualPositive > 0 ? Math.round((fn / actualPositive) * 1000) / 1000 : 0.0;
+  const falsePositiveRate =
+    actualNegative > 0 ? Math.round((fp / actualNegative) * 1000) / 1000 : 0.0;
+  const falseNegativeRate =
+    actualPositive > 0 ? Math.round((fn / actualPositive) * 1000) / 1000 : 0.0;
   const accuracy = Math.round(((tp + tn) / engineScores.length) * 1000) / 1000;
 
   return {
@@ -164,11 +160,7 @@ export function evaluateClassificationMetrics({
  * @param {number} [params.threshold=70]
  * @returns {object} Comprehensive statistical calibration metrics
  */
-export function runScoreCalibrationComparison({
-  engineScores,
-  benchmarkScores,
-  threshold = 70,
-}) {
+export function runScoreCalibrationComparison({ engineScores, benchmarkScores, threshold = 70 }) {
   const spearmanRho = calculateSpearmanRankCorrelation(engineScores, benchmarkScores);
   const pearsonR = calculatePearsonCorrelation(engineScores, benchmarkScores);
   const mae = calculateMeanAbsoluteError(engineScores, benchmarkScores);
@@ -245,11 +237,14 @@ export function calculateInterRaterAgreement(reviewersScores, threshold = 70) {
     }
   }
 
-  const meanPearsonR = Math.round((pearsonValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
-  const meanSpearmanRho = Math.round((spearmanValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
-  const binaryAgreementRate = totalPairwiseComparisons > 0
-    ? Math.round((totalBinaryAgreements / totalPairwiseComparisons) * 1000) / 1000
-    : 1.0;
+  const meanPearsonR =
+    Math.round((pearsonValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
+  const meanSpearmanRho =
+    Math.round((spearmanValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
+  const binaryAgreementRate =
+    totalPairwiseComparisons > 0
+      ? Math.round((totalBinaryAgreements / totalPairwiseComparisons) * 1000) / 1000
+      : 1.0;
 
   return {
     pairwise,
@@ -272,17 +267,22 @@ export function compareCalibrationVsHoldout({ calibrationMetrics, holdoutMetrics
     throw new Error('Both calibrationMetrics and holdoutMetrics must be provided');
   }
 
-  const deltaSpearmanRho = Math.round((holdoutMetrics.spearmanRho - calibrationMetrics.spearmanRho) * 1000) / 1000;
-  const deltaPearsonR = Math.round((holdoutMetrics.pearsonR - calibrationMetrics.pearsonR) * 1000) / 1000;
+  const deltaSpearmanRho =
+    Math.round((holdoutMetrics.spearmanRho - calibrationMetrics.spearmanRho) * 1000) / 1000;
+  const deltaPearsonR =
+    Math.round((holdoutMetrics.pearsonR - calibrationMetrics.pearsonR) * 1000) / 1000;
   const deltaMae = Math.round((holdoutMetrics.mae - calibrationMetrics.mae) * 1000) / 1000;
   const deltaRmse = Math.round((holdoutMetrics.rmse - calibrationMetrics.rmse) * 1000) / 1000;
-  const deltaAccuracy = Math.round(
-    (holdoutMetrics.classificationMetrics.accuracy - calibrationMetrics.classificationMetrics.accuracy) * 1000
-  ) / 1000;
+  const deltaAccuracy =
+    Math.round(
+      (holdoutMetrics.classificationMetrics.accuracy -
+        calibrationMetrics.classificationMetrics.accuracy) *
+        1000
+    ) / 1000;
 
   // Generalization is preserved if holdout Spearman rho does not drop by more than 0.10
   // and remains in high-performance territory (>= 0.85)
-  const isGeneralizationPreserved = deltaSpearmanRho >= -0.10 && holdoutMetrics.spearmanRho >= 0.85;
+  const isGeneralizationPreserved = deltaSpearmanRho >= -0.1 && holdoutMetrics.spearmanRho >= 0.85;
 
   return {
     deltaSpearmanRho,
@@ -320,7 +320,8 @@ export function evaluateGoNoGoDecision({
       details: `Evaluated ${sampleCount} holdout samples (req: >= 30) with verified PDF byte provenance`,
     },
     humanAgreementBaseline: {
-      passed: interRaterMetrics.meanPearsonR >= 0.80 && interRaterMetrics.binaryAgreementRate >= 0.85,
+      passed:
+        interRaterMetrics.meanPearsonR >= 0.8 && interRaterMetrics.binaryAgreementRate >= 0.85,
       details: `Mean r = ${interRaterMetrics.meanPearsonR} (req: >= 0.80), Agreement = ${(interRaterMetrics.binaryAgreementRate * 100).toFixed(1)}% (req: >= 85%)`,
     },
     holdoutCorrelation: {
@@ -344,9 +345,10 @@ export function evaluateGoNoGoDecision({
   const allPassed = Object.values(criteria).every((c) => c.passed === true);
   const verdict = allPassed ? 'GO' : 'NO_GO';
 
-  const summary = verdict === 'GO'
-    ? `DECISION: GO - All 6 empirical holdout validation criteria satisfied. Scoring policy p82.0 empirically validated.`
-    : `DECISION: NO_GO - Holdout validation failed to satisfy all criteria.`;
+  const summary =
+    verdict === 'GO'
+      ? `DECISION: GO - All 6 empirical holdout validation criteria satisfied. Scoring policy p82.0 empirically validated.`
+      : `DECISION: NO_GO - Holdout validation failed to satisfy all criteria.`;
 
   return {
     verdict,

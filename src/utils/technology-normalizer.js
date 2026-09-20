@@ -261,7 +261,17 @@ export function normalizeTechnologyName(rawName) {
     .map((word) => {
       if (word.length <= 3 && /^[a-z]+$/i.test(word)) {
         // Short acronyms (e.g. rbac, api, sdk) default to uppercase
-        const knownShortAcronyms = new Set(['api', 'sdk', 'cli', 'orm', 'ui', 'ux', 'db', 'jwt', 'mcp']);
+        const knownShortAcronyms = new Set([
+          'api',
+          'sdk',
+          'cli',
+          'orm',
+          'ui',
+          'ux',
+          'db',
+          'jwt',
+          'mcp',
+        ]);
         if (knownShortAcronyms.has(word.toLowerCase())) return word.toUpperCase();
       }
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();

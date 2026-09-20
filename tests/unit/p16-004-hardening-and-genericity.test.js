@@ -51,7 +51,6 @@ import { ResumeParserService } from '../../src/services/resume-parser.service.js
 import { PdfQaValidatorService } from '../../src/services/pdf-qa-validator.service.js';
 
 describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
-
   // 1. dependency-only evidence cannot create accomplishment prose
   it('1. dependency-only evidence cannot create accomplishment prose', () => {
     const depEv = {
@@ -60,8 +59,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       packageName: 'express',
       version: '^4.18.2',
     };
-    assert.strictEqual(classifyEvidenceSemanticType(depEv), EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE);
-    assert.strictEqual(isClaimSafeToRender('express', EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE), false);
+    assert.strictEqual(
+      classifyEvidenceSemanticType(depEv),
+      EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE
+    );
+    assert.strictEqual(
+      isClaimSafeToRender('express', EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE),
+      false
+    );
 
     const project = {
       id: 'p1',
@@ -87,7 +92,10 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       moduleName: 'fastify',
       filePath: 'src/server.js',
     };
-    assert.strictEqual(classifyEvidenceSemanticType(importEv), EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE);
+    assert.strictEqual(
+      classifyEvidenceSemanticType(importEv),
+      EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE
+    );
 
     const project = {
       id: 'p2',
@@ -111,11 +119,20 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       evidenceType: 'FILE_PATTERN_MATCH',
       filePath: 'src/controllers/auth.controller.js',
     };
-    assert.strictEqual(classifyEvidenceSemanticType(fileEv), EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE);
+    assert.strictEqual(
+      classifyEvidenceSemanticType(fileEv),
+      EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE
+    );
 
     // Even if passed to claim safety, file paths must be rejected
-    assert.strictEqual(isClaimSafeToRender('Developed authentication logic in src/controllers/auth.controller.js'), false);
-    assert.strictEqual(isClaimSafeToRender('Built application using Dockerfile and config.json'), false);
+    assert.strictEqual(
+      isClaimSafeToRender('Developed authentication logic in src/controllers/auth.controller.js'),
+      false
+    );
+    assert.strictEqual(
+      isClaimSafeToRender('Built application using Dockerfile and config.json'),
+      false
+    );
   });
 
   // 4. technology-only evidence cannot create accomplishment prose
@@ -125,7 +142,10 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       evidenceType: 'TECHNOLOGY_PRESENCE',
       technology: 'PostgreSQL',
     };
-    assert.strictEqual(classifyEvidenceSemanticType(techEv), EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE);
+    assert.strictEqual(
+      classifyEvidenceSemanticType(techEv),
+      EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE
+    );
 
     const project = {
       id: 'p4',
@@ -169,7 +189,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
         email: 'test@example-candidate.com',
         headline: 'Developer',
         skills: [{ name: 'Go', provenanceStatus: 'VERIFIED' }],
-        projects: [{ id: 'p-' + name, name, technologies: ['Go'], bullets: ['Authored core network transport handler.'] }],
+        projects: [
+          {
+            id: 'p-' + name,
+            name,
+            technologies: ['Go'],
+            bullets: ['Authored core network transport handler.'],
+          },
+        ],
         experience: [],
         education: [{ institution: 'Tech Inst', degree: 'B.S.' }],
       };
@@ -195,7 +222,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
         email: 'person@candidate-domain.org',
         headline: 'Engineer',
         skills: [{ name: 'Python', provenanceStatus: 'VERIFIED' }],
-        projects: [{ id: 'p1', name: 'Service', technologies: ['Python'], bullets: ['Built asynchronous task worker.'] }],
+        projects: [
+          {
+            id: 'p1',
+            name: 'Service',
+            technologies: ['Python'],
+            bullets: ['Built asynchronous task worker.'],
+          },
+        ],
         experience: [],
         education: [{ institution: 'Global University', degree: 'B.S.' }],
       };
@@ -220,7 +254,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
         email: 'cand@test.com',
         headline: 'Software Engineer',
         skills: [{ name: 'C++', provenanceStatus: 'VERIFIED' }],
-        projects: [{ id: 'p1', name: 'Sensor Core', technologies: ['C++'], bullets: ['Engineered high-frequency numerical analysis algorithms.'] }],
+        projects: [
+          {
+            id: 'p1',
+            name: 'Sensor Core',
+            technologies: ['C++'],
+            bullets: ['Engineered high-frequency numerical analysis algorithms.'],
+          },
+        ],
         experience: [],
         education: [{ institution: 'Research Polytech', degree: 'B.S.' }],
       };
@@ -241,7 +282,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       careerStatus: 'FRESHER',
       headline: 'Software Engineer',
       skills: [{ name: 'Python', provenanceStatus: 'VERIFIED' }],
-      projects: [{ id: 'p1', name: 'Web Tool', technologies: ['Python'], bullets: ['Developed command line utility.'] }],
+      projects: [
+        {
+          id: 'p1',
+          name: 'Web Tool',
+          technologies: ['Python'],
+          bullets: ['Developed command line utility.'],
+        },
+      ],
       experience: [],
       education: [{ institution: 'State College', degree: 'B.S.' }],
     };
@@ -274,7 +322,9 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       hasSection: true,
       profileUrl: 'https://leetcode.com/authentic-coder',
       problemsSolved: 350,
-      bullets: ['Solved 350+ data structure and algorithmic challenges covering graphs and dynamic programming.'],
+      bullets: [
+        'Solved 350+ data structure and algorithmic challenges covering graphs and dynamic programming.',
+      ],
     };
     assert.strictEqual(isMeaningfulDsa(authenticDsa), true);
   });
@@ -312,7 +362,10 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
     // Create mock PDF buffer with basic text
     const sampleTex = `\\documentclass{article}\\begin{document}John Smith\\\\john@test.com\\\\Full-Stack Developer\\end{document}`;
     const compiler = new LatexCompilerService();
-    const pdf = await compiler.compileLatexToPdf({ texContent: sampleTex, jobName: 'traceability-test' });
+    const pdf = await compiler.compileLatexToPdf({
+      texContent: sampleTex,
+      jobName: 'traceability-test',
+    });
 
     // Expecting missing skill and missing project
     const expectedContent = {
@@ -330,7 +383,7 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
 
     assert.strictEqual(qaResult.passed, false);
     assert.ok(qaResult.traceability?.missing?.length >= 2);
-    const missingKinds = qaResult.traceability.missing.map(m => m.kind);
+    const missingKinds = qaResult.traceability.missing.map((m) => m.kind);
     assert.ok(missingKinds.includes('skill'));
     assert.ok(missingKinds.includes('project name'));
   });
@@ -341,7 +394,14 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       displayName: 'Jordan Dev',
       email: 'jordan@dev.net',
       skills: [{ name: 'Rust', provenanceStatus: 'VERIFIED' }],
-      projects: [{ id: 'p1', name: 'Telemetry', technologies: ['Rust'], bullets: ['Authored lock-free circular ring buffer in Rust.'] }],
+      projects: [
+        {
+          id: 'p1',
+          name: 'Telemetry',
+          technologies: ['Rust'],
+          bullets: ['Authored lock-free circular ring buffer in Rust.'],
+        },
+      ],
       dsa: { hasSection: true, bullets: ['Engaged in problem solving.'] }, // Weak DSA: should be remediated
       experience: [],
       education: [{ institution: 'Polytechnic', degree: 'B.S.' }],
@@ -361,7 +421,8 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
 
   // 15. candidate-authored content remains intact
   it('15. candidate-authored content remains intact', () => {
-    const authoredBullet = 'Architected low-latency distributed order matching engine handling 50k transactions/sec with zero packet loss.';
+    const authoredBullet =
+      'Architected low-latency distributed order matching engine handling 50k transactions/sec with zero packet loss.';
     const cand = {
       displayName: 'Senior Lead',
       email: 'lead@fintech.co',
@@ -383,15 +444,17 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       jobPosting: { title: 'C++ Systems Engineer' },
     });
 
-    const bulletText = typeof doc.projects[0].bullets[0] === 'string'
-      ? doc.projects[0].bullets[0]
-      : doc.projects[0].bullets[0]?.text;
+    const bulletText =
+      typeof doc.projects[0].bullets[0] === 'string'
+        ? doc.projects[0].bullets[0]
+        : doc.projects[0].bullets[0]?.text;
     assert.strictEqual(bulletText, authoredBullet);
   });
 
   // 16. contrasting job requirements cause genuine project switching
   it('16. contrasting job requirements cause genuine project switching (Job A selects Project X, Job B selects Project Y)', async () => {
-    const { ProjectRelevanceService } = await import('../../src/services/project-relevance.service.js');
+    const { ProjectRelevanceService } =
+      await import('../../src/services/project-relevance.service.js');
 
     const projAlphaId = '33333333-3333-4333-8333-333333333301';
     const projBetaId = '33333333-3333-4333-8333-333333333302';
@@ -419,8 +482,20 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
           evidenceCount: 15,
           provenanceStatus: 'CORROBORATED',
           evidence: [
-            { id: '11111111-1111-4111-8111-111111111111', evidenceType: 'CODE_USAGE', skillSlug: 'python', confidenceScore: 0.95, sourceLocation: { filePath: 'app/main.py' } },
-            { id: '11111111-1111-4111-8111-111111111112', evidenceType: 'CODE_USAGE', skillSlug: 'fastapi', confidenceScore: 0.95, sourceLocation: { filePath: 'app/api.py' } },
+            {
+              id: '11111111-1111-4111-8111-111111111111',
+              evidenceType: 'CODE_USAGE',
+              skillSlug: 'python',
+              confidenceScore: 0.95,
+              sourceLocation: { filePath: 'app/main.py' },
+            },
+            {
+              id: '11111111-1111-4111-8111-111111111112',
+              evidenceType: 'CODE_USAGE',
+              skillSlug: 'fastapi',
+              confidenceScore: 0.95,
+              sourceLocation: { filePath: 'app/api.py' },
+            },
           ],
         },
         {
@@ -435,8 +510,20 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
           evidenceCount: 15,
           provenanceStatus: 'CORROBORATED',
           evidence: [
-            { id: '22222222-2222-4222-8222-222222222211', evidenceType: 'CODE_USAGE', skillSlug: 'typescript', confidenceScore: 0.95, sourceLocation: { filePath: 'src/index.ts' } },
-            { id: '22222222-2222-4222-8222-222222222212', evidenceType: 'CODE_USAGE', skillSlug: 'express', confidenceScore: 0.95, sourceLocation: { filePath: 'src/server.ts' } },
+            {
+              id: '22222222-2222-4222-8222-222222222211',
+              evidenceType: 'CODE_USAGE',
+              skillSlug: 'typescript',
+              confidenceScore: 0.95,
+              sourceLocation: { filePath: 'src/index.ts' },
+            },
+            {
+              id: '22222222-2222-4222-8222-222222222212',
+              evidenceType: 'CODE_USAGE',
+              skillSlug: 'express',
+              confidenceScore: 0.95,
+              sourceLocation: { filePath: 'src/server.ts' },
+            },
           ],
         },
       ],
@@ -451,8 +538,20 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       company: 'Python Corp',
       description: 'Building async APIs with Python and FastAPI.',
       requirements: [
-        { id: '66666666-6666-4666-8666-666666666601', category: 'SKILL', skillSlug: 'python', importance: 'REQUIRED', weight: 1.0 },
-        { id: '66666666-6666-4666-8666-666666666602', category: 'SKILL', skillSlug: 'fastapi', importance: 'REQUIRED', weight: 1.0 },
+        {
+          id: '66666666-6666-4666-8666-666666666601',
+          category: 'SKILL',
+          skillSlug: 'python',
+          importance: 'REQUIRED',
+          weight: 1.0,
+        },
+        {
+          id: '66666666-6666-4666-8666-666666666602',
+          category: 'SKILL',
+          skillSlug: 'fastapi',
+          importance: 'REQUIRED',
+          weight: 1.0,
+        },
       ],
       skills: ['python', 'fastapi'],
     };
@@ -464,8 +563,20 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
       company: 'TS Systems',
       description: 'Building web services with TypeScript and Express.',
       requirements: [
-        { id: '77777777-7777-4777-8777-777777777701', category: 'SKILL', skillSlug: 'typescript', importance: 'REQUIRED', weight: 1.0 },
-        { id: '77777777-7777-4777-8777-777777777702', category: 'SKILL', skillSlug: 'express', importance: 'REQUIRED', weight: 1.0 },
+        {
+          id: '77777777-7777-4777-8777-777777777701',
+          category: 'SKILL',
+          skillSlug: 'typescript',
+          importance: 'REQUIRED',
+          weight: 1.0,
+        },
+        {
+          id: '77777777-7777-4777-8777-777777777702',
+          category: 'SKILL',
+          skillSlug: 'express',
+          importance: 'REQUIRED',
+          weight: 1.0,
+        },
       ],
       skills: ['typescript', 'express'],
     };
@@ -495,8 +606,13 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
     assert.strictEqual(docPy.projects[0].projectId, projAlphaId);
     assert.strictEqual(docTs.projects[0].projectId, projBetaId);
     assert.notStrictEqual(docPy.projects[0].projectId, docTs.projects[0].projectId);
-    assert.strictEqual(docPy.projects[0].displayName || docPy.projects[0].name, 'Python Asynchronous API Engine');
-    assert.strictEqual(docTs.projects[0].displayName || docTs.projects[0].name, 'TypeScript Collaborative Workspace');
+    assert.strictEqual(
+      docPy.projects[0].displayName || docPy.projects[0].name,
+      'Python Asynchronous API Engine'
+    );
+    assert.strictEqual(
+      docTs.projects[0].displayName || docTs.projects[0].name,
+      'TypeScript Collaborative Workspace'
+    );
   });
-
 });

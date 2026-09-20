@@ -60,15 +60,28 @@ export const SKILL_SOURCES = Object.freeze({
  * Maps skill catalog categories to the DB skillCategoryEnum values.
  */
 const CATALOG_TO_DB_CATEGORY = Object.freeze({
-  CLOUD: 'CLOUD_DEVOPS', CONTAINERS: 'CLOUD_DEVOPS', CICD: 'CLOUD_DEVOPS',
-  DATABASES: 'DATABASE', MESSAGING: 'DATABASE',
-  NETWORKING: 'TOOL', OBSERVABILITY: 'TOOL', SECURITY: 'TOOL',
-  ARCHITECTURE: 'ARCHITECTURE', DEVELOPMENT: 'TOOL',
-  AI_DEVELOPMENT: 'TOOL', GENAI: 'TOOL', AI_AGENTS: 'TOOL',
-  MCP: 'TOOL', AI_QUALITY: 'TOOL', MLOPS: 'TOOL',
-  DX: 'TOOL', PRACTICES: 'TOOL',
-  LANGUAGE: 'LANGUAGE', FRAMEWORK: 'FRAMEWORK',
-  TOOL: 'TOOL', CONCEPT: 'CONCEPT',
+  CLOUD: 'CLOUD_DEVOPS',
+  CONTAINERS: 'CLOUD_DEVOPS',
+  CICD: 'CLOUD_DEVOPS',
+  DATABASES: 'DATABASE',
+  MESSAGING: 'DATABASE',
+  NETWORKING: 'TOOL',
+  OBSERVABILITY: 'TOOL',
+  SECURITY: 'TOOL',
+  ARCHITECTURE: 'ARCHITECTURE',
+  DEVELOPMENT: 'TOOL',
+  AI_DEVELOPMENT: 'TOOL',
+  GENAI: 'TOOL',
+  AI_AGENTS: 'TOOL',
+  MCP: 'TOOL',
+  AI_QUALITY: 'TOOL',
+  MLOPS: 'TOOL',
+  DX: 'TOOL',
+  PRACTICES: 'TOOL',
+  LANGUAGE: 'LANGUAGE',
+  FRAMEWORK: 'FRAMEWORK',
+  TOOL: 'TOOL',
+  CONCEPT: 'CONCEPT',
 });
 
 function _mapCatalogCategoryToDbEnum(catalogCategory) {
@@ -125,13 +138,17 @@ export class CandidateAdditionalSkillsService {
    * @param {string} [params.notes]
    * @returns {Promise<object>} Updated or created candidate skill record
    */
-  async addAdditionalSkill(context, candidateId, {
-    catalogSkillId,
-    proficiency = 'WORKING_KNOWLEDGE',
-    usageContext = null,
-    yearsExperience = null,
-    notes = null,
-  }) {
+  async addAdditionalSkill(
+    context,
+    candidateId,
+    {
+      catalogSkillId,
+      proficiency = 'WORKING_KNOWLEDGE',
+      usageContext = null,
+      yearsExperience = null,
+      notes = null,
+    }
+  ) {
     this._validateContext(context);
 
     if (!candidateId) throw new ValidationError('candidateId is required');
@@ -139,12 +156,16 @@ export class CandidateAdditionalSkillsService {
 
     // Validate proficiency
     if (!Object.values(PROFICIENCY_LEVELS).includes(proficiency)) {
-      throw new ValidationError(`Invalid proficiency: ${proficiency}. Must be one of: ${Object.values(PROFICIENCY_LEVELS).join(', ')}`);
+      throw new ValidationError(
+        `Invalid proficiency: ${proficiency}. Must be one of: ${Object.values(PROFICIENCY_LEVELS).join(', ')}`
+      );
     }
 
     // Validate usageContext if provided
     if (usageContext && !Object.values(USAGE_CONTEXTS).includes(usageContext)) {
-      throw new ValidationError(`Invalid usageContext: ${usageContext}. Must be one of: ${Object.values(USAGE_CONTEXTS).join(', ')}`);
+      throw new ValidationError(
+        `Invalid usageContext: ${usageContext}. Must be one of: ${Object.values(USAGE_CONTEXTS).join(', ')}`
+      );
     }
 
     // Verify candidate exists in this tenant
@@ -209,15 +230,24 @@ export class CandidateAdditionalSkillsService {
           .where(eq(candidateSkills.id, existing.id))
           .returning();
 
-        logger.info({
-          candidateId,
-          skillId: globalSkill.id,
-          skillSlug: globalSkill.slug,
-          existingProvenance: existing.provenanceStatus,
-          preservedProvenance: true,
-        }, 'Additional skill declaration added, preserving stronger existing provenance');
+        logger.info(
+          {
+            candidateId,
+            skillId: globalSkill.id,
+            skillSlug: globalSkill.slug,
+            existingProvenance: existing.provenanceStatus,
+            preservedProvenance: true,
+          },
+          'Additional skill declaration added, preserving stronger existing provenance'
+        );
 
-        return { ...updated, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: true };
+        return {
+          ...updated,
+          skillId: globalSkill.id,
+          catalogSkillId: catalogSkill.id,
+          skill: catalogSkill,
+          preservedProvenance: true,
+        };
       }
 
       // Update existing SELF_DECLARED/CLAIMED/INFERRED record
@@ -235,7 +265,13 @@ export class CandidateAdditionalSkillsService {
         .where(eq(candidateSkills.id, existing.id))
         .returning();
 
-      return { ...updated, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: false };
+      return {
+        ...updated,
+        skillId: globalSkill.id,
+        catalogSkillId: catalogSkill.id,
+        skill: catalogSkill,
+        preservedProvenance: false,
+      };
     }
 
     // Create new candidate skill record
@@ -265,7 +301,13 @@ export class CandidateAdditionalSkillsService {
       })
       .returning();
 
-    return { ...created, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: false };
+    return {
+      ...created,
+      skillId: globalSkill.id,
+      catalogSkillId: catalogSkill.id,
+      skill: catalogSkill,
+      preservedProvenance: false,
+    };
   }
 
   /**
@@ -308,9 +350,7 @@ export class CandidateAdditionalSkillsService {
       );
     }
 
-    await this._db
-      .delete(candidateSkills)
-      .where(eq(candidateSkills.id, skillId));
+    await this._db.delete(candidateSkills).where(eq(candidateSkills.id, skillId));
 
     return true;
   }
@@ -420,12 +460,16 @@ export class CandidateAdditionalSkillsService {
 
       // Validate proficiency
       if (!Object.values(PROFICIENCY_LEVELS).includes(proficiency)) {
-        throw new ValidationError(`Invalid proficiency: ${proficiency} at index ${i}. Must be one of: ${Object.values(PROFICIENCY_LEVELS).join(', ')}`);
+        throw new ValidationError(
+          `Invalid proficiency: ${proficiency} at index ${i}. Must be one of: ${Object.values(PROFICIENCY_LEVELS).join(', ')}`
+        );
       }
 
       // Validate usageContext if provided
       if (usageContext && !Object.values(USAGE_CONTEXTS).includes(usageContext)) {
-        throw new ValidationError(`Invalid usageContext: ${usageContext} at index ${i}. Must be one of: ${Object.values(USAGE_CONTEXTS).join(', ')}`);
+        throw new ValidationError(
+          `Invalid usageContext: ${usageContext} at index ${i}. Must be one of: ${Object.values(USAGE_CONTEXTS).join(', ')}`
+        );
       }
 
       // Resolve from catalogService
@@ -469,7 +513,7 @@ export class CandidateAdditionalSkillsService {
       for (const existing of existingCandidateSkills) {
         const strongerProvenances = ['VERIFIED', 'CORROBORATED'];
         if (strongerProvenances.includes(existing.provenanceStatus)) {
-          const stillPresent = validatedEntries.some(v => v.globalSkill.id === existing.skillId);
+          const stillPresent = validatedEntries.some((v) => v.globalSkill.id === existing.skillId);
           if (!stillPresent) {
             const cleanMeta = { ...(existing.metadata || {}) };
             delete cleanMeta.additionalSkillDeclaration;
@@ -479,9 +523,7 @@ export class CandidateAdditionalSkillsService {
               .where(eq(candidateSkills.id, existing.id));
           }
         } else {
-          await tx
-            .delete(candidateSkills)
-            .where(eq(candidateSkills.id, existing.id));
+          await tx.delete(candidateSkills).where(eq(candidateSkills.id, existing.id));
         }
       }
 
@@ -531,30 +573,28 @@ export class CandidateAdditionalSkillsService {
               .where(eq(candidateSkills.id, existing.id));
           }
         } else {
-          await tx
-            .insert(candidateSkills)
-            .values({
-              tenantId: context.tenantId,
-              candidateId,
-              skillId: entry.globalSkill.id,
-              category: _mapCatalogCategoryToDbEnum(entry.catalogSkill.category) || 'TOOL',
-              provenanceStatus: entry.provenanceStatus,
-              confidenceScore: 0.0,
-              evidenceCount: 0,
-              proficiency: entry.proficiency,
+          await tx.insert(candidateSkills).values({
+            tenantId: context.tenantId,
+            candidateId,
+            skillId: entry.globalSkill.id,
+            category: _mapCatalogCategoryToDbEnum(entry.catalogSkill.category) || 'TOOL',
+            provenanceStatus: entry.provenanceStatus,
+            confidenceScore: 0.0,
+            evidenceCount: 0,
+            proficiency: entry.proficiency,
+            source: 'CANDIDATE_DECLARED',
+            usageContext: entry.usageContext,
+            yearsExperience: entry.yearsExperience,
+            notes: entry.notes,
+            firstObservedAt: new Date(),
+            lastObservedAt: new Date(),
+            metadata: {
               source: 'CANDIDATE_DECLARED',
-              usageContext: entry.usageContext,
-              yearsExperience: entry.yearsExperience,
-              notes: entry.notes,
-              firstObservedAt: new Date(),
-              lastObservedAt: new Date(),
-              metadata: {
-                source: 'CANDIDATE_DECLARED',
-                isUserClaim: true,
-                catalogSkillSlug: entry.catalogSkill.slug,
-                catalogSkillName: entry.catalogSkill.canonicalName,
-              },
-            });
+              isUserClaim: true,
+              catalogSkillSlug: entry.catalogSkill.slug,
+              catalogSkillName: entry.catalogSkill.canonicalName,
+            },
+          });
         }
       }
     });
@@ -712,14 +752,23 @@ export class CandidateAdditionalSkillsService {
     // Map fine-grained category to DB enum value
     const fineCategory = SkillTaxonomyEngine.classifyCategory(catalogSkill.slug, 'TOOL');
     const DB_CATEGORY_MAP = {
-      CORE_LANGUAGE: 'LANGUAGE', LANGUAGE: 'LANGUAGE',
+      CORE_LANGUAGE: 'LANGUAGE',
+      LANGUAGE: 'LANGUAGE',
       FRAMEWORK: 'FRAMEWORK',
       DATABASE: 'DATABASE',
-      CLOUD: 'CLOUD_DEVOPS', CLOUD_DEVOPS: 'CLOUD_DEVOPS',
-      PROTOCOL: 'TOOL', PLATFORM: 'TOOL', AI_ML: 'TOOL', TOOL: 'TOOL',
-      LIBRARY: 'TOOL', UI_COMPONENT: 'TOOL', UTILITY_PACKAGE: 'TOOL',
-      DEV_HELPER: 'TOOL', BUILT_IN_MODULE: 'TOOL',
-      ARCHITECTURE: 'ARCHITECTURE', CONCEPT: 'CONCEPT',
+      CLOUD: 'CLOUD_DEVOPS',
+      CLOUD_DEVOPS: 'CLOUD_DEVOPS',
+      PROTOCOL: 'TOOL',
+      PLATFORM: 'TOOL',
+      AI_ML: 'TOOL',
+      TOOL: 'TOOL',
+      LIBRARY: 'TOOL',
+      UI_COMPONENT: 'TOOL',
+      UTILITY_PACKAGE: 'TOOL',
+      DEV_HELPER: 'TOOL',
+      BUILT_IN_MODULE: 'TOOL',
+      ARCHITECTURE: 'ARCHITECTURE',
+      CONCEPT: 'CONCEPT',
       OTHER: 'TOOL',
     };
     const dbCategory = DB_CATEGORY_MAP[fineCategory] || 'TOOL';

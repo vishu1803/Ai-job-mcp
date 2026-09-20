@@ -723,12 +723,8 @@ describe('P16-001F-3B: Unit Tests A through S', () => {
       );
 
       // Assertions for Test R (Top 3 ranking order identical)
-      const analyzeOrder = analyzeRankings
-        .slice(0, 3)
-        .map((r) => r.projectName);
-      const fallbackOrder = fallbackRankings
-        .slice(0, 3)
-        .map((r) => r.projectName);
+      const analyzeOrder = analyzeRankings.slice(0, 3).map((r) => r.projectName);
+      const fallbackOrder = fallbackRankings.slice(0, 3).map((r) => r.projectName);
 
       assert.deepEqual(
         fallbackOrder,

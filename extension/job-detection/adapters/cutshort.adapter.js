@@ -158,9 +158,7 @@ export class CutshortAdapter {
       metaContent('meta[property="og:site_name"]') ||
       doc.querySelector('[class*="company-name"]')?.textContent?.trim() ||
       'Company';
-    const descEl =
-      doc.querySelector('[class*="job-description"]') ||
-      doc.querySelector('main');
+    const descEl = doc.querySelector('[class*="job-description"]') || doc.querySelector('main');
     const description = descEl
       ? descEl.textContent.trim()
       : metaContent('meta[property="og:description"]') ||

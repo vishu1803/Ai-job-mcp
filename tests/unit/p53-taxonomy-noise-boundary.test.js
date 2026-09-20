@@ -17,14 +17,20 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeJobInput, parseJobDescriptionSections } from '../../src/services/job-normalization.service.js';
+import {
+  normalizeJobInput,
+  parseJobDescriptionSections,
+} from '../../src/services/job-normalization.service.js';
 import { JobDescriptionParser } from '../../src/domain/career/job-parser.js';
 import {
   SkillTaxonomyEngine,
   CANONICAL_SKILLS,
   validateTaxonomyGraph,
 } from '../../src/domain/career/skill-taxonomy.js';
-import { SkillWorthinessGate, SKILL_CLASSIFICATIONS } from '../../src/domain/career/skill-worthiness-gate.js';
+import {
+  SkillWorthinessGate,
+  SKILL_CLASSIFICATIONS,
+} from '../../src/domain/career/skill-worthiness-gate.js';
 
 describe('P53: Taxonomy Noise Boundary & Genuine Technology Extraction', () => {
   const crunchyrollJobDescription = `
@@ -184,21 +190,12 @@ We do not discriminate on the basis of race, religion, color, national origin, g
     it('returns isPlausibleSkill = false for ordinary prose, suppressing telemetry', () => {
       for (const sample of proseSamples) {
         const isPlausible = SkillWorthinessGate.isPlausibleSkill(sample);
-        assert.strictEqual(
-          isPlausible,
-          false,
-          `Sample "${sample}" must not be plausible skill`
-        );
+        assert.strictEqual(isPlausible, false, `Sample "${sample}" must not be plausible skill`);
       }
     });
 
     it('returns isPlausibleSkill = true for genuine unknown technologies', () => {
-      const unknownTechs = [
-        'triton-inference-server',
-        'turbopack',
-        'duckdb',
-        'clickhouse',
-      ];
+      const unknownTechs = ['triton-inference-server', 'turbopack', 'duckdb', 'clickhouse'];
 
       for (const tech of unknownTechs) {
         const isPlausible = SkillWorthinessGate.isPlausibleSkill(tech);
@@ -227,11 +224,23 @@ We do not discriminate on the basis of race, religion, color, national origin, g
       { input: 'AWS API Gateway', expectedSlug: 'api-gateway', expectedCategory: 'CLOUD_DEVOPS' },
       { input: 'Docker', expectedSlug: 'docker', expectedCategory: 'CLOUD_DEVOPS' },
       { input: 'CI/CD', expectedSlug: 'ci-cd', expectedCategory: 'ARCHITECTURE' },
-      { input: 'distributed systems', expectedSlug: 'distributed-systems', expectedCategory: 'ARCHITECTURE' },
+      {
+        input: 'distributed systems',
+        expectedSlug: 'distributed-systems',
+        expectedCategory: 'ARCHITECTURE',
+      },
       { input: 'REST APIs', expectedSlug: 'rest-api', expectedCategory: 'ARCHITECTURE' },
       { input: 'databases', expectedSlug: 'database', expectedCategory: 'ARCHITECTURE' },
-      { input: 'operational excellence', expectedSlug: 'operational-excellence', expectedCategory: 'CONCEPT' },
-      { input: 'incident management', expectedSlug: 'incident-management', expectedCategory: 'CONCEPT' },
+      {
+        input: 'operational excellence',
+        expectedSlug: 'operational-excellence',
+        expectedCategory: 'CONCEPT',
+      },
+      {
+        input: 'incident management',
+        expectedSlug: 'incident-management',
+        expectedCategory: 'CONCEPT',
+      },
       { input: 'EC2', expectedSlug: 'ec2', expectedCategory: 'CLOUD_DEVOPS' },
       { input: 'RDS', expectedSlug: 'rds', expectedCategory: 'DATABASE' },
       { input: 'ECS', expectedSlug: 'ecs', expectedCategory: 'CLOUD_DEVOPS' },
@@ -269,7 +278,10 @@ We do not discriminate on the basis of race, religion, color, national origin, g
       const graph = validateTaxonomyGraph();
       assert.strictEqual(graph.isValid, true);
       assert.ok(graph.totalSkills >= 180, `Expected at least 180 skills, got ${graph.totalSkills}`);
-      assert.ok(graph.totalRelationships >= 450, `Expected at least 450 relationships, got ${graph.totalRelationships}`);
+      assert.ok(
+        graph.totalRelationships >= 450,
+        `Expected at least 450 relationships, got ${graph.totalRelationships}`
+      );
     });
   });
 });

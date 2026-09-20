@@ -39,13 +39,16 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p70-live-stress-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9367;
 
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 const LIVE_JOB_GM_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
 const GITHUB_URL = 'https://github.com/vishu1803/Ai-job-mcp';
 
@@ -105,7 +108,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -135,7 +140,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch Chrome MV3
   console.log('\n3. Spawning real Chrome MV3 browser instance on port', CDP_PORT, '...');
@@ -184,7 +191,9 @@ async function main() {
     await swCdp.send('Runtime.enable');
 
     // Open Test Tab on Live Appinventiv Job
-    console.log(`\n4. Opening initial test tab with REAL Live LinkedIn Appinventiv: ${LIVE_APPINVENTIV_URL}...`);
+    console.log(
+      `\n4. Opening initial test tab with REAL Live LinkedIn Appinventiv: ${LIVE_APPINVENTIV_URL}...`
+    );
     const tabTarget = await browserCdp.send('Target.createTarget', { url: LIVE_APPINVENTIV_URL });
     const freshList = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
     const tabItem = freshList.find((item) => item.id === tabTarget.targetId);
@@ -337,10 +346,18 @@ async function main() {
       };
 
       cycleRecords.push(record);
-      console.log(`   Detected: ${record.detected} (${record.title || 'none'} | ${record.company || '—'}) in ${record.latencyMs}ms`);
-      console.log(`   Portal: "${record.portalName}", Title: "${record.activeSidebarTitle}", Company: "${record.activeSidebarCompany}"`);
-      console.log(`   Description Length: ${record.descriptionLen} chars, analysisReady: ${record.analysisReady}`);
-      console.log(`   Analyze Button Disabled: ${record.analyzeBtnDisabled}, Loading Notice Hidden: ${record.loadingNoticeHidden}`);
+      console.log(
+        `   Detected: ${record.detected} (${record.title || 'none'} | ${record.company || '—'}) in ${record.latencyMs}ms`
+      );
+      console.log(
+        `   Portal: "${record.portalName}", Title: "${record.activeSidebarTitle}", Company: "${record.activeSidebarCompany}"`
+      );
+      console.log(
+        `   Description Length: ${record.descriptionLen} chars, analysisReady: ${record.analysisReady}`
+      );
+      console.log(
+        `   Analyze Button Disabled: ${record.analyzeBtnDisabled}, Loading Notice Hidden: ${record.loadingNoticeHidden}`
+      );
       console.log(`   Server Calls So Far: ${record.analyzeCalls}`);
       return record;
     }
@@ -363,10 +380,14 @@ async function main() {
       throw new Error(`Real Live Appinventiv job was NOT detected!`);
     }
     if (!appinventivRecord.title.toLowerCase().includes('software engineer')) {
-      throw new Error(`Title mismatch: expected 'Software Engineer', got '${appinventivRecord.title}'`);
+      throw new Error(
+        `Title mismatch: expected 'Software Engineer', got '${appinventivRecord.title}'`
+      );
     }
     if (appinventivRecord.company !== 'Appinventiv') {
-      throw new Error(`Company mismatch: expected 'Appinventiv', got '${appinventivRecord.company}'`);
+      throw new Error(
+        `Company mismatch: expected 'Appinventiv', got '${appinventivRecord.company}'`
+      );
     }
     if (appinventivRecord.descriptionLen < 50) {
       throw new Error(`Description under 50 chars: got ${appinventivRecord.descriptionLen}`);
@@ -375,7 +396,9 @@ async function main() {
       throw new Error(`Analyze button should be enabled when description >= 50!`);
     }
     if (serverAnalyzeCalls !== 0) {
-      throw new Error(`Passive operation violation: server calls before click = ${serverAnalyzeCalls}`);
+      throw new Error(
+        `Passive operation violation: server calls before click = ${serverAnalyzeCalls}`
+      );
     }
 
     // Explicitly click [Analyze Job Match]
@@ -398,9 +421,16 @@ async function main() {
           fitScoreText: document.getElementById('overallFitScore')?.textContent?.trim(),
         })
       `);
-      if (lastAnalyzeResponse && (state.workflowState === 'ANALYSIS_READY' || state.workflowState === 'APPLICATION_READY' || state.matchedSkillsCount)) {
+      if (
+        lastAnalyzeResponse &&
+        (state.workflowState === 'ANALYSIS_READY' ||
+          state.workflowState === 'APPLICATION_READY' ||
+          state.matchedSkillsCount)
+      ) {
         analysisComplete = true;
-        console.log(`   Analysis finished: state=${state.workflowState}, score=${state.fitScoreText}, skills=${state.matchedSkillsCount}`);
+        console.log(
+          `   Analysis finished: state=${state.workflowState}, score=${state.fitScoreText}, skills=${state.matchedSkillsCount}`
+        );
         break;
       }
     }
@@ -409,14 +439,22 @@ async function main() {
       throw new Error('No HTTP response received from /api/extension/analyze-job');
     }
     if (lastAnalyzeResponse.status !== 200) {
-      throw new Error(`Expected HTTP 200 from /api/extension/analyze-job, got HTTP ${lastAnalyzeResponse.status}`);
+      throw new Error(
+        `Expected HTTP 200 from /api/extension/analyze-job, got HTTP ${lastAnalyzeResponse.status}`
+      );
     }
     if (serverAnalyzeCalls !== 1) {
-      throw new Error(`Expected exactly 1 server call to /api/extension/analyze-job, got ${serverAnalyzeCalls}`);
+      throw new Error(
+        `Expected exactly 1 server call to /api/extension/analyze-job, got ${serverAnalyzeCalls}`
+      );
     }
-    console.log('   >>> SUCCESS: Analyze Job succeeded with HTTP 200! Zero 503 validation errors! <<<');
+    console.log(
+      '   >>> SUCCESS: Analyze Job succeeded with HTTP 200! Zero 503 validation errors! <<<'
+    );
 
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-01-live-linkedin-appinventiv-analyzed.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p70-01-live-linkedin-appinventiv-analyzed.png')
+    );
 
     // =========================================================================
     // STEP 2: REAL LIVE GENERAL MOTORS JOB (4419969671)
@@ -443,7 +481,9 @@ async function main() {
         window.__sidebarController.rescan();
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-02-live-linkedin-general-motors.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p70-02-live-linkedin-general-motors.png')
+    );
 
     const gmRecord = cycleRecords[1];
     if (!gmRecord.detected || !gmRecord.title.toLowerCase().includes('engineer')) {
@@ -499,10 +539,16 @@ async function main() {
         })()
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-03-live-chatgpt-rejected.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p70-03-live-chatgpt-rejected.png')
+    );
 
     const chatgptRecord = cycleRecords[2];
-    if (chatgptRecord.detected !== false || chatgptRecord.portalName !== 'Web Page' || chatgptRecord.activeSidebarTitle !== '—') {
+    if (
+      chatgptRecord.detected !== false ||
+      chatgptRecord.portalName !== 'Web Page' ||
+      chatgptRecord.activeSidebarTitle !== '—'
+    ) {
       throw new Error(`ChatGPT rejection failed: detected=${chatgptRecord.detected}`);
     }
     if (chatgptRecord.analyzeBtnDisabled !== true) {
@@ -522,10 +568,16 @@ async function main() {
         window.__sidebarController._requestDetectionFromTab();
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-04-live-github-rejected.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p70-04-live-github-rejected.png')
+    );
 
     const githubRecord = cycleRecords[3];
-    if (githubRecord.detected !== false || githubRecord.portalName !== 'Web Page' || githubRecord.activeSidebarTitle !== '—') {
+    if (
+      githubRecord.detected !== false ||
+      githubRecord.portalName !== 'Web Page' ||
+      githubRecord.activeSidebarTitle !== '—'
+    ) {
       throw new Error(`GitHub rejection failed: detected=${githubRecord.detected}`);
     }
     if (githubRecord.analyzeBtnDisabled !== true) {
@@ -568,11 +620,16 @@ async function main() {
     await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-05-live-career-portals.png'));
 
     const portalRecord = cycleRecords[4];
-    if (!portalRecord.detected || portalRecord.title !== 'Senior Backend Engineer - Core Payments') {
+    if (
+      !portalRecord.detected ||
+      portalRecord.title !== 'Senior Backend Engineer - Core Payments'
+    ) {
       throw new Error(`Career portal preservation failed: detected=${portalRecord.detected}`);
     }
     if (portalRecord.descriptionLen < 50 || portalRecord.analyzeBtnDisabled !== false) {
-      throw new Error('Career portal job description should be >= 50 chars with analyze button enabled');
+      throw new Error(
+        'Career portal job description should be >= 50 chars with analyze button enabled'
+      );
     }
 
     // =========================================================================
@@ -635,19 +692,25 @@ async function main() {
       throw new Error('Analyze button MUST be disabled when description is under 50 characters');
     }
     if (!hydrationContractRecord.noticeVisibleInitially) {
-      throw new Error('Description loading notice MUST be visible when description is under 50 characters');
+      throw new Error(
+        'Description loading notice MUST be visible when description is under 50 characters'
+      );
     }
     if (!hydrationContractRecord.noticeText.includes('Job description is still loading')) {
       throw new Error(`Unexpected notice text: ${hydrationContractRecord.noticeText}`);
     }
     if (hydrationContractRecord.btnDisabledAfterHydration !== false) {
-      throw new Error('Analyze button MUST be enabled once description hydrates to >= 50 characters');
+      throw new Error(
+        'Analyze button MUST be enabled once description hydrates to >= 50 characters'
+      );
     }
     if (hydrationContractRecord.noticeVisibleAfterHydration !== false) {
       throw new Error('Description loading notice MUST be hidden once description hydrates');
     }
 
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p70-06-live-description-hydration-contract.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p70-06-live-description-hydration-contract.png')
+    );
 
     // Record Step 6 in cycle records
     cycleRecords.push({
@@ -675,18 +738,20 @@ async function main() {
     console.log('\n=================================================================');
     console.log('P70 REAL CHROME LIVE STRESS VERIFICATION RESULTS TABLE');
     console.log('=================================================================');
-    console.table(cycleRecords.map((r) => ({
-      Step: r.cycle,
-      Description: r.description,
-      'Ext ID': r.externalJobId || '—',
-      Detected: r.detected ? 'YES' : 'NO',
-      Portal: r.portalName,
-      Title: r.title.length > 28 ? r.title.slice(0, 28) + '...' : (r.title || '—'),
-      Company: r.company || '—',
-      'Desc Len': r.descriptionLen,
-      'Btn Dis': r.analyzeBtnDisabled ? 'YES' : 'NO',
-      'Analyze Calls': r.analyzeCalls,
-    })));
+    console.table(
+      cycleRecords.map((r) => ({
+        Step: r.cycle,
+        Description: r.description,
+        'Ext ID': r.externalJobId || '—',
+        Detected: r.detected ? 'YES' : 'NO',
+        Portal: r.portalName,
+        Title: r.title.length > 28 ? r.title.slice(0, 28) + '...' : r.title || '—',
+        Company: r.company || '—',
+        'Desc Len': r.descriptionLen,
+        'Btn Dis': r.analyzeBtnDisabled ? 'YES' : 'NO',
+        'Analyze Calls': r.analyzeCalls,
+      }))
+    );
 
     console.log('\n>>> P70 REAL CHROME LIVE STRESS VERIFICATION PASSED WITH 100% SUCCESS <<<');
   } finally {

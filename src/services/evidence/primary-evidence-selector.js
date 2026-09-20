@@ -73,7 +73,7 @@ export class PrimaryEvidenceSelector {
     const lowA = PrimaryEvidenceSelector.isLowTrust(a);
     const lowB = PrimaryEvidenceSelector.isLowTrust(b);
     if (!lowA && lowB) return -1; // a is high-trust, b is low-trust -> a wins
-    if (lowA && !lowB) return 1;  // a is low-trust, b is high-trust -> b wins
+    if (lowA && !lowB) return 1; // a is low-trust, b is high-trust -> b wins
 
     // 1. Confidence Score comparison (higher is better)
     const confA = typeof a.confidenceScore === 'number' ? a.confidenceScore : 0;

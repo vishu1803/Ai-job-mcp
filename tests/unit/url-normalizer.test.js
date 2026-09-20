@@ -5,11 +5,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../../src/utils/url-normalizer.js';
-import { evaluateJobSuitability, rankSuitableJobs } from '../../src/services/job-selection-policy.js';
+import {
+  evaluateJobSuitability,
+  rankSuitableJobs,
+} from '../../src/services/job-selection-policy.js';
 
 describe('Job URL Normalizer & Canonical Job ID Derivation', () => {
   it('normalizes greenhouse job URLs by standardizing host and removing tracking params', () => {
-    const url1 = 'https://boards.greenhouse.io/vercel/jobs/123456?gh_jid=123456&utm_source=linkedin#app';
+    const url1 =
+      'https://boards.greenhouse.io/vercel/jobs/123456?gh_jid=123456&utm_source=linkedin#app';
     const normalized1 = normalizeJobUrl(url1);
     assert.strictEqual(normalized1, 'https://boards.greenhouse.io/vercel/jobs/123456');
 
@@ -34,15 +38,9 @@ describe('Job URL Normalizer & Canonical Job ID Derivation', () => {
   });
 
   it('derives canonical job ID from explicit canonicalJobId, jobId, or standard URLs', () => {
-    assert.strictEqual(
-      deriveCanonicalJobId({ canonicalJobId: 'canon-123' }),
-      'canon-123'
-    );
+    assert.strictEqual(deriveCanonicalJobId({ canonicalJobId: 'canon-123' }), 'canon-123');
 
-    assert.strictEqual(
-      deriveCanonicalJobId({ jobId: 'gh-456' }),
-      'gh-456'
-    );
+    assert.strictEqual(deriveCanonicalJobId({ jobId: 'gh-456' }), 'gh-456');
 
     const greenhouseId = deriveCanonicalJobId({
       directPortalUrl: 'https://boards.greenhouse.io/vercel/jobs/789012?utm_source=test',
@@ -131,7 +129,9 @@ describe('Job Selection Policy (6 Dimensions & NO_SUITABLE_JOB Gating)', () => {
     assert.strictEqual(result.hasSuitableJob, false);
     assert.strictEqual(result.policyCode, 'NO_SUITABLE_JOB');
     assert.strictEqual(result.topJob, null);
-    assert.ok(result.reason.includes('None of the 1 evaluated job postings met the minimum criteria'));
+    assert.ok(
+      result.reason.includes('None of the 1 evaluated job postings met the minimum criteria')
+    );
   });
 
   it('returns NO_SUITABLE_JOB when location violates hard preferences', () => {

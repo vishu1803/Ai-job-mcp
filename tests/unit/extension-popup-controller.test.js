@@ -66,20 +66,57 @@ function createElement(id) {
 function buildDomStub() {
   const elements = {};
   const ids = [
-    'authStatusPill', 'authStatusText', 'alertBox', 'alertMessage', 'alertCloseBtn',
-    'stateLoading', 'loadingMessage', 'stateNotAuth', 'stateNoJob', 'stateDetected',
-    'stateAnalysis', 'stateHandoffReady',
-    'jobTitle', 'jobCompany', 'jobLocation', 'jobProviderBadge', 'jobWorkplaceBadge',
-    'existingAppBadge', 'candidateStatusLabel', 'submittedWarning',
-    'fitScoreNum', 'fitGradeBadge', 'analysisJobTitle', 'fitRecommendationText',
-    'matchedItems', 'missingItems', 'blockersItems', 'requirementsBlockersList',
-    'featuredProjectsList', 'omittedProjectsSection', 'omittedProjectsList',
-    'tabRequirementsBtn', 'tabProjectsBtn', 'requirementsTab', 'projectsTab',
-    'lifecycleActionBadge', 'statusResumeBadge', 'statusCoverLetterBadge',
-    'statusValidationBadge', 'telParseability', 'telJobMatch', 'telEvidenceCoverage',
+    'authStatusPill',
+    'authStatusText',
+    'alertBox',
+    'alertMessage',
+    'alertCloseBtn',
+    'stateLoading',
+    'loadingMessage',
+    'stateNotAuth',
+    'stateNoJob',
+    'stateDetected',
+    'stateAnalysis',
+    'stateHandoffReady',
+    'jobTitle',
+    'jobCompany',
+    'jobLocation',
+    'jobProviderBadge',
+    'jobWorkplaceBadge',
+    'existingAppBadge',
+    'candidateStatusLabel',
+    'submittedWarning',
+    'fitScoreNum',
+    'fitGradeBadge',
+    'analysisJobTitle',
+    'fitRecommendationText',
+    'matchedItems',
+    'missingItems',
+    'blockersItems',
+    'requirementsBlockersList',
+    'featuredProjectsList',
+    'omittedProjectsSection',
+    'omittedProjectsList',
+    'tabRequirementsBtn',
+    'tabProjectsBtn',
+    'requirementsTab',
+    'projectsTab',
+    'lifecycleActionBadge',
+    'statusResumeBadge',
+    'statusCoverLetterBadge',
+    'statusValidationBadge',
+    'telParseability',
+    'telJobMatch',
+    'telEvidenceCoverage',
     'telLayoutProfile',
-    'openAuthBtn', 'retryDetectBtn', 'analyzeJobBtn', 'prepareHandoffBtn',
-    'downloadResumeBtn', 'downloadCoverLetterBtn', 'downloadBundleBtn', 'openAppBtn',
+    'openAuthBtn',
+    'retryDetectBtn',
+    'analyzeJobBtn',
+    'prepareHandoffBtn',
+    'downloadResumeBtn',
+    'downloadCoverLetterBtn',
+    'downloadBundleBtn',
+    'openAppBtn',
   ];
   for (const id of ids) elements[id] = createElement(id);
 
@@ -205,7 +242,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('A: authenticated session shows Connected and detects job', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: ANALYSIS_OK,
     });
     await controller.checkAuthAndProceed();
@@ -226,9 +268,20 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
   });
 
   it('C: every authoritative protected status disables Prepare and shows Protected state', async () => {
-    for (const status of ['APPLIED', 'SCREENING', 'INTERVIEWING', 'OFFER_RECEIVED', 'OFFER_ACCEPTED']) {
+    for (const status of [
+      'APPLIED',
+      'SCREENING',
+      'INTERVIEWING',
+      'OFFER_RECEIVED',
+      'OFFER_ACCEPTED',
+    ]) {
       const controller = await buildController({
-        authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+        authStatus: {
+          status: 'AUTHENTICATED',
+          authenticated: true,
+          user: { id: 'u1' },
+          candidate: { id: 'c1' },
+        },
         analyzeResponse: {
           ...ANALYSIS_OK,
           isSubmitted: false, // deliberately stale — popup predicate must catch it
@@ -247,13 +300,21 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
         /Submitted \(Protected\)/,
         `${status} must show Protected text`
       );
-      assert.ok(!currentElements.submittedWarning.classList.contains('hidden'), `${status} shows warning`);
+      assert.ok(
+        !currentElements.submittedWarning.classList.contains('hidden'),
+        `${status} shows warning`
+      );
     }
   });
 
   it('D: SAVED application keeps Prepare enabled (editable)', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: {
         ...ANALYSIS_OK,
         existingApplication: { id: 'app1', status: 'SAVED', packageVersion: 1 },
@@ -267,7 +328,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('E: successful authoritative analysis renders actual score/grade', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: ANALYSIS_OK,
     });
     await controller.handleAnalyzeJob();
@@ -279,7 +345,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('F: ANALYSIS_UNAVAILABLE shows error alert and NEVER renders analysis state', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: {
         code: 'ANALYSIS_UNAVAILABLE',
         message: 'Job fit analysis is temporarily unavailable. Please try again shortly.',
@@ -298,7 +369,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('G: response with null fitAnalysis never renders a fake Grade B / 50', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: {
         code: 'ANALYSIS_UNAVAILABLE',
         message: 'unavailable',
@@ -315,7 +391,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('H: validation PASSED state renders PASSED badge', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: ANALYSIS_OK,
     });
 
@@ -324,7 +405,11 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
         applicationId: 'app-1',
         lifecycleAction: 'CREATED',
         packageHash: 'abc',
-        resumeQuality: { atsParseability: { score: 96 }, jobMatch: { score: 46 }, evidenceCoverage: { score: 100 } },
+        resumeQuality: {
+          atsParseability: { score: 96 },
+          jobMatch: { score: 46 },
+          evidenceCoverage: { score: 100 },
+        },
         layoutDiagnostics: { densityProfile: 'BALANCED' },
         artifacts: { resume: { ready: true }, coverLetter: { ready: true } },
       },
@@ -339,7 +424,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('I: unconfident detection shows job-not-detected state', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: ANALYSIS_OK,
     });
     await controller.detectJobOnPage();
@@ -350,7 +440,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
 
   it('J: download-ready state exposes artifact download handlers', async () => {
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: ANALYSIS_OK,
     });
     controller.handoffData = { applicationId: 'app-1', packageHash: 'hash1' };
@@ -369,7 +464,12 @@ describe('P15-002 Item 6: Popup Controller protection/error behavior', () => {
     assert.equal(escapeHtml('<script>x</script>'), '&lt;script&gt;x&lt;/script&gt;');
 
     const controller = await buildController({
-      authStatus: { status: 'AUTHENTICATED', authenticated: true, user: { id: 'u1' }, candidate: { id: 'c1' } },
+      authStatus: {
+        status: 'AUTHENTICATED',
+        authenticated: true,
+        user: { id: 'u1' },
+        candidate: { id: 'c1' },
+      },
       analyzeResponse: {
         ...ANALYSIS_OK,
         fitAnalysis: {

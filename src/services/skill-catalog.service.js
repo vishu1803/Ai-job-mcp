@@ -267,7 +267,9 @@ export class SkillCatalogService {
     const byAlias = await this._db
       .select()
       .from(skillCatalog)
-      .where(and(sql`${skillCatalog.aliases}::text ILIKE ${searchTerm}`, eq(skillCatalog.active, true)))
+      .where(
+        and(sql`${skillCatalog.aliases}::text ILIKE ${searchTerm}`, eq(skillCatalog.active, true))
+      )
       .limit(1);
 
     return byAlias.length > 0 ? byAlias[0] : null;
@@ -337,10 +339,7 @@ export class SkillCatalogService {
    */
   async getSkillsByIds(skillIds) {
     if (!Array.isArray(skillIds) || skillIds.length === 0) return [];
-    return this._db
-      .select()
-      .from(skillCatalog)
-      .where(inArray(skillCatalog.id, skillIds));
+    return this._db.select().from(skillCatalog).where(inArray(skillCatalog.id, skillIds));
   }
 
   /**

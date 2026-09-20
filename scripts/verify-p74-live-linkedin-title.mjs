@@ -42,14 +42,17 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p74-live-title-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
 const CDP_PORT = 9411;
 
 const LIVE_TARGET_URL = 'https://www.linkedin.com/jobs/view/4466448213/';
-const LIVE_JOB_B_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_JOB_B_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -107,7 +110,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -137,7 +142,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Spawn Real Chrome MV3 Browser
   console.log(`\n3. Spawning Chrome for Testing (CDP port ${CDP_PORT})...`);
@@ -262,20 +269,29 @@ async function main() {
         });
       })
     `);
-    console.log('   Service Worker Storage State for Tab:', JSON.stringify(swStoredJob.tabState?.jobData ? {
-      title: swStoredJob.tabState.jobData.title,
-      company: swStoredJob.tabState.jobData.company,
-      provider: swStoredJob.tabState.jobData.provider,
-      isReady: swStoredJob.tabState.jobData.isReady,
-      analysisReady: swStoredJob.tabState.jobData.analysisReady,
-      selectedRootSelector: swStoredJob.tabState.jobData.selectedRootSelector,
-      selectedRootTag: swStoredJob.tabState.jobData.selectedRootTag,
-      selectedRootClass: swStoredJob.tabState.jobData.selectedRootClass,
-      titleSelectorUsed: swStoredJob.tabState.jobData.titleSelectorUsed,
-      companySelectorUsed: swStoredJob.tabState.jobData.companySelectorUsed,
-      descriptionSelectorUsed: swStoredJob.tabState.jobData.descriptionSelectorUsed,
-      descriptionLength: swStoredJob.tabState.jobData.descriptionLength,
-    } : null, null, 2));
+    console.log(
+      '   Service Worker Storage State for Tab:',
+      JSON.stringify(
+        swStoredJob.tabState?.jobData
+          ? {
+              title: swStoredJob.tabState.jobData.title,
+              company: swStoredJob.tabState.jobData.company,
+              provider: swStoredJob.tabState.jobData.provider,
+              isReady: swStoredJob.tabState.jobData.isReady,
+              analysisReady: swStoredJob.tabState.jobData.analysisReady,
+              selectedRootSelector: swStoredJob.tabState.jobData.selectedRootSelector,
+              selectedRootTag: swStoredJob.tabState.jobData.selectedRootTag,
+              selectedRootClass: swStoredJob.tabState.jobData.selectedRootClass,
+              titleSelectorUsed: swStoredJob.tabState.jobData.titleSelectorUsed,
+              companySelectorUsed: swStoredJob.tabState.jobData.companySelectorUsed,
+              descriptionSelectorUsed: swStoredJob.tabState.jobData.descriptionSelectorUsed,
+              descriptionLength: swStoredJob.tabState.jobData.descriptionLength,
+            }
+          : null,
+        null,
+        2
+      )
+    );
 
     // Direct content-script detector evaluation in live tab
     const tabEvaluation = await testTabCdp.evaluate(`(() => {
@@ -284,7 +300,10 @@ async function main() {
       }
       return null;
     })()`);
-    console.log('   Live Tab Content-Script Detector Result:', JSON.stringify(tabEvaluation, null, 2));
+    console.log(
+      '   Live Tab Content-Script Detector Result:',
+      JSON.stringify(tabEvaluation, null, 2)
+    );
 
     // Step 7: Open Extension Sidebar pinned to live tab
     const sidebarUrl = `chrome-extension://${extId}/sidebar/sidebar.html?tabId=${testTabId}`;
@@ -329,29 +348,47 @@ async function main() {
     console.log('\n--- VERIFYING MANDATORY P74 ACCEPTANCE CRITERIA ---');
 
     // 1. Title must NOT be marketing text
-    const titleIsMarketing = (sidebarState.title || '').toLowerCase().includes('take the next step');
-    console.log(`   [ASSERTION 1] Title is NOT marketing heading: ${!titleIsMarketing ? 'PASS' : 'FAIL'}`);
+    const titleIsMarketing = (sidebarState.title || '')
+      .toLowerCase()
+      .includes('take the next step');
+    console.log(
+      `   [ASSERTION 1] Title is NOT marketing heading: ${!titleIsMarketing ? 'PASS' : 'FAIL'}`
+    );
     if (titleIsMarketing) {
-      throw new Error(`CRITICAL LIVE BUG REPRODUCED: Title was extracted as "${sidebarState.title}" instead of the authentic job title!`);
+      throw new Error(
+        `CRITICAL LIVE BUG REPRODUCED: Title was extracted as "${sidebarState.title}" instead of the authentic job title!`
+      );
     }
 
     // 2. Title must match real job
-    const titleMatches = (sidebarState.title || '').toLowerCase().includes('backend') || (sidebarState.title || '').toLowerCase().includes('software engineer');
-    console.log(`   [ASSERTION 2] Title contains authentic role: ${titleMatches ? 'PASS' : 'FAIL'} ("${sidebarState.title}")`);
+    const titleMatches =
+      (sidebarState.title || '').toLowerCase().includes('backend') ||
+      (sidebarState.title || '').toLowerCase().includes('software engineer');
+    console.log(
+      `   [ASSERTION 2] Title contains authentic role: ${titleMatches ? 'PASS' : 'FAIL'} ("${sidebarState.title}")`
+    );
     if (!titleMatches) {
-      throw new Error(`Title mismatch: expected Backend Software Engineer, got "${sidebarState.title}"`);
+      throw new Error(
+        `Title mismatch: expected Backend Software Engineer, got "${sidebarState.title}"`
+      );
     }
 
     // 3. Company must match real company
     const companyMatches = (sidebarState.company || '').toLowerCase().includes('quik hire');
-    console.log(`   [ASSERTION 3] Company matches "Quik Hire Staffing": ${companyMatches ? 'PASS' : 'FAIL'} ("${sidebarState.company}")`);
+    console.log(
+      `   [ASSERTION 3] Company matches "Quik Hire Staffing": ${companyMatches ? 'PASS' : 'FAIL'} ("${sidebarState.company}")`
+    );
     if (!companyMatches) {
-      throw new Error(`Company mismatch: expected Quik Hire Staffing, got "${sidebarState.company}"`);
+      throw new Error(
+        `Company mismatch: expected Quik Hire Staffing, got "${sidebarState.company}"`
+      );
     }
 
     // 4. Portal is LinkedIn
     const portalMatches = (sidebarState.portal || '').toLowerCase().includes('linkedin');
-    console.log(`   [ASSERTION 4] Portal is LinkedIn: ${portalMatches ? 'PASS' : 'FAIL'} ("${sidebarState.portal}")`);
+    console.log(
+      `   [ASSERTION 4] Portal is LinkedIn: ${portalMatches ? 'PASS' : 'FAIL'} ("${sidebarState.portal}")`
+    );
 
     // Step 8: Tab Transition & Isolation Test (Job A -> Job B -> Job A)
     console.log(`\n7. Tab Transition Test: Navigating to Job B (${LIVE_JOB_B_URL})...`);
@@ -388,9 +425,13 @@ async function main() {
     })()`);
     console.log('   Restored Job A Sidebar State:', JSON.stringify(restoredJobAState, null, 2));
 
-    console.log(`   [ASSERTION 5] Job A correctly restored after transition: ${restoredJobAState.title.toLowerCase().includes('backend') ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   [ASSERTION 5] Job A correctly restored after transition: ${restoredJobAState.title.toLowerCase().includes('backend') ? 'PASS' : 'FAIL'}`
+    );
     if (!restoredJobAState.title.toLowerCase().includes('backend')) {
-      throw new Error(`Tab transition failed: Job A title not restored, got "${restoredJobAState.title}"`);
+      throw new Error(
+        `Tab transition failed: Job A title not restored, got "${restoredJobAState.title}"`
+      );
     }
 
     // Step 9: Page Reload & Persistence Test
@@ -413,9 +454,13 @@ async function main() {
     await sidebarCdp.captureScreenshot(screenshotReloadPath);
     console.log(`   Saved reload persistence screenshot: ${screenshotReloadPath}`);
 
-    console.log(`   [ASSERTION 6] Reloaded Job A maintains authentic title and company: ${reloadedState.title.toLowerCase().includes('backend') && !reloadedState.title.toLowerCase().includes('take the next step') ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   [ASSERTION 6] Reloaded Job A maintains authentic title and company: ${reloadedState.title.toLowerCase().includes('backend') && !reloadedState.title.toLowerCase().includes('take the next step') ? 'PASS' : 'FAIL'}`
+    );
     if (!reloadedState.title.toLowerCase().includes('backend')) {
-      throw new Error(`Reload persistence failed: expected Backend Software Engineer, got "${reloadedState.title}"`);
+      throw new Error(
+        `Reload persistence failed: expected Backend Software Engineer, got "${reloadedState.title}"`
+      );
     }
 
     console.log('\n============================================================');
@@ -429,7 +474,6 @@ async function main() {
     console.log('  -', screenshotTransitionPath);
     console.log('  -', screenshotReloadPath);
     console.log('============================================================\n');
-
   } finally {
     if (sidebarCdp) sidebarCdp.close();
     if (testTabCdp) testTabCdp.close();
@@ -442,9 +486,11 @@ async function main() {
   }
 }
 
-main().then(() => {
-  process.exit(0);
-}).catch((err) => {
-  console.error('\n❌ VERIFICATION FAILED:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('\n❌ VERIFICATION FAILED:', err);
+    process.exit(1);
+  });

@@ -35,7 +35,10 @@ import { PdfGeometryAnalyzer } from '../src/services/pdf-geometry-analyzer.servi
 import { ResumeContentOptimizer } from '../src/services/resume-content-optimizer.service.js';
 import { ResumePdfObserver } from '../src/services/resume-pdf-observer.service.js';
 import { evaluateResumeWritingQuality } from '../src/services/resume-writing-quality.service.js';
-import { buildCanonicalFactInventory, scoreFactsForJob } from '../src/services/candidate-fact-inventory.service.js';
+import {
+  buildCanonicalFactInventory,
+  scoreFactsForJob,
+} from '../src/services/candidate-fact-inventory.service.js';
 import { computeResumeQualityScore } from '../src/services/resume-quality-score.service.js';
 import { resumeParserService } from '../src/services/resume-parser.service.js';
 import { defaultAtsParseabilityService } from '../src/services/resume-ats-parseability.service.js';
@@ -61,15 +64,19 @@ async function loadSnapshot(urlLike, fallbackUrlLike) {
     ORDER BY created_at DESC
     LIMIT 1
   `);
-  const row = primary.rows[0] || (fallbackUrlLike
-    ? (await db.execute(sql`
+  const row =
+    primary.rows[0] ||
+    (fallbackUrlLike
+      ? (
+          await db.execute(sql`
         SELECT id, canonical_job_id, normalized_job_url, project_rankings, match_analysis, overall_fit
         FROM job_analysis_snapshots
         WHERE normalized_job_url LIKE ${fallbackUrlLike}
         ORDER BY created_at DESC
         LIMIT 1
-      `)).rows[0]
-    : null);
+      `)
+        ).rows[0]
+      : null);
   return row || null;
 }
 
@@ -86,10 +93,15 @@ const JOBS = [
       canonicalJobId: snapA.canonical_job_id,
       company: 'Cloudflare',
       title: 'Systems & Infrastructure Engineer',
-      description: 'Infrastructure, distributed systems, telemetry, high throughput, networking, Linux, Rust, Go, Python.',
+      description:
+        'Infrastructure, distributed systems, telemetry, high throughput, networking, Linux, Rust, Go, Python.',
       requirements: ['Distributed Systems', 'Rust', 'Linux', 'High Concurrency', 'Telemetry'],
       projectRankings: snapA.project_rankings,
-      jobFitAnalysis: { projectRankings: snapA.project_rankings, matchAnalysis: snapA.match_analysis, overallFit: snapA.overall_fit },
+      jobFitAnalysis: {
+        projectRankings: snapA.project_rankings,
+        matchAnalysis: snapA.match_analysis,
+        overallFit: snapA.overall_fit,
+      },
     },
   },
   {
@@ -100,10 +112,15 @@ const JOBS = [
       canonicalJobId: snapB.canonical_job_id,
       company: 'Vercel',
       title: 'Software Engineer, Backend',
-      description: 'Serverless infrastructure, Node.js, Next.js, Edge compute, TypeScript, PostgreSQL, scalable APIs.',
+      description:
+        'Serverless infrastructure, Node.js, Next.js, Edge compute, TypeScript, PostgreSQL, scalable APIs.',
       requirements: ['Node.js', 'Next.js', 'TypeScript', 'PostgreSQL', 'APIs'],
       projectRankings: snapB.project_rankings,
-      jobFitAnalysis: { projectRankings: snapB.project_rankings, matchAnalysis: snapB.match_analysis, overallFit: snapB.overall_fit },
+      jobFitAnalysis: {
+        projectRankings: snapB.project_rankings,
+        matchAnalysis: snapB.match_analysis,
+        overallFit: snapB.overall_fit,
+      },
     },
   },
   {
@@ -114,10 +131,15 @@ const JOBS = [
       canonicalJobId: snapC.canonical_job_id,
       company: 'Crunchyroll',
       title: 'Python AI & Backend Systems Engineer',
-      description: 'AI model evaluation pipelines, Python, FastAPI, Flask, PostgreSQL, LLM integration, OpenAI API, high concurrency.',
+      description:
+        'AI model evaluation pipelines, Python, FastAPI, Flask, PostgreSQL, LLM integration, OpenAI API, high concurrency.',
       requirements: ['Python', 'FastAPI', 'LLM', 'PostgreSQL', 'OpenAI API'],
       projectRankings: snapC.project_rankings,
-      jobFitAnalysis: { projectRankings: snapC.project_rankings, matchAnalysis: snapC.match_analysis, overallFit: snapC.overall_fit },
+      jobFitAnalysis: {
+        projectRankings: snapC.project_rankings,
+        matchAnalysis: snapC.match_analysis,
+        overallFit: snapC.overall_fit,
+      },
     },
   },
 ];
@@ -157,7 +179,8 @@ for (const { key, label, job } of JOBS) {
     },
   });
 
-  const structuredDoc = optResult.structuredResume?.structuredResume || optResult.structuredResume || {};
+  const structuredDoc =
+    optResult.structuredResume?.structuredResume || optResult.structuredResume || {};
   const pdfBuffer = optResult.pdfBuffer;
 
   // Save generated artifacts
@@ -176,20 +199,25 @@ for (const { key, label, job } of JOBS) {
 
   // Track facts used vs omitted
   const renderedBullets = [];
-  for (const p of (structuredDoc.projects || [])) {
-    for (const b of (p.bullets || [])) {
+  for (const p of structuredDoc.projects || []) {
+    for (const b of p.bullets || []) {
       renderedBullets.push(typeof b === 'string' ? b : b.text);
     }
   }
-  for (const e of (structuredDoc.experience || [])) {
-    for (const b of (e.bullets || [])) {
+  for (const e of structuredDoc.experience || []) {
+    for (const b of e.bullets || []) {
       renderedBullets.push(typeof b === 'string' ? b : b.text);
     }
   }
 
   const evd = writingQuality.evidenceDerived || {};
-  const factsUsed = evd.factUtilization?.totalRenderedFacts || optResult.acceptanceMetrics?.factUtilization?.factsRendered || renderedBullets.length;
-  const factsOmitted = evd.factUtilization ? Math.max(0, evd.factUtilization.totalAvailableFacts - factsUsed) : Math.max(0, totalFacts - factsUsed);
+  const factsUsed =
+    evd.factUtilization?.totalRenderedFacts ||
+    optResult.acceptanceMetrics?.factUtilization?.factsRendered ||
+    renderedBullets.length;
+  const factsOmitted = evd.factUtilization
+    ? Math.max(0, evd.factUtilization.totalAvailableFacts - factsUsed)
+    : Math.max(0, totalFacts - factsUsed);
 
   // Honest ATS parseability check (P17 Architecture)
   const atsResult = defaultAtsParseabilityService.evaluateAtsParseability({
@@ -201,9 +229,9 @@ for (const { key, label, job } of JOBS) {
   // Overall Quality Score (aggregate)
   const overallQuality = Math.round(
     writingQuality.writingQualityScore * 0.4 +
-    obsReport.pdfObservabilityScore * 0.3 +
-    atsScore * 0.2 +
-    (optResult.qaScore || 90) * 0.1
+      obsReport.pdfObservabilityScore * 0.3 +
+      atsScore * 0.2 +
+      (optResult.qaScore || 90) * 0.1
   );
 
   const evaluation = {
@@ -219,11 +247,17 @@ for (const { key, label, job } of JOBS) {
     factsAvailable: totalFacts,
     factsUsed,
     factsOmitted,
-    factUtilizationRate: evd.factUtilization?.utilizationRate ?? parseFloat((factsUsed / Math.max(1, totalFacts)).toFixed(2)),
-    omissionReasons: evd.omissionReasons ? Object.entries(evd.omissionReasons).slice(0, 5).map(([fid, reason]) => `${fid}: ${reason}`) : [
-      'Bounded to 1-page physical capacity',
-      'Lower-relevance technology tags kept in skills section only',
-    ],
+    factUtilizationRate:
+      evd.factUtilization?.utilizationRate ??
+      parseFloat((factsUsed / Math.max(1, totalFacts)).toFixed(2)),
+    omissionReasons: evd.omissionReasons
+      ? Object.entries(evd.omissionReasons)
+          .slice(0, 5)
+          .map(([fid, reason]) => `${fid}: ${reason}`)
+      : [
+          'Bounded to 1-page physical capacity',
+          'Lower-relevance technology tags kept in skills section only',
+        ],
     matchedRequirements: evd.matchedRequirements || [],
     unmatchedRequirements: evd.unmatchedRequirements || [],
     bulletCount: renderedBullets.length,
@@ -240,7 +274,9 @@ for (const { key, label, job } of JOBS) {
   };
 
   results.push(evaluation);
-  console.log(`  Overall Quality: ${overallQuality}/100 | Writing: ${writingQuality.writingQualityScore} | PDF Obs: ${obsReport.pdfObservabilityScore} | ATS: ${atsScore} | Facts Used: ${factsUsed}/${totalFacts} | Pages: ${obsReport.pageCount}`);
+  console.log(
+    `  Overall Quality: ${overallQuality}/100 | Writing: ${writingQuality.writingQualityScore} | PDF Obs: ${obsReport.pdfObservabilityScore} | ATS: ${atsScore} | Facts Used: ${factsUsed}/${totalFacts} | Pages: ${obsReport.pageCount}`
+  );
 }
 
 const summaryFile = path.join(OUT_DIR, 'quality-regression-results.json');

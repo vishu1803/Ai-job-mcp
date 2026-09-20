@@ -41,7 +41,10 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { resolveCandidateEmail } from '../../src/utils/candidate-email-resolver.js';
 
@@ -241,7 +244,8 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
     employmentType: 'Full-time',
     sourceUrl: 'https://careers.cloudcorp.com/jobs/8801',
     provider: 'GENERIC',
-    description: 'Looking for a Staff Engineer with Go, Distributed Systems, Kubernetes, and PostgreSQL experience.',
+    description:
+      'Looking for a Staff Engineer with Go, Distributed Systems, Kubernetes, and PostgreSQL experience.',
   };
 
   const sampleJobB = {
@@ -251,7 +255,8 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
     employmentType: 'Full-time',
     sourceUrl: 'https://careers.websystems.com/jobs/9902',
     provider: 'GENERIC',
-    description: 'Looking for a Frontend Architect with TypeScript, React, Next.js, and CSS Architecture.',
+    description:
+      'Looking for a Frontend Architect with TypeScript, React, Next.js, and CSS Architecture.',
   };
 
   beforeEach(() => {
@@ -280,8 +285,14 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
         displayName: 'Authentic User',
       };
 
-      const resolved = resolveCandidateEmail(candidateRecord, authenticatedUser.email, { allowNullable: true });
-      assert.strictEqual(resolved, 'authentic.user@domain.com', 'Authentic user email must supersede synthetic seed');
+      const resolved = resolveCandidateEmail(candidateRecord, authenticatedUser.email, {
+        allowNullable: true,
+      });
+      assert.strictEqual(
+        resolved,
+        'authentic.user@domain.com',
+        'Authentic user email must supersede synthetic seed'
+      );
     });
 
     it('proves candidate lookup follows authenticated user relationship with no first-user fallback', () => {
@@ -311,7 +322,11 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
 
       // Unauthenticated user
       const unauthCandidate = resolveCandidateForSession('non-existent-user');
-      assert.strictEqual(unauthCandidate, null, 'Must return null for unknown user with no fallback');
+      assert.strictEqual(
+        unauthCandidate,
+        null,
+        'Must return null for unknown user with no fallback'
+      );
     });
 
     it('sidebar displays server-returned canonical email directly without client synthetic-email substitution', async () => {
@@ -383,7 +398,11 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
         status: 'AUTHENTICATED',
         authenticated: true,
         user: { id: 'u1', email: 'authentic@company.com', displayName: 'Authentic Dev' },
-        candidate: { id: 'c1', canonicalEmail: 'authentic@company.com', displayName: 'Authentic Dev' },
+        candidate: {
+          id: 'c1',
+          canonicalEmail: 'authentic@company.com',
+          displayName: 'Authentic Dev',
+        },
       });
       await controller._checkAuthStatus();
 
@@ -430,9 +449,19 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       assert.strictEqual(controller.cachedState.applicationId, 'app-canonical-777');
 
       // Verify UI displays lock banner & locked badge
-      assert.ok(!domElements.get('workflowLockBanner').classList.contains('hidden'), 'workflowLockBanner must be visible');
-      assert.ok(!domElements.get('workflowLockedBadge').classList.contains('hidden'), 'workflowLockedBadge must be visible');
-      assert.strictEqual(domElements.get('reanalyzeBtn').disabled, true, 'reanalyzeBtn must be disabled when locked');
+      assert.ok(
+        !domElements.get('workflowLockBanner').classList.contains('hidden'),
+        'workflowLockBanner must be visible'
+      );
+      assert.ok(
+        !domElements.get('workflowLockedBadge').classList.contains('hidden'),
+        'workflowLockedBadge must be visible'
+      );
+      assert.strictEqual(
+        domElements.get('reanalyzeBtn').disabled,
+        true,
+        'reanalyzeBtn must be disabled when locked'
+      );
     });
 
     it('locked workflow cannot be replaced by URL navigation (reconcileNavigation)', async () => {
@@ -577,8 +606,16 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       controller._handleSessionExpired();
 
       assert.strictEqual(controller.isAuthenticated, false);
-      assert.strictEqual(controller.activeJob.title, sampleJobA.title, 'Active job must survive session expiry');
-      assert.strictEqual(controller.cachedState.applicationId, 'app-canonical-777', 'Application ID must survive session expiry');
+      assert.strictEqual(
+        controller.activeJob.title,
+        sampleJobA.title,
+        'Active job must survive session expiry'
+      );
+      assert.strictEqual(
+        controller.cachedState.applicationId,
+        'app-canonical-777',
+        'Application ID must survive session expiry'
+      );
       assert.strictEqual(controller.isWorkflowLocked(), true, 'Lock must survive session expiry');
     });
 
@@ -646,10 +683,18 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       assert.strictEqual(controller.isWorkflowLocked(), false);
       assert.strictEqual(controller.activeJob, null, 'Active job must be cleared');
       assert.strictEqual(controller.activeJobFingerprint, null, 'Fingerprint must be cleared');
-      assert.strictEqual(controller.cachedState.applicationId, null, 'Active app pointer in tab state must be reset');
+      assert.strictEqual(
+        controller.cachedState.applicationId,
+        null,
+        'Active app pointer in tab state must be reset'
+      );
 
       // Generation must have incremented
-      assert.strictEqual(controller.cachedState.workflowGeneration, 2, 'Generation must increment to prevent stale races');
+      assert.strictEqual(
+        controller.cachedState.workflowGeneration,
+        2,
+        'Generation must increment to prevent stale races'
+      );
 
       // Lock UI must be hidden
       assert.ok(domElements.get('workflowLockBanner').classList.contains('hidden'));
@@ -696,11 +741,22 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       await controller.resetWorkflow();
 
       // ASSERT INVARIANTS:
-      assert.strictEqual(deleteCalled, false, 'Reset Workflow must NEVER call destructive backend APIs');
-      assert.ok(backendApplicationStore['app-canonical-777'], 'Application A MUST remain in database/backend store');
+      assert.strictEqual(
+        deleteCalled,
+        false,
+        'Reset Workflow must NEVER call destructive backend APIs'
+      );
+      assert.ok(
+        backendApplicationStore['app-canonical-777'],
+        'Application A MUST remain in database/backend store'
+      );
       assert.ok(backendArtifacts['artifact-resume-777'], 'Resume MUST remain intact');
       assert.ok(backendArtifacts['artifact-cl-777'], 'Cover Letter MUST remain intact');
-      assert.strictEqual(backendApplicationStore['app-canonical-777'].handoffPackageHash, 'sha256-abcdef777888', 'Handoff package MUST remain intact');
+      assert.strictEqual(
+        backendApplicationStore['app-canonical-777'].handoffPackageHash,
+        'sha256-abcdef777888',
+        'Handoff package MUST remain intact'
+      );
     });
 
     it('after reset, fresh detection is allowed', async () => {
@@ -740,7 +796,10 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       // Mock chrome.runtime listener execution
       let handled = false;
       const mockListener = (message) => {
-        if (message.generation !== undefined && controller.cachedState?.workflowGeneration !== undefined) {
+        if (
+          message.generation !== undefined &&
+          controller.cachedState?.workflowGeneration !== undefined
+        ) {
           if (message.generation < controller.cachedState.workflowGeneration) {
             return; // Dropped
           }
@@ -768,7 +827,11 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       // Start new detection with Job B
       await controller._handleJobDetectedEvent(sampleJobB);
 
-      assert.strictEqual(controller.cachedState.applicationId, null, 'New workflow must have null applicationId before handoff');
+      assert.strictEqual(
+        controller.cachedState.applicationId,
+        null,
+        'New workflow must have null applicationId before handoff'
+      );
       assert.notStrictEqual(controller.cachedState.applicationId, 'app-canonical-old-111');
     });
   });
@@ -796,7 +859,11 @@ describe('Part 60: Canonical User Identity & Terminal Extension Workflow Lock', 
       const bobLoadedState = await store.loadState(tabId, 'user-bob-222');
 
       // Must NOT return Alice's workflow
-      assert.strictEqual(bobLoadedState.applicationId, null, 'User B must not load User A application');
+      assert.strictEqual(
+        bobLoadedState.applicationId,
+        null,
+        'User B must not load User A application'
+      );
       assert.strictEqual(bobLoadedState.workflowState, WORKFLOW_STATES.IDLE);
       assert.strictEqual(bobLoadedState.lockState, 'UNLOCKED');
       assert.strictEqual(bobLoadedState.isLocked, false);

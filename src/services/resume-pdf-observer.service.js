@@ -30,9 +30,19 @@ import { ResumeParserService } from './resume-parser.service.js';
 const SECTION_PATTERNS = [
   { key: 'SUMMARY', regex: /\b(professional\s+summary|summary|profile|about\s+me)\b/i },
   { key: 'SKILLS', regex: /\b(technical\s+skills|core\s+competencies|skills)\b/i },
-  { key: 'PROJECTS', regex: /\b(technical\s+projects|selected\s+projects|featured\s+projects|projects)\b/i },
-  { key: 'DSA', regex: /\b(problem\s+solving\s*(?:&|and)\s*algorithmic\s+practice|problem\s+solving|data\s+structures\s*(?:&|and)\s*algorithms)\b/i },
-  { key: 'EXPERIENCE', regex: /\b(professional\s+experience|work\s+experience|experience|employment\s+history)\b/i },
+  {
+    key: 'PROJECTS',
+    regex: /\b(technical\s+projects|selected\s+projects|featured\s+projects|projects)\b/i,
+  },
+  {
+    key: 'DSA',
+    regex:
+      /\b(problem\s+solving\s*(?:&|and)\s*algorithmic\s+practice|problem\s+solving|data\s+structures\s*(?:&|and)\s*algorithms)\b/i,
+  },
+  {
+    key: 'EXPERIENCE',
+    regex: /\b(professional\s+experience|work\s+experience|experience|employment\s+history)\b/i,
+  },
   { key: 'EDUCATION', regex: /\b(education|academic\s+background)\b/i },
   { key: 'CERTIFICATIONS', regex: /\b(certifications|certificates|licenses)\b/i },
   { key: 'AWARDS', regex: /\b(awards|honors|achievements)\b/i },
@@ -40,9 +50,9 @@ const SECTION_PATTERNS = [
 ];
 
 const SUSPICIOUS_GLYPH_PATTERNS = [
-  /\\[a-zA-Z]+\{/i,            // Leaked LaTeX commands like \textbf{ or \item
+  /\\[a-zA-Z]+\{/i, // Leaked LaTeX commands like \textbf{ or \item
   /\b(undefined|NaN|null)\b/i, // Leaked JavaScript primitives
-  /[\uFFFD]/,                   // Unicode replacement character (tofu)
+  /[\uFFFD]/, // Unicode replacement character (tofu)
   //,                         // Broken encoding glyph
 ];
 
@@ -68,7 +78,9 @@ export class ResumePdfObserver {
         pdfObservabilityScore: 0,
         pageCount: 0,
         passed: false,
-        findings: [{ dimension: 'buffer', severity: 'FAIL', message: 'Invalid or empty PDF buffer' }],
+        findings: [
+          { dimension: 'buffer', severity: 'FAIL', message: 'Invalid or empty PDF buffer' },
+        ],
       };
     }
 
@@ -97,7 +109,9 @@ export class ResumePdfObserver {
 
     // 4. Contact Information
     const emailMatch = extractedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const phoneMatch = extractedText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    const phoneMatch = extractedText.match(
+      /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/
+    );
     const githubMatch = extractedText.match(/github\.com\/[a-zA-Z0-9_-]+/i);
     const linkedinMatch = extractedText.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
 
@@ -114,7 +128,10 @@ export class ResumePdfObserver {
     const uniqueUrls = [...new Set(urlMatches)];
 
     // 6. Dates
-    const dateMatches = extractedText.match(/\b(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{4}\s*[-–—]\s*(?:\d{4}|Present|Current))\b/gi) || [];
+    const dateMatches =
+      extractedText.match(
+        /\b(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}|\d{4}\s*[-–—]\s*(?:\d{4}|Present|Current))\b/gi
+      ) || [];
 
     // 7. Bullet Boundaries & Count
     const bulletMarkers = (extractedText.match(/[•\u2022\u25cf\u25cb\u2219-]\s+/g) || []).length;
@@ -137,7 +154,9 @@ export class ResumePdfObserver {
     const pageOccupancyRatio = geometry.pageOccupancyRatio || 0.85;
 
     // 11. Duplicate Rendered Content
-    const sentences = (extractedText.match(/[^.!?\n]{25,}[.!?]/g) || []).map((s) => s.trim().toLowerCase());
+    const sentences = (extractedText.match(/[^.!?\n]{25,}[.!?]/g) || []).map((s) =>
+      s.trim().toLowerCase()
+    );
     const duplicates = [];
     const seenSentences = new Set();
     for (const s of sentences) {
@@ -193,7 +212,7 @@ export class ResumePdfObserver {
     }
 
     // Occupancy / whitespace
-    if (pageOccupancyRatio < 0.60 && pageCount === 1) {
+    if (pageOccupancyRatio < 0.6 && pageCount === 1) {
       score -= 15;
       findings.push({
         dimension: 'bottomWhitespace',
@@ -222,7 +241,9 @@ export class ResumePdfObserver {
     // 12b. Anti-Gaming Inspection: Invisible Text, Microscopic Text, Offscreen Text (Rule 36 Attacks B, C, D)
     const rawPdf = pdfBuffer.toString('latin1');
     const hasInvisibleTextMode = /\b3\s+Tr\b/.test(rawPdf);
-    const hasWhiteText = /\b(?:1(?:\.0+)?\s+1(?:\.0+)?\s+1(?:\.0+)?\s+(?:rg|k)|#ffffff)\b/i.test(rawPdf) && /Tj|TJ/.test(rawPdf);
+    const hasWhiteText =
+      /\b(?:1(?:\.0+)?\s+1(?:\.0+)?\s+1(?:\.0+)?\s+(?:rg|k)|#ffffff)\b/i.test(rawPdf) &&
+      /Tj|TJ/.test(rawPdf);
     const hasMicroscopicFont = /\/F\d+\s+(?:0(?:\.\d+)?|1(?:\.[0-8])?)\s+Tf/i.test(rawPdf);
     const hasOffscreenCoords = /(?:-\d{2,}|8[5-9]\d|9\d{2})\s+Td|Tm/.test(rawPdf);
 

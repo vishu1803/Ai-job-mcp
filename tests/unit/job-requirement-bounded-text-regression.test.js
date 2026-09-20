@@ -84,10 +84,7 @@ function assertRequirementBounded(req, label) {
   ];
   for (const [name, value] of fields) {
     if (value !== undefined && value !== null) {
-      assert.ok(
-        value.length <= 500,
-        `${label}: ${name} length ${value.length} exceeds 500`
-      );
+      assert.ok(value.length <= 500, `${label}: ${name} length ${value.length} exceeds 500`);
     }
   }
   if (req.sourceSpan && req.sourceSpan.snippet !== undefined) {
@@ -403,7 +400,8 @@ describe('JobRequirement Bounded-Text Producer Contract Regression', () => {
       // The workflow/artifact-content producers map raw postings text with the
       // identical shape; validate the contract directly on that shape.
       const rawReq = OVERSIZED_REQUIREMENT;
-      const text = typeof rawReq === 'string' ? rawReq : rawReq.extractedValue || rawReq.originalText || '';
+      const text =
+        typeof rawReq === 'string' ? rawReq : rawReq.extractedValue || rawReq.originalText || '';
       const shaped = {
         id: randomUUID(),
         category: 'SKILL',
@@ -453,9 +451,7 @@ describe('JobRequirement Bounded-Text Producer Contract Regression', () => {
                   startDate: '2022-01-01',
                   endDate: null,
                   isCurrent: true,
-                  bullets: [
-                    'Architected Node.js microservices in PostgreSQL-backed systems.',
-                  ],
+                  bullets: ['Architected Node.js microservices in PostgreSQL-backed systems.'],
                 },
               ],
               education: [

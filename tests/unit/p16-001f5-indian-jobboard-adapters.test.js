@@ -20,7 +20,10 @@ import { TimesJobsAdapter } from '../../extension/job-detection/adapters/timesjo
 import { HirectAdapter } from '../../extension/job-detection/adapters/hirect.adapter.js';
 import { CutshortAdapter } from '../../extension/job-detection/adapters/cutshort.adapter.js';
 import { InstahyreAdapter } from '../../extension/job-detection/adapters/instahyre.adapter.js';
-import { extractJobPostingJsonLd, jsonLdToJobPayload } from '../../extension/job-detection/json-ld.js';
+import {
+  extractJobPostingJsonLd,
+  jsonLdToJobPayload,
+} from '../../extension/job-detection/json-ld.js';
 import { selectJobTab, ATS_HOST_PATTERNS } from '../../extension/popup/job-tab-selector.js';
 
 /**
@@ -120,7 +123,8 @@ describe('P16-001F-5: JSON-LD requirement extraction', () => {
 // ============================================================================
 
 describe('P16-001F-5: NaukriAdapter', () => {
-  const URL = 'https://www.naukri.com/job-listings-senior-backend-engineer-datakart-private-limited-bengaluru-101224000001';
+  const URL =
+    'https://www.naukri.com/job-listings-senior-backend-engineer-datakart-private-limited-bengaluru-101224000001';
 
   it('handles naukri.com URLs', () => {
     assert.ok(NaukriAdapter.canHandle(createMockDocument(), URL));
@@ -285,7 +289,8 @@ describe('P16-001F-5: FounditAdapter', () => {
 // ============================================================================
 
 describe('P16-001F-5: TimesJobsAdapter', () => {
-  const URL = 'https://www.timesjobs.com/jobdetail/senior-backend-engineer-datakart-bengaluru-123456789';
+  const URL =
+    'https://www.timesjobs.com/jobdetail/senior-backend-engineer-datakart-bengaluru-123456789';
 
   it('handles timesjobs.com URLs', () => {
     assert.ok(TimesJobsAdapter.canHandle(createMockDocument(), URL));
@@ -392,7 +397,10 @@ describe('P16-001F-5: InstahyreAdapter', () => {
 
   it('decomposes og:title "<Role> - <Company>" convention', () => {
     const doc = createMockDocument({
-      meta: { 'og:title': 'Senior Backend Engineer - DataKart', 'og:description': 'Payments infra role.' },
+      meta: {
+        'og:title': 'Senior Backend Engineer - DataKart',
+        'og:description': 'Payments infra role.',
+      },
       elements: {
         '[class*="job-description"]': {
           textContent: 'Build high-throughput payment APIs.',
@@ -415,7 +423,16 @@ describe('P16-001F-5: InstahyreAdapter', () => {
 describe('P16-001F-5: JobPageDetector registration', () => {
   it('registers all new Indian providers ahead of the generic adapter', () => {
     const providers = JobPageDetector.adapters.map((a) => a.provider);
-    for (const p of ['NAUKRI', 'IIMJOBS', 'SHINE', 'FOUNDIT', 'TIMESJOBS', 'HIRECT', 'CUTSHORT', 'INSTAHYRE']) {
+    for (const p of [
+      'NAUKRI',
+      'IIMJOBS',
+      'SHINE',
+      'FOUNDIT',
+      'TIMESJOBS',
+      'HIRECT',
+      'CUTSHORT',
+      'INSTAHYRE',
+    ]) {
       assert.ok(providers.includes(p), `${p} must be registered`);
     }
     assert.ok(
@@ -428,10 +445,13 @@ describe('P16-001F-5: JobPageDetector registration', () => {
     // A Naukri URL with a plausible payload must be confident without needing
     // the generic adapter's job-signal heuristics.
     const doc = createMockDocument({
-      meta: { 'og:title': 'Senior Backend Engineer - DataKart Private Limited - 5-8 yrs - Bengaluru' },
+      meta: {
+        'og:title': 'Senior Backend Engineer - DataKart Private Limited - 5-8 yrs - Bengaluru',
+      },
       elements: {
         '.job-desc': {
-          textContent: 'Build payment APIs with 5+ years of experience. Responsibilities include UPI integration and settlement reconciliation.',
+          textContent:
+            'Build payment APIs with 5+ years of experience. Responsibilities include UPI integration and settlement reconciliation.',
           querySelectorAll: () => [],
         },
       },
@@ -468,11 +488,22 @@ describe('P16-001F-5: job tab selector', () => {
     ];
     const selected = selectJobTab(tabs);
     assert.equal(selected.id, 2, 'Greenhouse (listed first) should win');
-    assert.ok(ATS_HOST_PATTERNS.indexOf('boards.greenhouse.io') < ATS_HOST_PATTERNS.indexOf('naukri.com'));
+    assert.ok(
+      ATS_HOST_PATTERNS.indexOf('boards.greenhouse.io') < ATS_HOST_PATTERNS.indexOf('naukri.com')
+    );
   });
 
   it('covers all Indian boards in ATS_HOST_PATTERNS', () => {
-    for (const pattern of ['naukri.com', 'shine.com', 'foundit.in', 'iimjobs.com', 'timesjobs.com', 'hirect.in', 'cutshort.io', 'instahyre.com']) {
+    for (const pattern of [
+      'naukri.com',
+      'shine.com',
+      'foundit.in',
+      'iimjobs.com',
+      'timesjobs.com',
+      'hirect.in',
+      'cutshort.io',
+      'instahyre.com',
+    ]) {
       assert.ok(ATS_HOST_PATTERNS.includes(pattern), `${pattern} must be in ATS_HOST_PATTERNS`);
     }
   });

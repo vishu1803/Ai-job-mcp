@@ -20,7 +20,11 @@ export class IndeedAdapter {
    */
   static canHandle(doc, url) {
     if (!url) return false;
-    if (url.toLowerCase().includes('indeed.com/viewjob') || url.toLowerCase().includes('indeed.com/jobs')) return true;
+    if (
+      url.toLowerCase().includes('indeed.com/viewjob') ||
+      url.toLowerCase().includes('indeed.com/jobs')
+    )
+      return true;
     return Boolean(
       doc.querySelector('#jobDescriptionText') ||
       doc.querySelector('.jobsearch-JobInfoHeader-title') ||
@@ -72,7 +76,11 @@ export class IndeedAdapter {
     }
     const company = companyEl ? companyEl.textContent.trim() : 'Company';
     const location = locationEl ? locationEl.textContent.trim() : '';
-    const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
+    const description = descEl
+      ? descEl.textContent.trim()
+      : doc.body
+        ? doc.body.textContent.trim()
+        : '';
 
     const requirements = [];
     if (descEl) {

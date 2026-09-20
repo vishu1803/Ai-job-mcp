@@ -20,7 +20,8 @@ import {
  */
 const CANONICAL_RULES = [
   {
-    regex: /(cloud|aws|gcp|azure|hyperscaler).*(miss|absent|lack|no|exposure|gap)|(miss|absent|lack|no|without).*(cloud|aws|gcp|azure|hyperscaler)/i,
+    regex:
+      /(cloud|aws|gcp|azure|hyperscaler).*(miss|absent|lack|no|exposure|gap)|(miss|absent|lack|no|without).*(cloud|aws|gcp|azure|hyperscaler)/i,
     category: 'MISSING_PREFERRED_SKILL',
     subject: 'CLOUD_PLATFORM',
     stance: 'SUPPORT',
@@ -28,15 +29,18 @@ const CANONICAL_RULES = [
     evidenceRequirement: 'CANONICAL_FACTS_OR_PROJECTS',
   },
   {
-    regex: /redis.*(not.*satisfy|does.*not|gap|cache.*not|different)|nosql.*(miss|gap|absent|not.*covered|not.*satisfy)/i,
+    regex:
+      /redis.*(not.*satisfy|does.*not|gap|cache.*not|different)|nosql.*(miss|gap|absent|not.*covered|not.*satisfy)/i,
     category: 'MISSING_PREFERRED_SKILL',
     subject: 'NOSQL_DATABASE',
     stance: 'REJECT', // Rejects Redis as satisfying NoSQL
-    normalizedClaim: 'Redis key-value caching does not satisfy primary NoSQL document database requirement',
+    normalizedClaim:
+      'Redis key-value caching does not satisfy primary NoSQL document database requirement',
     evidenceRequirement: 'JOB_DESCRIPTION_ALIGNMENT',
   },
   {
-    regex: /redis.*(demonstrates|satisfies|counts|qualifies|covers)|(demonstrates|satisfies|counts|qualifies|covers).*(nosql|redis)|nosql.*experience.*via.*redis/i,
+    regex:
+      /redis.*(demonstrates|satisfies|counts|qualifies|covers)|(demonstrates|satisfies|counts|qualifies|covers).*(nosql|redis)|nosql.*experience.*via.*redis/i,
     category: 'EXACT_SKILL_MATCH',
     subject: 'NOSQL_DATABASE',
     stance: 'SUPPORT', // Accepts Redis as satisfying NoSQL
@@ -56,7 +60,8 @@ const CANONICAL_RULES = [
     category: 'DEGREE_REQUIREMENT_MISMATCH',
     subject: 'COMPUTER_SCIENCE_DEGREE',
     stance: 'SUPPORT',
-    normalizedClaim: 'Degree is Electronics Engineering rather than required Computer Science or IT discipline',
+    normalizedClaim:
+      'Degree is Electronics Engineering rather than required Computer Science or IT discipline',
     evidenceRequirement: 'CANONICAL_EDUCATION_FACTS',
   },
   {
@@ -64,7 +69,8 @@ const CANONICAL_RULES = [
     category: 'UNSUPPORTED_CLAIM',
     subject: 'NESTJS_EXPERIENCE',
     stance: 'SUPPORT',
-    normalizedClaim: 'NestJS claimed in professional summary without backing in Skills, Projects, or Experience',
+    normalizedClaim:
+      'NestJS claimed in professional summary without backing in Skills, Projects, or Experience',
     evidenceRequirement: 'PROJECT_OR_EXPERIENCE_FACTS',
   },
   {
@@ -72,7 +78,8 @@ const CANONICAL_RULES = [
     category: 'METRIC_EVIDENCE_GAP',
     subject: 'METRIC_PRECISION_40_PERCENT',
     stance: 'SUPPORT',
-    normalizedClaim: '40% page load reduction metric lacks baseline, measurement method, and supporting context',
+    normalizedClaim:
+      '40% page load reduction metric lacks baseline, measurement method, and supporting context',
     evidenceRequirement: 'MEASUREMENT_BASELINE_FACTS',
   },
   {
@@ -88,7 +95,8 @@ const CANONICAL_RULES = [
     category: 'DATE_FORMAT_RISK',
     subject: 'DATE_RANGE_EN_DASH',
     stance: 'SUPPORT',
-    normalizedClaim: 'Employment date intervals use inconsistent dashes instead of typographic en-dashes',
+    normalizedClaim:
+      'Employment date intervals use inconsistent dashes instead of typographic en-dashes',
     evidenceRequirement: 'RENDERED_DOCUMENT_FORMAT',
   },
   {
@@ -96,7 +104,8 @@ const CANONICAL_RULES = [
     category: 'MISSING_PREFERRED_SKILL',
     subject: 'AI_CODING_TOOLS',
     stance: 'SUPPORT',
-    normalizedClaim: 'AI coding tools (Copilot, Cursor) are preferred by JD but omitted from technical skills',
+    normalizedClaim:
+      'AI coding tools (Copilot, Cursor) are preferred by JD but omitted from technical skills',
     evidenceRequirement: 'CANONICAL_FACTS_OR_PROJECTS',
   },
 ];
@@ -133,7 +142,10 @@ export function normalizeSingleFinding(rawFinding, evaluatorId) {
   }
 
   // Fallback generic normalization
-  const subjectSlug = rawFinding.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const subjectSlug = rawFinding
+    .slice(0, 30)
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .toUpperCase();
   return NormalizedFindingSchema.parse({
     findingId: `norm-${evaluatorId}-generic-${Date.now()}`,
     category: 'CONTENT_QUALITY_ISSUE',
@@ -256,21 +268,25 @@ export function auditFindingAgainstEvidence(consensusFinding, candidateEvidence 
 
   // Rule: Even if all models say "add AWS", if candidate has no AWS facts, it is an UNSAFE_FABRICATION!
   if (findingCopy.subject === 'CLOUD_PLATFORM') {
-    const hasCloudEvidence = facts.some((f) => /aws|gcp|azure|cloud/i.test(f.statement || f.text || ''))
-      || projects.some((p) => (p.technologies || []).some((t) => /aws|gcp|azure/i.test(t)));
+    const hasCloudEvidence =
+      facts.some((f) => /aws|gcp|azure|cloud/i.test(f.statement || f.text || '')) ||
+      projects.some((p) => (p.technologies || []).some((t) => /aws|gcp|azure/i.test(t)));
 
     if (!hasCloudEvidence) {
       findingCopy.evidenceStatus = 'UNSUPPORTED';
       findingCopy.action = 'UNSAFE_FABRICATION';
-      findingCopy.rationale = 'External evaluators unanimously requested Cloud/AWS, but candidate facts contain zero cloud evidence. Hallucination blocked.';
+      findingCopy.rationale =
+        'External evaluators unanimously requested Cloud/AWS, but candidate facts contain zero cloud evidence. Hallucination blocked.';
     } else {
       findingCopy.evidenceStatus = 'VERIFIED';
       findingCopy.action = 'SAFE_FIX';
-      findingCopy.rationale = 'Candidate possesses verified cloud facts omitted from resume draft. Safe to restore.';
+      findingCopy.rationale =
+        'Candidate possesses verified cloud facts omitted from resume draft. Safe to restore.';
     }
   } else if (findingCopy.subject === 'NESTJS_EXPERIENCE') {
-    const hasNest = facts.some((f) => /nestjs/i.test(f.statement || f.text || ''))
-      || projects.some((p) => (p.technologies || []).some((t) => /nestjs/i.test(t)));
+    const hasNest =
+      facts.some((f) => /nestjs/i.test(f.statement || f.text || '')) ||
+      projects.some((p) => (p.technologies || []).some((t) => /nestjs/i.test(t)));
 
     if (!hasNest) {
       findingCopy.evidenceStatus = 'UNSUPPORTED';
@@ -283,7 +299,8 @@ export function auditFindingAgainstEvidence(consensusFinding, candidateEvidence 
   } else if (findingCopy.subject === 'METRIC_PRECISION_40_PERCENT') {
     findingCopy.evidenceStatus = 'PARTIALLY_SUPPORTED';
     findingCopy.action = 'CONDITIONAL_USER_CONFIRMATION';
-    findingCopy.rationale = 'Optimization work verified, but 40% precision requires user measurement confirmation.';
+    findingCopy.rationale =
+      'Optimization work verified, but 40% precision requires user measurement confirmation.';
   } else if (findingCopy.classification === 'CONFLICTING') {
     findingCopy.action = 'NO_AUTO_ACTION';
   }

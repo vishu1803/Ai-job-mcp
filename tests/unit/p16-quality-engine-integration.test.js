@@ -48,12 +48,8 @@ import {
   compressProfessionalBullet,
   polishProfessionalSummary,
 } from '../../src/services/resume-professional-composition.service.js';
-import {
-  evaluateResumeAcceptanceGate,
-} from '../../src/services/resume-acceptance-gate.service.js';
-import {
-  ResumePdfObserver,
-} from '../../src/services/resume-pdf-observer.service.js';
+import { evaluateResumeAcceptanceGate } from '../../src/services/resume-acceptance-gate.service.js';
+import { ResumePdfObserver } from '../../src/services/resume-pdf-observer.service.js';
 import {
   groupSkillsIntoCategories,
   categorizeTechnology,
@@ -110,7 +106,10 @@ describe('Critical Regression: Rich Evidence Utilization vs Shallow/Redundant Bu
     // For fresher, PROJECTS precedes EXPERIENCE
     const projIdx = plan.sectionOrder.indexOf(SECTION_KEYS.PROJECTS);
     const expIdx = plan.sectionOrder.indexOf(SECTION_KEYS.EXPERIENCE);
-    assert.ok(projIdx < expIdx, 'Projects must precede Experience for project-strong fresher archetype');
+    assert.ok(
+      projIdx < expIdx,
+      'Projects must precede Experience for project-strong fresher archetype'
+    );
   });
 
   it('structured resume snapshot composes complementary multi-bullet project without shallow repetition', () => {
@@ -127,7 +126,10 @@ describe('Critical Regression: Rich Evidence Utilization vs Shallow/Redundant Bu
     const telemetry = structuredResume.projects.find((p) => p.name.includes('Telemetry'));
     assert.ok(telemetry, 'Telemetry project must be included');
     // Crucial check: candidate has 6 distinct facts, must render at least 2 complementary bullets (never forced down to 1)
-    assert.ok(telemetry.bullets.length >= 2, `expected at least 2 bullets, got ${telemetry.bullets.length}`);
+    assert.ok(
+      telemetry.bullets.length >= 2,
+      `expected at least 2 bullets, got ${telemetry.bullets.length}`
+    );
 
     // Verify bullets are complementary (not exact or near duplicate)
     const bulletTexts = telemetry.bullets.map((b) => b.text.toLowerCase());
@@ -159,7 +161,10 @@ describe('Writing Quality Scorer: 12-Dimension Evaluation', () => {
       structuredResume: snap.structuredResume,
     });
 
-    assert.ok(report.writingQualityScore >= 70, `Score ${report.writingQualityScore} should be >= 70`);
+    assert.ok(
+      report.writingQualityScore >= 70,
+      `Score ${report.writingQualityScore} should be >= 70`
+    );
     assert.ok(report.dimensions.actionVerbStrength >= 70);
     assert.ok(report.dimensions.technicalSpecificity >= 70);
     assert.ok(report.dimensions.authenticMetricUsage >= 80, 'Must not penalize authentic metrics');
@@ -186,7 +191,10 @@ describe('Writing Quality Scorer: 12-Dimension Evaluation', () => {
       structuredResume: degradedResume,
     });
 
-    assert.ok(report.writingQualityScore < 60, `Degraded score ${report.writingQualityScore} should be < 60`);
+    assert.ok(
+      report.writingQualityScore < 60,
+      `Degraded score ${report.writingQualityScore} should be < 60`
+    );
     assert.ok(report.findings.some((f) => f.code === 'WEAK_VERB'));
     assert.ok(report.findings.some((f) => f.code === 'CLICHE_DETECTED'));
   });
@@ -207,11 +215,7 @@ describe('Technology Taxonomy: Safe Pass-Through & Categorization', () => {
     const category = categorizeTechnology(unknownTech);
     assert.equal(category, TECH_CATEGORIES.DEVELOPER_TOOLS);
 
-    const grouped = groupSkillsIntoCategories([
-      'TypeScript',
-      'React',
-      unknownTech,
-    ]);
+    const grouped = groupSkillsIntoCategories(['TypeScript', 'React', unknownTech]);
 
     assert.ok(grouped.some((g) => g.categoryName === TECH_CATEGORIES.LANGUAGES));
     assert.ok(grouped.some((g) => g.categoryName === TECH_CATEGORIES.FRAMEWORKS));
@@ -288,7 +292,10 @@ describe('End-to-End Real PDF Quality Pipeline (Directive Section 21)', () => {
     const obsReport = observer.observe(compiled.pdfBuffer, { targetPageCount: 1 });
 
     assert.equal(obsReport.pageCount, 1, 'Compiled PDF must be exactly 1 page');
-    assert.ok(obsReport.pdfObservabilityScore >= 75, `Observability score ${obsReport.pdfObservabilityScore} should be >= 75`);
+    assert.ok(
+      obsReport.pdfObservabilityScore >= 75,
+      `Observability score ${obsReport.pdfObservabilityScore} should be >= 75`
+    );
     assert.equal(obsReport.passed, true);
     assert.equal(obsReport.contactInfo.hasEmail, true);
     assert.ok(obsReport.textMetrics.bulletCount >= 3, 'Must render multiple structured bullets');
@@ -319,7 +326,9 @@ describe('Strategic Enhancement 1: Accomplishment Narrative Realization', () => 
     assert.ok(!narrative.text.includes(';'), 'Narrative should not use semicolon concatenation');
     // Must contain natural participle linkage
     assert.ok(
-      narrative.text.includes('implementing') || narrative.text.includes('incorporating') || narrative.text.includes('utilizing'),
+      narrative.text.includes('implementing') ||
+        narrative.text.includes('incorporating') ||
+        narrative.text.includes('utilizing'),
       `Expected participle linkage, got: "${narrative.text}"`
     );
     assert.deepEqual(narrative.composedFromFactIds, ['fact-1', 'fact-2']);
@@ -341,9 +350,15 @@ describe('Strategic Enhancement 2: Genuinely Utility-Driven Section Planning', (
     for (const key of Object.keys(plan.sectionMetrics)) {
       const metric = plan.sectionMetrics[key];
       assert.ok(typeof metric.utilityScore === 'number', `${key} must have utilityScore`);
-      assert.ok(typeof metric.marginalUtilityPerSpace === 'number', `${key} must have marginalUtilityPerSpace`);
+      assert.ok(
+        typeof metric.marginalUtilityPerSpace === 'number',
+        `${key} must have marginalUtilityPerSpace`
+      );
       if (metric.available && metric.estimatedHeight > 0) {
-        assert.ok(metric.marginalUtilityPerSpace > 0, `${key} must have positive marginal utility per space`);
+        assert.ok(
+          metric.marginalUtilityPerSpace > 0,
+          `${key} must have positive marginal utility per space`
+        );
       }
     }
   });
@@ -363,7 +378,10 @@ describe('Strategic Enhancement 2: Genuinely Utility-Driven Section Planning', (
     });
 
     assert.ok(plan.sectionOrder.length > 0);
-    assert.ok(plan.totalEstimatedHeight <= plan.usablePageHeight + 35, 'Total height should be disciplined to single-page capacity');
+    assert.ok(
+      plan.totalEstimatedHeight <= plan.usablePageHeight + 35,
+      'Total height should be disciplined to single-page capacity'
+    );
   });
 });
 
@@ -384,8 +402,15 @@ describe('Strategic Enhancement 3: Evidence-Derived Quality Metrics', () => {
     });
 
     // 1. Evidence-derived ATS Parseability
-    assert.ok(quality.atsParseabilityScore >= 90, `ATS score ${quality.atsParseabilityScore} should be >= 90`);
-    assert.equal(quality.atsFindings.length, 0, 'Should have 0 ATS defects for well-structured snapshot');
+    assert.ok(
+      quality.atsParseabilityScore >= 90,
+      `ATS score ${quality.atsParseabilityScore} should be >= 90`
+    );
+    assert.equal(
+      quality.atsFindings.length,
+      0,
+      'Should have 0 ATS defects for well-structured snapshot'
+    );
 
     // 2. Evidence-derived Job Relevance & Requirement Matching
     assert.ok(typeof quality.jobRelevanceScore === 'number');
@@ -396,7 +421,9 @@ describe('Strategic Enhancement 3: Evidence-Derived Quality Metrics', () => {
     // 3. Exact Fact Utilization
     assert.ok(quality.factUtilization.totalAvailableFacts > 0);
     assert.ok(quality.factUtilization.totalRenderedFacts > 0);
-    assert.ok(quality.factUtilization.utilizationRate > 0 && quality.factUtilization.utilizationRate <= 1.0);
+    assert.ok(
+      quality.factUtilization.utilizationRate > 0 && quality.factUtilization.utilizationRate <= 1.0
+    );
     assert.ok(quality.factUtilization.renderedFactIds.length > 0);
 
     // 4. Omission Reasons
@@ -481,6 +508,3 @@ describe('Directive 15-Point Formal Acceptance Contract', () => {
     }
   });
 });
-
-
-

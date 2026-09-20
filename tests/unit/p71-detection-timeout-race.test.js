@@ -40,7 +40,13 @@ function createMockController(options = {}) {
   // Minimal DOM stubs
   const mockDocument = {
     getElementById: () => ({
-      classList: { add() {}, remove() {}, contains() { return false; } },
+      classList: {
+        add() {},
+        remove() {},
+        contains() {
+          return false;
+        },
+      },
       addEventListener() {},
       textContent: '',
       disabled: false,
@@ -99,48 +105,83 @@ function createMockController(options = {}) {
     portalCard: { classList: { add() {}, remove() {} } },
     portalName: { textContent: '' },
     confidenceBadge: { classList: { add() {}, remove() {} } },
-    capJob: null, capApp: null, capForm: null, capAutofill: null,
+    capJob: null,
+    capApp: null,
+    capForm: null,
+    capAutofill: null,
     jobCard: { classList: { add() {}, remove() {} } },
     reanalyzeBtn: { disabled: false, classList: { add() {}, remove() {} }, addEventListener() {} },
     jobNotDetectedState: {
       classList: {
-        add() { elementState.jobNotDetectedStateHidden = true; },
-        remove() { elementState.jobNotDetectedStateHidden = false; },
+        add() {
+          elementState.jobNotDetectedStateHidden = true;
+        },
+        remove() {
+          elementState.jobNotDetectedStateHidden = false;
+        },
       },
     },
     jobDetectedState: {
       classList: {
-        add() { elementState.jobDetectedStateHidden = true; },
-        remove() { elementState.jobDetectedStateHidden = false; },
+        add() {
+          elementState.jobDetectedStateHidden = true;
+        },
+        remove() {
+          elementState.jobDetectedStateHidden = false;
+        },
       },
     },
     jobTitle: {
-      get textContent() { return elementState.jobTitleText; },
-      set textContent(v) { elementState.jobTitleText = v; },
+      get textContent() {
+        return elementState.jobTitleText;
+      },
+      set textContent(v) {
+        elementState.jobTitleText = v;
+      },
     },
     jobCompany: {
-      get textContent() { return elementState.jobCompanyText; },
-      set textContent(v) { elementState.jobCompanyText = v; },
+      get textContent() {
+        return elementState.jobCompanyText;
+      },
+      set textContent(v) {
+        elementState.jobCompanyText = v;
+      },
     },
     jobLocation: { textContent: '' },
     jobType: { textContent: '' },
     jobIdTag: { textContent: '', classList: { add() {}, remove() {} } },
     analyzeJobBtn: {
-      get disabled() { return elementState.analyzeJobBtnDisabled; },
-      set disabled(v) { elementState.analyzeJobBtnDisabled = v; },
-      get textContent() { return elementState.analyzeJobBtnText; },
-      set textContent(v) { elementState.analyzeJobBtnText = v; },
+      get disabled() {
+        return elementState.analyzeJobBtnDisabled;
+      },
+      set disabled(v) {
+        elementState.analyzeJobBtnDisabled = v;
+      },
+      get textContent() {
+        return elementState.analyzeJobBtnText;
+      },
+      set textContent(v) {
+        elementState.analyzeJobBtnText = v;
+      },
       addEventListener() {},
     },
     descriptionLoadingNotice: {
       classList: {
-        add(cls) { if (cls === 'hidden') elementState.descriptionLoadingNoticeHidden = true; },
-        remove(cls) { if (cls === 'hidden') elementState.descriptionLoadingNoticeHidden = false; },
+        add(cls) {
+          if (cls === 'hidden') elementState.descriptionLoadingNoticeHidden = true;
+        },
+        remove(cls) {
+          if (cls === 'hidden') elementState.descriptionLoadingNoticeHidden = false;
+        },
       },
     },
     descriptionLoadingText: {
-      get textContent() { return elementState.descriptionLoadingText; },
-      set textContent(v) { elementState.descriptionLoadingText = v; },
+      get textContent() {
+        return elementState.descriptionLoadingText;
+      },
+      set textContent(v) {
+        elementState.descriptionLoadingText = v;
+      },
     },
     analysisErrorBanner: { classList: { add() {}, remove() {} } },
     analysisErrorMessage: { textContent: '' },
@@ -221,7 +262,11 @@ function createMockController(options = {}) {
   // Mock backend client
   controller.backendClient = {
     getHealth: async () => ({ status: 'ok' }),
-    getAuthStatus: async () => ({ authenticated: true, status: 'AUTHENTICATED', user: { id: 'u1' } }),
+    getAuthStatus: async () => ({
+      authenticated: true,
+      status: 'AUTHENTICATED',
+      user: { id: 'u1' },
+    }),
     analyzeJob: async () => null,
   };
 
@@ -288,7 +333,7 @@ describe('P71: Detection Timeout Race Regression', () => {
       await controller._reconcileDetectedJob(job);
 
       // Allow async store operations to settle
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
 
       assert.strictEqual(controller.activeJob.title, 'Senior Software Engineer');
       assert.strictEqual(controller.activeJob.company, 'Appinventiv');
@@ -303,7 +348,7 @@ describe('P71: Detection Timeout Race Regression', () => {
       // This would have been rejected by the old 4000ms timeout
       // The DETECTION_REQUEST_TIMEOUT_MS (7000ms) ensures it's accepted
       await controller._reconcileDetectedJob(job);
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
 
       assert.strictEqual(controller.activeJob.title, 'Senior Software Engineer');
       assert.strictEqual(controller.activeJob.externalJobId, '4464770430');
@@ -313,10 +358,15 @@ describe('P71: Detection Timeout Race Regression', () => {
   describe('3. Detection request timeout at 7000ms → only then treated as unavailable', () => {
     it('sendWithTimeout uses DETECTION_REQUEST_TIMEOUT_MS (7000ms) not old 4000ms', () => {
       // Verify the constant is the correct value used by sidebar
-      assert.strictEqual(DETECTION_REQUEST_TIMEOUT_MS, 7000,
-        'Sidebar must use 7000ms timeout, not the old 4000ms');
-      assert.ok(DETECTION_REQUEST_TIMEOUT_MS > 5000,
-        'Sidebar timeout must exceed content-script hydration deadline (5000ms)');
+      assert.strictEqual(
+        DETECTION_REQUEST_TIMEOUT_MS,
+        7000,
+        'Sidebar must use 7000ms timeout, not the old 4000ms'
+      );
+      assert.ok(
+        DETECTION_REQUEST_TIMEOUT_MS > 5000,
+        'Sidebar timeout must exceed content-script hydration deadline (5000ms)'
+      );
     });
   });
 
@@ -380,7 +430,7 @@ describe('P71: Detection Timeout Race Regression', () => {
 
       // Req2 completes first with Job B
       await controller._reconcileDetectedJob(jobB);
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
       assert.strictEqual(controller.activeJob.title, 'Job B');
 
       // Late response from req1 arrives — must be discarded by requestId check
@@ -400,7 +450,7 @@ describe('P71: Detection Timeout Race Regression', () => {
       });
 
       await controller._reconcileDetectedJob(job);
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
 
       assert.ok(controller.activeJob, 'Job must be adopted');
       assert.strictEqual(controller.activeJob.title, 'Senior Software Engineer');
@@ -418,12 +468,13 @@ describe('P71: Detection Timeout Race Regression', () => {
         analysisReady: false,
       });
       await controller._reconcileDetectedJob(initialJob);
-      await new Promise(r => setTimeout(r, 10));
+      await new Promise((r) => setTimeout(r, 10));
       assert.strictEqual(controller.activeJob.analysisReady, false);
 
       // Same job with hydrated description
       const hydratedJob = makeLinkedInJob({
-        description: 'This is a fully hydrated job description that contains more than fifty characters of meaningful content about the role requirements and responsibilities.',
+        description:
+          'This is a fully hydrated job description that contains more than fifty characters of meaningful content about the role requirements and responsibilities.',
         analysisReady: true,
       });
       controller.cachedState = {
@@ -432,8 +483,10 @@ describe('P71: Detection Timeout Race Regression', () => {
       };
       controller._reconcileDetectedJob(hydratedJob);
 
-      assert.ok(controller.activeJob.description.length >= 50,
-        'Description must be updated to hydrated version');
+      assert.ok(
+        controller.activeJob.description.length >= 50,
+        'Description must be updated to hydrated version'
+      );
       assert.strictEqual(controller.activeJob.analysisReady, true);
     });
   });
@@ -512,7 +565,11 @@ describe('P71: Detection Timeout Race Regression', () => {
         controller.stateMachine.reset();
       }
 
-      assert.strictEqual(controller.activeJob, null, 'activeJob must be cleared on confirmed non-job');
+      assert.strictEqual(
+        controller.activeJob,
+        null,
+        'activeJob must be cleared on confirmed non-job'
+      );
       assert.strictEqual(controller.activeJobFingerprint, null);
     });
 
@@ -534,8 +591,11 @@ describe('P71: Detection Timeout Race Regression', () => {
 
       // Even on confirmed non-job, locked state must be preserved
       assert.ok(controller.isWorkflowLocked(), 'Workflow must be locked');
-      assert.strictEqual(controller.activeJob.title, 'Senior Engineer',
-        'Locked job must be preserved');
+      assert.strictEqual(
+        controller.activeJob.title,
+        'Senior Engineer',
+        'Locked job must be preserved'
+      );
     });
   });
 
@@ -554,8 +614,11 @@ describe('P71: Detection Timeout Race Regression', () => {
 
       // After a transport timeout (catch block), activeJob is preserved
       const afterTimeout = { ...controller.activeJob };
-      assert.strictEqual(afterTimeout.title, 'My Active Job',
-        'Transport timeout must NOT clear existing job');
+      assert.strictEqual(
+        afterTimeout.title,
+        'My Active Job',
+        'Transport timeout must NOT clear existing job'
+      );
 
       // After confirmed non-job (response.detected === false, unlocked), job is cleared
       const confirmedNonJob = { detected: false };

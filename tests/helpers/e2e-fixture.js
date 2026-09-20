@@ -14,19 +14,12 @@
 
 import { eq, and, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../../src/db/index.js';
-import {
-  tenants,
-  users,
-  candidates,
-  skills,
-  candidateSkills,
-} from '../../src/db/schema.js';
+import { tenants, users, candidates, skills, candidateSkills } from '../../src/db/schema.js';
 
 /**
  * Stable MCP acceptance candidate — read-only. Mutable tests must NOT write to it.
  */
-export const PROTECTED_MCP_FIXTURE_CANDIDATE_ID =
-  '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
+export const PROTECTED_MCP_FIXTURE_CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
 
 /**
  * Explicit opt-in env var that overrides the guard for deliberate,
@@ -97,9 +90,7 @@ export async function ensureE2eFixture(database = null) {
   const [existingUser] = await dbClient
     .select({ id: users.id })
     .from(users)
-    .where(
-      and(eq(users.tenantId, tenantId), eq(users.email, E2E_FIXTURE.userEmail))
-    )
+    .where(and(eq(users.tenantId, tenantId), eq(users.email, E2E_FIXTURE.userEmail)))
     .limit(1);
   const userId =
     existingUser?.id ||
@@ -167,8 +158,22 @@ export async function ensureE2eFixture(database = null) {
 export async function ensureFixtureEvidenceSkills(database, { tenantId, candidateId }) {
   const dbClient = database || defaultDb;
   const seed = [
-    { slug: 'typescript', name: 'TypeScript', category: 'LANGUAGE', provenance: 'VERIFIED', confidence: 0.92, evidenceCount: 4 },
-    { slug: 'react', name: 'React', category: 'FRAMEWORK', provenance: 'CORROBORATED', confidence: 0.85, evidenceCount: 3 },
+    {
+      slug: 'typescript',
+      name: 'TypeScript',
+      category: 'LANGUAGE',
+      provenance: 'VERIFIED',
+      confidence: 0.92,
+      evidenceCount: 4,
+    },
+    {
+      slug: 'react',
+      name: 'React',
+      category: 'FRAMEWORK',
+      provenance: 'CORROBORATED',
+      confidence: 0.85,
+      evidenceCount: 3,
+    },
   ];
   for (const item of seed) {
     const [skillRow] = await dbClient
@@ -223,16 +228,17 @@ export async function cleanupFixtureCandidateSkills(database = null, candidateId
   const dbClient = database || defaultDb;
   if (!candidateId) return;
   assertNotProtectedCandidate(candidateId); // never wipe the stable fixture's skills
-  await dbClient
-    .delete(candidateSkills)
-    .where(eq(candidateSkills.candidateId, candidateId));
+  await dbClient.delete(candidateSkills).where(eq(candidateSkills.candidateId, candidateId));
 }
 
 /**
  * Resolves the fixture candidateId for a user email (used by dev-only auth
  * override). Returns null when the fixture user does not exist yet.
  */
-export async function findFixtureCandidateIdByEmail(database = null, email = E2E_FIXTURE.userEmail) {
+export async function findFixtureCandidateIdByEmail(
+  database = null,
+  email = E2E_FIXTURE.userEmail
+) {
   const dbClient = database || defaultDb;
   const [row] = await dbClient
     .select({ candidateId: candidates.id })
@@ -247,7 +253,10 @@ export async function findFixtureCandidateIdByEmail(database = null, email = E2E
  * Convenience: count rows that still reference the protected fixture candidate
  * (used by cross-contamination verification).
  */
-export async function assertStableFixtureUnchanged(database = null, candidateId = PROTECTED_MCP_FIXTURE_CANDIDATE_ID) {
+export async function assertStableFixtureUnchanged(
+  database = null,
+  candidateId = PROTECTED_MCP_FIXTURE_CANDIDATE_ID
+) {
   const dbClient = database || defaultDb;
   const [row] = await dbClient
     .select({ displayName: candidates.displayName })

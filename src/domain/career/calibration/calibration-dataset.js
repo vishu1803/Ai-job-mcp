@@ -26,12 +26,12 @@ function createMinimalPdfStream(lines = []) {
 
   return Buffer.from(
     '%PDF-1.4\n' +
-    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-    `4 0 obj\n<< /Length ${streamLen} >>\nstream\n${contentStream}\nendstream\nendobj\n` +
-    'xref\n0 5\n' +
-    'trailer\n<< /Root 1 0 R >>\n%%EOF',
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      `4 0 obj\n<< /Length ${streamLen} >>\nstream\n${contentStream}\nendstream\nendobj\n` +
+      'xref\n0 5\n' +
+      'trailer\n<< /Root 1 0 R >>\n%%EOF',
     'latin1'
   );
 }
@@ -46,8 +46,20 @@ export const BENCHMARK_TARGET_JOB = Object.freeze({
   companyName: 'Apex Cloud Systems',
   requirements: [
     { id: 'req-go', skill: 'Go', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
-    { id: 'req-postgres', skill: 'PostgreSQL', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
-    { id: 'req-dist-systems', skill: 'Distributed Systems', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
+    {
+      id: 'req-postgres',
+      skill: 'PostgreSQL',
+      importance: 'REQUIRED',
+      category: 'SKILL',
+      weight: 1.0,
+    },
+    {
+      id: 'req-dist-systems',
+      skill: 'Distributed Systems',
+      importance: 'REQUIRED',
+      category: 'SKILL',
+      weight: 1.0,
+    },
     { id: 'req-k8s', skill: 'Kubernetes', importance: 'PREFERRED', category: 'SKILL', weight: 0.7 },
     { id: 'req-aws', skill: 'AWS', importance: 'PREFERRED', category: 'SKILL', weight: 0.7 },
   ],
@@ -59,14 +71,20 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-1-senior-dist-sys',
     title: 'Senior Distributed Systems Engineer',
     archetype: 'GROUNDED_SENIOR',
-    description: 'Flawless single-column PDF, fully backed claims (Go, PostgreSQL, Raft), 40% latency reduction.',
+    description:
+      'Flawless single-column PDF, fully backed claims (Go, PostgreSQL, Raft), 40% latency reduction.',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-senior-1',
       tenantId: COMMON_TENANT_ID,
       displayName: 'Alex Mercer',
       profileMetadata: {
-        skills: [{ name: 'Go' }, { name: 'PostgreSQL' }, { name: 'Distributed Systems' }, { name: 'Kubernetes' }],
+        skills: [
+          { name: 'Go' },
+          { name: 'PostgreSQL' },
+          { name: 'Distributed Systems' },
+          { name: 'Kubernetes' },
+        ],
         experience: [{ title: 'Senior Systems Engineer', company: 'CloudScale' }],
         projects: [{ name: 'Raft KV Store', technologies: ['Go', 'PostgreSQL'] }],
       },
@@ -97,20 +115,31 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Alex Mercer', email: 'alex@example.com', phone: '555-0101' },
-      summary: { text: 'Senior Distributed Systems Engineer with 7+ years designing high-throughput storage engines in Go and PostgreSQL.' },
+      summary: {
+        text: 'Senior Distributed Systems Engineer with 7+ years designing high-throughput storage engines in Go and PostgreSQL.',
+      },
       skills: {
         categories: [
           { categoryName: 'Languages', skills: [{ name: 'Go' }] },
           { categoryName: 'Databases', skills: [{ name: 'PostgreSQL' }] },
-          { categoryName: 'Infrastructure', skills: [{ name: 'Kubernetes' }, { name: 'Distributed Systems' }] },
+          {
+            categoryName: 'Infrastructure',
+            skills: [{ name: 'Kubernetes' }, { name: 'Distributed Systems' }],
+          },
         ],
       },
       projects: [
         {
           name: 'Raft KV Store',
           bullets: [
-            { text: 'Architected distributed consensus engine in Go handling 50k ops/sec.', composedFromFactIds: ['fact-alex-1'] },
-            { text: 'Optimized PostgreSQL composite indexes reducing query latency by 40%.', composedFromFactIds: ['fact-alex-2'] },
+            {
+              text: 'Architected distributed consensus engine in Go handling 50k ops/sec.',
+              composedFromFactIds: ['fact-alex-1'],
+            },
+            {
+              text: 'Optimized PostgreSQL composite indexes reducing query latency by 40%.',
+              composedFromFactIds: ['fact-alex-2'],
+            },
           ],
         },
       ],
@@ -123,7 +152,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Bullet: Architected distributed consensus engine in Go handling 50k ops/sec.',
       'Bullet: Optimized PostgreSQL composite indexes reducing query latency by 40%.',
     ]),
-    extractedText: 'Alex Mercer\nalex@example.com\n555-0101\nProfessional Summary\nSenior Distributed Systems Engineer with 7+ years designing high-throughput engines in Go.\nTechnical Skills\nGo, PostgreSQL, Distributed Systems, Kubernetes, AWS\nProjects\nRaft KV Store\nArchitected distributed consensus engine in Go handling 50k ops/sec.\nOptimized PostgreSQL composite indexes reducing query latency by 40%.\nExperience\nCloudScale Senior Systems Engineer\nEducation\nB.S. Computer Science MIT',
+    extractedText:
+      'Alex Mercer\nalex@example.com\n555-0101\nProfessional Summary\nSenior Distributed Systems Engineer with 7+ years designing high-throughput engines in Go.\nTechnical Skills\nGo, PostgreSQL, Distributed Systems, Kubernetes, AWS\nProjects\nRaft KV Store\nArchitected distributed consensus engine in Go handling 50k ops/sec.\nOptimized PostgreSQL composite indexes reducing query latency by 40%.\nExperience\nCloudScale Senior Systems Engineer\nEducation\nB.S. Computer Science MIT',
     humanEvaluation: {
       atsParseability: 95,
       jobMatch: 94,
@@ -132,7 +162,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 1,
       recommendation: 'STRONG_HIRE',
       qualifies: true,
-      rationale: 'Exceptional senior candidate with exact technology stack match, verified quantitative impact, and clean single-column structure.',
+      rationale:
+        'Exceptional senior candidate with exact technology stack match, verified quantitative impact, and clean single-column structure.',
     },
   },
 
@@ -141,7 +172,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-2-mid-fullstack',
     title: 'Mid-Level Full-Stack Engineer',
     archetype: 'GROUNDED_MID',
-    description: 'Clean layout, verified Node.js and PostgreSQL experience, modest distributed systems exposure.',
+    description:
+      'Clean layout, verified Node.js and PostgreSQL experience, modest distributed systems exposure.',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-mid-2',
@@ -169,7 +201,9 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Jordan Taylor', email: 'jordan@example.com', phone: '555-0102' },
-      summary: { text: 'Backend software engineer with 4 years building reliable microservices with Go and PostgreSQL.' },
+      summary: {
+        text: 'Backend software engineer with 4 years building reliable microservices with Go and PostgreSQL.',
+      },
       skills: {
         categories: [
           { categoryName: 'Languages', skills: [{ name: 'Go' }] },
@@ -180,7 +214,10 @@ export const CALIBRATION_DATASET = Object.freeze([
         {
           name: 'Inventory Sync Service',
           bullets: [
-            { text: 'Built backend inventory microservices in Go using PostgreSQL transactions.', composedFromFactIds: ['fact-jordan-1'] },
+            {
+              text: 'Built backend inventory microservices in Go using PostgreSQL transactions.',
+              composedFromFactIds: ['fact-jordan-1'],
+            },
           ],
         },
       ],
@@ -192,7 +229,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Inventory Sync Service',
       'Bullet: Built backend inventory microservices in Go using PostgreSQL transactions.',
     ]),
-    extractedText: 'Jordan Taylor\njordan@example.com\n555-0102\nProfessional Summary\nBackend software engineer with 4 years building reliable microservices with Go and PostgreSQL.\nTechnical Skills\nGo, PostgreSQL, Docker\nProjects\nInventory Sync Service\nBuilt backend inventory microservices in Go using PostgreSQL transactions.\nExperience\nDataGrid Software Engineer\nEducation\nB.S. Computer Science UC Berkeley',
+    extractedText:
+      'Jordan Taylor\njordan@example.com\n555-0102\nProfessional Summary\nBackend software engineer with 4 years building reliable microservices with Go and PostgreSQL.\nTechnical Skills\nGo, PostgreSQL, Docker\nProjects\nInventory Sync Service\nBuilt backend inventory microservices in Go using PostgreSQL transactions.\nExperience\nDataGrid Software Engineer\nEducation\nB.S. Computer Science UC Berkeley',
     humanEvaluation: {
       atsParseability: 90,
       jobMatch: 82,
@@ -201,7 +239,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 2,
       recommendation: 'HIRE',
       qualifies: true,
-      rationale: 'Solid mid-level engineer who satisfies core required skills with grounded project evidence.',
+      rationale:
+        'Solid mid-level engineer who satisfies core required skills with grounded project evidence.',
     },
   },
 
@@ -210,7 +249,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-3-format-challenged-senior',
     title: 'Format-Challenged Strong Engineer',
     archetype: 'FORMAT_CHALLENGED_STRONG',
-    description: 'High technical competence (90 job match), but multi-column layout creates parsing friction (65 parseability).',
+    description:
+      'High technical competence (90 job match), but multi-column layout creates parsing friction (65 parseability).',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-format-3',
@@ -219,7 +259,12 @@ export const CALIBRATION_DATASET = Object.freeze([
       profileMetadata: {
         skills: [{ name: 'Go' }, { name: 'PostgreSQL' }, { name: 'Distributed Systems' }],
         experience: [{ title: 'Principal Engineer', company: 'InfraCorp' }],
-        projects: [{ name: 'Stream Storage Engine', technologies: ['Go', 'PostgreSQL', 'Distributed Systems'] }],
+        projects: [
+          {
+            name: 'Stream Storage Engine',
+            technologies: ['Go', 'PostgreSQL', 'Distributed Systems'],
+          },
+        ],
       },
     },
     factInventory: {
@@ -248,18 +293,29 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Samir Patel', email: 'samir@example.com' },
-      summary: { text: 'Distinguished infrastructure systems architect specializing in Go and distributed algorithms.' },
+      summary: {
+        text: 'Distinguished infrastructure systems architect specializing in Go and distributed algorithms.',
+      },
       skills: {
         categories: [
-          { categoryName: 'Core', skills: [{ name: 'Go' }, { name: 'PostgreSQL' }, { name: 'Distributed Systems' }] },
+          {
+            categoryName: 'Core',
+            skills: [{ name: 'Go' }, { name: 'PostgreSQL' }, { name: 'Distributed Systems' }],
+          },
         ],
       },
       projects: [
         {
           name: 'Stream Storage Engine',
           bullets: [
-            { text: 'Architected distributed log storage engine in Go supporting 1M events/sec.', composedFromFactIds: ['fact-samir-1'] },
-            { text: 'Optimized PostgreSQL distributed partitioning reducing write amplification by 30%.', composedFromFactIds: ['fact-samir-2'] },
+            {
+              text: 'Architected distributed log storage engine in Go supporting 1M events/sec.',
+              composedFromFactIds: ['fact-samir-1'],
+            },
+            {
+              text: 'Optimized PostgreSQL distributed partitioning reducing write amplification by 30%.',
+              composedFromFactIds: ['fact-samir-2'],
+            },
           ],
         },
       ],
@@ -272,7 +328,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Stream Storage Engine',
       'Bullet: Architected distributed log storage engine in Go supporting 1M events/sec.',
     ]),
-    extractedText: 'Samir Patel\nsamir@example.com\nTechnical Skills: Go, PostgreSQL\nSummary: Infrastructure systems architect in Go.\nDistributed Systems\nStream Storage Engine\nArchitected distributed log storage engine in Go supporting 1M events/sec.\nExperience: InfraCorp\nEducation: Stanford MS CS',
+    extractedText:
+      'Samir Patel\nsamir@example.com\nTechnical Skills: Go, PostgreSQL\nSummary: Infrastructure systems architect in Go.\nDistributed Systems\nStream Storage Engine\nArchitected distributed log storage engine in Go supporting 1M events/sec.\nExperience: InfraCorp\nEducation: Stanford MS CS',
     humanEvaluation: {
       atsParseability: 65,
       jobMatch: 90,
@@ -281,7 +338,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 3,
       recommendation: 'HIRE',
       qualifies: true,
-      rationale: 'Superb technical background and experience. Despite layout formatting imperfections, technical match clearly qualifies candidate for hire.',
+      rationale:
+        'Superb technical background and experience. Despite layout formatting imperfections, technical match clearly qualifies candidate for hire.',
     },
   },
 
@@ -290,7 +348,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-4-junior-grounded',
     title: 'Junior / New Graduate Engineer',
     archetype: 'GROUNDED_JUNIOR',
-    description: 'Clean single-column layout, grounded academic and internship projects, modest metrics.',
+    description:
+      'Clean single-column layout, grounded academic and internship projects, modest metrics.',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-junior-4',
@@ -318,7 +377,9 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Casey Rivera', email: 'casey@example.com', phone: '555-0104' },
-      summary: { text: 'Computer Science graduate with hands-on coursework and internship experience in Go and relational databases.' },
+      summary: {
+        text: 'Computer Science graduate with hands-on coursework and internship experience in Go and relational databases.',
+      },
       skills: {
         categories: [
           { categoryName: 'Languages', skills: [{ name: 'Go' }] },
@@ -329,7 +390,10 @@ export const CALIBRATION_DATASET = Object.freeze([
         {
           name: 'Distributed Cache',
           bullets: [
-            { text: 'Implemented in-memory LRU cache in Go with concurrent mutex synchronization.', composedFromFactIds: ['fact-casey-1'] },
+            {
+              text: 'Implemented in-memory LRU cache in Go with concurrent mutex synchronization.',
+              composedFromFactIds: ['fact-casey-1'],
+            },
           ],
         },
       ],
@@ -341,7 +405,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Distributed Cache',
       'Bullet: Implemented in-memory LRU cache in Go with concurrent mutex synchronization.',
     ]),
-    extractedText: 'Casey Rivera\ncasey@example.com\n555-0104\nProfessional Summary\nComputer Science graduate with hands-on coursework in Go and PostgreSQL.\nTechnical Skills\nGo, PostgreSQL, Git, Linux\nProjects\nDistributed Cache\nImplemented in-memory LRU cache in Go with concurrent mutex synchronization.\nExperience\nTechStart Software Engineering Intern\nEducation\nB.S. Computer Science University of Washington',
+    extractedText:
+      'Casey Rivera\ncasey@example.com\n555-0104\nProfessional Summary\nComputer Science graduate with hands-on coursework in Go and PostgreSQL.\nTechnical Skills\nGo, PostgreSQL, Git, Linux\nProjects\nDistributed Cache\nImplemented in-memory LRU cache in Go with concurrent mutex synchronization.\nExperience\nTechStart Software Engineering Intern\nEducation\nB.S. Computer Science University of Washington',
     humanEvaluation: {
       atsParseability: 88,
       jobMatch: 72,
@@ -350,7 +415,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 4,
       recommendation: 'LEANING_HIRE',
       qualifies: true,
-      rationale: 'Junior engineer who meets foundational technical requirements truthfully without exaggerating seniority.',
+      rationale:
+        'Junior engineer who meets foundational technical requirements truthfully without exaggerating seniority.',
     },
   },
 
@@ -362,7 +428,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-5-pretty-mismatch',
     title: 'Polished Formatting with Irrelevant Experience',
     archetype: 'PRETTY_MISMATCH',
-    description: 'Flawless single-column PDF and strong writing in Ruby/iOS, applied to Senior Go/Kubernetes role (40 match).',
+    description:
+      'Flawless single-column PDF and strong writing in Ruby/iOS, applied to Senior Go/Kubernetes role (40 match).',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-mismatch-5',
@@ -390,7 +457,9 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Riley Vance', email: 'riley@example.com', phone: '555-0105' },
-      summary: { text: 'Accomplished Senior Mobile Application Engineer with 8 years building flagship consumer apps in Swift and Ruby.' },
+      summary: {
+        text: 'Accomplished Senior Mobile Application Engineer with 8 years building flagship consumer apps in Swift and Ruby.',
+      },
       skills: {
         categories: [
           { categoryName: 'Languages', skills: [{ name: 'Swift' }, { name: 'Ruby' }] },
@@ -401,7 +470,10 @@ export const CALIBRATION_DATASET = Object.freeze([
         {
           name: 'E-Commerce Mobile App',
           bullets: [
-            { text: 'Architected iOS mobile checkout in Swift handling $10M in annual transactions.', composedFromFactIds: ['fact-riley-1'] },
+            {
+              text: 'Architected iOS mobile checkout in Swift handling $10M in annual transactions.',
+              composedFromFactIds: ['fact-riley-1'],
+            },
           ],
         },
       ],
@@ -413,7 +485,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: E-Commerce Mobile App',
       '- Architected iOS mobile checkout in Swift handling $10M in annual transactions.',
     ]),
-    extractedText: 'Riley Vance\nriley@example.com\n555-0105\nProfessional Summary\nAccomplished Senior Mobile Application Engineer with 8 years building apps in Swift and Ruby.\nTechnical Skills\nSwift, Ruby, Ruby on Rails, SwiftUI, CoreData\nProjects\nE-Commerce Mobile App\n- Architected iOS mobile checkout in Swift handling $10M in annual transactions.\nExperience\nAppWorks Senior Mobile Engineer\nEducation\nB.S. Software Engineering UT Austin',
+    extractedText:
+      'Riley Vance\nriley@example.com\n555-0105\nProfessional Summary\nAccomplished Senior Mobile Application Engineer with 8 years building apps in Swift and Ruby.\nTechnical Skills\nSwift, Ruby, Ruby on Rails, SwiftUI, CoreData\nProjects\nE-Commerce Mobile App\n- Architected iOS mobile checkout in Swift handling $10M in annual transactions.\nExperience\nAppWorks Senior Mobile Engineer\nEducation\nB.S. Software Engineering UT Austin',
     humanEvaluation: {
       atsParseability: 95,
       jobMatch: 40,
@@ -422,7 +495,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 5,
       recommendation: 'NO_HIRE',
       qualifies: false,
-      rationale: 'Great mobile software engineer, but possesses zero required experience for this Distributed Systems Go role. Formatting must not mask fundamental skill mismatch.',
+      rationale:
+        'Great mobile software engineer, but possesses zero required experience for this Distributed Systems Go role. Formatting must not mask fundamental skill mismatch.',
     },
   },
 
@@ -431,7 +505,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-6-keyword-stuffed',
     title: 'Keyword-Stuffed Over-Optimized Resume',
     archetype: 'KEYWORD_STUFFED',
-    description: 'High repetition of target keywords in summary, thin substance, low evidence coverage.',
+    description:
+      'High repetition of target keywords in summary, thin substance, low evidence coverage.',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-stuffed-6',
@@ -469,7 +544,10 @@ export const CALIBRATION_DATASET = Object.freeze([
         {
           name: 'Basic App',
           bullets: [
-            { text: 'Assisted in basic Go script maintenance.', composedFromFactIds: ['fact-devon-1'] },
+            {
+              text: 'Assisted in basic Go script maintenance.',
+              composedFromFactIds: ['fact-devon-1'],
+            },
           ],
         },
       ],
@@ -481,7 +559,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Basic App',
       'Bullet: Assisted in basic Go script maintenance.',
     ]),
-    extractedText: 'Devon Hayes\ndevon@example.com\nSummary: Go developer building Go systems with Go microservices and Go backend services in Go.\nSkills: Go\nProjects: Basic App\nAssisted in basic Go script maintenance.\nEducation: High School',
+    extractedText:
+      'Devon Hayes\ndevon@example.com\nSummary: Go developer building Go systems with Go microservices and Go backend services in Go.\nSkills: Go\nProjects: Basic App\nAssisted in basic Go script maintenance.\nEducation: High School',
     humanEvaluation: {
       atsParseability: 75,
       jobMatch: 62,
@@ -490,7 +569,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 6,
       recommendation: 'LEANING_NO_HIRE',
       qualifies: false,
-      rationale: 'Candidate attempted keyword stuffing. Repetition does not compensate for lack of substance and missing requirements.',
+      rationale:
+        'Candidate attempted keyword stuffing. Repetition does not compensate for lack of substance and missing requirements.',
     },
   },
 
@@ -527,7 +607,9 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Taylor Brooks', email: 'taylor@example.com', phone: '555-0107' },
-      summary: { text: 'Enthusiastic beginner web developer building static websites in HTML and CSS.' },
+      summary: {
+        text: 'Enthusiastic beginner web developer building static websites in HTML and CSS.',
+      },
       skills: {
         categories: [{ categoryName: 'Web', skills: [{ name: 'HTML' }, { name: 'CSS' }] }],
       },
@@ -535,7 +617,10 @@ export const CALIBRATION_DATASET = Object.freeze([
         {
           name: 'Portfolio Webpage',
           bullets: [
-            { text: 'Created responsive personal portfolio webpage in HTML and CSS.', composedFromFactIds: ['fact-taylor-1'] },
+            {
+              text: 'Created responsive personal portfolio webpage in HTML and CSS.',
+              composedFromFactIds: ['fact-taylor-1'],
+            },
           ],
         },
       ],
@@ -547,7 +632,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Portfolio Webpage',
       'Bullet: Created responsive personal portfolio webpage in HTML and CSS.',
     ]),
-    extractedText: 'Taylor Brooks\ntaylor@example.com\n555-0107\nSummary: Enthusiastic beginner web developer building static websites in HTML and CSS.\nSkills: HTML, CSS\nProjects: Portfolio Webpage\nCreated responsive personal portfolio webpage in HTML and CSS.\nEducation: Web Bootcamp',
+    extractedText:
+      'Taylor Brooks\ntaylor@example.com\n555-0107\nSummary: Enthusiastic beginner web developer building static websites in HTML and CSS.\nSkills: HTML, CSS\nProjects: Portfolio Webpage\nCreated responsive personal portfolio webpage in HTML and CSS.\nEducation: Web Bootcamp',
     humanEvaluation: {
       atsParseability: 85,
       jobMatch: 25,
@@ -556,7 +642,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 7,
       recommendation: 'NO_HIRE',
       qualifies: false,
-      rationale: 'Completely unqualified for a Senior Distributed Systems role. 0% of required technical competencies present.',
+      rationale:
+        'Completely unqualified for a Senior Distributed Systems role. 0% of required technical competencies present.',
     },
   },
 
@@ -565,7 +652,8 @@ export const CALIBRATION_DATASET = Object.freeze([
     id: 'archetype-8-fabricated-fraud',
     title: 'Fabricated / Fraudulent Metric Claim',
     archetype: 'FRAUDULENT_CLAIM',
-    description: 'Invented unbacked 85% latency reduction metric; must fail closed with publishable score = 0.',
+    description:
+      'Invented unbacked 85% latency reduction metric; must fail closed with publishable score = 0.',
     targetJob: BENCHMARK_TARGET_JOB,
     candidateProfile: {
       id: 'cand-fraud-8',
@@ -589,7 +677,9 @@ export const CALIBRATION_DATASET = Object.freeze([
     },
     structuredResume: {
       header: { name: 'Chris Nolan', email: 'chris@example.com', phone: '555-0108' },
-      summary: { text: 'Senior distributed architect claiming 85% latency reductions across cloud nodes.' },
+      summary: {
+        text: 'Senior distributed architect claiming 85% latency reductions across cloud nodes.',
+      },
       skills: {
         categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }] }],
       },
@@ -612,7 +702,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       'Projects: Fake Database',
       'Bullet: Engineered custom Raft consensus reducing cluster query latency by 85% across all nodes.',
     ]),
-    extractedText: 'Chris Nolan\nchris@example.com\n555-0108\nSummary: Senior distributed architect claiming 85% latency reductions across cloud nodes.\nSkills: Go, PostgreSQL\nProjects: Fake Database\nEngineered custom Raft consensus reducing cluster query latency by 85% across all nodes.\nExperience: VaporCorp\nEducation: Self-taught',
+    extractedText:
+      'Chris Nolan\nchris@example.com\n555-0108\nSummary: Senior distributed architect claiming 85% latency reductions across cloud nodes.\nSkills: Go, PostgreSQL\nProjects: Fake Database\nEngineered custom Raft consensus reducing cluster query latency by 85% across all nodes.\nExperience: VaporCorp\nEducation: Self-taught',
     humanEvaluation: {
       atsParseability: 90,
       jobMatch: 85,
@@ -621,7 +712,8 @@ export const CALIBRATION_DATASET = Object.freeze([
       rank: 8,
       recommendation: 'FRAUD_REJECT',
       qualifies: false,
-      rationale: 'Critical violation: Fabricated 85% latency reduction metric not corroborated by source facts. Must be strictly rejected with score 0.',
+      rationale:
+        'Critical violation: Fabricated 85% latency reduction metric not corroborated by source facts. Must be strictly rejected with score 0.',
     },
   },
 ]);

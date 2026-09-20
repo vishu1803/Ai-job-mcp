@@ -100,7 +100,7 @@ function evaluateCorpusSample(sample, scoreVersion = DEFAULT_SCORE_VERSION) {
   // Calculate realistic job match based on human expectation
   const jobMatchReport = {
     jobMatchScore: sample.humanEvaluation.jobMatch,
-    confidence: 0.90,
+    confidence: 0.9,
   };
 
   return generateUnifiedQualityReport({
@@ -116,7 +116,11 @@ function evaluateCorpusSample(sample, scoreVersion = DEFAULT_SCORE_VERSION) {
 
 describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
   it('Steps 1 & 2: Validates real PDF corpus integrity and human benchmark annotations', () => {
-    assert.equal(CALIBRATION_DATASET.length, 8, 'Dataset must contain 8 representative candidate archetypes');
+    assert.equal(
+      CALIBRATION_DATASET.length,
+      8,
+      'Dataset must contain 8 representative candidate archetypes'
+    );
 
     for (const sample of CALIBRATION_DATASET) {
       assert.ok(sample.id, 'Sample must have an id');
@@ -142,17 +146,27 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
   });
 
   it('Steps 3, 4 & 5: Runs evaluator, compares against human review, and measures correlation/error', () => {
-    const engineReports = CALIBRATION_DATASET.map((sample) => evaluateCorpusSample(sample, 'p82.0'));
+    const engineReports = CALIBRATION_DATASET.map((sample) =>
+      evaluateCorpusSample(sample, 'p82.0')
+    );
     const enginePublishableScores = engineReports.map((r) => r.publishableScore);
     const humanBenchmarkScores = CALIBRATION_DATASET.map((s) => s.humanEvaluation.compositeScore);
 
     // Verify scoreVersion is stamped on every report
     for (const report of engineReports) {
-      assert.equal(report.scoreVersion, 'p82.0', 'Every evaluation must retain scoreVersion "p82.0"');
-      assert.equal(report.provenance.scoreVersion, 'p82.0', 'Provenance must retain scoreVersion "p82.0"');
-      assert.equal(report.provenance.weights.atsParseability, 0.30);
-      assert.equal(report.provenance.weights.jobMatch, 0.40);
-      assert.equal(report.provenance.weights.contentQuality, 0.30);
+      assert.equal(
+        report.scoreVersion,
+        'p82.0',
+        'Every evaluation must retain scoreVersion "p82.0"'
+      );
+      assert.equal(
+        report.provenance.scoreVersion,
+        'p82.0',
+        'Provenance must retain scoreVersion "p82.0"'
+      );
+      assert.equal(report.provenance.weights.atsParseability, 0.3);
+      assert.equal(report.provenance.weights.jobMatch, 0.4);
+      assert.equal(report.provenance.weights.contentQuality, 0.3);
     }
 
     // Calculate full calibration comparison
@@ -164,7 +178,7 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
 
     // Correlation assertions
     assert.ok(
-      comparison.spearmanRho >= 0.90,
+      comparison.spearmanRho >= 0.9,
       `Spearman rank correlation must be >= 0.90 (got rho = ${comparison.spearmanRho})`
     );
     assert.ok(
@@ -173,8 +187,14 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
     );
 
     // Error assertions
-    assert.ok(comparison.mae <= 8.5, `Mean Absolute Error must be <= 8.5 pts (got MAE = ${comparison.mae})`);
-    assert.ok(comparison.rmse <= 11.0, `Root Mean Squared Error must be <= 11.0 pts (got RMSE = ${comparison.rmse})`);
+    assert.ok(
+      comparison.mae <= 8.5,
+      `Mean Absolute Error must be <= 8.5 pts (got MAE = ${comparison.mae})`
+    );
+    assert.ok(
+      comparison.rmse <= 11.0,
+      `Root Mean Squared Error must be <= 11.0 pts (got RMSE = ${comparison.rmse})`
+    );
 
     // Classification assertions
     assert.equal(
@@ -195,7 +215,9 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
   });
 
   it('Steps 6 & 7: Identifies systematic false positives in 35/35/30 and proves 30/40/30 weight adjustment fixes them', () => {
-    const prettyMismatchSample = CALIBRATION_DATASET.find((s) => s.id === 'archetype-5-pretty-mismatch');
+    const prettyMismatchSample = CALIBRATION_DATASET.find(
+      (s) => s.id === 'archetype-5-pretty-mismatch'
+    );
     assert.ok(prettyMismatchSample);
 
     // 1. Under uncalibrated baseline (p81.0: 35/35/30)
@@ -218,7 +240,9 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
     assert.equal(reportP82.status, 'NEEDS_WORK');
 
     // 3. Proves genuine format-challenged hire (Archetype 3) still passes under p82.0
-    const formatChallengedSample = CALIBRATION_DATASET.find((s) => s.id === 'archetype-3-format-challenged-senior');
+    const formatChallengedSample = CALIBRATION_DATASET.find(
+      (s) => s.id === 'archetype-3-format-challenged-senior'
+    );
     const reportFormat = evaluateCorpusSample(formatChallengedSample, 'p82.0');
     assert.ok(
       reportFormat.publishableScore >= 70,
@@ -244,7 +268,7 @@ describe('P82: Empirical Evaluation & Calibration Benchmark', () => {
 
     const policies = listScoringPolicies();
     assert.equal(policies.length, 2);
-    assert.equal(policies.find((p) => p.version === 'p82.0').weights.jobMatch, 0.40);
+    assert.equal(policies.find((p) => p.version === 'p82.0').weights.jobMatch, 0.4);
     assert.equal(policies.find((p) => p.version === 'p81.0').weights.jobMatch, 0.35);
 
     // Verify requesting unknown version throws descriptive error

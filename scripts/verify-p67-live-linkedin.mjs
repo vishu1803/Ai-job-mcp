@@ -36,10 +36,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p67-live-linkedin-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9367;
 
 const LIVE_JOB_A_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
@@ -103,7 +105,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -132,7 +136,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch Chrome MV3
   console.log('\n3. Spawning real Chrome MV3 browser instance on port', CDP_PORT, '...');
@@ -300,8 +306,12 @@ async function main() {
       };
 
       attemptRecords.push(record);
-      console.log(`   [Result]: ${record.detected ? 'DETECTED' : 'NOT DETECTED'} in ${latencyMs}ms`);
-      console.log(`   Title: "${record.title}", Company: "${record.company}", ID: ${record.externalJobId}`);
+      console.log(
+        `   [Result]: ${record.detected ? 'DETECTED' : 'NOT DETECTED'} in ${latencyMs}ms`
+      );
+      console.log(
+        `   Title: "${record.title}", Company: "${record.company}", ID: ${record.externalJobId}`
+      );
       console.log(`   Server Analyze Calls: ${serverAnalyzeCalls}`);
 
       return { detectedState, record };
@@ -312,7 +322,9 @@ async function main() {
     if (!cycle1.record.detected || cycle1.record.externalJobId !== '4419969671') {
       throw new Error(`Cycle 1 failed to detect Job A: ${JSON.stringify(cycle1.record)}`);
     }
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p67-01-live-linkedin-job-a-detected.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p67-01-live-linkedin-job-a-detected.png')
+    );
 
     // Attempt 2: Hard Page Reload
     console.log('\n   Executing Hard Reload on Job A tab...');
@@ -322,7 +334,9 @@ async function main() {
     if (!cycle2.record.detected || cycle2.record.externalJobId !== '4419969671') {
       throw new Error(`Cycle 2 (Hard Reload) failed: ${JSON.stringify(cycle2.record)}`);
     }
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p67-02-live-linkedin-job-a-reloaded.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p67-02-live-linkedin-job-a-reloaded.png')
+    );
 
     // Attempt 3: Second Reload
     console.log('\n   Executing Second Reload on Job A tab...');
@@ -340,7 +354,10 @@ async function main() {
 
     // Switch back to Job A tab in sidebar
     console.log('   Switching sidebar focus back to Job A tab...');
-    const cycle4 = await triggerAndRecordDetection('4. Switch Away and Return to Job A', LIVE_JOB_A_URL);
+    const cycle4 = await triggerAndRecordDetection(
+      '4. Switch Away and Return to Job A',
+      LIVE_JOB_A_URL
+    );
     if (!cycle4.record.detected || cycle4.record.externalJobId !== '4419969671') {
       throw new Error(`Cycle 4 (Switch Away and Return) failed: ${JSON.stringify(cycle4.record)}`);
     }
@@ -352,7 +369,9 @@ async function main() {
 
     const cycle5 = await triggerAndRecordDetection('5. Navigate to Job B', LIVE_JOB_B_URL);
     console.log('   Job B detection result:', cycle5.record.title, cycle5.record.externalJobId);
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p67-03-live-linkedin-job-b-detected.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p67-03-live-linkedin-job-b-detected.png')
+    );
 
     // Attempt 6: Manual Rescan on Job B
     console.log('\n   Executing Manual Rescan on Job B...');
@@ -384,7 +403,9 @@ async function main() {
       latencyMs: rescanLatency,
       analyzeCalls: serverAnalyzeCalls,
     });
-    console.log(`   Manual Rescan completed in ${rescanLatency}ms: "${rescanState?.title}" (ID: ${rescanState?.externalJobId})`);
+    console.log(
+      `   Manual Rescan completed in ${rescanLatency}ms: "${rescanState?.title}" (ID: ${rescanState?.externalJobId})`
+    );
 
     // Attempt 7: Return to Job A and Rescan
     console.log(`\n   Navigating back to Job A: ${LIVE_JOB_A_URL}...`);
@@ -419,7 +440,9 @@ async function main() {
       latencyMs: rescanALatency,
       analyzeCalls: serverAnalyzeCalls,
     });
-    console.log(`   Return to Job A Rescan completed: "${rescanAState?.title}" (ID: ${rescanAState?.externalJobId})`);
+    console.log(
+      `   Return to Job A Rescan completed: "${rescanAState?.title}" (ID: ${rescanAState?.externalJobId})`
+    );
 
     // Step 8: Non-Job Regressions
     console.log('\n--- VERIFYING NON-JOB REJECTIONS ---');
@@ -451,14 +474,20 @@ async function main() {
     console.log('   Server Analyze calls so far:', serverAnalyzeCalls);
 
     if (nonJobState.activeJob !== null) {
-      throw new Error(`Non-job page (LinkedIn Feed) failed to clear active job: ${JSON.stringify(nonJobState)}`);
+      throw new Error(
+        `Non-job page (LinkedIn Feed) failed to clear active job: ${JSON.stringify(nonJobState)}`
+      );
     }
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p67-04-live-linkedin-nonjob-rejected.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p67-04-live-linkedin-nonjob-rejected.png')
+    );
 
     // Step 9: Server Boundary & Double Click Protection
     console.log('\n--- VERIFYING SERVER BOUNDARY & DOUBLE-CLICK PROTECTION ---');
     if (serverAnalyzeCalls !== 0) {
-      throw new Error(`Passive operations MUST generate 0 server calls! Got: ${serverAnalyzeCalls}`);
+      throw new Error(
+        `Passive operations MUST generate 0 server calls! Got: ${serverAnalyzeCalls}`
+      );
     }
 
     // Return to Job A for explicit analyze
@@ -498,7 +527,10 @@ async function main() {
           };
         })()
       `);
-      if (analyzedState?.workflowState === 'ANALYSIS_READY' || analyzedState?.workflowState === 'APPLICATION_READY') {
+      if (
+        analyzedState?.workflowState === 'ANALYSIS_READY' ||
+        analyzedState?.workflowState === 'APPLICATION_READY'
+      ) {
         break;
       }
     }
@@ -508,20 +540,32 @@ async function main() {
     console.log('   Total /api/extension/analyze-job calls:', serverAnalyzeCalls);
 
     if (serverAnalyzeCalls !== 1) {
-      throw new Error(`Explicit Analyze with double-click guard MUST generate exactly 1 call! Got: ${serverAnalyzeCalls}`);
+      throw new Error(
+        `Explicit Analyze with double-click guard MUST generate exactly 1 call! Got: ${serverAnalyzeCalls}`
+      );
     }
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p67-05-live-linkedin-analyzed-single-call.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p67-05-live-linkedin-analyzed-single-call.png')
+    );
 
     // Acceptance Evidence Table Log
-    console.log('\n========================================================================================');
+    console.log(
+      '\n========================================================================================'
+    );
     console.log('P67 ACCEPTANCE VERIFICATION SUMMARY (LIVE LINKEDIN CYCLES):');
-    console.log('========================================================================================');
+    console.log(
+      '========================================================================================'
+    );
     console.table(attemptRecords);
     console.log('Passive Operations Calls:  0 /api/extension/analyze-job calls');
-    console.log('Explicit Analyze Calls:    EXACTLY 1 /api/extension/analyze-job call (Double-click protected)');
+    console.log(
+      'Explicit Analyze Calls:    EXACTLY 1 /api/extension/analyze-job call (Double-click protected)'
+    );
     console.log('Non-Job Feed Rejection:    PASSED (active job cleared to null, UI reset)');
     console.log('All Screenshot Artifacts:  SAVED to brain directory');
-    console.log('========================================================================================');
+    console.log(
+      '========================================================================================'
+    );
     console.log('STATUS: ALL P67 LIVE ACCEPTANCE CRITERIA SATISFIED!\n');
   } finally {
     if (browserCdp) browserCdp.close();

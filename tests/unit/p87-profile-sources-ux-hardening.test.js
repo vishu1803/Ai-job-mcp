@@ -141,7 +141,10 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
 
       assert.ok(stylePos !== -1, 'Page must contain <style> tag');
       assert.ok(containerPos !== -1, 'Page must contain .profile-page-container');
-      assert.ok(stylePos < containerPos, '<style> must be parsed before .profile-page-container paints');
+      assert.ok(
+        stylePos < containerPos,
+        '<style> must be parsed before .profile-page-container paints'
+      );
       assert.ok(stylePos < anchorsPos, '<style> must be parsed before anchor targets');
     });
 
@@ -153,10 +156,22 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
         activeSection: 'overview',
       });
 
-      assert.ok(html.includes('contain: layout size;'), 'Must specify contain: layout size on avatar badge');
-      assert.ok(html.includes('aspect-ratio: 1 / 1;'), 'Must specify aspect-ratio: 1 / 1 on avatar badge');
-      assert.ok(html.includes('id="headerAvatarInitial"'), 'Must have id="headerAvatarInitial" for targeted client reconciliation');
-      assert.ok(html.includes('id="headerCandidateDisplayName"'), 'Must have id="headerCandidateDisplayName" for instant name update');
+      assert.ok(
+        html.includes('contain: layout size;'),
+        'Must specify contain: layout size on avatar badge'
+      );
+      assert.ok(
+        html.includes('aspect-ratio: 1 / 1;'),
+        'Must specify aspect-ratio: 1 / 1 on avatar badge'
+      );
+      assert.ok(
+        html.includes('id="headerAvatarInitial"'),
+        'Must have id="headerAvatarInitial" for targeted client reconciliation'
+      );
+      assert.ok(
+        html.includes('id="headerCandidateDisplayName"'),
+        'Must have id="headerCandidateDisplayName" for instant name update'
+      );
     });
   });
 
@@ -173,8 +188,15 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
       });
 
       const saveButtons = html.match(/id="headerSaveBtn"/g) || [];
-      assert.strictEqual(saveButtons.length, 1, 'Form must have exactly one authoritative save button');
-      assert.ok(html.includes('form="careerProfileForm"'), 'Save button must be bound to #careerProfileForm');
+      assert.strictEqual(
+        saveButtons.length,
+        1,
+        'Form must have exactly one authoritative save button'
+      );
+      assert.ok(
+        html.includes('form="careerProfileForm"'),
+        'Save button must be bound to #careerProfileForm'
+      );
     });
 
     it('client script includes response consumption logic to update header display name & avatar initial', () => {
@@ -236,7 +258,10 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
 
       // Dual Grid has verified checklist and attention items
       assert.ok(html.includes('readiness-dual-grid'), 'Must render calm dual grid');
-      assert.ok(html.includes('Application Readiness Checklist'), 'Must render readiness checklist in dual grid');
+      assert.ok(
+        html.includes('Application Readiness Checklist'),
+        'Must render readiness checklist in dual grid'
+      );
       assert.ok(html.includes('status-ready'), 'Must render status-ready items');
 
       // 3rd duplicate disclosure has been removed
@@ -273,7 +298,9 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
         'Manage Repositories button in Sources must preserve from=sources'
       );
       assert.ok(
-        !html.includes('href="/onboarding?step=3" class="btn btn-secondary btn-sm">Manage Repositories'),
+        !html.includes(
+          'href="/onboarding?step=3" class="btn btn-secondary btn-sm">Manage Repositories'
+        ),
         'Must not have bare /onboarding?step=3 link without from=sources'
       );
     });
@@ -336,8 +363,8 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
       const html = renderCopilotDrawer({ pageContext: 'profile' });
       assert.ok(
         html.includes('What is missing for employer screening?') ||
-        html.includes("What&#039;s missing from my profile?") ||
-        html.includes("What's missing from my profile?"),
+          html.includes('What&#039;s missing from my profile?') ||
+          html.includes("What's missing from my profile?"),
         'Profile Copilot must offer screening completeness prompt'
       );
       assert.ok(
@@ -353,7 +380,8 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
     it('sources context provides repository alignment questions', () => {
       const html = renderCopilotDrawer({ pageContext: 'sources' });
       assert.ok(
-        html.includes('Which repositories best support my target role?') || html.includes('What evidence do my sources provide?'),
+        html.includes('Which repositories best support my target role?') ||
+          html.includes('What evidence do my sources provide?'),
         'Sources Copilot must offer repository alignment prompt'
       );
       assert.ok(
@@ -365,7 +393,8 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
     it('job / radar context provides candidate skill-match questions', () => {
       const html = renderCopilotDrawer({ pageContext: 'radar' });
       assert.ok(
-        html.includes('How well do my verified skills match this role?') || html.includes('How strong is my match?'),
+        html.includes('How well do my verified skills match this role?') ||
+          html.includes('How strong is my match?'),
         'Job Copilot must offer verified match prompt'
       );
       assert.ok(
@@ -377,7 +406,8 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
     it('applications context provides screening question review prompts', () => {
       const html = renderCopilotDrawer({ pageContext: 'applications' });
       assert.ok(
-        html.includes('What fields still need my attention?') || html.includes('Is this application ready?'),
+        html.includes('What fields still need my attention?') ||
+          html.includes('Is this application ready?'),
         'Applications Copilot must offer attention items prompt'
       );
       assert.ok(
@@ -405,8 +435,14 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
       });
 
       assert.ok(html.includes('Grace Hopper'), 'Greeting must display candidate name');
-      assert.ok(html.includes('Application Readiness'), 'Greeting must display authoritative readiness bar');
-      assert.ok(html.includes('All key screening fields verified'), 'Must confirm readiness cleanly');
+      assert.ok(
+        html.includes('Application Readiness'),
+        'Greeting must display authoritative readiness bar'
+      );
+      assert.ok(
+        html.includes('All key screening fields verified'),
+        'Must confirm readiness cleanly'
+      );
       // Verify no cluttered chip cluster crammed directly under the name
       assert.ok(
         !html.includes('badge badge-neutral" style="font-size:0.7rem; padding:1px 6px;"'),

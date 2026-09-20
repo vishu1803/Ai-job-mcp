@@ -144,7 +144,8 @@ function createControlledCandidate() {
         name: 'FastAPI Backend Service',
         slug: 'fastapi-backend-service',
         headline: 'High-performance REST API',
-        summary: 'A production-ready microservices architecture built with FastAPI, PostgreSQL, Docker, and Redis.',
+        summary:
+          'A production-ready microservices architecture built with FastAPI, PostgreSQL, Docker, and Redis.',
         technologies: ['Python', 'FastAPI', 'PostgreSQL', 'Docker'],
         evidence: [],
       },
@@ -225,23 +226,45 @@ Requirements:
     // Verify Experience Tenure Evaluation: Candidate has 1.5 yrs vs 3+ yrs required
     const expMatch = matchAnalysis.requirementMatches.find((m) => m.category === 'EXPERIENCE');
     assert.ok(expMatch, 'Experience requirement must be present');
-    assert.strictEqual(expMatch.matchStatus, 'PARTIAL', 'Under-tenured candidate must evaluate to PARTIAL');
+    assert.strictEqual(
+      expMatch.matchStatus,
+      'PARTIAL',
+      'Under-tenured candidate must evaluate to PARTIAL'
+    );
     assert.ok(expMatch.explanation.includes('below the requested 3+ years'));
 
     // Verify Critical Gap & Hard Cap: Missing Kubernetes triggers safety score cap
-    assert.ok(fitAnalysis.criticalGapCount >= 1, 'Missing required skill must register as critical gap');
-    assert.ok(fitAnalysis.overallScore <= 74.9, 'Score must be capped due to missing required skill');
+    assert.ok(
+      fitAnalysis.criticalGapCount >= 1,
+      'Missing required skill must register as critical gap'
+    );
+    assert.ok(
+      fitAnalysis.overallScore <= 74.9,
+      'Score must be capped due to missing required skill'
+    );
   });
 
   it('2. Experience parser matrix handles diverse phrasing correctly', () => {
     const testCases = [
-      { text: '3+ years of software engineering experience', expectedMin: 3, expectedMax: undefined },
-      { text: 'At least 3 years of experience in backend development', expectedMin: 3, expectedMax: undefined },
+      {
+        text: '3+ years of software engineering experience',
+        expectedMin: 3,
+        expectedMax: undefined,
+      },
+      {
+        text: 'At least 3 years of experience in backend development',
+        expectedMin: 3,
+        expectedMax: undefined,
+      },
       { text: 'Minimum 3 years of hands-on experience', expectedMin: 3, expectedMax: undefined },
       { text: '2-4 years of experience building web applications', expectedMin: 2, expectedMax: 4 },
       { text: '0-2 years of experience', expectedMin: 0, expectedMax: 2 },
       { text: 'Fresh graduates welcome to apply', expectedMin: 0, expectedMax: null },
-      { text: 'Entry-level software engineer with strong fundamentals', expectedMin: 0, expectedMax: null },
+      {
+        text: 'Entry-level software engineer with strong fundamentals',
+        expectedMin: 0,
+        expectedMax: null,
+      },
       { text: 'No prior experience required', expectedMin: 0, expectedMax: null },
     ];
 
@@ -329,7 +352,11 @@ Requirements:
       candidate
     );
 
-    assert.strictEqual(fitAnalysis.overallScore, null, 'Insufficient data must yield overallScore = null, not 0 or 75');
+    assert.strictEqual(
+      fitAnalysis.overallScore,
+      null,
+      'Insufficient data must yield overallScore = null, not 0 or 75'
+    );
     assert.strictEqual(fitAnalysis.fitBand, 'INSUFFICIENT_DATA');
     assert.strictEqual(fitAnalysis.analysisStatus, 'INSUFFICIENT_DATA');
     assert.ok(fitAnalysis.zeroRequirementWarning);
@@ -443,7 +470,9 @@ Requirements:
           .filter((m) => m.matchStatus === 'MISSING')
           .map((m) => m.skillSlug)
           .sort(),
-        experienceMatchStatus: matchAnalysis.requirementMatches.find((m) => m.category === 'EXPERIENCE')?.matchStatus,
+        experienceMatchStatus: matchAnalysis.requirementMatches.find(
+          (m) => m.category === 'EXPERIENCE'
+        )?.matchStatus,
       });
     }
 
@@ -481,10 +510,25 @@ Requirements:
 
   it('6. Multi-role regression matrix across 6 roles and seniority levels', () => {
     const roles = [
-      { role: 'Backend Engineer', level: 'MID', requiredSkills: ['python', 'postgresql', 'docker'], reqYears: 2 },
+      {
+        role: 'Backend Engineer',
+        level: 'MID',
+        requiredSkills: ['python', 'postgresql', 'docker'],
+        reqYears: 2,
+      },
       { role: 'Frontend Engineer', level: 'ENTRY', requiredSkills: ['react'], reqYears: 0 },
-      { role: 'Full-Stack Engineer', level: 'MID', requiredSkills: ['python', 'react', 'postgresql'], reqYears: 1 },
-      { role: 'DevOps Engineer', level: 'SENIOR', requiredSkills: ['docker', 'aws', 'kubernetes', 'terraform'], reqYears: 5 },
+      {
+        role: 'Full-Stack Engineer',
+        level: 'MID',
+        requiredSkills: ['python', 'react', 'postgresql'],
+        reqYears: 1,
+      },
+      {
+        role: 'DevOps Engineer',
+        level: 'SENIOR',
+        requiredSkills: ['docker', 'aws', 'kubernetes', 'terraform'],
+        reqYears: 5,
+      },
       { role: 'AI/ML Engineer', level: 'MID', requiredSkills: ['python', 'pytorch'], reqYears: 3 },
       { role: 'Software Engineer', level: 'ENTRY', requiredSkills: ['python'], reqYears: 0 },
     ];
@@ -521,9 +565,24 @@ Requirements:
         description: `${r.role} with ${r.reqYears}+ years experience in ${r.requiredSkills.join(', ')}`,
       };
 
-      const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(context, jobDescription, candidate);
-      const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(context, jobDescription, candidate.projects, { candidateId: candidate.id, skills: candidate.skills });
-      const fitAnalysis = AtsFitScoreService.calculateCandidateJobFit(context, jobDescription, matchAnalysis, projectAnalysis, candidate);
+      const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
+        context,
+        jobDescription,
+        candidate
+      );
+      const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+        context,
+        jobDescription,
+        candidate.projects,
+        { candidateId: candidate.id, skills: candidate.skills }
+      );
+      const fitAnalysis = AtsFitScoreService.calculateCandidateJobFit(
+        context,
+        jobDescription,
+        matchAnalysis,
+        projectAnalysis,
+        candidate
+      );
 
       assert.ok(typeof fitAnalysis.overallScore === 'number');
       assert.ok(fitAnalysis.overallScore >= 0 && fitAnalysis.overallScore <= 100);
@@ -531,9 +590,17 @@ Requirements:
       // Verify experience tenure check
       const expMatch = matchAnalysis.requirementMatches.find((m) => m.category === 'EXPERIENCE');
       if (candidate.profileMetadata.experienceYears >= r.reqYears) {
-        assert.strictEqual(expMatch.matchStatus, 'MATCHED', `Candidate with 1.5 yrs should be MATCHED for ${r.reqYears} yrs in ${r.role}`);
+        assert.strictEqual(
+          expMatch.matchStatus,
+          'MATCHED',
+          `Candidate with 1.5 yrs should be MATCHED for ${r.reqYears} yrs in ${r.role}`
+        );
       } else {
-        assert.strictEqual(expMatch.matchStatus, 'PARTIAL', `Candidate with 1.5 yrs should be PARTIAL for ${r.reqYears} yrs in ${r.role}`);
+        assert.strictEqual(
+          expMatch.matchStatus,
+          'PARTIAL',
+          `Candidate with 1.5 yrs should be PARTIAL for ${r.reqYears} yrs in ${r.role}`
+        );
       }
     }
   });

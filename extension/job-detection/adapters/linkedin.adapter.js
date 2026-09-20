@@ -128,8 +128,12 @@ export function isElementAfter(el, referenceEl) {
     const p = curr.parentElement;
     if (typeof p.contains === 'function' && p.contains(referenceEl)) {
       const children = Array.from(p.children || []);
-      const refIdx = children.findIndex((c) => c === referenceEl || (typeof c.contains === 'function' && c.contains(referenceEl)));
-      const elIdx = children.findIndex((c) => c === curr || (typeof c.contains === 'function' && c.contains(curr)));
+      const refIdx = children.findIndex(
+        (c) => c === referenceEl || (typeof c.contains === 'function' && c.contains(referenceEl))
+      );
+      const elIdx = children.findIndex(
+        (c) => c === curr || (typeof c.contains === 'function' && c.contains(curr))
+      );
       if (refIdx !== -1 && elIdx !== -1) {
         return elIdx > refIdx;
       }
@@ -192,7 +196,8 @@ export function isValidTitleString(str) {
 
   // E4. Imperative UI action verbs at start of heading
   // e.g. "Use AI to assess...", "Take the next step...", "Get personalized tips...", "Meet the team...", "Connect with..."
-  const UI_ACTION_VERBS = /^(use|try|assess|get|see|take|meet|connect|learn|explore|discover|unlock|upgrade|find|join|apply|save|share|view|tell|ask|check|sign|log)\s+/i;
+  const UI_ACTION_VERBS =
+    /^(use|try|assess|get|see|take|meet|connect|learn|explore|discover|unlock|upgrade|find|join|apply|save|share|view|tell|ask|check|sign|log)\s+/i;
   if (UI_ACTION_VERBS.test(s)) {
     return false;
   }
@@ -219,7 +224,13 @@ export function isValidTitleString(str) {
  * @param {Element|null} [headerRegion]
  * @returns {boolean}
  */
-export function isValidLinkedInTitleCandidate(titleEl, root = null, doc = null, companyEl = null, headerRegion = null) {
+export function isValidLinkedInTitleCandidate(
+  titleEl,
+  root = null,
+  doc = null,
+  companyEl = null,
+  headerRegion = null
+) {
   if (!titleEl) return false;
   const rawText = (titleEl.textContent || '').trim();
   const text = rawText.replace(/\s+/g, ' ');
@@ -366,11 +377,7 @@ export function findActiveLinkedInJobRoot(doc) {
     'section.core-rail',
   ];
 
-  const genericMainSelectors = [
-    'main#main-content',
-    'main.main',
-    'main',
-  ];
+  const genericMainSelectors = ['main#main-content', 'main.main', 'main'];
 
   const hasExplicitTitle = (el) => {
     if (!el || typeof el.querySelector !== 'function') return false;
@@ -446,10 +453,16 @@ export function findActiveLinkedInJobRoot(doc) {
       } catch {}
     }
     try {
-      const headings = el.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], strong, b, div, p, span');
+      const headings = el.querySelectorAll(
+        'h1, h2, h3, h4, h5, h6, [role="heading"], strong, b, div, p, span'
+      );
       for (const h of headings) {
         const text = (h.textContent || '').trim().replace(/\s+/g, ' ').toLowerCase();
-        if (text === 'about the job' || text === 'about the role' || text.startsWith('about the job')) {
+        if (
+          text === 'about the job' ||
+          text === 'about the role' ||
+          text.startsWith('about the job')
+        ) {
           return true;
         }
       }
@@ -495,17 +508,13 @@ export function findActiveLinkedInJobRoot(doc) {
   }
 
   // Tier 2: Concrete dedicated job-detail root containing: explicit job title + company
-  const tier2 = dedicatedCandidates.filter(
-    ({ el }) => hasExplicitTitle(el) && hasCompany(el)
-  );
+  const tier2 = dedicatedCandidates.filter(({ el }) => hasExplicitTitle(el) && hasCompany(el));
   if (tier2.length > 0) {
     return sortCandidates(tier2)[0].el;
   }
 
   // Tier 3: Concrete dedicated job-detail root containing: explicit job title
-  const tier3 = dedicatedCandidates.filter(
-    ({ el }) => hasExplicitTitle(el)
-  );
+  const tier3 = dedicatedCandidates.filter(({ el }) => hasExplicitTitle(el));
   if (tier3.length > 0) {
     return sortCandidates(tier3)[0].el;
   }
@@ -575,8 +584,10 @@ export function findActiveLinkedInJobRoot(doc) {
  */
 export function deriveJobRootSource(root) {
   if (!root) return null;
-  if (root.getAttribute?.('data-view-name')) return `[data-view-name="${root.getAttribute('data-view-name')}"]`;
-  if (root.getAttribute?.('data-testid')) return `[data-testid="${root.getAttribute('data-testid')}"]`;
+  if (root.getAttribute?.('data-view-name'))
+    return `[data-view-name="${root.getAttribute('data-view-name')}"]`;
+  if (root.getAttribute?.('data-testid'))
+    return `[data-testid="${root.getAttribute('data-testid')}"]`;
   if (root.id) return `#${root.id}`;
   if (root.className) {
     const firstClass = root.className.toString().trim().split(/\s+/)[0];
@@ -616,7 +627,10 @@ export function deriveJobRootSource(root) {
 export function extractLinkedInDescription(root, doc = null) {
   const cleanText = (str) => {
     if (!str || typeof str !== 'string') return '';
-    return str.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return str
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   const isResponsibilityHeading = (text) => {
@@ -625,7 +639,7 @@ export function extractLinkedInDescription(root, doc = null) {
     return (
       t.includes('accountabilit') ||
       t.includes('responsibilit') ||
-      t.includes('what you\'ll do') ||
+      t.includes("what you'll do") ||
       t.includes('what you will do') ||
       t.includes('duties') ||
       t.includes('your role') ||
@@ -641,7 +655,7 @@ export function extractLinkedInDescription(root, doc = null) {
     return (
       t.includes('requirement') ||
       t.includes('qualification') ||
-      t.includes('what we\'re looking for') ||
+      t.includes("what we're looking for") ||
       t.includes('what we are looking for') ||
       t.includes('who you are') ||
       t.includes('skills') ||
@@ -729,9 +743,12 @@ export function extractLinkedInDescription(root, doc = null) {
     };
   };
 
-  const searchScope = (root && typeof root.querySelector === 'function')
-    ? root
-    : (doc && typeof doc.querySelector === 'function' && doc !== doc?.body ? doc : null);
+  const searchScope =
+    root && typeof root.querySelector === 'function'
+      ? root
+      : doc && typeof doc.querySelector === 'function' && doc !== doc?.body
+        ? doc
+        : null;
 
   // Priority 1: Known LinkedIn description containers INSIDE active root (or doc when root is absent)
   if (searchScope) {
@@ -787,9 +804,12 @@ export function extractLinkedInDescription(root, doc = null) {
   }
 
   // Priority 2: SEMANTIC "ABOUT THE JOB" EXTRACTION
-  const headingScope = (root && typeof root.querySelectorAll === 'function')
-    ? root
-    : (doc && typeof doc.querySelectorAll === 'function' && doc !== doc?.body ? doc : null);
+  const headingScope =
+    root && typeof root.querySelectorAll === 'function'
+      ? root
+      : doc && typeof doc.querySelectorAll === 'function' && doc !== doc?.body
+        ? doc
+        : null;
   if (headingScope) {
     let aboutHeading = null;
     try {
@@ -798,8 +818,15 @@ export function extractLinkedInDescription(root, doc = null) {
       );
       for (const h of candidateHeadings) {
         const norm = cleanText(h.textContent).toLowerCase();
-        if (norm === 'about the job' || norm === 'about the role' || norm.startsWith('about the job')) {
-          if (h.children.length === 0 || cleanText(h.firstElementChild?.textContent || norm) === norm) {
+        if (
+          norm === 'about the job' ||
+          norm === 'about the role' ||
+          norm.startsWith('about the job')
+        ) {
+          if (
+            h.children.length === 0 ||
+            cleanText(h.firstElementChild?.textContent || norm) === norm
+          ) {
             aboutHeading = h;
             break;
           }
@@ -883,7 +910,8 @@ export function extractLinkedInDescription(root, doc = null) {
         if (contentEl) {
           const text = cleanText(contentEl.textContent);
           if (text.length >= 50) {
-            const { requirements, responsibilities } = extractRequirementsAndResponsibilities(contentEl);
+            const { requirements, responsibilities } =
+              extractRequirementsAndResponsibilities(contentEl);
             return {
               description: text,
               descriptionSource: 'ABOUT_THE_JOB',
@@ -899,14 +927,12 @@ export function extractLinkedInDescription(root, doc = null) {
   }
 
   // Priority 3: JSON-LD JobPosting description
-  const targetDoc = doc || (root?.ownerDocument || null);
+  const targetDoc = doc || root?.ownerDocument || null;
   if (targetDoc && typeof targetDoc.querySelectorAll === 'function') {
     try {
       const jsonLd = extractJobPostingJsonLd(targetDoc);
       if (jsonLd?.description) {
-        const cleanJsonLdDesc = cleanText(
-          jsonLd.description.replace(/<[^>]+>/g, ' ')
-        );
+        const cleanJsonLdDesc = cleanText(jsonLd.description.replace(/<[^>]+>/g, ' '));
         if (cleanJsonLdDesc.length >= 50) {
           return {
             description: cleanJsonLdDesc,
@@ -952,9 +978,12 @@ export function extractLinkedInCriteria(root, doc = null, jsonLd = null) {
   const searchScope = root || doc;
   if (searchScope && typeof searchScope.querySelectorAll === 'function') {
     // 1. Check dedicated criteria items (Public/Guest layout: .description__job-criteria-item)
-    const criteriaItems = searchScope.querySelectorAll('.description__job-criteria-item, [class*="job-criteria"] li');
+    const criteriaItems = searchScope.querySelectorAll(
+      '.description__job-criteria-item, [class*="job-criteria"] li'
+    );
     for (const item of criteriaItems) {
-      const header = clean(item.querySelector('h3, [class*="subheader"]')?.textContent)?.toLowerCase() || '';
+      const header =
+        clean(item.querySelector('h3, [class*="subheader"]')?.textContent)?.toLowerCase() || '';
       const val = clean(item.querySelector('span, [class*="text"], div')?.textContent);
       if (!val) continue;
 
@@ -977,12 +1006,29 @@ export function extractLinkedInCriteria(root, doc = null, jsonLd = null) {
       for (const ins of insights) {
         const text = clean(ins.textContent);
         if (!text) continue;
-        const parts = text.split(/[\u00b7\u2022|]/).map((p) => clean(p)).filter(Boolean);
+        const parts = text
+          .split(/[\u00b7\u2022|]/)
+          .map((p) => clean(p))
+          .filter(Boolean);
         for (const p of parts) {
           const lower = p.toLowerCase();
-          if (!rawEmploymentType && (lower.includes('full-time') || lower.includes('part-time') || lower.includes('contract') || lower.includes('internship'))) {
+          if (
+            !rawEmploymentType &&
+            (lower.includes('full-time') ||
+              lower.includes('part-time') ||
+              lower.includes('contract') ||
+              lower.includes('internship'))
+          ) {
             rawEmploymentType = p;
-          } else if (!seniorityLevel && (lower.includes('entry level') || lower.includes('mid-senior') || lower.includes('associate') || lower.includes('director') || lower.includes('executive') || lower.includes('internship'))) {
+          } else if (
+            !seniorityLevel &&
+            (lower.includes('entry level') ||
+              lower.includes('mid-senior') ||
+              lower.includes('associate') ||
+              lower.includes('director') ||
+              lower.includes('executive') ||
+              lower.includes('internship'))
+          ) {
             seniorityLevel = p;
           }
         }
@@ -992,7 +1038,9 @@ export function extractLinkedInCriteria(root, doc = null, jsonLd = null) {
 
   // 3. Fallbacks from JSON-LD
   if (!rawEmploymentType && jsonLd?.employmentType) {
-    rawEmploymentType = Array.isArray(jsonLd.employmentType) ? jsonLd.employmentType[0] : jsonLd.employmentType;
+    rawEmploymentType = Array.isArray(jsonLd.employmentType)
+      ? jsonLd.employmentType[0]
+      : jsonLd.employmentType;
   }
   if (!seniorityLevel && (jsonLd?.experienceRequirements || jsonLd?.experienceLevel)) {
     seniorityLevel = clean(jsonLd.experienceRequirements || jsonLd.experienceLevel);
@@ -1091,14 +1139,16 @@ export class LinkedInAdapter {
     }
 
     // Company homepages / posts (unless specifically viewing job details)
-    if (lowerUrl.includes('/company/') && !lowerUrl.includes('/jobs') && !lowerUrl.includes('currentjobid=')) {
+    if (
+      lowerUrl.includes('/company/') &&
+      !lowerUrl.includes('/jobs') &&
+      !lowerUrl.includes('currentjobid=')
+    ) {
       return false;
     }
 
     // Priority 1 — Canonical URL identity
-    const hasCanonicalUrl =
-      lowerUrl.includes('/jobs/view/') ||
-      /[?&]currentjobid=\d+/i.test(url);
+    const hasCanonicalUrl = lowerUrl.includes('/jobs/view/') || /[?&]currentjobid=\d+/i.test(url);
 
     if (hasCanonicalUrl) {
       return true;
@@ -1219,7 +1269,9 @@ export class LinkedInAdapter {
 
     for (const sel of companySelectors) {
       try {
-        const el = companyScope?.querySelector?.(sel) || (doc && doc !== companyScope ? doc.querySelector(sel) : null);
+        const el =
+          companyScope?.querySelector?.(sel) ||
+          (doc && doc !== companyScope ? doc.querySelector(sel) : null);
         if (el) {
           let txt = (el.textContent || '').trim().replace(/\s+/g, ' ');
           if (txt.includes('\n')) txt = txt.split('\n')[0].trim();
@@ -1332,7 +1384,9 @@ export class LinkedInAdapter {
     const locationEl =
       locationScope?.querySelector?.('.job-details-jobs-unified-top-card__bullet') ||
       locationScope?.querySelector?.('.jobs-unified-top-card__bullet') ||
-      locationScope?.querySelector?.('.job-details-jobs-unified-top-card__primary-description-container span.tvm__text') ||
+      locationScope?.querySelector?.(
+        '.job-details-jobs-unified-top-card__primary-description-container span.tvm__text'
+      ) ||
       locationScope?.querySelector?.('span.topcard__flavor--bullet') ||
       locationScope?.querySelector?.('.topcard__flavor--bullet') ||
       locationScope?.querySelector?.('[data-view-name="job-details"] [class*="bullet" i]') ||
@@ -1342,7 +1396,8 @@ export class LinkedInAdapter {
 
     let location = locationEl ? locationEl.textContent.trim() : '';
 
-    const jsonLd = doc && typeof doc.querySelectorAll === 'function' ? extractJobPostingJsonLd(doc) : null;
+    const jsonLd =
+      doc && typeof doc.querySelectorAll === 'function' ? extractJobPostingJsonLd(doc) : null;
 
     let title = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : '';
     let company = companyEl ? companyEl.textContent.trim().replace(/\s+/g, ' ') : '';
@@ -1377,13 +1432,22 @@ export class LinkedInAdapter {
     // Does NOT override a valid explicit LinkedIn job title.
     if (!title && doc?.title && typeof doc.title === 'string') {
       const docTitle = doc.title.trim();
-      const hasJobUrl = Boolean(url && (url.toLowerCase().includes('/jobs/view/') || url.toLowerCase().includes('currentjobid=')));
+      const hasJobUrl = Boolean(
+        url &&
+        (url.toLowerCase().includes('/jobs/view/') || url.toLowerCase().includes('currentjobid='))
+      );
       const hasActiveJobContext = Boolean(root || company || jsonLd || hasJobUrl);
 
       if (hasActiveJobContext) {
         // Pattern 1: Title | Company | LinkedIn (Standard 3-part desktop LinkedIn pipe format)
-        const pipeParts = docTitle.split('|').map((s) => s.trim()).filter(Boolean);
-        if (pipeParts.length >= 3 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
+        const pipeParts = docTitle
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (
+          pipeParts.length >= 3 &&
+          pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')
+        ) {
           const candTitle = pipeParts[0];
           const candCompany = pipeParts[1];
           if (isValidTitleString(candTitle)) {
@@ -1398,7 +1462,9 @@ export class LinkedInAdapter {
 
         // Pattern 2: Company hiring Title in Location | LinkedIn
         if (!title) {
-          const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+([^|]+?))?\s*\|\s*LinkedIn/i);
+          const hiringMatch = docTitle.match(
+            /^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+([^|]+?))?\s*\|\s*LinkedIn/i
+          );
           if (hiringMatch) {
             const candCompany = hiringMatch[1].trim();
             const candTitle = hiringMatch[2].trim();
@@ -1418,7 +1484,9 @@ export class LinkedInAdapter {
 
         // Pattern 3: Title at Company | LinkedIn
         if (!title) {
-          const atMatch = docTitle.match(/^(.+?)\s+at\s+([^|]+?)(?:\s*[\u2014\u2013-]\s*.*)?\s*\|\s*LinkedIn/i);
+          const atMatch = docTitle.match(
+            /^(.+?)\s+at\s+([^|]+?)(?:\s*[\u2014\u2013-]\s*.*)?\s*\|\s*LinkedIn/i
+          );
           if (atMatch) {
             const candTitle = atMatch[1].trim();
             const candCompany = atMatch[2].replace(/\s*[\u2014\u2013-]\s*.*$/, '').trim();
@@ -1434,9 +1502,16 @@ export class LinkedInAdapter {
         }
 
         // Pattern 4: Title - Company | LinkedIn (2-part pipe with dash-separated title and company)
-        if (!title && pipeParts.length >= 2 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
+        if (
+          !title &&
+          pipeParts.length >= 2 &&
+          pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')
+        ) {
           const firstPart = pipeParts[0];
-          if (!firstPart.toLowerCase().includes(' hiring ') && !firstPart.toLowerCase().includes(' at ')) {
+          if (
+            !firstPart.toLowerCase().includes(' hiring ') &&
+            !firstPart.toLowerCase().includes(' at ')
+          ) {
             const dashParts = firstPart.split(/\s+[\u2014\u2013-]\s+/);
             if (dashParts.length >= 2) {
               const candTitle = dashParts[0].trim();
@@ -1454,7 +1529,11 @@ export class LinkedInAdapter {
         }
 
         // Pattern 5: Title | LinkedIn (2-part fallback)
-        if (!title && pipeParts.length === 2 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
+        if (
+          !title &&
+          pipeParts.length === 2 &&
+          pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')
+        ) {
           if (isValidTitleString(pipeParts[0])) {
             title = pipeParts[0];
             titleSelectorUsed = 'DOCUMENT_TITLE';
@@ -1473,7 +1552,9 @@ export class LinkedInAdapter {
     if (!location && jsonLd?.jobLocation) {
       const locObj = jsonLd.jobLocation;
       const addr = locObj.address || locObj;
-      location = [addr.addressLocality, addr.addressRegion, addr.addressCountry].filter(Boolean).join(', ');
+      location = [addr.addressLocality, addr.addressRegion, addr.addressCountry]
+        .filter(Boolean)
+        .join(', ');
     }
     if (!location && doc?.title && typeof doc.title === 'string') {
       const inMatch = doc.title.match(/\s+in\s+([^|]+)\s*\|\s*LinkedIn/i);
@@ -1540,7 +1621,11 @@ export class LinkedInAdapter {
 
     const selectedRootSelector = jobRootSource;
     const selectedRootTag = root ? (root.tagName ? root.tagName.toLowerCase() : null) : null;
-    const selectedRootClass = root ? (root.className ? root.className.toString().trim() : null) : null;
+    const selectedRootClass = root
+      ? root.className
+        ? root.className.toString().trim()
+        : null
+      : null;
 
     return {
       sourceUrl: url,

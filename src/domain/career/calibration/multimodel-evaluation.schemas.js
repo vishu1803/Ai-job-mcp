@@ -18,17 +18,17 @@ export const MultiModelRecommendationEnum = z.enum([
 ]);
 
 export const DisagreementLevelEnum = z.enum([
-  'LOW',      // range <= 5
+  'LOW', // range <= 5
   'MODERATE', // range 6-10
-  'HIGH',     // range > 10
+  'HIGH', // range > 10
 ]);
 
 export const FindingConsensusLevelEnum = z.enum([
-  'CONSENSUS',   // 3/3 agreement
-  'MAJORITY',    // 2/3 agreement
-  'MINORITY',    // 1/3 single model
+  'CONSENSUS', // 3/3 agreement
+  'MAJORITY', // 2/3 agreement
+  'MINORITY', // 1/3 single model
   'CONFLICTING', // Models directly contradict each other
-  'UNVERIFIED',  // Flagged without evidence
+  'UNVERIFIED', // Flagged without evidence
 ]);
 
 export const ClaimEvidenceStatusEnum = z.enum([
@@ -41,8 +41,8 @@ export const ClaimEvidenceStatusEnum = z.enum([
 ]);
 
 export const SafeOptimizationCategoryEnum = z.enum([
-  'SAFE',        // Terminology normalization / preserving verified facts
-  'UNSAFE',      // Injecting unevidenced technologies or fabricated metrics
+  'SAFE', // Terminology normalization / preserving verified facts
+  'UNSAFE', // Injecting unevidenced technologies or fabricated metrics
   'CONDITIONAL', // Restoring candidate-owned verified facts omitted from draft
 ]);
 
@@ -76,12 +76,7 @@ export const FindingTaxonomyEnum = z.enum([
   'LOCATION_REQUIREMENT_MISMATCH',
 ]);
 
-export const FindingStanceEnum = z.enum([
-  'SUPPORT',
-  'REJECT',
-  'PARTIAL',
-  'UNKNOWN',
-]);
+export const FindingStanceEnum = z.enum(['SUPPORT', 'REJECT', 'PARTIAL', 'UNKNOWN']);
 
 export const P85OptimizationActionEnum = z.enum([
   'SAFE_FIX',
@@ -99,17 +94,9 @@ export const BenchmarkStateEnum = z.enum([
   'SUPERSEDED',
 ]);
 
-export const DatasetRoleEnum = z.enum([
-  'DEVELOPMENT',
-  'CALIBRATION',
-  'HOLDOUT',
-]);
+export const DatasetRoleEnum = z.enum(['DEVELOPMENT', 'CALIBRATION', 'HOLDOUT']);
 
-export const ContaminationStatusEnum = z.enum([
-  'CLEAN',
-  'CONTAMINATED',
-  'UNKNOWN',
-]);
+export const ContaminationStatusEnum = z.enum(['CLEAN', 'CONTAMINATED', 'UNKNOWN']);
 
 export const EvaluatorIdentitySchema = z.strictObject({
   provider: MultiModelProviderEnum,
@@ -237,16 +224,42 @@ export const EvaluatorProvenanceSchema = z.strictObject({
   model: z.string().trim().min(1),
   modelVersion: z.string().trim().nullable().default(null),
   promptVersion: z.string().trim().min(1),
-  promptDigest: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
+  promptDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
   rubricVersion: z.string().trim().default('p84-rubric-v1'),
   evaluationTimestamp: z.string().trim().min(1),
   inputResumeSha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash'),
-  inputJobDescriptionSha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash'),
-  inputPdfSha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
-  extractedTextSha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
-  inputDigest: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
-  outputDigest: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
-  responseSha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash').nullable().default(null),
+  inputJobDescriptionSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash'),
+  inputPdfSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
+  extractedTextSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
+  inputDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
+  outputDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
+  responseSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i, 'Must be valid 64-char SHA-256 hash')
+    .nullable()
+    .default(null),
   temperature: z.number().nullable().default(null),
   seed: z.number().nullable().default(null),
   generationParameters: z.record(z.unknown()).default({}),
@@ -299,9 +312,21 @@ export const BenchmarkGovernanceReportSchema = z.strictObject({
   inputHashes: z.strictObject({
     inputResumeSha256: z.string().regex(/^[a-f0-9]{64}$/i),
     inputJobDescriptionSha256: z.string().regex(/^[a-f0-9]{64}$/i),
-    inputPdfSha256: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
-    extractedTextSha256: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
-    evaluatorInputDigest: z.string().regex(/^[a-f0-9]{64}$/i).nullable().default(null),
+    inputPdfSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .nullable()
+      .default(null),
+    extractedTextSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .nullable()
+      .default(null),
+    evaluatorInputDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .nullable()
+      .default(null),
   }),
   operationalDisagreementThresholds: z.strictObject({
     low: z.string().default('range <= 5'),

@@ -496,7 +496,9 @@ export const CandidateIdentitySnapshotSchema = z
         z.object({
           label: z.string().trim().min(1).max(100),
           url: z.string().trim().url(),
-          platform: z.enum(['LINKEDIN', 'GITHUB', 'PORTFOLIO', 'LEETCODE', 'OTHER']).default('OTHER'),
+          platform: z
+            .enum(['LINKEDIN', 'GITHUB', 'PORTFOLIO', 'LEETCODE', 'OTHER'])
+            .default('OTHER'),
         })
       )
       .default([]),
@@ -513,14 +515,28 @@ export const TailoredSummarySchema = z
     composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
     provenance: EvidenceReferenceSchema.optional().nullable(),
-    sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    transformationType: z.enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']).optional().nullable(),
-    sentences: z.array(z.object({
-      text: z.string(),
-      composedFromFactIds: z.array(z.string()).default([]),
-      sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-      transformationType: z.string().optional().nullable(),
-    })).optional().nullable(),
+    sourceFact: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .nullable(),
+    transformationType: z
+      .enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'])
+      .optional()
+      .nullable(),
+    sentences: z
+      .array(
+        z.object({
+          text: z.string(),
+          composedFromFactIds: z.array(z.string()).default([]),
+          sourceFact: z
+            .union([z.string(), z.array(z.string())])
+            .optional()
+            .nullable(),
+          transformationType: z.string().optional().nullable(),
+        })
+      )
+      .optional()
+      .nullable(),
   })
   .strict();
 
@@ -551,8 +567,14 @@ export const TailoredProjectBulletSchema = z
     matchedRequirementIds: z.array(z.string().trim()).default([]),
     composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('VERIFIED'),
-    sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    transformationType: z.enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']).optional().nullable(),
+    sourceFact: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .nullable(),
+    transformationType: z
+      .enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'])
+      .optional()
+      .nullable(),
   })
   .strict();
 
@@ -616,7 +638,9 @@ export const SourceDsaSnapshotSchema = z
     hasSection: z.boolean().default(false),
     profileUrl: z.string().trim().url().nullable().optional(),
     bullets: z.array(z.string().trim().min(1)).default([]),
-    provenanceStatus: z.enum(['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED']).default('CLAIMED'),
+    provenanceStatus: z
+      .enum(['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED'])
+      .default('CLAIMED'),
   })
   .strict();
 

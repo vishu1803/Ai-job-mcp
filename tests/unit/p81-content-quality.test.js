@@ -25,8 +25,12 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
         {
           name: 'Storage Engine',
           bullets: [
-            { text: 'Implemented Raft consensus algorithm with leader election and log replication in Go.' },
-            { text: 'Architected write-ahead logging and persistent memory-mapped SSTables for state recovery.' },
+            {
+              text: 'Implemented Raft consensus algorithm with leader election and log replication in Go.',
+            },
+            {
+              text: 'Architected write-ahead logging and persistent memory-mapped SSTables for state recovery.',
+            },
           ],
         },
       ],
@@ -35,7 +39,9 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
           company: 'InfraCorp',
           title: 'Software Engineer',
           bullets: [
-            { text: 'Engineered REST APIs using Express.js with PostgreSQL persistence to support authenticated application workflows.' },
+            {
+              text: 'Engineered REST APIs using Express.js with PostgreSQL persistence to support authenticated application workflows.',
+            },
           ],
         },
       ],
@@ -105,7 +111,9 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
         {
           name: 'Pipeline',
           bullets: [
-            { text: 'Engineered asynchronous event processing pipeline handling 15,000 requests/sec via Redis streams.' },
+            {
+              text: 'Engineered asynchronous event processing pipeline handling 15,000 requests/sec via Redis streams.',
+            },
             { text: 'Optimized PostgreSQL queries reducing latency by 35% across all endpoints.' },
             { text: 'Implemented distributed caching layer using Redis.' },
           ],
@@ -156,8 +164,12 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
         {
           name: 'App',
           bullets: [
-            { text: 'Engineered high throughput API services using Node.js, Express, and PostgreSQL with Redis caching.' },
-            { text: 'Engineered high throughput backend services using Node.js, Express, and PostgreSQL with Redis caching.' },
+            {
+              text: 'Engineered high throughput API services using Node.js, Express, and PostgreSQL with Redis caching.',
+            },
+            {
+              text: 'Engineered high throughput backend services using Node.js, Express, and PostgreSQL with Redis caching.',
+            },
           ],
         },
       ],
@@ -202,7 +214,10 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
     });
 
     const unauthFinding = report.findings.find((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM');
-    assert.ok(unauthFinding, 'Must emit UNAUTHORIZED_METRIC_CLAIM for unbacked 99.99% or 75,000 requests/sec');
+    assert.ok(
+      unauthFinding,
+      'Must emit UNAUTHORIZED_METRIC_CLAIM for unbacked 99.99% or 75,000 requests/sec'
+    );
     assert.equal(report.quantification.verifiedMetricCount, 0);
     assert.equal(report.dimensions.authenticMetricUsage, 0);
   });
@@ -239,7 +254,11 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
     });
 
     const unauthFinding = report.findings.find((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM');
-    assert.equal(unauthFinding, undefined, 'Authorized derived metric must not trigger unauthorized finding');
+    assert.equal(
+      unauthFinding,
+      undefined,
+      'Authorized derived metric must not trigger unauthorized finding'
+    );
     assert.equal(report.quantification.verifiedMetricCount, 1);
     assert.equal(report.dimensions.authenticMetricUsage, 100);
   });

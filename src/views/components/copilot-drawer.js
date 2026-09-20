@@ -24,12 +24,20 @@ import { normalizeCopilotPageContext } from '../../domain/ai/career-assistant.sc
 export const CONTEXT_PROMPTS = {
   dashboard: [
     { label: 'What should I do next?', icon: 'sparkles', prompt: 'What should I do next?' },
-    { label: "What's blocking me from applying?", icon: 'alertCircle', prompt: "What's blocking me from applying?" },
+    {
+      label: "What's blocking me from applying?",
+      icon: 'alertCircle',
+      prompt: "What's blocking me from applying?",
+    },
     { label: 'Improve my profile', icon: 'edit', prompt: 'Improve my profile' },
     { label: 'Find matching jobs', icon: 'radar', prompt: 'Find matching jobs' },
   ],
   profile: [
-    { label: "What's missing from my profile?", icon: 'alertCircle', prompt: "What's missing from my profile?" },
+    {
+      label: "What's missing from my profile?",
+      icon: 'alertCircle',
+      prompt: "What's missing from my profile?",
+    },
     { label: 'Fix my profile gaps', icon: 'edit', prompt: 'Fix my profile gaps' },
     { label: 'What evidence is missing?', icon: 'check', prompt: 'What evidence is missing?' },
   ],
@@ -46,13 +54,29 @@ export const CONTEXT_PROMPTS = {
   ],
   resumes: [
     { label: 'Review my active resume', icon: 'resumes', prompt: 'Review my active resume' },
-    { label: 'What claims lack evidence?', icon: 'alertCircle', prompt: 'What claims lack evidence?' },
+    {
+      label: 'What claims lack evidence?',
+      icon: 'alertCircle',
+      prompt: 'What claims lack evidence?',
+    },
     { label: 'Tailor my resume', icon: 'edit', prompt: 'Tailor my resume' },
   ],
   sources: [
-    { label: 'What evidence do my sources provide?', icon: 'code', prompt: 'What evidence do my sources provide?' },
-    { label: 'Which skills need stronger evidence?', icon: 'alertCircle', prompt: 'Which skills need stronger evidence?' },
-    { label: 'Review my connected sources', icon: 'sources', prompt: 'Review my connected sources' },
+    {
+      label: 'What evidence do my sources provide?',
+      icon: 'code',
+      prompt: 'What evidence do my sources provide?',
+    },
+    {
+      label: 'Which skills need stronger evidence?',
+      icon: 'alertCircle',
+      prompt: 'Which skills need stronger evidence?',
+    },
+    {
+      label: 'Review my connected sources',
+      icon: 'sources',
+      prompt: 'Review my connected sources',
+    },
   ],
 };
 
@@ -296,12 +320,17 @@ export function renderCopilotDrawer({
               Suggested actions
             </div>
             <div class="copilot-chips-container" style="display:flex; flex-direction:column; gap:6px;">
-              ${suggestedPrompts.slice(0, 4).map((item) => `
+              ${suggestedPrompts
+                .slice(0, 4)
+                .map(
+                  (item) => `
                 <button type="button" class="copilot-chip" data-prompt="${escapeHtml(item.prompt)}">
                   <span style="color:var(--accent-indigo, #6366F1); flex-shrink:0;">${renderIcon(item.icon || 'arrowRight', { size: 13 })}</span>
                   <span>${escapeHtml(item.label)}</span>
                 </button>
-              `).join('')}
+              `
+                )
+                .join('')}
             </div>
           </div>
         </div>

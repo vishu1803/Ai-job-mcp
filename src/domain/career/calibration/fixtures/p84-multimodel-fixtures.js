@@ -95,9 +95,7 @@ export const P84_JOB_SHA256 = createHash('sha256')
   .update(JSON.stringify(P84_TARGET_JOB))
   .digest('hex');
 
-export const P84_RESUME_SHA256 = createHash('sha256')
-  .update(P84_RESUME_TEXT)
-  .digest('hex');
+export const P84_RESUME_SHA256 = createHash('sha256').update(P84_RESUME_TEXT).digest('hex');
 
 export const P84_CLAUDE_EVALUATION = Object.freeze({
   evaluationVersion: 'p84.0',
@@ -336,4 +334,3 @@ export const P85_PROVENANCE_RECORDS = Object.freeze([
   P85_GEMINI_PROVENANCE,
   P85_GROK_PROVENANCE,
 ]);
-

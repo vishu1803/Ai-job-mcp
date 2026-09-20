@@ -59,11 +59,18 @@ describe('P22 canonical candidate/job evidence graph', () => {
     );
     assert.deepEqual(
       scoredPython.matchedRequirementIds.sort(),
-      [...new Set(graph.matches
-        .filter((match) => match.factId === 'fact-python')
-        .map((match) => match.requirementId))].sort()
+      [
+        ...new Set(
+          graph.matches
+            .filter((match) => match.factId === 'fact-python')
+            .map((match) => match.requirementId)
+        ),
+      ].sort()
     );
-    assert.equal(scored.find((fact) => fact.factId === 'fact-generic').matchedRequirementIds.length, 0);
+    assert.equal(
+      scored.find((fact) => fact.factId === 'fact-generic').matchedRequirementIds.length,
+      0
+    );
   });
 
   it('normalizes equivalent structured and raw line-based job inputs identically', () => {

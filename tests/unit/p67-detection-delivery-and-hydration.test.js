@@ -71,9 +71,15 @@ function setupMockDOM() {
     className: '',
     classList: {
       _classes: new Set(['hidden']),
-      add(cls) { this._classes.add(cls); },
-      remove(cls) { this._classes.delete(cls); },
-      contains(cls) { return this._classes.has(cls); },
+      add(cls) {
+        this._classes.add(cls);
+      },
+      remove(cls) {
+        this._classes.delete(cls);
+      },
+      contains(cls) {
+        return this._classes.has(cls);
+      },
     },
     disabled: false,
     innerHTML: '',
@@ -233,12 +239,18 @@ describe('Part 67 — Detection Delivery Convergence & LinkedIn Hydration Reliab
         body: { textContent: '' },
       };
 
-      const payload = LinkedInAdapter.extract(mockEmptyDoc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const payload = LinkedInAdapter.extract(
+        mockEmptyDoc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.strictEqual(payload.externalJobId, '4419969671');
       assert.strictEqual(payload.isReady, false);
       assert.strictEqual(payload.title, 'Untitled Role');
 
-      const evaluation = JobDetectionEngine.evaluate(mockEmptyDoc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const evaluation = JobDetectionEngine.evaluate(
+        mockEmptyDoc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.strictEqual(evaluation.detected, false);
       assert.strictEqual(evaluation.ready, false);
     });
@@ -247,21 +259,30 @@ describe('Part 67 — Detection Delivery Convergence & LinkedIn Hydration Reliab
       const mockDoc = {
         querySelector: (sel) => {
           if (sel.includes('job-title')) return { textContent: 'Senior Go Engineer' };
-          if (sel.includes('company-name') || sel.includes('company')) return { textContent: 'General Motors' };
+          if (sel.includes('company-name') || sel.includes('company'))
+            return { textContent: 'General Motors' };
           return null;
         },
         querySelectorAll: () => [],
         title: 'Senior Go Engineer at General Motors | LinkedIn',
-        body: { textContent: 'General Motors is hiring a Senior Go Engineer with 5+ years experience.' },
+        body: {
+          textContent: 'General Motors is hiring a Senior Go Engineer with 5+ years experience.',
+        },
       };
 
-      const payload = LinkedInAdapter.extract(mockDoc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const payload = LinkedInAdapter.extract(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.strictEqual(payload.externalJobId, '4419969671');
       assert.strictEqual(payload.title, 'Senior Go Engineer');
       assert.strictEqual(payload.company, 'General Motors');
       assert.strictEqual(payload.isReady, true);
 
-      const evaluation = JobDetectionEngine.evaluate(mockDoc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const evaluation = JobDetectionEngine.evaluate(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.strictEqual(evaluation.detected, true);
       assert.strictEqual(evaluation.ready, true);
       assert.strictEqual(evaluation.jobData.title, 'Senior Go Engineer');
@@ -304,7 +325,9 @@ describe('Part 67 — Detection Delivery Convergence & LinkedIn Hydration Reliab
 
       // Start Tab A request
       let resolveTabA;
-      const tabAPromise = new Promise((resolve) => { resolveTabA = resolve; });
+      const tabAPromise = new Promise((resolve) => {
+        resolveTabA = resolve;
+      });
       global.chrome.tabs.sendMessage = () => tabAPromise;
 
       const detectionA = controller._requestDetectionFromTab();
@@ -482,7 +505,11 @@ describe('Part 67 — Detection Delivery Convergence & LinkedIn Hydration Reliab
       // Tab switch
       global.chrome.runtime.onMessage.dispatch({ type: 'ACTIVE_TAB_CHANGED', tabId: 101 });
       // Reload
-      global.chrome.runtime.onMessage.dispatch({ type: 'TAB_UPDATED', tabId: 101, status: 'complete' });
+      global.chrome.runtime.onMessage.dispatch({
+        type: 'TAB_UPDATED',
+        tabId: 101,
+        status: 'complete',
+      });
       // Rescan
       await controller.rescan();
 

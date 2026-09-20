@@ -120,11 +120,16 @@ export function normalizeRequirementToken(token) {
  * @returns {'TECHNOLOGY'|'RESPONSIBILITY'|'DOMAIN'|'EDUCATION'|'CERTIFICATION'|'LOCATION'|'ELIGIBILITY'}
  */
 export function classifyRequirement(raw, text, defaultSection = null) {
-  const category = typeof raw === 'object' ? String(raw.category || raw.type || '').toUpperCase() : '';
+  const category =
+    typeof raw === 'object' ? String(raw.category || raw.type || '').toUpperCase() : '';
   if (REQUIREMENT_CLASS_BY_CATEGORY[category]) return REQUIREMENT_CLASS_BY_CATEGORY[category];
   if (defaultSection === 'RESPONSIBILITIES') return 'RESPONSIBILITY';
   if (/\b(certif|degree|bachelor|master|phd|education)[a-z]*\b/i.test(text)) return 'EDUCATION';
-  if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute)[a-z]*\b/i.test(text)) {
+  if (
+    /\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute)[a-z]*\b/i.test(
+      text
+    )
+  ) {
     return 'RESPONSIBILITY';
   }
   // Sentential prose (> 4 words or > 40 chars) cannot be a standalone TECHNOLOGY
@@ -143,7 +148,8 @@ export function classifyRequirement(raw, text, defaultSection = null) {
  * @returns {{label: 'REQUIRED'|'PREFERRED'|'OPTIONAL', weight: number}}
  */
 export function resolveRequirementImportance(raw, text, sectionContext = null) {
-  const explicit = typeof raw === 'object' ? String(raw.importance || raw.priority || '').toUpperCase() : '';
+  const explicit =
+    typeof raw === 'object' ? String(raw.importance || raw.priority || '').toUpperCase() : '';
   if (explicit === 'REQUIRED') return { label: 'REQUIRED', weight: 1.0 };
   if (explicit === 'PREFERRED') return { label: 'PREFERRED', weight: 0.7 };
   if (explicit === 'OPTIONAL') return { label: 'OPTIONAL', weight: 0.35 };
@@ -171,9 +177,16 @@ export function resolveRequirementImportance(raw, text, sectionContext = null) {
  * @param {string} params.requirementClass
  * @returns {string} Deterministic ID
  */
-export function createDeterministicRequirementId({ normalizedConcept, requirementClass = 'TECHNOLOGY' }) {
-  const normConcept = String(normalizedConcept || '').trim().toLowerCase();
-  const normClass = String(requirementClass || 'TECHNOLOGY').trim().toUpperCase();
+export function createDeterministicRequirementId({
+  normalizedConcept,
+  requirementClass = 'TECHNOLOGY',
+}) {
+  const normConcept = String(normalizedConcept || '')
+    .trim()
+    .toLowerCase();
+  const normClass = String(requirementClass || 'TECHNOLOGY')
+    .trim()
+    .toUpperCase();
   const hash = crypto
     .createHash('sha256')
     .update(`${normConcept}:${normClass}`)
@@ -190,12 +203,17 @@ export function createDeterministicRequirementId({ normalizedConcept, requiremen
  */
 export function parseJobDescriptionSections(description) {
   if (!description || typeof description !== 'string') return [];
-  const lines = description.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = description
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const items = [];
   let currentSection = null;
 
   const hasSectionHeaders = lines.some((l) =>
-    /^(?:requirements?|qualifications?|must[\s-]have|skills?|preferred|nice[\s-]to[\s-]have|bonus|responsibilities|duties):?/i.test(l)
+    /^(?:requirements?|qualifications?|must[\s-]have|skills?|preferred|nice[\s-]to[\s-]have|bonus|responsibilities|duties):?/i.test(
+      l
+    )
   );
   const hasBullets = lines.some((l) => /^[-*•]\s*/.test(l));
 
@@ -203,29 +221,54 @@ export function parseJobDescriptionSections(description) {
     for (const line of lines) {
       const clean = line.replace(/\.$/, '').trim();
       if (clean) {
-        items.push({ text: clean, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+        items.push({
+          text: clean,
+          importance: 'REQUIRED',
+          category: 'SKILL',
+          sectionContext: 'REQUIREMENTS',
+        });
       }
     }
     return items;
   }
 
   for (const line of lines) {
-    const inlineReq = line.match(/^(?:requirements?|qualifications?|must[\s-]have|skills?):\s*(.+)$/i);
-    const inlinePref = line.match(/^(?:preferred(?:\s+qualifications?)?|nice[\s-]to[\s-]have|bonus):\s*(.+)$/i);
+    const inlineReq = line.match(
+      /^(?:requirements?|qualifications?|must[\s-]have|skills?):\s*(.+)$/i
+    );
+    const inlinePref = line.match(
+      /^(?:preferred(?:\s+qualifications?)?|nice[\s-]to[\s-]have|bonus):\s*(.+)$/i
+    );
     const inlineResp = line.match(/^(?:responsibilities|duties):\s*(.+)$/i);
 
     if (inlineReq) {
-      const parts = inlineReq[1].split(/[,;]/).map((p) => p.trim().replace(/\.$/, '')).filter(Boolean);
+      const parts = inlineReq[1]
+        .split(/[,;]/)
+        .map((p) => p.trim().replace(/\.$/, ''))
+        .filter(Boolean);
       for (const p of parts) {
-        items.push({ text: p, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+        items.push({
+          text: p,
+          importance: 'REQUIRED',
+          category: 'SKILL',
+          sectionContext: 'REQUIREMENTS',
+        });
       }
       currentSection = 'REQUIREMENTS';
       continue;
     }
     if (inlinePref) {
-      const parts = inlinePref[1].split(/[,;]/).map((p) => p.trim().replace(/\.$/, '')).filter(Boolean);
+      const parts = inlinePref[1]
+        .split(/[,;]/)
+        .map((p) => p.trim().replace(/\.$/, ''))
+        .filter(Boolean);
       for (const p of parts) {
-        items.push({ text: p, importance: 'PREFERRED', category: 'SKILL', sectionContext: 'PREFERRED' });
+        items.push({
+          text: p,
+          importance: 'PREFERRED',
+          category: 'SKILL',
+          sectionContext: 'PREFERRED',
+        });
       }
       currentSection = 'PREFERRED';
       continue;
@@ -233,7 +276,12 @@ export function parseJobDescriptionSections(description) {
     if (inlineResp) {
       const cleanResp = inlineResp[1].trim().replace(/\.$/, '');
       if (cleanResp) {
-        items.push({ text: cleanResp, importance: 'REQUIRED', category: 'EXPERIENCE', sectionContext: 'RESPONSIBILITIES' });
+        items.push({
+          text: cleanResp,
+          importance: 'REQUIRED',
+          category: 'EXPERIENCE',
+          sectionContext: 'RESPONSIBILITIES',
+        });
       }
       currentSection = 'RESPONSIBILITIES';
       continue;
@@ -288,15 +336,33 @@ export function parseJobDescriptionSections(description) {
     }
 
     const isBullet = /^[-*•]\s*/.test(line);
-    const cleanLine = line.replace(/^[-*•]\s*/, '').replace(/\.$/, '').trim();
+    const cleanLine = line
+      .replace(/^[-*•]\s*/, '')
+      .replace(/\.$/, '')
+      .trim();
     if (!cleanLine) continue;
 
     if (currentSection === 'REQUIREMENTS') {
-      items.push({ text: cleanLine, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+      items.push({
+        text: cleanLine,
+        importance: 'REQUIRED',
+        category: 'SKILL',
+        sectionContext: 'REQUIREMENTS',
+      });
     } else if (currentSection === 'PREFERRED') {
-      items.push({ text: cleanLine, importance: 'PREFERRED', category: 'SKILL', sectionContext: 'PREFERRED' });
+      items.push({
+        text: cleanLine,
+        importance: 'PREFERRED',
+        category: 'SKILL',
+        sectionContext: 'PREFERRED',
+      });
     } else if (currentSection === 'RESPONSIBILITIES') {
-      items.push({ text: cleanLine, importance: 'REQUIRED', category: 'EXPERIENCE', sectionContext: 'RESPONSIBILITIES' });
+      items.push({
+        text: cleanLine,
+        importance: 'REQUIRED',
+        category: 'EXPERIENCE',
+        sectionContext: 'RESPONSIBILITIES',
+      });
     } else if (isBullet) {
       // Pre-header bullet: only keep if not company prose and has technical or requirement cues
       if (!JobDescriptionParser._isCompanyProse(cleanLine)) {
@@ -306,7 +372,12 @@ export function parseJobDescriptionSections(description) {
             cleanLine
           );
         if (hasCue) {
-          items.push({ text: cleanLine, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+          items.push({
+            text: cleanLine,
+            importance: 'REQUIRED',
+            category: 'SKILL',
+            sectionContext: 'REQUIREMENTS',
+          });
         }
       }
     }
@@ -314,9 +385,17 @@ export function parseJobDescriptionSections(description) {
 
   if (items.length === 0) {
     for (const line of lines) {
-      const clean = line.replace(/^[-*•]\s*/, '').replace(/\.$/, '').trim();
+      const clean = line
+        .replace(/^[-*•]\s*/, '')
+        .replace(/\.$/, '')
+        .trim();
       if (clean && !JobDescriptionParser._isCompanyProse(clean)) {
-        items.push({ text: clean, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+        items.push({
+          text: clean,
+          importance: 'REQUIRED',
+          category: 'SKILL',
+          sectionContext: 'REQUIREMENTS',
+        });
       }
     }
   }
@@ -361,7 +440,9 @@ function extractConceptTokens(text) {
  * @returns {string} SHA-256 hex digest
  */
 export function computeCanonicalJobFingerprint(role, normalizedRequirements) {
-  const normTitle = String(role?.rawTitle || '').trim().toLowerCase();
+  const normTitle = String(role?.rawTitle || '')
+    .trim()
+    .toLowerCase();
   const sortedReqs = [...normalizedRequirements]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((r) => ({
@@ -451,7 +532,10 @@ export function normalizeJobInput(jobInput) {
   if (hasExplicitCollections) {
     for (const req of rawRequirements) {
       const text = typeof req === 'string' ? req : req?.text || '';
-      const foundSkills = text.includes(' ') && text.length > 20 ? JobDescriptionParser.extractSkillsFromLine(text) : [];
+      const foundSkills =
+        text.includes(' ') && text.length > 20
+          ? JobDescriptionParser.extractSkillsFromLine(text)
+          : [];
       if (foundSkills.length > 1) {
         for (const sk of foundSkills) {
           itemsToProcess.push({
@@ -489,7 +573,8 @@ export function normalizeJobInput(jobInput) {
               text: sk.name,
               category: 'SKILL',
               slug: sk.slug,
-              importance: item.importance || (item.sectionContext === 'PREFERRED' ? 'PREFERRED' : 'REQUIRED'),
+              importance:
+                item.importance || (item.sectionContext === 'PREFERRED' ? 'PREFERRED' : 'REQUIRED'),
             },
             defaultSection: item.sectionContext,
           });
@@ -584,8 +669,12 @@ export function getJobRequirementConceptsUnified(jobPosting) {
     requirementClass: requirement.class,
     normalizedName: requirement.normalizedConcept,
     tokens: new Set([
-      ...String(requirement.normalizedConcept || '').split(' ').filter(Boolean),
-      ...(Array.isArray(requirement.aliases) ? requirement.aliases : []).map(normalizeRequirementToken),
+      ...String(requirement.normalizedConcept || '')
+        .split(' ')
+        .filter(Boolean),
+      ...(Array.isArray(requirement.aliases) ? requirement.aliases : []).map(
+        normalizeRequirementToken
+      ),
     ]),
   }));
 }

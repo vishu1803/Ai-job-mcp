@@ -7,11 +7,7 @@
 
 import { z } from 'zod';
 
-export const SectionPresencePolicyEnum = z.enum([
-  'REQUIRED',
-  'REQUIRED_IF_DATA',
-  'OPTIONAL',
-]);
+export const SectionPresencePolicyEnum = z.enum(['REQUIRED', 'REQUIRED_IF_DATA', 'OPTIONAL']);
 
 export const MasterResumeSectionKeyEnum = z.enum([
   'HEADER',
@@ -71,6 +67,8 @@ export const MasterResumeStructureSchema = z.object({
   sectionTitles: z.record(z.string()).default(DEFAULT_MASTER_SECTION_TITLES),
   sectionPolicy: z.record(SectionPresencePolicyEnum).default(DEFAULT_SECTION_POLICY),
   projectSlotCapacity: z.number().int().positive().default(2),
-  source: z.enum(['CANDIDATE_BASE_RESUME', 'PROFILE_METADATA', 'DEFAULT_CONTRACT']).default('DEFAULT_CONTRACT'),
+  source: z
+    .enum(['CANDIDATE_BASE_RESUME', 'PROFILE_METADATA', 'DEFAULT_CONTRACT'])
+    .default('DEFAULT_CONTRACT'),
   metadata: z.record(z.unknown()).optional(),
 });

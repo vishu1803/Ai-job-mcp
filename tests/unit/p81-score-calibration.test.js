@@ -34,13 +34,17 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
     const xDev = [95, 80, 85, 60, 40];
     const yDev = [90, 82, 70, 65, 35];
     const rhoDev = calculateSpearmanRankCorrelation(xDev, yDev);
-    assert.ok(rhoDev >= 0.80);
+    assert.ok(rhoDev >= 0.8);
   });
 
   it('evaluates classification metrics (confusion matrix & error rates)', () => {
     const engine = [90, 85, 60, 45];
     const benchmark = [88, 75, 55, 40];
-    const metrics = evaluateClassificationMetrics({ engineScores: engine, benchmarkScores: benchmark, threshold: 70 });
+    const metrics = evaluateClassificationMetrics({
+      engineScores: engine,
+      benchmarkScores: benchmark,
+      threshold: 70,
+    });
 
     assert.equal(metrics.accuracy, 1.0);
     assert.equal(metrics.falsePositiveRate, 0.0);
@@ -57,8 +61,20 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
         intendedCoveragePercent: 90,
         renderedCoveragePercent: 90,
         termBreakdown: [
-          { term: 'Go', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 3 },
-          { term: 'PostgreSQL', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 2 },
+          {
+            term: 'Go',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 3,
+          },
+          {
+            term: 'PostgreSQL',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 2,
+          },
         ],
       },
       contentQualityReport: { contentQualityScore: 92, confidence: 0.95 },
@@ -67,18 +83,30 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
 
     // 2. Archetype B: Solid Mid-Level Engineer
     const reportB = generateUnifiedQualityReport({
-      atsParseabilityReport: { atsParseabilityScore: 88, passed: true, confidence: 0.90 },
-      jobMatchReport: { jobMatchScore: 80, confidence: 0.90 },
+      atsParseabilityReport: { atsParseabilityScore: 88, passed: true, confidence: 0.9 },
+      jobMatchReport: { jobMatchScore: 80, confidence: 0.9 },
       keywordCoverageReport: {
         overallCoveragePercent: 78,
         intendedCoveragePercent: 78,
         renderedCoveragePercent: 78,
         termBreakdown: [
-          { term: 'Go', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 2 },
-          { term: 'PostgreSQL', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 1 },
+          {
+            term: 'Go',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 2,
+          },
+          {
+            term: 'PostgreSQL',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 1,
+          },
         ],
       },
-      contentQualityReport: { contentQualityScore: 82, confidence: 0.90 },
+      contentQualityReport: { contentQualityScore: 82, confidence: 0.9 },
       claimValidationReport: { valid: true, rejected: false, violations: [] },
     });
 
@@ -91,8 +119,20 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
         intendedCoveragePercent: 62,
         renderedCoveragePercent: 62,
         termBreakdown: [
-          { term: 'Go', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 1 },
-          { term: 'PostgreSQL', importance: 'REQUIRED', matchType: 'MISSING', satisfiesRequirement: false, occurrences: 0 },
+          {
+            term: 'Go',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 1,
+          },
+          {
+            term: 'PostgreSQL',
+            importance: 'REQUIRED',
+            matchType: 'MISSING',
+            satisfiesRequirement: false,
+            occurrences: 0,
+          },
         ],
       },
       contentQualityReport: { contentQualityScore: 72, confidence: 0.85 },
@@ -101,34 +141,61 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
 
     // 4. Archetype D: Cluttered resume with keyword stuffing warnings
     const reportD = generateUnifiedQualityReport({
-      atsParseabilityReport: { atsParseabilityScore: 72, passed: false, confidence: 0.80 },
-      jobMatchReport: { jobMatchScore: 65, confidence: 0.80 },
+      atsParseabilityReport: { atsParseabilityScore: 72, passed: false, confidence: 0.8 },
+      jobMatchReport: { jobMatchScore: 65, confidence: 0.8 },
       keywordCoverageReport: {
         overallCoveragePercent: 70,
         intendedCoveragePercent: 70,
         renderedCoveragePercent: 70,
-        stuffingWarnings: [{ term: 'Go', section: 'summary', occurrences: 6, densityScore: 0.22, reason: 'Keyword stuffing' }],
+        stuffingWarnings: [
+          {
+            term: 'Go',
+            section: 'summary',
+            occurrences: 6,
+            densityScore: 0.22,
+            reason: 'Keyword stuffing',
+          },
+        ],
         termBreakdown: [
-          { term: 'Go', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 6 },
+          {
+            term: 'Go',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 6,
+          },
         ],
       },
-      contentQualityReport: { contentQualityScore: 58, confidence: 0.80 },
+      contentQualityReport: { contentQualityScore: 58, confidence: 0.8 },
       claimValidationReport: { valid: true, rejected: false, violations: [] },
     });
 
     // 5. Archetype E: Fraudulent claim resume (Fabricated 73% metric)
     const reportE = generateUnifiedQualityReport({
-      atsParseabilityReport: { atsParseabilityScore: 90, passed: true, confidence: 0.90 },
-      jobMatchReport: { jobMatchScore: 85, confidence: 0.90 },
+      atsParseabilityReport: { atsParseabilityScore: 90, passed: true, confidence: 0.9 },
+      jobMatchReport: { jobMatchScore: 85, confidence: 0.9 },
       keywordCoverageReport: {
         overallCoveragePercent: 85,
-        termBreakdown: [{ term: 'Go', importance: 'REQUIRED', matchType: 'EXACT', satisfiesRequirement: true, occurrences: 2 }],
+        termBreakdown: [
+          {
+            term: 'Go',
+            importance: 'REQUIRED',
+            matchType: 'EXACT',
+            satisfiesRequirement: true,
+            occurrences: 2,
+          },
+        ],
       },
-      contentQualityReport: { contentQualityScore: 90, confidence: 0.90 },
+      contentQualityReport: { contentQualityScore: 90, confidence: 0.9 },
       claimValidationReport: {
         valid: false,
         rejected: true,
-        violations: [{ code: 'UNSUPPORTED_METRIC', message: 'Fabricated 73% metric claim ungrounded in candidate facts' }],
+        violations: [
+          {
+            code: 'UNSUPPORTED_METRIC',
+            message: 'Fabricated 73% metric claim ungrounded in candidate facts',
+          },
+        ],
       },
     });
 
@@ -168,7 +235,15 @@ describe('P81 Unit: Score Calibration & Human Review Benchmark', () => {
       threshold: 70,
     });
 
-    assert.equal(classMetrics.falsePositiveRate, 0.0, 'False-positive rate for unqualified/fraudulent resumes must be 0.0%');
-    assert.equal(classMetrics.accuracy, 1.0, 'Engine must match human pass/fail classification across all 5 archetypes');
+    assert.equal(
+      classMetrics.falsePositiveRate,
+      0.0,
+      'False-positive rate for unqualified/fraudulent resumes must be 0.0%'
+    );
+    assert.equal(
+      classMetrics.accuracy,
+      1.0,
+      'Engine must match human pass/fail classification across all 5 archetypes'
+    );
   });
 });

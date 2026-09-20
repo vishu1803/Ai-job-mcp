@@ -38,8 +38,16 @@ describe('P22 Unified Job Normalization & Differential Regression Suite', () => 
       const canonicalC = normalizeJobInput(jobFormC);
 
       // 1. Fingerprint parity
-      assert.equal(canonicalA.jobFingerprint, canonicalB.jobFingerprint, 'Form A and B fingerprints must match');
-      assert.equal(canonicalB.jobFingerprint, canonicalC.jobFingerprint, 'Form B and C fingerprints must match');
+      assert.equal(
+        canonicalA.jobFingerprint,
+        canonicalB.jobFingerprint,
+        'Form A and B fingerprints must match'
+      );
+      assert.equal(
+        canonicalB.jobFingerprint,
+        canonicalC.jobFingerprint,
+        'Form B and C fingerprints must match'
+      );
 
       // 2. Exact requirement concepts
       const conceptsA = canonicalA.normalizedRequirements.map((r) => r.normalizedConcept).sort();
@@ -52,7 +60,11 @@ describe('P22 Unified Job Normalization & Differential Regression Suite', () => 
 
       // 3. Deterministic requirement IDs (req-<sha256>)
       for (const req of canonicalA.normalizedRequirements) {
-        assert.match(req.id, /^req-[a-f0-9]{12}$/, `Requirement ID ${req.id} must be req-<sha256> format`);
+        assert.match(
+          req.id,
+          /^req-[a-f0-9]{12}$/,
+          `Requirement ID ${req.id} must be req-<sha256> format`
+        );
       }
 
       const idsA = canonicalA.normalizedRequirements.map((r) => r.id).sort();
@@ -68,9 +80,15 @@ describe('P22 Unified Job Normalization & Differential Regression Suite', () => 
       }
 
       // 5. Content preservation: REST APIs is NEVER dropped
-      const hasRestA = canonicalA.normalizedRequirements.some((r) => r.normalizedConcept === 'rest api');
-      const hasRestB = canonicalB.normalizedRequirements.some((r) => r.normalizedConcept === 'rest api');
-      const hasRestC = canonicalC.normalizedRequirements.some((r) => r.normalizedConcept === 'rest api');
+      const hasRestA = canonicalA.normalizedRequirements.some(
+        (r) => r.normalizedConcept === 'rest api'
+      );
+      const hasRestB = canonicalB.normalizedRequirements.some(
+        (r) => r.normalizedConcept === 'rest api'
+      );
+      const hasRestC = canonicalC.normalizedRequirements.some(
+        (r) => r.normalizedConcept === 'rest api'
+      );
 
       assert.ok(hasRestA, 'Form A must preserve REST APIs');
       assert.ok(hasRestB, 'Form B must preserve REST APIs');
@@ -125,7 +143,10 @@ describe('P22 Unified Job Normalization & Differential Regression Suite', () => 
       const conceptsB = new Set(canonicalB.normalizedRequirements.map((r) => r.normalizedConcept));
 
       for (const concept of conceptsA) {
-        assert.ok(!conceptsB.has(concept), `Concept ${concept} should not overlap between contrasting jobs`);
+        assert.ok(
+          !conceptsB.has(concept),
+          `Concept ${concept} should not overlap between contrasting jobs`
+        );
       }
     });
 
@@ -207,13 +228,26 @@ describe('P22 Unified Job Normalization & Differential Regression Suite', () => 
 
       // Must pass: traceability must not report missing items for line-wrapped hyphenated URL
       assert.ok(audit.traceability, 'Traceability report must be present');
-      assert.equal(audit.traceability.missing.length, 0, 'Traceability must find hyphen-wrapped URL');
+      assert.equal(
+        audit.traceability.missing.length,
+        0,
+        'Traceability must find hyphen-wrapped URL'
+      );
     });
 
     it('deterministic requirement ID generation is consistent across calls', () => {
-      const id1 = createDeterministicRequirementId({ normalizedConcept: 'fastapi', requirementClass: 'TECHNOLOGY' });
-      const id2 = createDeterministicRequirementId({ normalizedConcept: 'fastapi', requirementClass: 'TECHNOLOGY' });
-      const id3 = createDeterministicRequirementId({ normalizedConcept: 'python', requirementClass: 'TECHNOLOGY' });
+      const id1 = createDeterministicRequirementId({
+        normalizedConcept: 'fastapi',
+        requirementClass: 'TECHNOLOGY',
+      });
+      const id2 = createDeterministicRequirementId({
+        normalizedConcept: 'fastapi',
+        requirementClass: 'TECHNOLOGY',
+      });
+      const id3 = createDeterministicRequirementId({
+        normalizedConcept: 'python',
+        requirementClass: 'TECHNOLOGY',
+      });
 
       assert.equal(id1, id2);
       assert.notEqual(id1, id3);

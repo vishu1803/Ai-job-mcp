@@ -19,7 +19,10 @@
  * a single rigid ordering.
  */
 
-import { buildCanonicalFactInventory, PROBLEM_SOLVING_PROJECT_KEY } from './candidate-fact-inventory.service.js';
+import {
+  buildCanonicalFactInventory,
+  PROBLEM_SOLVING_PROJECT_KEY,
+} from './candidate-fact-inventory.service.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 
@@ -90,7 +93,9 @@ export function planDocumentSections({
   });
 
   const hasSeniorWorkHistory = experiences.some((e) =>
-    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(e.title || e.role || '')
+    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(
+      e.title || e.role || ''
+    )
   );
   const hasSeniorHeadline = /\b(senior|sr\.?|principal|lead|staff|architect|director)\b/i.test(
     profile.headline || meta.headline || ''
@@ -125,7 +130,9 @@ export function planDocumentSections({
   const sectionMetrics = {};
 
   // 1. SUMMARY
-  const summaryFacts = inv.facts.filter((f) => f.factType === 'identity' || f.factType === 'experience');
+  const summaryFacts = inv.facts.filter(
+    (f) => f.factType === 'identity' || f.factType === 'experience'
+  );
   sectionMetrics.SUMMARY = {
     key: SECTION_KEYS.SUMMARY,
     available: true,
@@ -167,7 +174,9 @@ export function planDocumentSections({
     relevance: projectRelevanceScore,
     informationDensity: 88,
     priority: candidateArchetype === 'EXPERIENCED' ? 5 : 4,
-    estimatedHeight: availableProjects ? Math.min(260, 30 + Math.min(3, projectEntries.length) * 65) : 0,
+    estimatedHeight: availableProjects
+      ? Math.min(260, 30 + Math.min(3, projectEntries.length) * 65)
+      : 0,
     minimumUsefulRepresentation: { minProjects: 1, bulletsPerProject: 1 },
     inclusionStatus: availableProjects ? 'INCLUDE' : 'OMIT',
     omissionReason: availableProjects ? null : 'No project evidence in candidate record',
@@ -177,12 +186,16 @@ export function planDocumentSections({
   const dsaFacts = inv.facts.filter(
     (f) => f.ownerType === 'dsa' || f.projectId === PROBLEM_SOLVING_PROJECT_KEY
   );
-  const hasDsaUrl = Boolean(dsa?.profileUrl || dsa?.url || dsaFacts.some((f) => f.factType === 'profile_link'));
+  const hasDsaUrl = Boolean(
+    dsa?.profileUrl || dsa?.url || dsaFacts.some((f) => f.factType === 'profile_link')
+  );
   const hasDsaAuthored = Boolean(
     (Array.isArray(dsa?.bullets) && dsa.bullets.length > 0) ||
     dsaFacts.some((f) => f.factType === 'dsa_authored' || f.candidateAuthored)
   );
-  const hasDsaMetrics = Boolean(dsa?.metrics || dsaFacts.some((f) => f.metrics && Object.keys(f.metrics).length > 0));
+  const hasDsaMetrics = Boolean(
+    dsa?.metrics || dsaFacts.some((f) => f.metrics && Object.keys(f.metrics).length > 0)
+  );
   const hasMeaningfulDsa = hasDsaUrl || hasDsaAuthored || hasDsaMetrics || dsaFacts.length > 0;
 
   sectionMetrics.DSA = {
@@ -280,11 +293,10 @@ export function planDocumentSections({
   for (const key of Object.keys(sectionMetrics)) {
     const sm = sectionMetrics[key];
     sm.utilityScore = sm.available
-      ? Math.round(sm.evidenceStrength * 0.35 + sm.relevance * 0.40 + sm.informationDensity * 0.25)
+      ? Math.round(sm.evidenceStrength * 0.35 + sm.relevance * 0.4 + sm.informationDensity * 0.25)
       : 0;
-    sm.marginalUtilityPerSpace = sm.estimatedHeight > 0
-      ? parseFloat((sm.utilityScore / sm.estimatedHeight).toFixed(2))
-      : 0;
+    sm.marginalUtilityPerSpace =
+      sm.estimatedHeight > 0 ? parseFloat((sm.utilityScore / sm.estimatedHeight).toFixed(2)) : 0;
   }
 
   // Anchor sections: always standard header, summary, and skills if available
@@ -295,7 +307,8 @@ export function planDocumentSections({
   // Body sections: PROJECTS, EXPERIENCE, DSA competitively ordered by utility
   const bodyCandidates = [];
   if (sectionMetrics.PROJECTS.inclusionStatus === 'INCLUDE') {
-    const archetypeBias = (candidateArchetype === 'FRESHER' || candidateArchetype === 'CAREER_CHANGER') ? 10 : 0;
+    const archetypeBias =
+      candidateArchetype === 'FRESHER' || candidateArchetype === 'CAREER_CHANGER' ? 10 : 0;
     bodyCandidates.push({
       key: SECTION_KEYS.PROJECTS,
       score: sectionMetrics.PROJECTS.utilityScore + archetypeBias,
@@ -326,9 +339,17 @@ export function planDocumentSections({
     orderedKeys.push(SECTION_KEYS.EDUCATION);
   }
 
-  const optionalTrailing = [SECTION_KEYS.CERTIFICATIONS, SECTION_KEYS.AWARDS, SECTION_KEYS.OPEN_SOURCE]
+  const optionalTrailing = [
+    SECTION_KEYS.CERTIFICATIONS,
+    SECTION_KEYS.AWARDS,
+    SECTION_KEYS.OPEN_SOURCE,
+  ]
     .filter((k) => sectionMetrics[k].inclusionStatus === 'INCLUDE')
-    .sort((a, b) => (sectionMetrics[b].marginalUtilityPerSpace || 0) - (sectionMetrics[a].marginalUtilityPerSpace || 0));
+    .sort(
+      (a, b) =>
+        (sectionMetrics[b].marginalUtilityPerSpace || 0) -
+        (sectionMetrics[a].marginalUtilityPerSpace || 0)
+    );
 
   for (const k of optionalTrailing) {
     orderedKeys.push(k);
@@ -350,7 +371,7 @@ export function planDocumentSections({
       const idx = orderedKeys.indexOf(pKey);
       if (idx !== -1) {
         orderedKeys.splice(idx, 1);
-        totalEstimatedHeight -= (sectionMetrics[pKey]?.estimatedHeight || 0);
+        totalEstimatedHeight -= sectionMetrics[pKey]?.estimatedHeight || 0;
       }
     }
   }

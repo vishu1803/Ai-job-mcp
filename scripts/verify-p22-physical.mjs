@@ -105,16 +105,27 @@ Requirements:
 
   console.log(`  Canonical Job ID: ${canonicalDirectA.canonicalJobId}`);
   console.log(`  Job Fingerprint:  ${canonicalDirectA.jobFingerprint}`);
-  console.log(`  Normalized Reqs:  ${canonicalDirectA.normalizedRequirements.length} requirements detected`);
+  console.log(
+    `  Normalized Reqs:  ${canonicalDirectA.normalizedRequirements.length} requirements detected`
+  );
 
   // Verify REST APIs requirement is preserved
   const restApiReq = canonicalDirectA.normalizedRequirements.find(
     (r) => r.normalizedConcept === 'rest api' || r.text.toLowerCase().includes('rest api')
   );
   assert.ok(restApiReq, 'REST APIs requirement must NOT be dropped by generic skill filters');
-  assert.equal(restApiReq.importance, 'REQUIRED', 'REST APIs importance must be deterministic REQUIRED');
-  assert.ok(restApiReq.id.startsWith('req-'), `Requirement ID must follow req-<sha256> pattern, got: ${restApiReq.id}`);
-  console.log(`[PASS] "REST APIs" requirement preserved: id=${restApiReq.id}, concept="${restApiReq.normalizedConcept}", importance=${restApiReq.importance}\n`);
+  assert.equal(
+    restApiReq.importance,
+    'REQUIRED',
+    'REST APIs importance must be deterministic REQUIRED'
+  );
+  assert.ok(
+    restApiReq.id.startsWith('req-'),
+    `Requirement ID must follow req-<sha256> pattern, got: ${restApiReq.id}`
+  );
+  console.log(
+    `[PASS] "REST APIs" requirement preserved: id=${restApiReq.id}, concept="${restApiReq.normalizedConcept}", importance=${restApiReq.importance}\n`
+  );
 
   // =========================================================================
   // Part 2: Execute Job A via MCP generate_tailored_resume
@@ -142,11 +153,17 @@ Requirements:
 
   assert.ok(mcpResultA.resumeId, 'MCP must produce a valid resume document');
   assert.ok(mcpResultA.resume.projects.length > 0, 'MCP resume must contain tailored projects');
-  assert.equal(mcpResultA.integrityReport.overallStatus, 'PASS', 'MCP integrity audit must be PASS');
+  assert.equal(
+    mcpResultA.integrityReport.overallStatus,
+    'PASS',
+    'MCP integrity audit must be PASS'
+  );
   console.log(`[PASS] MCP generate_tailored_resume succeeded:`);
   console.log(`       Resume ID: ${mcpResultA.resumeId}`);
   console.log(`       Target Role: ${mcpResultA.jobTitle}`);
-  console.log(`       Tailored Projects: ${mcpResultA.resume.projects.map((p) => p.name).join(', ')}\n`);
+  console.log(
+    `       Tailored Projects: ${mcpResultA.resume.projects.map((p) => p.name).join(', ')}\n`
+  );
 
   // =========================================================================
   // Part 3: Execute Job A via Extension POST /api/extension/prepare-handoff
@@ -167,7 +184,11 @@ Requirements:
     },
   });
 
-  assert.equal(extResA.statusCode, 200, `Extension prepare-handoff must succeed with 200. Got: ${extResA.statusCode} ${extResA.payload}`);
+  assert.equal(
+    extResA.statusCode,
+    200,
+    `Extension prepare-handoff must succeed with 200. Got: ${extResA.statusCode} ${extResA.payload}`
+  );
   const extJsonA = JSON.parse(extResA.payload);
 
   console.log(`[PASS] Extension prepare-handoff succeeded:`);
@@ -178,11 +199,20 @@ Requirements:
   console.log(`       Download URL:    ${extJsonA.artifacts.resume.downloadUrl}`);
 
   // Parity Assertion: Artifact Readiness
-  assert.equal(extJsonA.artifactStatus, 'READY', `Expected artifactStatus to be READY, got: ${extJsonA.artifactStatus}`);
+  assert.equal(
+    extJsonA.artifactStatus,
+    'READY',
+    `Expected artifactStatus to be READY, got: ${extJsonA.artifactStatus}`
+  );
   assert.equal(extJsonA.artifacts.resume.ready, true, 'Expected resume.ready to be true');
   assert.ok(extJsonA.artifacts.resume.downloadUrl, 'Resume download URL must be present');
-  assert.ok(extJsonA.artifacts.coverLetter.downloadUrl, 'Cover letter download URL must be present');
-  console.log('[PASS] Artifact Readiness Contract verified: artifactStatus is READY, resume.ready is true\n');
+  assert.ok(
+    extJsonA.artifacts.coverLetter.downloadUrl,
+    'Cover letter download URL must be present'
+  );
+  console.log(
+    '[PASS] Artifact Readiness Contract verified: artifactStatus is READY, resume.ready is true\n'
+  );
 
   // =========================================================================
   // Part 4: Physical Parity between MCP Job Input and Extension Job Input
@@ -200,25 +230,47 @@ Requirements:
     rawText: jobA_Description,
   });
 
-  assert.equal(mcpCanonicalJob.jobFingerprint, extCanonicalJob.jobFingerprint, 'Fingerprints between MCP and Extension must be identical');
-  assert.equal(mcpCanonicalJob.canonicalJobId, extCanonicalJob.canonicalJobId, 'CanonicalJobIds between MCP and Extension must be identical');
-  assert.equal(mcpCanonicalJob.normalizedRequirements.length, extCanonicalJob.normalizedRequirements.length, 'Requirement counts must match exactly');
-  
+  assert.equal(
+    mcpCanonicalJob.jobFingerprint,
+    extCanonicalJob.jobFingerprint,
+    'Fingerprints between MCP and Extension must be identical'
+  );
+  assert.equal(
+    mcpCanonicalJob.canonicalJobId,
+    extCanonicalJob.canonicalJobId,
+    'CanonicalJobIds between MCP and Extension must be identical'
+  );
+  assert.equal(
+    mcpCanonicalJob.normalizedRequirements.length,
+    extCanonicalJob.normalizedRequirements.length,
+    'Requirement counts must match exactly'
+  );
+
   for (let i = 0; i < mcpCanonicalJob.normalizedRequirements.length; i++) {
     const mcpReq = mcpCanonicalJob.normalizedRequirements[i];
     const extReq = extCanonicalJob.normalizedRequirements[i];
-    assert.equal(mcpReq.id, extReq.id, `Requirement #${i} ID must match: ${mcpReq.id} vs ${extReq.id}`);
-    assert.equal(mcpReq.normalizedConcept, extReq.normalizedConcept, `Concept #${i} must match: ${mcpReq.normalizedConcept}`);
+    assert.equal(
+      mcpReq.id,
+      extReq.id,
+      `Requirement #${i} ID must match: ${mcpReq.id} vs ${extReq.id}`
+    );
+    assert.equal(
+      mcpReq.normalizedConcept,
+      extReq.normalizedConcept,
+      `Concept #${i} must match: ${mcpReq.normalizedConcept}`
+    );
     assert.equal(mcpReq.importance, extReq.importance, `Importance #${i} must match`);
     assert.equal(mcpReq.class, extReq.class, `Class #${i} must match`);
   }
-  console.log('[PASS] Full parity established: MCP and Extension produce identical deterministic requirements and fingerprint\n');
+  console.log(
+    '[PASS] Full parity established: MCP and Extension produce identical deterministic requirements and fingerprint\n'
+  );
 
   // =========================================================================
   // Part 5: Authenticated PDF View & Download Verification
   // =========================================================================
   console.log('--- Step 5: Testing Authenticated View & Download Endpoints ---');
-  
+
   // 5a. View Resume PDF
   const viewRes = await app.inject({
     method: 'GET',
@@ -227,9 +279,18 @@ Requirements:
   });
   assert.equal(viewRes.statusCode, 200, `View resume PDF returned ${viewRes.statusCode}`);
   assert.equal(viewRes.headers['content-type'], 'application/pdf');
-  assert.ok(viewRes.rawPayload.length > 5000, `PDF view payload size must be substantial (${viewRes.rawPayload.length} bytes)`);
-  assert.equal(viewRes.rawPayload.subarray(0, 4).toString(), '%PDF', 'PDF buffer must begin with %PDF magic bytes');
-  console.log(`[PASS] Authenticated View endpoint returned valid compiled PDF (${viewRes.rawPayload.length} bytes)`);
+  assert.ok(
+    viewRes.rawPayload.length > 5000,
+    `PDF view payload size must be substantial (${viewRes.rawPayload.length} bytes)`
+  );
+  assert.equal(
+    viewRes.rawPayload.subarray(0, 4).toString(),
+    '%PDF',
+    'PDF buffer must begin with %PDF magic bytes'
+  );
+  console.log(
+    `[PASS] Authenticated View endpoint returned valid compiled PDF (${viewRes.rawPayload.length} bytes)`
+  );
 
   // 5b. Download Resume PDF
   const dlRes = await app.inject({
@@ -239,9 +300,18 @@ Requirements:
   });
   assert.equal(dlRes.statusCode, 200, `Download resume PDF returned ${dlRes.statusCode}`);
   assert.equal(dlRes.headers['content-type'], 'application/pdf');
-  assert.ok(dlRes.rawPayload.length > 5000, `PDF download payload size must be substantial (${dlRes.rawPayload.length} bytes)`);
-  assert.equal(dlRes.rawPayload.subarray(0, 4).toString(), '%PDF', 'PDF buffer must begin with %PDF magic bytes');
-  console.log(`[PASS] Authenticated Download endpoint returned valid compiled PDF (${dlRes.rawPayload.length} bytes)\n`);
+  assert.ok(
+    dlRes.rawPayload.length > 5000,
+    `PDF download payload size must be substantial (${dlRes.rawPayload.length} bytes)`
+  );
+  assert.equal(
+    dlRes.rawPayload.subarray(0, 4).toString(),
+    '%PDF',
+    'PDF buffer must begin with %PDF magic bytes'
+  );
+  console.log(
+    `[PASS] Authenticated Download endpoint returned valid compiled PDF (${dlRes.rawPayload.length} bytes)\n`
+  );
 
   // =========================================================================
   // Part 6: Contrasting Job B Execution (Rust & Systems Engineer)
@@ -272,7 +342,11 @@ Requirements:
   });
 
   // Verify Job B is distinct from Job A
-  assert.notEqual(canonicalJobB.jobFingerprint, canonicalDirectA.jobFingerprint, 'Job B fingerprint must differ from Job A');
+  assert.notEqual(
+    canonicalJobB.jobFingerprint,
+    canonicalDirectA.jobFingerprint,
+    'Job B fingerprint must differ from Job A'
+  );
 
   // Execute Extension for Job B
   const extResB = await app.inject({
@@ -292,8 +366,16 @@ Requirements:
   const extJsonB = JSON.parse(extResB.payload);
   assert.equal(extJsonB.artifactStatus, 'READY');
   assert.equal(extJsonB.artifacts.resume.ready, true);
-  assert.notEqual(extJsonB.canonicalJobId, extJsonA.canonicalJobId, 'Job B canonicalJobId must differ from Job A');
-  assert.notEqual(extJsonB.packageHash, extJsonA.packageHash, 'Job B packageHash must differ from Job A');
+  assert.notEqual(
+    extJsonB.canonicalJobId,
+    extJsonA.canonicalJobId,
+    'Job B canonicalJobId must differ from Job A'
+  );
+  assert.notEqual(
+    extJsonB.packageHash,
+    extJsonA.packageHash,
+    'Job B packageHash must differ from Job A'
+  );
   console.log(`[PASS] Job B successfully prepared:`);
   console.log(`       Application ID: ${extJsonB.applicationId}`);
   console.log(`       Fingerprint B:  ${canonicalJobB.jobFingerprint}`);
@@ -335,9 +417,17 @@ Requirements:
       headers: { authorization: `Bearer ${bearerToken}` },
     });
 
-    assert.equal(blockedRes.statusCode, 409, `Expected 409 Conflict for BLOCKED artifact, got: ${blockedRes.statusCode}`);
+    assert.equal(
+      blockedRes.statusCode,
+      409,
+      `Expected 409 Conflict for BLOCKED artifact, got: ${blockedRes.statusCode}`
+    );
     const blockedJson = JSON.parse(blockedRes.payload);
-    assert.equal(blockedJson.code, 'ARTIFACT_BLOCKED', `Expected ARTIFACT_BLOCKED error code, got: ${blockedJson.code}`);
+    assert.equal(
+      blockedJson.code,
+      'ARTIFACT_BLOCKED',
+      `Expected ARTIFACT_BLOCKED error code, got: ${blockedJson.code}`
+    );
     console.log(`[PASS] HTTP 409 ARTIFACT_BLOCKED gate verified: ${blockedJson.error}`);
 
     // Restore original metadata

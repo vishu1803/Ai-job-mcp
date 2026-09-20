@@ -22,7 +22,11 @@ import {
 } from './resume-claim-validation.service.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
-import { toEvidenceReference, calculateTokenOverlap, sanitizeGroundedAccomplishment } from './resume-composition-primitives.js';
+import {
+  toEvidenceReference,
+  calculateTokenOverlap,
+  sanitizeGroundedAccomplishment,
+} from './resume-composition-primitives.js';
 import {
   getJobRequirementConcepts,
   buildCanonicalFactInventory,
@@ -75,7 +79,10 @@ export class AiResumeContentGeneratorService {
     if (!proj) return [];
     const pid = proj.id || proj.projectId;
     const rawName = proj.displayName || proj.name || proj.title || '';
-    const normName = rawName.toLowerCase().replace(/^vishu1803\//i, '').replace(/[^a-z0-9]/g, '');
+    const normName = rawName
+      .toLowerCase()
+      .replace(/^vishu1803\//i, '')
+      .replace(/[^a-z0-9]/g, '');
 
     return (Array.isArray(availableFacts) ? availableFacts : []).filter((f) => {
       const owner = f.sectionOwnerId || f.ownerId || f.association?.projectId;
@@ -84,8 +91,21 @@ export class AiResumeContentGeneratorService {
         .toLowerCase()
         .replace(/^vishu1803\//i, '')
         .replace(/[^a-z0-9]/g, '');
-      if (normName && assocName && (assocName === normName || assocName.includes(normName) || normName.includes(assocName))) return true;
-      if (normName && f.text && f.text.toLowerCase().replace(/[^a-z0-9]/g, '').includes(normName)) return true;
+      if (
+        normName &&
+        assocName &&
+        (assocName === normName || assocName.includes(normName) || normName.includes(assocName))
+      )
+        return true;
+      if (
+        normName &&
+        f.text &&
+        f.text
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .includes(normName)
+      )
+        return true;
       return false;
     });
   }
@@ -108,9 +128,12 @@ export class AiResumeContentGeneratorService {
   }) {
     const activeProvider = this._resolveActiveProvider(aiProvider);
 
-    const inventory = (Array.isArray(factInventory) && factInventory.length > 0)
-      ? factInventory
-      : (candidateProfile ? (buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []) : []);
+    const inventory =
+      Array.isArray(factInventory) && factInventory.length > 0
+        ? factInventory
+        : candidateProfile
+          ? buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []
+          : [];
 
     // 1. Generate job-conditioned summary
     const summary = await this.generateJobConditionedSummary({
@@ -136,7 +159,7 @@ export class AiResumeContentGeneratorService {
         project: proj,
         candidateProfile,
         targetJobPosting,
-        projectFacts: projFacts.length > 0 ? projFacts : (proj.bullets || []),
+        projectFacts: projFacts.length > 0 ? projFacts : proj.bullets || [],
         aiProvider: activeProvider,
       });
 
@@ -184,9 +207,12 @@ export class AiResumeContentGeneratorService {
     const candidate = candidateProfile || {};
     const job = targetJobPosting || {};
 
-    const availableFacts = (Array.isArray(factInventory) && factInventory.length > 0)
-      ? factInventory
-      : (candidateProfile ? (buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []) : []);
+    const availableFacts =
+      Array.isArray(factInventory) && factInventory.length > 0
+        ? factInventory
+        : candidateProfile
+          ? buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []
+          : [];
 
     // Extract relevant skills and verified technologies
     const verifiedSkillsList = (
@@ -195,9 +221,7 @@ export class AiResumeContentGeneratorService {
         : candidate.skills || []
     ).map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.slug || ''));
 
-    const verifiedSkillSet = new Set(
-      verifiedSkillsList.map((s) => s.toLowerCase().trim())
-    );
+    const verifiedSkillSet = new Set(verifiedSkillsList.map((s) => s.toLowerCase().trim()));
 
     const targetTitle = String(job.title || job.targetRole || 'Software Engineer').trim();
     const targetDesc = String(job.description || '').trim();
@@ -306,25 +330,43 @@ export class AiResumeContentGeneratorService {
                 return {
                   text: generatedText,
                   referencedSkillSlugs: aiResponse.data.referencedSkillSlugs || [],
-                  referencedProjectIds: aiResponse.data.referencedProjectIds || selectedProjects.map((p) => p.id || p.projectId),
+                  referencedProjectIds:
+                    aiResponse.data.referencedProjectIds ||
+                    selectedProjects.map((p) => p.id || p.projectId),
                   composedFromFactIds: validFactIds,
-                  evidenceRefs: validFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+                  evidenceRefs: validFactIds.map((id) =>
+                    toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
+                  ),
                   provenanceStatus: 'VERIFIED',
                   sourceFact: sourceFacts,
                   transformationType: 'REWRITE',
                 };
               } else {
-                console.warn('[AiResumeContentGenerator] Summary grounding failed:', groundingResult.violations);
+                console.warn(
+                  '[AiResumeContentGenerator] Summary grounding failed:',
+                  groundingResult.violations
+                );
               }
             } else {
-              console.warn('[AiResumeContentGenerator] Summary shape check failed. length:', generatedText.length, 'validFactIds:', validFactIds);
+              console.warn(
+                '[AiResumeContentGenerator] Summary shape check failed. length:',
+                generatedText.length,
+                'validFactIds:',
+                validFactIds
+              );
             }
           }
         } else {
-          console.warn('[AiResumeContentGenerator] Summary aiResponse.data missing summaryText:', aiResponse?.data);
+          console.warn(
+            '[AiResumeContentGenerator] Summary aiResponse.data missing summaryText:',
+            aiResponse?.data
+          );
         }
       } catch (err) {
-        console.error('[AiResumeContentGenerator] Summary generation exception:', err.message || err);
+        console.error(
+          '[AiResumeContentGenerator] Summary generation exception:',
+          err.message || err
+        );
       }
     }
 
@@ -358,20 +400,40 @@ export class AiResumeContentGeneratorService {
     const isFrontend = /\bfront[- ]?end\b/i.test(jobText) && !isFullStack;
     const isPython = /\bpython\b/i.test(jobText);
     const isBackend = (/\bback[- ]?end\b/i.test(jobText) || isPython) && !isFullStack;
-    const isDevOps = /\b(?:devops|platform|infrastructure|sre|cloud|ci\/cd|docker)\b/i.test(jobText);
-    const isDistributed = /\b(?:distributed|concurrency|systems|telemetry|microservices)\b/i.test(jobText);
+    const isDevOps = /\b(?:devops|platform|infrastructure|sre|cloud|ci\/cd|docker)\b/i.test(
+      jobText
+    );
+    const isDistributed = /\b(?:distributed|concurrency|systems|telemetry|microservices)\b/i.test(
+      jobText
+    );
 
     // Pick top verified matching skills
     const candidateTech = verifiedSkillsList.slice();
     const relevantSkills = [];
 
     if (isFrontend) {
-      const fePriorities = ['React', 'Next.js', 'TypeScript', 'JavaScript', 'Tailwind CSS', 'CSS', 'HTML'];
+      const fePriorities = [
+        'React',
+        'Next.js',
+        'TypeScript',
+        'JavaScript',
+        'Tailwind CSS',
+        'CSS',
+        'HTML',
+      ];
       for (const p of fePriorities) {
         if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
       }
     } else if (isBackend || isPython) {
-      const bePriorities = ['Python', 'FastAPI', 'PostgreSQL', 'Docker', 'Node.js', 'Express.js', 'REST APIs'];
+      const bePriorities = [
+        'Python',
+        'FastAPI',
+        'PostgreSQL',
+        'Docker',
+        'Node.js',
+        'Express.js',
+        'REST APIs',
+      ];
       for (const p of bePriorities) {
         if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
       }
@@ -387,19 +449,33 @@ export class AiResumeContentGeneratorService {
       }
     } else {
       // Full-Stack
-      const fsPriorities = ['TypeScript', 'React', 'Next.js', 'Node.js', 'Python', 'PostgreSQL', 'FastAPI'];
+      const fsPriorities = [
+        'TypeScript',
+        'React',
+        'Next.js',
+        'Node.js',
+        'Python',
+        'PostgreSQL',
+        'FastAPI',
+      ];
       for (const p of fsPriorities) {
         if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
       }
     }
 
-    const techString = (relevantSkills.length > 0 ? relevantSkills.slice(0, 4) : candidateTech.slice(0, 4)).join(', ');
+    const techString = (
+      relevantSkills.length > 0 ? relevantSkills.slice(0, 4) : candidateTech.slice(0, 4)
+    ).join(', ');
 
     // Match top selected project
     const topProj = selectedProjects[0] || null;
-    const topProjName = topProj ? sanitizeProjectName(topProj.displayName || topProj.name || topProj.title || '') : '';
+    const topProjName = topProj
+      ? sanitizeProjectName(topProj.displayName || topProj.name || topProj.title || '')
+      : '';
     const secondProj = selectedProjects[1] || null;
-    const secondProjName = secondProj ? sanitizeProjectName(secondProj.displayName || secondProj.name || secondProj.title || '') : '';
+    const secondProjName = secondProj
+      ? sanitizeProjectName(secondProj.displayName || secondProj.name || secondProj.title || '')
+      : '';
 
     let s1 = '';
     let s2 = '';
@@ -444,9 +520,10 @@ export class AiResumeContentGeneratorService {
     } else {
       // Full-Stack
       s1 = `Full-Stack Developer adept at engineering end-to-end web applications, bridging responsive client interfaces with scalable backend APIs using ${techString}.`;
-      s2 = topProjName && secondProjName
-        ? `Delivered full-lifecycle features across ${topProjName} and ${secondProjName}, implementing authenticated REST APIs, relational persistence, and interactive user experiences.`
-        : `Delivered production web solutions with modular client components and reliable database-backed services.`;
+      s2 =
+        topProjName && secondProjName
+          ? `Delivered full-lifecycle features across ${topProjName} and ${secondProjName}, implementing authenticated REST APIs, relational persistence, and interactive user experiences.`
+          : `Delivered production web solutions with modular client components and reliable database-backed services.`;
       s3 = `Maintains strong engineering fundamentals backed by daily practice in algorithmic problem-solving and clean system architecture.`;
     }
 
@@ -457,14 +534,28 @@ export class AiResumeContentGeneratorService {
       const factText = String(fact.text || '').toLowerCase();
       let score = 0;
       if (isFrontend) {
-        if (/\b(?:ui|react|next(?:\.js)?|client|frontend|front-end|component|rendering|tailwind|interface|responsive|interaction)\b/i.test(factText)) score += 50;
+        if (
+          /\b(?:ui|react|next(?:\.js)?|client|frontend|front-end|component|rendering|tailwind|interface|responsive|interaction)\b/i.test(
+            factText
+          )
+        )
+          score += 50;
         if (/\b(?:api|database|query|sql|prisma)\b/i.test(factText)) score += 5;
       } else if (isPython || isBackend) {
-        if (/\b(?:api|fastapi|flask|node(?:\.js)?|express(?:\.js)?|backend|back-end|crud|rest(?:ful)?)\b/i.test(factText)) score += 50;
-        if (/\b(?:postgres(?:ql)?|database|prisma|typeorm|sql|redis|query)\b/i.test(factText)) score += 40;
+        if (
+          /\b(?:api|fastapi|flask|node(?:\.js)?|express(?:\.js)?|backend|back-end|crud|rest(?:ful)?)\b/i.test(
+            factText
+          )
+        )
+          score += 50;
+        if (/\b(?:postgres(?:ql)?|database|prisma|typeorm|sql|redis|query)\b/i.test(factText))
+          score += 40;
         if (/\b(?:concurrency|async|webhook)\b/i.test(factText)) score += 30;
       } else if (isDevOps) {
-        if (/\b(?:docker|compose|ci\/cd|github actions|pipeline|container(?:ized)?)\b/i.test(factText)) score += 50;
+        if (
+          /\b(?:docker|compose|ci\/cd|github actions|pipeline|container(?:ized)?)\b/i.test(factText)
+        )
+          score += 50;
         if (/\b(?:webhook|automation|deployment)\b/i.test(factText)) score += 35;
         if (/\b(?:backend|api|persistence)\b/i.test(factText)) score += 10;
       } else if (isDistributed) {
@@ -472,7 +563,8 @@ export class AiResumeContentGeneratorService {
         if (/\b(?:redis|caching|scale|latency|event)\b/i.test(factText)) score += 30;
       } else {
         // Full-Stack
-        if (/\b(?:full-stack|full stack|platform|end-to-end|crud|collaboration)\b/i.test(factText)) score += 40;
+        if (/\b(?:full-stack|full stack|platform|end-to-end|crud|collaboration)\b/i.test(factText))
+          score += 40;
         if (/\b(?:react|next(?:\.js)?|ui|interface)\b/i.test(factText)) score += 30;
         if (/\b(?:api|node(?:\.js)?|prisma|postgres(?:ql)?|nestjs)\b/i.test(factText)) score += 30;
       }
@@ -495,21 +587,30 @@ export class AiResumeContentGeneratorService {
       .filter(isSubstantiveFact)
       .sort((a, b) => scoreFactForRole(b) - scoreFactForRole(a));
 
-    const s1Fact = topProjSubstantive[0] || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
-    const s1FactId = s1Fact ? (s1Fact.factId || s1Fact.id) : null;
+    const s1Fact =
+      topProjSubstantive[0] || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
+    const s1FactId = s1Fact ? s1Fact.factId || s1Fact.id : null;
     const s1Source = s1Fact ? s1Fact.text : '';
 
-    const s2Fact = secondProjSubstantive[0] || topProjSubstantive[1] || secondProjFacts[0] || topProjFacts[0] || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
-    const s2FactId = s2Fact ? (s2Fact.factId || s2Fact.id) : null;
+    const s2Fact =
+      secondProjSubstantive[0] ||
+      topProjSubstantive[1] ||
+      secondProjFacts[0] ||
+      topProjFacts[0] ||
+      availableFacts.find(isSubstantiveFact) ||
+      availableFacts[0] ||
+      null;
+    const s2FactId = s2Fact ? s2Fact.factId || s2Fact.id : null;
     const s2Source = s2Fact ? s2Fact.text : '';
 
-    const dsaFact = availableFacts.find((f) =>
-      f.surface === 'dsa' ||
-      f.sectionOwnerType === 'DSA' ||
-      (f.text && /data structures|algorithms|problem[- ]solving|leetcode/i.test(f.text))
+    const dsaFact = availableFacts.find(
+      (f) =>
+        f.surface === 'dsa' ||
+        f.sectionOwnerType === 'DSA' ||
+        (f.text && /data structures|algorithms|problem[- ]solving|leetcode/i.test(f.text))
     );
     const s3Fact = dsaFact || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
-    const s3FactId = s3Fact ? (s3Fact.factId || s3Fact.id) : null;
+    const s3FactId = s3Fact ? s3Fact.factId || s3Fact.id : null;
     const s3Source = s3Fact ? s3Fact.text : '';
 
     const sentences = [
@@ -545,7 +646,9 @@ export class AiResumeContentGeneratorService {
       referencedSkillSlugs: relevantSkills.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '-')),
       referencedProjectIds: selectedProjects.map((p) => p.id || p.projectId || p.name),
       composedFromFactIds: allFactIds,
-      evidenceRefs: allFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+      evidenceRefs: allFactIds.map((id) =>
+        toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
+      ),
       provenanceStatus: 'VERIFIED',
       sourceFact: allSourceTexts,
       transformationType: 'COMBINE',
@@ -580,36 +683,50 @@ export class AiResumeContentGeneratorService {
       const trimmed = String(text || '').trim();
       if (!trimmed) return true;
       if (/^uses\s+[a-z0-9]/i.test(trimmed)) return true;
-      if (/^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)\b/i.test(trimmed)) {
+      if (
+        /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)\b/i.test(
+          trimmed
+        )
+      ) {
         return true;
       }
       return false;
     };
 
-    let rawFacts = (Array.isArray(projectFacts) && projectFacts.length > 0
-      ? projectFacts
-      : (proj.bullets || proj.metadata?.bullets || [])
+    let rawFacts = (
+      Array.isArray(projectFacts) && projectFacts.length > 0
+        ? projectFacts
+        : proj.bullets || proj.metadata?.bullets || []
     ).filter((f) => {
-      if (typeof f === 'object' && f && (
-        f.factType === 'technology' ||
-        f.factType === 'external-corroboration' ||
-        f.factType === 'feature-description' ||
-        f.sourceType === 'feature-description'
-      )) {
+      if (
+        typeof f === 'object' &&
+        f &&
+        (f.factType === 'technology' ||
+          f.factType === 'external-corroboration' ||
+          f.factType === 'feature-description' ||
+          f.sourceType === 'feature-description')
+      ) {
         return false;
       }
-      const text = typeof f === 'string' ? f : (f?.text || f?.claim || '');
+      const text = typeof f === 'string' ? f : f?.text || f?.claim || '';
       return !isFragmentOrDescription(text);
     });
 
     // If filtered facts are fewer than 3, backfill strictly from candidate-authored project accomplishment bullets
     if (rawFacts.length < 3) {
-      const candProjBullets = Array.isArray(proj.metadata?.bullets) && proj.metadata.bullets.length > 0
-        ? proj.metadata.bullets
-        : (Array.isArray(proj.bullets) ? proj.bullets : []);
+      const candProjBullets =
+        Array.isArray(proj.metadata?.bullets) && proj.metadata.bullets.length > 0
+          ? proj.metadata.bullets
+          : Array.isArray(proj.bullets)
+            ? proj.bullets
+            : [];
       for (const cb of candProjBullets) {
-        const text = typeof cb === 'string' ? cb : (cb?.text || cb?.claim || '');
-        if (text && !isFragmentOrDescription(text) && !rawFacts.some((rf) => (typeof rf === 'string' ? rf : (rf.text || rf.claim)) === text)) {
+        const text = typeof cb === 'string' ? cb : cb?.text || cb?.claim || '';
+        if (
+          text &&
+          !isFragmentOrDescription(text) &&
+          !rawFacts.some((rf) => (typeof rf === 'string' ? rf : rf.text || rf.claim) === text)
+        ) {
           rawFacts.push(cb);
         }
       }
@@ -618,47 +735,51 @@ export class AiResumeContentGeneratorService {
     const candId = candidate.id || candidate.candidate?.id;
     const projectOwnerId = proj.id || proj.projectId || 'p';
 
-    const availableFacts = rawFacts.map((f, idx) => {
-      if (typeof f === 'string') {
+    const availableFacts = rawFacts
+      .map((f, idx) => {
+        if (typeof f === 'string') {
+          return {
+            factId: `fact-${projectOwnerId}-${idx + 1}`,
+            text: f,
+            technologies: proj.technologies || [],
+            metrics: [],
+            candidateAuthored: true,
+            agencyLevel: 'CANDIDATE',
+            agencySource: 'CANDIDATE_AUTHORED',
+            ownership: 'CANDIDATE',
+            ownerType: 'PROJECT',
+            ownerId: projectOwnerId,
+            sectionOwnerId: projectOwnerId,
+            candidateId: candId,
+            provenanceStatus: 'VERIFIED',
+            provenance: 'VERIFIED',
+          };
+        }
         return {
-          factId: `fact-${projectOwnerId}-${idx + 1}`,
-          text: f,
-          technologies: proj.technologies || [],
-          metrics: [],
-          candidateAuthored: true,
-          agencyLevel: 'CANDIDATE',
-          agencySource: 'CANDIDATE_AUTHORED',
-          ownership: 'CANDIDATE',
-          ownerType: 'PROJECT',
-          ownerId: projectOwnerId,
-          sectionOwnerId: projectOwnerId,
-          candidateId: candId,
-          provenanceStatus: 'VERIFIED',
-          provenance: 'VERIFIED',
+          ...f,
+          factId: f.factId || f.id || `fact-${projectOwnerId}-${idx + 1}`,
+          text: f.text || f.claim || '',
+          technologies: f.technologies || proj.technologies || [],
+          metrics: f.metrics || [],
+          candidateAuthored: f.candidateAuthored ?? true,
+          agencyLevel: f.agencyLevel || 'CANDIDATE',
+          agencySource: f.agencySource || 'CANDIDATE_AUTHORED',
+          ownership: f.ownership || 'CANDIDATE',
+          ownerType: f.ownerType || 'PROJECT',
+          ownerId: f.ownerId || projectOwnerId,
+          sectionOwnerId: f.sectionOwnerId || projectOwnerId,
+          candidateId: f.candidateId || candId,
+          provenanceStatus: f.provenanceStatus || 'VERIFIED',
+          provenance: f.provenance || 'VERIFIED',
         };
-      }
-      return {
-        ...f,
-        factId: f.factId || f.id || `fact-${projectOwnerId}-${idx + 1}`,
-        text: f.text || f.claim || '',
-        technologies: f.technologies || proj.technologies || [],
-        metrics: f.metrics || [],
-        candidateAuthored: f.candidateAuthored ?? true,
-        agencyLevel: f.agencyLevel || 'CANDIDATE',
-        agencySource: f.agencySource || 'CANDIDATE_AUTHORED',
-        ownership: f.ownership || 'CANDIDATE',
-        ownerType: f.ownerType || 'PROJECT',
-        ownerId: f.ownerId || projectOwnerId,
-        sectionOwnerId: f.sectionOwnerId || projectOwnerId,
-        candidateId: f.candidateId || candId,
-        provenanceStatus: f.provenanceStatus || 'VERIFIED',
-        provenance: f.provenance || 'VERIFIED',
-      };
-    }).filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
+      })
+      .filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
 
     // Fail closed if project lacks minimum 3 grounded accomplishment facts
     if (availableFacts.length < 3) {
-      const err = new Error('INSUFFICIENT_SOURCE_EVIDENCE: Project lacks minimum 3 grounded accomplishment facts');
+      const err = new Error(
+        'INSUFFICIENT_SOURCE_EVIDENCE: Project lacks minimum 3 grounded accomplishment facts'
+      );
       err.code = 'INSUFFICIENT_SOURCE_EVIDENCE';
       throw err;
     }
@@ -672,8 +793,12 @@ export class AiResumeContentGeneratorService {
     const isFrontend = /\bfront[- ]?end\b/i.test(jobText) && !isFullStack;
     const isPython = /\bpython\b/i.test(jobText);
     const isBackend = (/\bback[- ]?end\b/i.test(jobText) || isPython) && !isFullStack;
-    const isDevOps = /\b(?:devops|platform|infrastructure|sre|cloud|ci\/cd|docker)\b/i.test(jobText);
-    const isDistributed = /\b(?:distributed|concurrency|systems|telemetry|microservices)\b/i.test(jobText);
+    const isDevOps = /\b(?:devops|platform|infrastructure|sre|cloud|ci\/cd|docker)\b/i.test(
+      jobText
+    );
+    const isDistributed = /\b(?:distributed|concurrency|systems|telemetry|microservices)\b/i.test(
+      jobText
+    );
 
     // AI Generation if active client
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
@@ -717,7 +842,12 @@ MANDATORY WRITING RULES:
           responseSchema: policy.responseSchema,
         });
 
-        if (aiResponse && aiResponse.data && Array.isArray(aiResponse.data.bullets) && aiResponse.data.bullets.length >= 3) {
+        if (
+          aiResponse &&
+          aiResponse.data &&
+          Array.isArray(aiResponse.data.bullets) &&
+          aiResponse.data.bullets.length >= 3
+        ) {
           const validatedBullets = [];
           for (const rawB of aiResponse.data.bullets) {
             let rawText = String(rawB.text || '').trim();
@@ -731,7 +861,10 @@ MANDATORY WRITING RULES:
               candidateProfile: candidate,
             });
             if (!privacyCheck.valid) {
-              console.warn('[AiResumeContentGenerator] Bullet privacy check failed:', privacyCheck.violations);
+              console.warn(
+                '[AiResumeContentGenerator] Bullet privacy check failed:',
+                privacyCheck.violations
+              );
               continue;
             }
 
@@ -771,7 +904,8 @@ MANDATORY WRITING RULES:
 
             const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
             const transformationType = rawB.transformationType || 'REWRITE';
-            const finalSourceFact = sourceFacts.length > 0 ? sourceFacts : (availableFacts[0]?.text || '');
+            const finalSourceFact =
+              sourceFacts.length > 0 ? sourceFacts : availableFacts[0]?.text || '';
 
             const validation = validateClaimEvidenceGrounding(
               {
@@ -795,23 +929,34 @@ MANDATORY WRITING RULES:
                 text: bulletText,
                 factId: finalFactIds[0],
                 composedFromFactIds: finalFactIds,
-                evidenceRefs: finalFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+                evidenceRefs: finalFactIds.map((id) =>
+                  toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
+                ),
                 candidateSupported: true,
                 provenance: 'VERIFIED',
                 sourceFact: finalSourceFact,
                 transformationType,
               });
             } else {
-              console.warn('[AiResumeContentGenerator] Bullet grounding failed:', validation.violations);
+              console.warn(
+                '[AiResumeContentGenerator] Bullet grounding failed:',
+                validation.violations
+              );
             }
           }
           if (validatedBullets.length >= 3) {
             return validatedBullets.slice(0, 3);
           } else {
-            console.warn('[AiResumeContentGenerator] Validated bullets count < 3:', validatedBullets.length);
+            console.warn(
+              '[AiResumeContentGenerator] Validated bullets count < 3:',
+              validatedBullets.length
+            );
           }
         } else {
-          console.warn('[AiResumeContentGenerator] Bullets aiResponse.data missing or < 3:', aiResponse?.data);
+          console.warn(
+            '[AiResumeContentGenerator] Bullets aiResponse.data missing or < 3:',
+            aiResponse?.data
+          );
         }
       } catch (err) {
         console.error('[AiResumeContentGenerator] Project bullets exception:', err.message || err);
@@ -862,14 +1007,28 @@ MANDATORY WRITING RULES:
       let score = 10 - idx; // preserve original authored order as base
 
       if (isFrontend) {
-        if (/\b(?:ui|react|next(?:\.js)?|client|frontend|front-end|component|rendering|tailwind|interface|responsive|interaction)\b/i.test(factText)) score += 35;
+        if (
+          /\b(?:ui|react|next(?:\.js)?|client|frontend|front-end|component|rendering|tailwind|interface|responsive|interaction)\b/i.test(
+            factText
+          )
+        )
+          score += 35;
         if (/\b(?:api|database|query|sql|prisma)\b/i.test(factText)) score += 5;
       } else if (isPython || isBackend) {
-        if (/\b(?:api|fastapi|flask|node(?:\.js)?|express(?:\.js)?|backend|back-end|crud|rest(?:ful)?)\b/i.test(factText)) score += 30;
-        if (/\b(?:postgres(?:ql)?|database|prisma|typeorm|sql|redis|query)\b/i.test(factText)) score += 25;
+        if (
+          /\b(?:api|fastapi|flask|node(?:\.js)?|express(?:\.js)?|backend|back-end|crud|rest(?:ful)?)\b/i.test(
+            factText
+          )
+        )
+          score += 30;
+        if (/\b(?:postgres(?:ql)?|database|prisma|typeorm|sql|redis|query)\b/i.test(factText))
+          score += 25;
         if (/\b(?:concurrency|async|webhook)\b/i.test(factText)) score += 20;
       } else if (isDevOps) {
-        if (/\b(?:docker|compose|ci\/cd|github actions|pipeline|container(?:ized)?)\b/i.test(factText)) score += 35;
+        if (
+          /\b(?:docker|compose|ci\/cd|github actions|pipeline|container(?:ized)?)\b/i.test(factText)
+        )
+          score += 35;
         if (/\b(?:webhook|automation|deployment)\b/i.test(factText)) score += 25;
         if (/\b(?:backend|api|persistence)\b/i.test(factText)) score += 10;
       } else if (isDistributed) {
@@ -877,7 +1036,8 @@ MANDATORY WRITING RULES:
         if (/\b(?:redis|caching|scale|latency|event)\b/i.test(factText)) score += 25;
       } else {
         // Full-Stack
-        if (/\b(?:full-stack|full stack|platform|end-to-end|crud|collaboration)\b/i.test(factText)) score += 25;
+        if (/\b(?:full-stack|full stack|platform|end-to-end|crud|collaboration)\b/i.test(factText))
+          score += 25;
         if (/\b(?:react|next(?:\.js)?|ui|interface)\b/i.test(factText)) score += 20;
         if (/\b(?:api|node(?:\.js)?|prisma|postgres(?:ql)?)\b/i.test(factText)) score += 20;
       }

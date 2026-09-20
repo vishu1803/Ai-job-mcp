@@ -113,7 +113,10 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const tagClassMatch = s.match(/^([a-z0-9]+)\.([a-z0-9_-]+)$/i);
         if (tagClassMatch) {
           const [, expectedTag, expectedClass] = tagClassMatch;
-          return node.tagName.toLowerCase() === expectedTag.toLowerCase() && node.classList.contains(expectedClass);
+          return (
+            node.tagName.toLowerCase() === expectedTag.toLowerCase() &&
+            node.classList.contains(expectedClass)
+          );
         }
         if (s.includes('[class*=')) {
           const match = s.match(/\[class\*="([^"]+)"(?:\s*i)?\]/i);
@@ -203,7 +206,11 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
   describe('1. Employment Type Order of Precedence', () => {
     it('proves structured DOM criteria ("Employment type: Full-time") strictly overrides description text', () => {
       const criteriaEl = createMockElement('LI', { class: 'description__job-criteria-item' }, '', [
-        createMockElement('H3', { class: 'description__job-criteria-subheader' }, 'Employment type'),
+        createMockElement(
+          'H3',
+          { class: 'description__job-criteria-subheader' },
+          'Employment type'
+        ),
         createMockElement('SPAN', { class: 'description__job-criteria-text' }, 'Full-time'),
       ]);
 
@@ -317,7 +324,11 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
   describe('3. Topcard Metrics Extraction (Posting Age & Applicant Count)', () => {
     it('extracts postedAgo and applicantCount from topcard elements', () => {
       const jobRoot = createMockElement('DIV', { class: 'top-card-layout' }, '', [
-        createMockElement('SPAN', { class: 'posted-time-ago__text topcard__flavor--metadata' }, '1 day ago'),
+        createMockElement(
+          'SPAN',
+          { class: 'posted-time-ago__text topcard__flavor--metadata' },
+          '1 day ago'
+        ),
         createMockElement(
           'SPAN',
           { class: 'num-applicants__figure topcard__flavor--metadata topcard__flavor--bullet' },
@@ -340,13 +351,25 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
     it('separates Accountabilities into responsibilities and Requirements into requirements', () => {
       const headingAccountabilities = createMockElement('P', {}, 'Accountabilities');
       const listAccountabilities = createMockElement('UL', {}, '', [
-        createMockElement('LI', {}, 'Design scalable, maintainable, and secure application architectures.'),
-        createMockElement('LI', {}, 'Develop robust server-side applications using Node.js and PostgreSQL.'),
+        createMockElement(
+          'LI',
+          {},
+          'Design scalable, maintainable, and secure application architectures.'
+        ),
+        createMockElement(
+          'LI',
+          {},
+          'Develop robust server-side applications using Node.js and PostgreSQL.'
+        ),
       ]);
 
       const headingRequirements = createMockElement('P', {}, 'Requirements');
       const listRequirements = createMockElement('UL', {}, '', [
-        createMockElement('LI', {}, '3+ years of professional experience in full stack development.'),
+        createMockElement(
+          'LI',
+          {},
+          '3+ years of professional experience in full stack development.'
+        ),
         createMockElement('LI', {}, 'Strong proficiency in TypeScript, React, and Fastify.'),
       ]);
 
@@ -356,15 +379,24 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
         createMockElement('LI', {}, 'Fully remote work flexibility worldwide.'),
       ]);
 
-      const descriptionContainer = createMockElement('DIV', { class: 'show-more-less-html__markup' }, '', [
-        createMockElement('P', {}, 'We are seeking an outstanding Full Stack Engineer to lead technical design.'),
-        headingAccountabilities,
-        listAccountabilities,
-        headingRequirements,
-        listRequirements,
-        headingBenefits,
-        listBenefits,
-      ]);
+      const descriptionContainer = createMockElement(
+        'DIV',
+        { class: 'show-more-less-html__markup' },
+        '',
+        [
+          createMockElement(
+            'P',
+            {},
+            'We are seeking an outstanding Full Stack Engineer to lead technical design.'
+          ),
+          headingAccountabilities,
+          listAccountabilities,
+          headingRequirements,
+          listRequirements,
+          headingBenefits,
+          listBenefits,
+        ]
+      );
 
       const jobRoot = createMockElement('DIV', { class: 'details' }, '', [descriptionContainer]);
       const res = extractLinkedInDescription(jobRoot);
@@ -389,13 +421,25 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
   // =========================================================================
   describe('5. Public Apply CTA Detection', () => {
     it('detects .apply-button on public LinkedIn layout as hasApplyCta = true', () => {
-      const applyBtn = createMockElement('BUTTON', {
-        class: 'apply-button apply-button--default top-card-layout__cta--primary',
-      }, 'Apply');
+      const applyBtn = createMockElement(
+        'BUTTON',
+        {
+          class: 'apply-button apply-button--default top-card-layout__cta--primary',
+        },
+        'Apply'
+      );
 
-      const titleEl = createMockElement('H1', { class: 'top-card-layout__title' }, 'Full Stack Engineer');
+      const titleEl = createMockElement(
+        'H1',
+        { class: 'top-card-layout__title' },
+        'Full Stack Engineer'
+      );
       const companyEl = createMockElement('A', { class: 'topcard__org-name-link' }, 'Jobgether');
-      const descEl = createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Building distributed systems at global scale with high concurrency and reliability.');
+      const descEl = createMockElement(
+        'DIV',
+        { class: 'show-more-less-html__markup' },
+        'Building distributed systems at global scale with high concurrency and reliability.'
+      );
 
       const jobRoot = createMockElement('DIV', { class: 'details' }, '', [
         titleEl,
@@ -405,7 +449,10 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
       ]);
 
       const doc = createMockDocument([jobRoot]);
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466834190/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466834190/'
+      );
 
       assert.equal(payload.hasApplyCta, true);
     });
@@ -417,11 +464,23 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
   describe('6. Live Jobgether 4466834190 Fixture Reproduction', () => {
     it('accurately extracts all metadata fields for Job ID 4466834190 without corruption', () => {
       // Build authentic Jobgether DOM
-      const titleEl = createMockElement('H1', { class: 'top-card-layout__title topcard__title' }, 'Full Stack Engineer');
+      const titleEl = createMockElement(
+        'H1',
+        { class: 'top-card-layout__title topcard__title' },
+        'Full Stack Engineer'
+      );
       const companyEl = createMockElement('A', { class: 'topcard__org-name-link' }, 'Jobgether');
       const locationEl = createMockElement('SPAN', { class: 'topcard__flavor--bullet' }, 'India');
-      const postedEl = createMockElement('SPAN', { class: 'posted-time-ago__text topcard__flavor--metadata' }, '1 day ago');
-      const applyBtn = createMockElement('BUTTON', { class: 'apply-button top-card-layout__cta--primary' }, 'Apply');
+      const postedEl = createMockElement(
+        'SPAN',
+        { class: 'posted-time-ago__text topcard__flavor--metadata' },
+        '1 day ago'
+      );
+      const applyBtn = createMockElement(
+        'BUTTON',
+        { class: 'apply-button top-card-layout__cta--primary' },
+        'Apply'
+      );
 
       const criteriaItems = [
         createMockElement('LI', { class: 'description__job-criteria-item' }, '', [
@@ -444,13 +503,21 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
 
       const accHeading = createMockElement('P', {}, 'Accountabilities');
       const accList = createMockElement('UL', {}, '', [
-        createMockElement('LI', {}, 'Design scalable, maintainable, and secure application architectures.'),
+        createMockElement(
+          'LI',
+          {},
+          'Design scalable, maintainable, and secure application architectures.'
+        ),
         createMockElement('LI', {}, 'Develop and deploy scalable web applications.'),
       ]);
 
       const reqHeading = createMockElement('P', {}, 'Requirements');
       const reqList = createMockElement('UL', {}, '', [
-        createMockElement('LI', {}, '3+ years of professional experience in full stack development.'),
+        createMockElement(
+          'LI',
+          {},
+          '3+ years of professional experience in full stack development.'
+        ),
         createMockElement('LI', {}, 'Strong proficiency in HTML, CSS, JavaScript, and React.'),
       ]);
 
@@ -461,7 +528,11 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
       );
 
       const descEl = createMockElement('DIV', { class: 'show-more-less-html__markup' }, '', [
-        createMockElement('P', {}, 'Our partner is looking for a Full Stack Engineer based in India. Fully remote from India.'),
+        createMockElement(
+          'P',
+          {},
+          'Our partner is looking for a Full Stack Engineer based in India. Fully remote from India.'
+        ),
         accHeading,
         accList,
         reqHeading,
@@ -483,8 +554,14 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
         descEl,
       ]);
 
-      const doc = createMockDocument([jobRoot], 'Full Stack Engineer at Jobgether — India | LinkedIn Jobs');
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466834190/');
+      const doc = createMockDocument(
+        [jobRoot],
+        'Full Stack Engineer at Jobgether — India | LinkedIn Jobs'
+      );
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466834190/'
+      );
 
       // Assertions
       assert.equal(payload.title, 'Full Stack Engineer');
@@ -509,7 +586,11 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
   // =========================================================================
   describe('7. Forwarding Through Detection Engine', () => {
     it('JobPageDetector and JobDetectionEngine forward all enriched fields to downstream consumers', () => {
-      const titleEl = createMockElement('H1', { class: 'top-card-layout__title' }, 'Senior Backend Engineer');
+      const titleEl = createMockElement(
+        'H1',
+        { class: 'top-card-layout__title' },
+        'Senior Backend Engineer'
+      );
       const companyEl = createMockElement('A', { class: 'topcard__org-name-link' }, 'Cloud Corp');
       const descEl = createMockElement(
         'DIV',
@@ -530,10 +611,16 @@ describe('P76: LinkedIn Adapter Extraction & Metadata Normalization', () => {
       ]);
 
       const doc = createMockDocument([jobRoot]);
-      const normalized = JobPageDetector.detect(doc, 'https://www.linkedin.com/jobs/view/999888777/');
+      const normalized = JobPageDetector.detect(
+        doc,
+        'https://www.linkedin.com/jobs/view/999888777/'
+      );
       assert.equal(normalized.seniorityLevel, 'Senior level');
 
-      const evaluation = JobDetectionEngine.evaluate(doc, 'https://www.linkedin.com/jobs/view/999888777/');
+      const evaluation = JobDetectionEngine.evaluate(
+        doc,
+        'https://www.linkedin.com/jobs/view/999888777/'
+      );
       assert.equal(evaluation.detected, true);
       assert.equal(evaluation.jobData.seniorityLevel, 'Senior level');
     });

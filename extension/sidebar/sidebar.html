@@ -1,400 +1,503 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Careers Hub</title>
-  <link rel="stylesheet" href="sidebar.css">
-</head>
-<body>
-  <div class="sidebar-container">
-    <!-- Top Header -->
-    <header class="sidebar-header">
-      <div class="brand-row">
-        <div class="brand-identity" style="display: flex; align-items: center; gap: 6px;">
-          <span style="display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 0.02em;">AI</span>
-          <span class="brand-title">AI Careers Hub</span>
-        </div>
-        <div class="header-actions">
-          <span id="connectionBadge" class="status-badge disconnected" title="Backend Connection Status">
-            <span class="dot"></span>
-            <span id="connectionText">Checking...</span>
-          </span>
-          <button id="rescanBtn" class="btn btn-ghost btn-xs" title="Scan current browser page">Rescan</button>
-          <button id="refreshBtn" class="icon-button" title="Refresh state" aria-label="Refresh">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M23 4v6h-6M1 20v-6h6"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- User Profile / Auth State Bar -->
-      <div id="authBar" class="auth-bar">
-        <div id="authUnauthenticatedState" class="auth-state-box unauthenticated">
-          <div class="auth-status-info">
-            <span class="auth-hint">Sign in to analyze jobs and prepare handoff kits</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Careers Hub</title>
+    <link rel="stylesheet" href="sidebar.css" />
+  </head>
+  <body>
+    <div class="sidebar-container">
+      <!-- Top Header -->
+      <header class="sidebar-header">
+        <div class="brand-row">
+          <div class="brand-identity" style="display: flex; align-items: center; gap: 6px">
+            <span
+              style="
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+                background: linear-gradient(135deg, #0284c7, #38bdf8);
+                color: #fff;
+                font-size: 10px;
+                font-weight: 800;
+                letter-spacing: 0.02em;
+              "
+              >AI</span
+            >
+            <span class="brand-title">AI Careers Hub</span>
           </div>
-          <button id="loginBtn" class="btn btn-outline btn-xs">Sign In</button>
-        </div>
-        <div id="authAuthenticatedState" class="auth-state-box authenticated hidden">
-          <div class="user-profile-info">
-            <span class="user-avatar" id="userAvatar"></span>
-            <div class="user-text">
-              <span id="userName" class="user-name">—</span>
-              <span id="userEmail" class="user-email">—</span>
-            </div>
-          </div>
-          <button id="logoutBtn" class="link-button logout-btn" title="Sign out">Log Out</button>
-        </div>
-      </div>
-
-      <!-- Non-destructive Expired Session Warning -->
-      <div id="sessionExpiredNotice" class="alert-banner warning hidden">
-        <div class="alert-content">
-          <div class="alert-text">
-            <strong>Session Expired</strong>
-            <p>Sign in to continue — your active job and analysis are preserved.</p>
-          </div>
-        </div>
-        <button id="reauthBtn" class="btn btn-primary btn-xs">Sign In</button>
-      </div>
-
-      <!-- Minimal Non-Blocking Pending Job Notification (Part 61) -->
-      <div id="pendingJobNotification" class="pending-job-banner hidden">
-        <div class="pending-job-content">
-          <div class="pending-job-text">
-            <span class="pending-badge">New job detected</span>
-            <span id="pendingJobTitle" class="pending-subtext">Another job is open on this page.</span>
-          </div>
-          <button id="rescanPendingBtn" class="btn btn-primary btn-xs">Rescan</button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main Content Area -->
-    <main class="sidebar-main">
-      <!-- State / Status Alert Bar -->
-      <div id="workflowStatusBar" class="workflow-status-bar">
-        <span id="workflowStateText" class="state-text">Ready</span>
-        <span id="workflowLockedBadge" class="workflow-locked-badge hidden">Workflow protected</span>
-        <span id="syncIndicator" class="sync-indicator synced hidden" style="display: none;" title="State synchronized">Synced</span>
-      </div>
-
-      <!-- Portal & Adapter Information Card -->
-      <section id="portalCard" class="card portal-card">
-        <div class="card-header">
-          <div class="header-label">
-            <span id="portalName" class="portal-title">Career Portal</span>
-          </div>
-          <span id="confidenceBadge" class="confidence-badge low hidden" style="display: none;">Confidence: Low</span>
-        </div>
-        <div class="portal-capabilities hidden" id="portalCapabilities" style="display: none;">
-          <span class="capability-pill pending" id="capJob">Job Extraction</span>
-          <span class="capability-pill pending" id="capApp">App Detection</span>
-          <span class="capability-pill pending" id="capForm">Form Extraction</span>
-          <span class="capability-pill pending" id="capAutofill">Field Mapping</span>
-        </div>
-      </section>
-
-      <!-- Active Job Detection Card -->
-      <section id="jobCard" class="card job-card">
-        <div class="card-header">
-          <h2 class="card-title">Current Job</h2>
-          <button id="reanalyzeBtn" class="link-button hidden" style="display: none;" title="Scan page again">Re-detect</button>
-        </div>
-        <div id="jobContent" class="job-content">
-          <div id="jobNotDetectedState" class="empty-state">
-            <p class="empty-title">No job posting detected</p>
-            <p class="empty-subtitle">Navigate to a job board or career page to inspect.</p>
-          </div>
-          <div id="jobDetectedState" class="job-detected-state hidden">
-            <h3 id="jobTitle" class="job-title">—</h3>
-            <p id="jobCompany" class="job-company">—</p>
-            <div class="job-meta-row">
-              <span id="jobLocation" class="meta-tag">Remote</span>
-              <span id="jobType" class="meta-tag">Full-time</span>
-              <span id="jobIdTag" class="meta-tag code-font hidden" style="display: none;">ID: —</span>
-            </div>
-
-            <!-- Analysis Error Banner -->
-            <div id="analysisErrorBanner" class="alert-banner error hidden">
-              <div class="alert-content">
-                <span id="analysisErrorMessage">Analysis failed.</span>
-              </div>
-              <button id="retryAnalysisBtn" class="btn btn-outline btn-xs">Retry Analysis</button>
-            </div>
-
-            <!-- Neutral Description Hydration Notice (P70) -->
-            <div id="descriptionLoadingNotice" class="loading-hint hidden">
-              <span class="loading-spinner-sm"></span>
-              <span id="descriptionLoadingText">Job description is still loading...</span>
-            </div>
-
-            <div class="action-row">
-              <button id="analyzeJobBtn" class="btn btn-primary btn-sm btn-block">Analyze Job Match</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ATS Fit & Match Section -->
-      <section id="analysisCard" class="card analysis-card hidden">
-        <div class="card-header">
-          <h2 class="card-title">Match Analysis</h2>
-          <span id="matchBandBadge" class="match-band-badge">RECOMMENDED</span>
-        </div>
-        <div class="fit-overview">
-          <div class="score-circle-container">
-            <div class="score-circle">
-              <span id="scoreValue" class="score-number">--</span>
-              <span class="score-total">/100</span>
-            </div>
-          </div>
-          <div class="score-breakdown">
-            <div class="breakdown-item">
-              <span class="breakdown-label">Matched Skills:</span>
-              <span id="matchedSkillsCount" class="breakdown-val">0</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-label">Missing Skills:</span>
-              <span id="missingSkillsCount" class="breakdown-val">0</span>
-            </div>
-            <div class="breakdown-item">
-              <span class="breakdown-label">Experience Fit:</span>
-              <span id="experienceFitVal" class="breakdown-val">--</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="skills-tags-container">
-          <div class="tag-group">
-            <span class="tag-label">Matched Skills</span>
-            <div id="matchedSkillsList" class="tag-list"></div>
-          </div>
-          <div class="tag-group">
-            <span class="tag-label">Missing / Growth Skills</span>
-            <div id="missingSkillsList" class="tag-list"></div>
-          </div>
-        </div>
-
-        <!-- Primary Next Action Container (Guarantees NO DEAD END) -->
-        <div id="analysisNextActionBox" class="next-action-container">
-          <div class="next-action-header">
-            <p class="next-action-desc">
-              Analysis complete. Tailored documents and handoff actions are ready below.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Authoritative Recommended Projects Section (P57 Rule 1 & Rule 2) -->
-      <section id="projectsCard" class="card projects-card hidden">
-        <div class="card-header">
-          <h2 class="card-title">Recommended Projects</h2>
-          <span class="verified-tag">Ranked</span>
-        </div>
-        <div id="recommendedProjectsList" class="projects-list">
-          <!-- Dynamically populated project cards -->
-        </div>
-      </section>
-
-      <!-- Application & Handoff Kit Section -->
-      <section id="handoffCard" class="card handoff-card hidden">
-        <div class="card-header">
-          <h2 class="card-title">Application Handoff Kit</h2>
-          <span id="handoffStatusBadge" class="status-badge-sm">UNPREPARED</span>
-        </div>
-
-        <!-- Application & Package Metadata Row -->
-        <div id="handoffTelemetryRow" class="telemetry-row hidden">
-          <div class="telemetry-item">
-            <span class="telemetry-label">App ID:</span>
-            <span id="handoffAppId" class="telemetry-value code-font">—</span>
-          </div>
-          <div class="telemetry-item">
-            <span class="telemetry-label">Package:</span>
-            <span id="handoffPackageMeta" class="telemetry-value code-font">—</span>
-          </div>
-        </div>
-
-        <!-- Terminal Workflow Lock / Protected Banner (Part 60-B & Part 61) -->
-        <div id="workflowLockBanner" class="alert-banner lock-banner hidden">
-          <div class="alert-content">
-            <div class="alert-text">
-              <strong>Workflow Protected</strong>
-              <p>Navigation will not replace this application. Your saved records remain safe in MCP.</p>
-            </div>
-          </div>
-          <button id="resetWorkflowBtn" class="btn btn-outline btn-xs reset-workflow-btn" title="Reset extension workflow to neutral IDLE state">Reset Workflow</button>
-        </div>
-
-        <!-- Handoff Error & Retry Banner -->
-        <div id="handoffErrorBanner" class="alert-banner error hidden">
-          <div class="alert-content">
-            <span id="handoffErrorMessage">Failed to prepare handoff kit.</span>
-          </div>
-          <button id="retryHandoffBtn" class="btn btn-outline btn-xs">Retry Preparation</button>
-        </div>
-
-        <!-- Single Primary Handoff Action & Deliberate Secondary Regeneration (Part 62) -->
-        <div class="handoff-actions">
-          <button id="prepareHandoffBtn" class="btn btn-accent btn-block">
-            <span class="btn-spinner hidden" id="prepareSpinner"></span>
-            <span id="prepareBtnText">Prepare Handoff Kit</span>
-          </button>
-          <button id="regenerateHandoffBtn" class="btn btn-ghost btn-block btn-secondary-action hidden">
-            Regenerate Handoff Kit
-          </button>
-        </div>
-
-        <!-- In-card Confirmation Box for Deliberate Regeneration (Part 62) -->
-        <div id="regenerateConfirmBox" class="alert-banner confirm-banner hidden">
-          <div class="alert-content">
-            <div class="alert-text">
-              <strong>Regenerate Handoff Kit?</strong>
-              <p>A handoff kit already exists for this job. Regenerating will create a new package version.</p>
-            </div>
-          </div>
-          <div class="confirm-actions">
-            <button id="cancelRegenerateBtn" class="btn btn-outline btn-xs">Cancel</button>
-            <button id="confirmRegenerateBtn" class="btn btn-primary btn-xs">Regenerate</button>
-          </div>
-        </div>
-
-        <div id="artifactsContainer" class="artifacts-container hidden">
-          <div class="artifact-item" id="resumeArtifact">
-            <div class="artifact-details">
-              <div class="artifact-title">Tailored Resume</div>
-              <div class="artifact-meta" id="resumeMeta">LaTeX Compiled • Verified</div>
-            </div>
-            <div class="artifact-actions">
-              <button id="reviewResumeBtn" class="btn btn-outline btn-xs">Review</button>
-              <button id="downloadResumeBtn" class="btn btn-primary btn-xs">Download PDF</button>
-            </div>
-          </div>
-          <div class="artifact-item" id="coverLetterArtifact">
-            <div class="artifact-details">
-              <div class="artifact-title">Tailored Cover Letter</div>
-              <div class="artifact-meta" id="coverLetterMeta">LaTeX Compiled • Verified</div>
-            </div>
-            <div class="artifact-actions">
-              <button id="reviewCoverLetterBtn" class="btn btn-outline btn-xs">Review</button>
-              <button id="downloadCoverLetterBtn" class="btn btn-primary btn-xs">Download PDF</button>
-            </div>
-          </div>
-          <div class="artifact-item" id="kitZipArtifact">
-            <div class="artifact-details">
-              <div class="artifact-title">Application Package</div>
-              <div class="artifact-meta" id="bundleMeta">All artifacts + SHA-256 manifest</div>
-            </div>
-            <div class="artifact-actions">
-              <button id="downloadBundleBtn" class="btn btn-accent btn-xs">Download ZIP</button>
-            </div>
-          </div>
-          <div class="dashboard-handoff-link-row">
-            <a id="viewAppDashboardLink" href="#" target="_blank" class="link-button">Open in Dashboard ↗</a>
-          </div>
-        </div>
-      </section>
-
-      <!-- Compact AI Career Assistant Card (5 Primary Dimensions) -->
-      <section id="assistantCard" class="card assistant-card">
-        <div class="card-header">
-          <h2 class="card-title">AI Assistant</h2>
-          <span id="assistantStatusBadge" class="status-badge-sm">ADVISORY</span>
-        </div>
-        <div class="assistant-body">
-          <!-- Non-blocking AI unavailable banner -->
-          <div id="assistantUnavailableBanner" class="alert-banner info hidden">
-            <div class="alert-content">
-              <span id="assistantUnavailableText">The AI assistant is temporarily unavailable. Job match, readiness, and manual application remain fully accessible.</span>
-            </div>
-          </div>
-
-          <!-- 1. Application Readiness summary -->
-          <div id="assistantReadinessRow" class="assistant-item-row">
-            <div class="readiness-header-row">
-              <span class="assistant-label">Application Readiness</span>
-              <span id="readinessScoreBadge" class="badge-readiness">--%</span>
-            </div>
-            <p id="readinessSummaryText" class="assistant-desc">Ready to evaluate application readiness.</p>
-          </div>
-
-          <!-- 2. Missing Information (Compact Checklist) -->
-          <div id="assistantMissingBox" class="assistant-missing-box hidden">
-            <span class="assistant-sublabel text-warning">Missing Information</span>
-            <ul id="assistantMissingList" class="compact-checklist"></ul>
-          </div>
-
-          <!-- 3. Pre-Submission Conflicts Warning -->
-          <div id="assistantConflictsBox" class="alert-banner warning hidden">
-            <div class="alert-content">
-              <strong>Pre-Submission Discrepancy</strong>
-              <div id="assistantConflictsList" class="conflicts-compact-list"></div>
-            </div>
-          </div>
-
-          <!-- 4. Quick AI Actions -->
-          <div class="assistant-quick-actions">
-            <button id="aiExplainJobBtn" class="btn btn-ghost btn-xs" title="Explain role responsibilities and expectations">Explain Job</button>
-            <button id="aiCheckReqsBtn" class="btn btn-ghost btn-xs" title="Check requirements against verified profile">Check Requirements</button>
-            <button id="aiAutofillPlanBtn" class="btn btn-ghost btn-xs" title="Preview safe autofill plan">Safe Autofill</button>
-          </div>
-
-          <!-- 5. AI Response Box & Interactive Query -->
-          <div id="assistantResponseBox" class="assistant-response-box hidden">
-            <div id="assistantResponseContent" class="assistant-response-text"></div>
-          </div>
-
-          <div class="assistant-input-row">
-            <input id="assistantQueryInput" type="text" class="input-xs assistant-input" placeholder="Ask about this role or profile..." />
-            <button id="assistantSendBtn" class="btn btn-primary btn-xs">Ask</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Multi-step Application & Safe Form Autofill Section -->
-      <section id="formDetectionCard" class="card form-detection-card hidden">
-        <div class="card-header">
-          <h2 class="card-title">Safe Form Autofill</h2>
-          <span id="stepIndicator" class="step-indicator">Step 1</span>
-        </div>
-        <div class="form-status-body">
-          <p id="formStatusMessage" class="form-status-message">
-            Application form fields detected.
-          </p>
-          <div id="formFieldsSummary" class="fields-summary">
-            <!-- Dynamic field mapping pills -->
-          </div>
-
-          <!-- Sensitive fields confirmation toggle -->
-          <div id="sensitiveConfirmationBox" class="autofill-sensitive-warning hidden">
-            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="confirmSensitiveAutofill" style="margin-top: 2px;" />
-              <span>Confirm filling sensitive fields (Work authorization, visa sponsorship, salary expectations)</span>
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button id="autofillFormBtn" class="btn btn-secondary btn-sm" disabled>
-              Fill Verified Fields
+          <div class="header-actions">
+            <span
+              id="connectionBadge"
+              class="status-badge disconnected"
+              title="Backend Connection Status"
+            >
+              <span class="dot"></span>
+              <span id="connectionText">Checking...</span>
+            </span>
+            <button id="rescanBtn" class="btn btn-ghost btn-xs" title="Scan current browser page">
+              Rescan
+            </button>
+            <button id="refreshBtn" class="icon-button" title="Refresh state" aria-label="Refresh">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
             </button>
           </div>
         </div>
-      </section>
-    </main>
 
-    <!-- Footer -->
-    <footer class="sidebar-footer">
-      <div class="footer-row">
-        <span class="footer-note">Evidence-Based • Multi-Tenant Isolated</span>
-        <a id="dashboardLink" href="http://localhost:3000" target="_blank" class="footer-link">Dashboard</a>
-      </div>
-    </footer>
-  </div>
+        <!-- User Profile / Auth State Bar -->
+        <div id="authBar" class="auth-bar">
+          <div id="authUnauthenticatedState" class="auth-state-box unauthenticated">
+            <div class="auth-status-info">
+              <span class="auth-hint">Sign in to analyze jobs and prepare handoff kits</span>
+            </div>
+            <button id="loginBtn" class="btn btn-outline btn-xs">Sign In</button>
+          </div>
+          <div id="authAuthenticatedState" class="auth-state-box authenticated hidden">
+            <div class="user-profile-info">
+              <span class="user-avatar" id="userAvatar"></span>
+              <div class="user-text">
+                <span id="userName" class="user-name">—</span>
+                <span id="userEmail" class="user-email">—</span>
+              </div>
+            </div>
+            <button id="logoutBtn" class="link-button logout-btn" title="Sign out">Log Out</button>
+          </div>
+        </div>
 
-  <script type="module" src="sidebar.js"></script>
-</body>
+        <!-- Non-destructive Expired Session Warning -->
+        <div id="sessionExpiredNotice" class="alert-banner warning hidden">
+          <div class="alert-content">
+            <div class="alert-text">
+              <strong>Session Expired</strong>
+              <p>Sign in to continue — your active job and analysis are preserved.</p>
+            </div>
+          </div>
+          <button id="reauthBtn" class="btn btn-primary btn-xs">Sign In</button>
+        </div>
+
+        <!-- Minimal Non-Blocking Pending Job Notification (Part 61) -->
+        <div id="pendingJobNotification" class="pending-job-banner hidden">
+          <div class="pending-job-content">
+            <div class="pending-job-text">
+              <span class="pending-badge">New job detected</span>
+              <span id="pendingJobTitle" class="pending-subtext"
+                >Another job is open on this page.</span
+              >
+            </div>
+            <button id="rescanPendingBtn" class="btn btn-primary btn-xs">Rescan</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="sidebar-main">
+        <!-- State / Status Alert Bar -->
+        <div id="workflowStatusBar" class="workflow-status-bar">
+          <span id="workflowStateText" class="state-text">Ready</span>
+          <span id="workflowLockedBadge" class="workflow-locked-badge hidden"
+            >Workflow protected</span
+          >
+          <span
+            id="syncIndicator"
+            class="sync-indicator synced hidden"
+            style="display: none"
+            title="State synchronized"
+            >Synced</span
+          >
+        </div>
+
+        <!-- Portal & Adapter Information Card -->
+        <section id="portalCard" class="card portal-card">
+          <div class="card-header">
+            <div class="header-label">
+              <span id="portalName" class="portal-title">Career Portal</span>
+            </div>
+            <span id="confidenceBadge" class="confidence-badge low hidden" style="display: none"
+              >Confidence: Low</span
+            >
+          </div>
+          <div class="portal-capabilities hidden" id="portalCapabilities" style="display: none">
+            <span class="capability-pill pending" id="capJob">Job Extraction</span>
+            <span class="capability-pill pending" id="capApp">App Detection</span>
+            <span class="capability-pill pending" id="capForm">Form Extraction</span>
+            <span class="capability-pill pending" id="capAutofill">Field Mapping</span>
+          </div>
+        </section>
+
+        <!-- Active Job Detection Card -->
+        <section id="jobCard" class="card job-card">
+          <div class="card-header">
+            <h2 class="card-title">Current Job</h2>
+            <button
+              id="reanalyzeBtn"
+              class="link-button hidden"
+              style="display: none"
+              title="Scan page again"
+            >
+              Re-detect
+            </button>
+          </div>
+          <div id="jobContent" class="job-content">
+            <div id="jobNotDetectedState" class="empty-state">
+              <p class="empty-title">No job posting detected</p>
+              <p class="empty-subtitle">Navigate to a job board or career page to inspect.</p>
+            </div>
+            <div id="jobDetectedState" class="job-detected-state hidden">
+              <h3 id="jobTitle" class="job-title">—</h3>
+              <p id="jobCompany" class="job-company">—</p>
+              <div class="job-meta-row">
+                <span id="jobLocation" class="meta-tag">Remote</span>
+                <span id="jobType" class="meta-tag">Full-time</span>
+                <span id="jobIdTag" class="meta-tag code-font hidden" style="display: none"
+                  >ID: —</span
+                >
+              </div>
+
+              <!-- Analysis Error Banner -->
+              <div id="analysisErrorBanner" class="alert-banner error hidden">
+                <div class="alert-content">
+                  <span id="analysisErrorMessage">Analysis failed.</span>
+                </div>
+                <button id="retryAnalysisBtn" class="btn btn-outline btn-xs">Retry Analysis</button>
+              </div>
+
+              <!-- Neutral Description Hydration Notice (P70) -->
+              <div id="descriptionLoadingNotice" class="loading-hint hidden">
+                <span class="loading-spinner-sm"></span>
+                <span id="descriptionLoadingText">Job description is still loading...</span>
+              </div>
+
+              <div class="action-row">
+                <button id="analyzeJobBtn" class="btn btn-primary btn-sm btn-block">
+                  Analyze Job Match
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ATS Fit & Match Section -->
+        <section id="analysisCard" class="card analysis-card hidden">
+          <div class="card-header">
+            <h2 class="card-title">Match Analysis</h2>
+            <span id="matchBandBadge" class="match-band-badge">RECOMMENDED</span>
+          </div>
+          <div class="fit-overview">
+            <div class="score-circle-container">
+              <div class="score-circle">
+                <span id="scoreValue" class="score-number">--</span>
+                <span class="score-total">/100</span>
+              </div>
+            </div>
+            <div class="score-breakdown">
+              <div class="breakdown-item">
+                <span class="breakdown-label">Matched Skills:</span>
+                <span id="matchedSkillsCount" class="breakdown-val">0</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Missing Skills:</span>
+                <span id="missingSkillsCount" class="breakdown-val">0</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Experience Fit:</span>
+                <span id="experienceFitVal" class="breakdown-val">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="skills-tags-container">
+            <div class="tag-group">
+              <span class="tag-label">Matched Skills</span>
+              <div id="matchedSkillsList" class="tag-list"></div>
+            </div>
+            <div class="tag-group">
+              <span class="tag-label">Missing / Growth Skills</span>
+              <div id="missingSkillsList" class="tag-list"></div>
+            </div>
+          </div>
+
+          <!-- Primary Next Action Container (Guarantees NO DEAD END) -->
+          <div id="analysisNextActionBox" class="next-action-container">
+            <div class="next-action-header">
+              <p class="next-action-desc">
+                Analysis complete. Tailored documents and handoff actions are ready below.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Authoritative Recommended Projects Section (P57 Rule 1 & Rule 2) -->
+        <section id="projectsCard" class="card projects-card hidden">
+          <div class="card-header">
+            <h2 class="card-title">Recommended Projects</h2>
+            <span class="verified-tag">Ranked</span>
+          </div>
+          <div id="recommendedProjectsList" class="projects-list">
+            <!-- Dynamically populated project cards -->
+          </div>
+        </section>
+
+        <!-- Application & Handoff Kit Section -->
+        <section id="handoffCard" class="card handoff-card hidden">
+          <div class="card-header">
+            <h2 class="card-title">Application Handoff Kit</h2>
+            <span id="handoffStatusBadge" class="status-badge-sm">UNPREPARED</span>
+          </div>
+
+          <!-- Application & Package Metadata Row -->
+          <div id="handoffTelemetryRow" class="telemetry-row hidden">
+            <div class="telemetry-item">
+              <span class="telemetry-label">App ID:</span>
+              <span id="handoffAppId" class="telemetry-value code-font">—</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">Package:</span>
+              <span id="handoffPackageMeta" class="telemetry-value code-font">—</span>
+            </div>
+          </div>
+
+          <!-- Terminal Workflow Lock / Protected Banner (Part 60-B & Part 61) -->
+          <div id="workflowLockBanner" class="alert-banner lock-banner hidden">
+            <div class="alert-content">
+              <div class="alert-text">
+                <strong>Workflow Protected</strong>
+                <p>
+                  Navigation will not replace this application. Your saved records remain safe in
+                  MCP.
+                </p>
+              </div>
+            </div>
+            <button
+              id="resetWorkflowBtn"
+              class="btn btn-outline btn-xs reset-workflow-btn"
+              title="Reset extension workflow to neutral IDLE state"
+            >
+              Reset Workflow
+            </button>
+          </div>
+
+          <!-- Handoff Error & Retry Banner -->
+          <div id="handoffErrorBanner" class="alert-banner error hidden">
+            <div class="alert-content">
+              <span id="handoffErrorMessage">Failed to prepare handoff kit.</span>
+            </div>
+            <button id="retryHandoffBtn" class="btn btn-outline btn-xs">Retry Preparation</button>
+          </div>
+
+          <!-- Single Primary Handoff Action & Deliberate Secondary Regeneration (Part 62) -->
+          <div class="handoff-actions">
+            <button id="prepareHandoffBtn" class="btn btn-accent btn-block">
+              <span class="btn-spinner hidden" id="prepareSpinner"></span>
+              <span id="prepareBtnText">Prepare Handoff Kit</span>
+            </button>
+            <button
+              id="regenerateHandoffBtn"
+              class="btn btn-ghost btn-block btn-secondary-action hidden"
+            >
+              Regenerate Handoff Kit
+            </button>
+          </div>
+
+          <!-- In-card Confirmation Box for Deliberate Regeneration (Part 62) -->
+          <div id="regenerateConfirmBox" class="alert-banner confirm-banner hidden">
+            <div class="alert-content">
+              <div class="alert-text">
+                <strong>Regenerate Handoff Kit?</strong>
+                <p>
+                  A handoff kit already exists for this job. Regenerating will create a new package
+                  version.
+                </p>
+              </div>
+            </div>
+            <div class="confirm-actions">
+              <button id="cancelRegenerateBtn" class="btn btn-outline btn-xs">Cancel</button>
+              <button id="confirmRegenerateBtn" class="btn btn-primary btn-xs">Regenerate</button>
+            </div>
+          </div>
+
+          <div id="artifactsContainer" class="artifacts-container hidden">
+            <div class="artifact-item" id="resumeArtifact">
+              <div class="artifact-details">
+                <div class="artifact-title">Tailored Resume</div>
+                <div class="artifact-meta" id="resumeMeta">LaTeX Compiled • Verified</div>
+              </div>
+              <div class="artifact-actions">
+                <button id="reviewResumeBtn" class="btn btn-outline btn-xs">Review</button>
+                <button id="downloadResumeBtn" class="btn btn-primary btn-xs">Download PDF</button>
+              </div>
+            </div>
+            <div class="artifact-item" id="coverLetterArtifact">
+              <div class="artifact-details">
+                <div class="artifact-title">Tailored Cover Letter</div>
+                <div class="artifact-meta" id="coverLetterMeta">LaTeX Compiled • Verified</div>
+              </div>
+              <div class="artifact-actions">
+                <button id="reviewCoverLetterBtn" class="btn btn-outline btn-xs">Review</button>
+                <button id="downloadCoverLetterBtn" class="btn btn-primary btn-xs">
+                  Download PDF
+                </button>
+              </div>
+            </div>
+            <div class="artifact-item" id="kitZipArtifact">
+              <div class="artifact-details">
+                <div class="artifact-title">Application Package</div>
+                <div class="artifact-meta" id="bundleMeta">All artifacts + SHA-256 manifest</div>
+              </div>
+              <div class="artifact-actions">
+                <button id="downloadBundleBtn" class="btn btn-accent btn-xs">Download ZIP</button>
+              </div>
+            </div>
+            <div class="dashboard-handoff-link-row">
+              <a id="viewAppDashboardLink" href="#" target="_blank" class="link-button"
+                >Open in Dashboard ↗</a
+              >
+            </div>
+          </div>
+        </section>
+
+        <!-- Compact AI Career Assistant Card (5 Primary Dimensions) -->
+        <section id="assistantCard" class="card assistant-card">
+          <div class="card-header">
+            <h2 class="card-title">AI Assistant</h2>
+            <span id="assistantStatusBadge" class="status-badge-sm">ADVISORY</span>
+          </div>
+          <div class="assistant-body">
+            <!-- Non-blocking AI unavailable banner -->
+            <div id="assistantUnavailableBanner" class="alert-banner info hidden">
+              <div class="alert-content">
+                <span id="assistantUnavailableText"
+                  >The AI assistant is temporarily unavailable. Job match, readiness, and manual
+                  application remain fully accessible.</span
+                >
+              </div>
+            </div>
+
+            <!-- 1. Application Readiness summary -->
+            <div id="assistantReadinessRow" class="assistant-item-row">
+              <div class="readiness-header-row">
+                <span class="assistant-label">Application Readiness</span>
+                <span id="readinessScoreBadge" class="badge-readiness">--%</span>
+              </div>
+              <p id="readinessSummaryText" class="assistant-desc">
+                Ready to evaluate application readiness.
+              </p>
+            </div>
+
+            <!-- 2. Missing Information (Compact Checklist) -->
+            <div id="assistantMissingBox" class="assistant-missing-box hidden">
+              <span class="assistant-sublabel text-warning">Missing Information</span>
+              <ul id="assistantMissingList" class="compact-checklist"></ul>
+            </div>
+
+            <!-- 3. Pre-Submission Conflicts Warning -->
+            <div id="assistantConflictsBox" class="alert-banner warning hidden">
+              <div class="alert-content">
+                <strong>Pre-Submission Discrepancy</strong>
+                <div id="assistantConflictsList" class="conflicts-compact-list"></div>
+              </div>
+            </div>
+
+            <!-- 4. Quick AI Actions -->
+            <div class="assistant-quick-actions">
+              <button
+                id="aiExplainJobBtn"
+                class="btn btn-ghost btn-xs"
+                title="Explain role responsibilities and expectations"
+              >
+                Explain Job
+              </button>
+              <button
+                id="aiCheckReqsBtn"
+                class="btn btn-ghost btn-xs"
+                title="Check requirements against verified profile"
+              >
+                Check Requirements
+              </button>
+              <button
+                id="aiAutofillPlanBtn"
+                class="btn btn-ghost btn-xs"
+                title="Preview safe autofill plan"
+              >
+                Safe Autofill
+              </button>
+            </div>
+
+            <!-- 5. AI Response Box & Interactive Query -->
+            <div id="assistantResponseBox" class="assistant-response-box hidden">
+              <div id="assistantResponseContent" class="assistant-response-text"></div>
+            </div>
+
+            <div class="assistant-input-row">
+              <input
+                id="assistantQueryInput"
+                type="text"
+                class="input-xs assistant-input"
+                placeholder="Ask about this role or profile..."
+              />
+              <button id="assistantSendBtn" class="btn btn-primary btn-xs">Ask</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Multi-step Application & Safe Form Autofill Section -->
+        <section id="formDetectionCard" class="card form-detection-card hidden">
+          <div class="card-header">
+            <h2 class="card-title">Safe Form Autofill</h2>
+            <span id="stepIndicator" class="step-indicator">Step 1</span>
+          </div>
+          <div class="form-status-body">
+            <p id="formStatusMessage" class="form-status-message">
+              Application form fields detected.
+            </p>
+            <div id="formFieldsSummary" class="fields-summary">
+              <!-- Dynamic field mapping pills -->
+            </div>
+
+            <!-- Sensitive fields confirmation toggle -->
+            <div id="sensitiveConfirmationBox" class="autofill-sensitive-warning hidden">
+              <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer">
+                <input type="checkbox" id="confirmSensitiveAutofill" style="margin-top: 2px" />
+                <span
+                  >Confirm filling sensitive fields (Work authorization, visa sponsorship, salary
+                  expectations)</span
+                >
+              </label>
+            </div>
+
+            <div class="form-actions">
+              <button id="autofillFormBtn" class="btn btn-secondary btn-sm" disabled>
+                Fill Verified Fields
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="sidebar-footer">
+        <div class="footer-row">
+          <span class="footer-note">Evidence-Based • Multi-Tenant Isolated</span>
+          <a id="dashboardLink" href="http://localhost:3000" target="_blank" class="footer-link"
+            >Dashboard</a
+          >
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="sidebar.js"></script>
+  </body>
 </html>

@@ -19,7 +19,9 @@ if (!window.__aicareershub_content_script_loaded) {
     if (!jobIdentityModulePromise) {
       try {
         if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-          jobIdentityModulePromise = import(chrome.runtime.getURL('lib/job-identity.js')).catch(() => null);
+          jobIdentityModulePromise = import(chrome.runtime.getURL('lib/job-identity.js')).catch(
+            () => null
+          );
         } else {
           jobIdentityModulePromise = Promise.resolve(null);
         }
@@ -87,9 +89,7 @@ if (!window.__aicareershub_content_script_loaded) {
 
   async function performFormDetection() {
     try {
-      const { FormDetector } = await import(
-        chrome.runtime.getURL('content/form-detector.js')
-      );
+      const { FormDetector } = await import(chrome.runtime.getURL('content/form-detector.js'));
       const formInfo = FormDetector.detect(document);
       return formInfo;
     } catch {
@@ -113,13 +113,15 @@ if (!window.__aicareershub_content_script_loaded) {
             // Check if application form appeared on navigation (e.g. /jobs/123 -> /jobs/123/apply)
             const formInfo = await performFormDetection();
             if (formInfo.hasForm) {
-              chrome.runtime.sendMessage({
-                type: 'APPLICATION_FORM_DETECTED',
-                formData: {
-                  ...formInfo,
-                  url: newUrl,
-                },
-              }).catch(() => {});
+              chrome.runtime
+                .sendMessage({
+                  type: 'APPLICATION_FORM_DETECTED',
+                  formData: {
+                    ...formInfo,
+                    url: newUrl,
+                  },
+                })
+                .catch(() => {});
             }
           } else {
             // New job page navigation: re-evaluate locally
@@ -147,10 +149,12 @@ if (!window.__aicareershub_content_script_loaded) {
         onFormDetected: async () => {
           const formInfo = await performFormDetection();
           if (formInfo.hasForm) {
-            chrome.runtime.sendMessage({
-              type: 'APPLICATION_FORM_DETECTED',
-              formData: formInfo,
-            }).catch(() => {});
+            chrome.runtime
+              .sendMessage({
+                type: 'APPLICATION_FORM_DETECTED',
+                formData: formInfo,
+              })
+              .catch(() => {});
           }
         },
       });
@@ -274,7 +278,9 @@ if (!window.__aicareershub_content_script_loaded) {
       const setupObserver = (targetNode, isRootNode) => {
         if (this.isCancelled || this.isCompleted) return;
         if (this.observer) {
-          try { this.observer.disconnect(); } catch {}
+          try {
+            this.observer.disconnect();
+          } catch {}
           this.observer = null;
         }
         if (!targetNode || typeof MutationObserver === 'undefined') return;
@@ -308,7 +314,11 @@ if (!window.__aicareershub_content_script_loaded) {
       };
 
       const initialRoot = await getActiveJobRoot();
-      if (initialRoot && initialRoot !== document.body && initialRoot !== document.documentElement) {
+      if (
+        initialRoot &&
+        initialRoot !== document.body &&
+        initialRoot !== document.documentElement
+      ) {
         setupObserver(initialRoot, true);
       } else if (typeof document !== 'undefined' && document.body) {
         setupObserver(document.body, false);
@@ -341,7 +351,11 @@ if (!window.__aicareershub_content_script_loaded) {
         }
 
         // Invalidate if page navigated to a different job
-        if (this.targetFingerprint && currentFingerprint && currentFingerprint !== this.targetFingerprint) {
+        if (
+          this.targetFingerprint &&
+          currentFingerprint &&
+          currentFingerprint !== this.targetFingerprint
+        ) {
           this.cancel();
           startJobHydration(result.jobData);
           return;
@@ -406,15 +420,21 @@ if (!window.__aicareershub_content_script_loaded) {
       const pending = [...this.waiters];
       this.waiters.length = 0;
       pending.forEach(({ resolve, tid }) => {
-        try { clearTimeout(tid); } catch {}
-        try { resolve(job); } catch {}
+        try {
+          clearTimeout(tid);
+        } catch {}
+        try {
+          resolve(job);
+        } catch {}
       });
     }
 
     cancel() {
       this.isCancelled = true;
       if (this.observer) {
-        try { this.observer.disconnect(); } catch {}
+        try {
+          this.observer.disconnect();
+        } catch {}
         this.observer = null;
       }
       if (this.mutationDebounceTimer) {
@@ -533,12 +553,14 @@ if (!window.__aicareershub_content_script_loaded) {
             navigationObserver.setActiveJob(activeJobData);
           }
           try {
-            chrome.runtime.sendMessage({
-              type: 'JOB_DESCRIPTION_HYDRATED',
-              tabId: currentTabId,
-              jobData: hydratedJob,
-              jobFingerprint: fingerprint,
-            }).catch(() => {});
+            chrome.runtime
+              .sendMessage({
+                type: 'JOB_DESCRIPTION_HYDRATED',
+                tabId: currentTabId,
+                jobData: hydratedJob,
+                jobFingerprint: fingerprint,
+              })
+              .catch(() => {});
           } catch {}
         });
 
@@ -714,7 +736,9 @@ if (!window.__aicareershub_content_script_loaded) {
       getActiveHydrationFingerprint: () => activeHydrationFingerprint,
       getActiveHydrationKey: () => activeHydrationKey,
       deriveProvisionalJobKey,
-      setCurrentTabId: (id) => { currentTabId = id; },
+      setCurrentTabId: (id) => {
+        currentTabId = id;
+      },
       getCurrentTabId: () => currentTabId,
     };
   }

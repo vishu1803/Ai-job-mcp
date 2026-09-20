@@ -40,9 +40,10 @@ export function calculateMultiModelStatistics(evaluations) {
   const mean = Math.round((values.reduce((a, b) => a + b, 0) / n) * 100) / 100;
 
   const sorted = [...values].sort((a, b) => a - b);
-  const median = n % 2 !== 0
-    ? sorted[Math.floor(n / 2)]
-    : Math.round(((sorted[n / 2 - 1] + sorted[n / 2]) / 2) * 100) / 100;
+  const median =
+    n % 2 !== 0
+      ? sorted[Math.floor(n / 2)]
+      : Math.round(((sorted[n / 2 - 1] + sorted[n / 2]) / 2) * 100) / 100;
 
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
@@ -92,9 +93,12 @@ export function classifyDimensionDisagreement(evaluations) {
   const results = [];
 
   for (const dim of dimensions) {
-    const claudeScore = evaluations.find((e) => e.evaluator.provider === 'claude')?.scores[dim.key] ?? 0;
-    const geminiScore = evaluations.find((e) => e.evaluator.provider === 'gemini')?.scores[dim.key] ?? 0;
-    const grokScore = evaluations.find((e) => e.evaluator.provider === 'grok')?.scores[dim.key] ?? 0;
+    const claudeScore =
+      evaluations.find((e) => e.evaluator.provider === 'claude')?.scores[dim.key] ?? 0;
+    const geminiScore =
+      evaluations.find((e) => e.evaluator.provider === 'gemini')?.scores[dim.key] ?? 0;
+    const grokScore =
+      evaluations.find((e) => e.evaluator.provider === 'grok')?.scores[dim.key] ?? 0;
 
     const values = [claudeScore, geminiScore, grokScore];
     const mean = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
@@ -136,7 +140,8 @@ export function classifyDimensionDisagreement(evaluations) {
 export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   {
     finding: 'DEGREE_FIELD_MISMATCH',
-    observation: 'Degree is Electronics Engineering rather than required Computer Science or IT branch.',
+    observation:
+      'Degree is Electronics Engineering rather than required Computer Science or IT branch.',
     claude: true,
     gemini: true,
     grok: true,
@@ -152,7 +157,8 @@ export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   },
   {
     finding: 'NESTJS_UNSUPPORTED',
-    observation: 'NestJS claimed in professional summary but absent from Skills, Projects, and Experience.',
+    observation:
+      'NestJS claimed in professional summary but absent from Skills, Projects, and Experience.',
     claude: true,
     gemini: true,
     grok: true,
@@ -160,7 +166,8 @@ export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   },
   {
     finding: 'METRIC_40_PERCENT_INSUFFICIENT_EVIDENCE',
-    observation: '40% page load reduction metric lacks baseline, measurement method, and supporting context.',
+    observation:
+      '40% page load reduction metric lacks baseline, measurement method, and supporting context.',
     claude: true,
     gemini: true,
     grok: true,
@@ -168,7 +175,8 @@ export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   },
   {
     finding: 'CONTACT_URL_EXTRACTION_RISK',
-    observation: 'Contact links (LinkedIn, GitHub, Portfolio, LeetCode) lack visible fallback URLs in extracted text.',
+    observation:
+      'Contact links (LinkedIn, GitHub, Portfolio, LeetCode) lack visible fallback URLs in extracted text.',
     claude: true,
     gemini: true,
     grok: true,
@@ -176,7 +184,8 @@ export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   },
   {
     finding: 'PROJECT_QUANTIFICATION_WEAK',
-    observation: 'Project achievements are mostly descriptive engineering tasks with limited quantified outcomes.',
+    observation:
+      'Project achievements are mostly descriptive engineering tasks with limited quantified outcomes.',
     claude: true,
     gemini: true,
     grok: true,
@@ -200,10 +209,11 @@ export const STANDARD_FINDINGS_REGISTRY = Object.freeze([
   },
   {
     finding: 'REDIS_SATISFIES_NOSQL',
-    observation: 'Models contradict on whether Redis in-memory key-value cache satisfies NoSQL requirement.',
+    observation:
+      'Models contradict on whether Redis in-memory key-value cache satisfies NoSQL requirement.',
     claude: false, // Claude says NoSQL is missing
-    gemini: true,  // Gemini treats Redis as satisfying NoSQL
-    grok: false,   // Grok treats it as partial/related only
+    gemini: true, // Gemini treats Redis as satisfying NoSQL
+    grok: false, // Grok treats it as partial/related only
     isConflicting: true,
   },
 ]);
@@ -319,7 +329,7 @@ export function auditClaimEvidenceProvenance(claim, context = {}) {
 
   // Specific heuristic evaluations for key known claims
   if (claimNorm === 'nestjs') {
-    const status = (inProjects || inCanonicalFacts) ? 'SUPPORTED' : 'UNSUPPORTED';
+    const status = inProjects || inCanonicalFacts ? 'SUPPORTED' : 'UNSUPPORTED';
     return ClaimProvenanceAuditSchema.parse({
       claim: 'NestJS',
       status,
@@ -332,9 +342,10 @@ export function auditClaimEvidenceProvenance(claim, context = {}) {
         hasBaseline: false,
         hasMeasurementMethod: false,
       },
-      decision: status === 'UNSUPPORTED'
-        ? 'Prune NestJS from professional summary; do NOT add NestJS to Skills or Projects without candidate evidence.'
-        : 'Retain NestJS in natural technical skills context.',
+      decision:
+        status === 'UNSUPPORTED'
+          ? 'Prune NestJS from professional summary; do NOT add NestJS to Skills or Projects without candidate evidence.'
+          : 'Retain NestJS in natural technical skills context.',
       optimizationSafety: status === 'UNSUPPORTED' ? 'UNSAFE' : 'SAFE',
     });
   }
@@ -342,7 +353,7 @@ export function auditClaimEvidenceProvenance(claim, context = {}) {
   if (claimNorm.includes('40%') || claimNorm.includes('page load')) {
     const hasBaseline = false;
     const hasMeasurementMethod = false;
-    const status = (hasBaseline && hasMeasurementMethod) ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED';
+    const status = hasBaseline && hasMeasurementMethod ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED';
 
     return ClaimProvenanceAuditSchema.parse({
       claim: '40% page-load reduction',
@@ -356,13 +367,14 @@ export function auditClaimEvidenceProvenance(claim, context = {}) {
         hasBaseline,
         hasMeasurementMethod,
       },
-      decision: 'Keep metric only if candidate fact specifies baseline and measurement method; otherwise rephrase qualitatively without unverified precision.',
+      decision:
+        'Keep metric only if candidate fact specifies baseline and measurement method; otherwise rephrase qualitatively without unverified precision.',
       optimizationSafety: 'CONDITIONAL',
     });
   }
 
   if (claimNorm === 'aws' || claimNorm === 'cloud') {
-    const status = (inProjects || inCanonicalFacts) ? 'SUPPORTED' : 'UNSUPPORTED';
+    const status = inProjects || inCanonicalFacts ? 'SUPPORTED' : 'UNSUPPORTED';
     return ClaimProvenanceAuditSchema.parse({
       claim: 'AWS / Cloud Infrastructure',
       status,
@@ -375,15 +387,16 @@ export function auditClaimEvidenceProvenance(claim, context = {}) {
         hasBaseline: false,
         hasMeasurementMethod: false,
       },
-      decision: status === 'UNSUPPORTED'
-        ? 'Candidate has no verified AWS evidence; DO NOT add AWS merely to satisfy JD requirement.'
-        : 'Highlight verified AWS deployment architecture in relevant project bullets.',
+      decision:
+        status === 'UNSUPPORTED'
+          ? 'Candidate has no verified AWS evidence; DO NOT add AWS merely to satisfy JD requirement.'
+          : 'Highlight verified AWS deployment architecture in relevant project bullets.',
       optimizationSafety: 'UNSAFE',
     });
   }
 
   // Default fallback audit
-  const status = (inCanonicalFacts || (inSkills && inProjects)) ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED';
+  const status = inCanonicalFacts || (inSkills && inProjects) ? 'SUPPORTED' : 'PARTIALLY_SUPPORTED';
   return ClaimProvenanceAuditSchema.parse({
     claim,
     status,
@@ -517,11 +530,7 @@ export const STANDARD_REQUIREMENT_MAPPINGS = Object.freeze([
  * @param {object} [params.context] Candidate and resume context
  * @returns {object} MultiModelCalibrationReportSchema
  */
-export function evaluateMultiModelCalibrationReport({
-  engineReport,
-  evaluations,
-  context = {},
-}) {
+export function evaluateMultiModelCalibrationReport({ engineReport, evaluations, context = {} }) {
   if (!engineReport || typeof engineReport.publishableScore !== 'number') {
     throw new Error('engineReport with publishableScore is required');
   }
@@ -544,8 +553,10 @@ export function evaluateMultiModelCalibrationReport({
   );
 
   const enginePublishableScore = engineReport.publishableScore;
-  const externalMedianDelta = Math.round((enginePublishableScore - overallStatistics.external_model_median) * 100) / 100;
-  const externalMeanDelta = Math.round((enginePublishableScore - overallStatistics.external_model_mean) * 100) / 100;
+  const externalMedianDelta =
+    Math.round((enginePublishableScore - overallStatistics.external_model_median) * 100) / 100;
+  const externalMeanDelta =
+    Math.round((enginePublishableScore - overallStatistics.external_model_mean) * 100) / 100;
   const divergenceAlert = Math.abs(externalMedianDelta) > 15;
 
   // Sample size detection & statistical honesty:

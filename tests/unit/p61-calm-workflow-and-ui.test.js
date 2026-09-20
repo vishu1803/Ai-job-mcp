@@ -14,7 +14,10 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 import {
@@ -160,7 +163,14 @@ function setupMockDocument() {
     elements.set(id, createMockElement(id));
   }
   elements.set('rescanBtn', createMockElement('rescanBtn', 'Rescan', 'Scan current browser page'));
-  elements.set('resetWorkflowBtn', createMockElement('resetWorkflowBtn', 'Reset Workflow', 'Reset extension workflow to neutral IDLE state'));
+  elements.set(
+    'resetWorkflowBtn',
+    createMockElement(
+      'resetWorkflowBtn',
+      'Reset Workflow',
+      'Reset extension workflow to neutral IDLE state'
+    )
+  );
 
   global.document = {
     getElementById(id) {
@@ -201,7 +211,11 @@ function setupMockDocument() {
       query: async () => [{ id: 101, url: 'https://careers.cloudcorp.com/jobs/8801' }],
       sendMessage: async (_tabId, msg) => {
         if (msg?.type === 'DETECT_JOB_PAGE') {
-          return { success: true, detected: Boolean(lastDetectedJobOnTab), jobData: lastDetectedJobOnTab };
+          return {
+            success: true,
+            detected: Boolean(lastDetectedJobOnTab),
+            jobData: lastDetectedJobOnTab,
+          };
         }
         return { success: true };
       },
@@ -391,11 +405,20 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       assert.strictEqual(backendCalls.analyzeJob, 1, 'No new analysis started automatically');
 
       // 10. No application is created automatically
-      assert.strictEqual(backendCalls.prepareHandoff, 1, 'No second application prepared automatically');
+      assert.strictEqual(
+        backendCalls.prepareHandoff,
+        1,
+        'No second application prepared automatically'
+      );
 
       // Notification is visible with Job B info
-      assert.strictEqual(domElements.get('pendingJobNotification').classList.contains('hidden'), false);
-      assert.ok(domElements.get('pendingJobTitle').textContent.includes('Staff Platform Architect'));
+      assert.strictEqual(
+        domElements.get('pendingJobNotification').classList.contains('hidden'),
+        false
+      );
+      assert.ok(
+        domElements.get('pendingJobTitle').textContent.includes('Staff Platform Architect')
+      );
     });
 
     it('11. Repeated Job B detection creates only ONE pending notification (no spam)', async () => {
@@ -414,7 +437,10 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
 
       assert.strictEqual(controller.pendingDetectedJob.title, sampleJobB.title);
       // Single pending banner visible
-      assert.strictEqual(domElements.get('pendingJobNotification').classList.contains('hidden'), false);
+      assert.strictEqual(
+        domElements.get('pendingJobNotification').classList.contains('hidden'),
+        false
+      );
       assert.strictEqual(controller.activeJob.title, sampleJobA.title);
     });
   });
@@ -449,10 +475,15 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       // 14. Pending job is cleared
       assert.strictEqual(controller.pendingDetectedJob, null);
       assert.strictEqual(controller.pendingDetectedFingerprint, null);
-      assert.strictEqual(domElements.get('pendingJobNotification').classList.contains('hidden'), true);
+      assert.strictEqual(
+        domElements.get('pendingJobNotification').classList.contains('hidden'),
+        true
+      );
 
       // 15. Previous Application A remains intact in store/DB
-      const jobAState = await controller.store.getJobState(JobIdentity.deriveJobFingerprint(sampleJobA));
+      const jobAState = await controller.store.getJobState(
+        JobIdentity.deriveJobFingerprint(sampleJobA)
+      );
       assert.ok(jobAState, 'Job A state must survive Rescan');
       assert.strictEqual(jobAState.applicationId, appAId);
 
@@ -495,7 +526,9 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       assert.strictEqual(controller.pendingDetectedJob, null);
 
       // 20-25. Does NOT delete Application A, resume, cover letter, handoff kit, or artifacts
-      const jobAPersisted = await controller.store.getJobState(JobIdentity.deriveJobFingerprint(sampleJobA));
+      const jobAPersisted = await controller.store.getJobState(
+        JobIdentity.deriveJobFingerprint(sampleJobA)
+      );
       assert.ok(jobAPersisted, 'Application A persisted record must survive Reset');
       assert.strictEqual(jobAPersisted.applicationId, appAId);
       assert.strictEqual(jobAPersisted.handoffData.packageHash, appAPkgHash);
@@ -575,7 +608,11 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
 
       // Tab B hydrates
       const tabBState = await store.getTabState(tabBId, 'usr-1');
-      assert.strictEqual(tabBState.applicationId, null, 'Tab B must not inherit Tab A applicationId');
+      assert.strictEqual(
+        tabBState.applicationId,
+        null,
+        'Tab B must not inherit Tab A applicationId'
+      );
       assert.strictEqual(tabBState.isLocked, false, 'Tab B must not be locked');
       assert.strictEqual(tabBState.jobData, null, 'Tab B must not have Tab A jobData');
       assert.strictEqual(tabBState.workflowState, WORKFLOW_STATES.IDLE);
@@ -636,7 +673,10 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
         jobTitle: 'Senior Infrastructure Engineer',
         artifactType: 'cover-letter',
       });
-      assert.strictEqual(filename, 'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf');
+      assert.strictEqual(
+        filename,
+        'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf'
+      );
     });
 
     it('34. Filename sanitization removes dangerous characters, traversal dots, and control chars', () => {
@@ -684,8 +724,14 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       await controller.runPrepareHandoff();
 
       const handoffData = controller.cachedState.handoffData;
-      assert.strictEqual(handoffData.resume.filename, 'Vishwanath Nishad - Senior Infrastructure Engineer.pdf');
-      assert.strictEqual(handoffData.coverLetter.filename, 'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf');
+      assert.strictEqual(
+        handoffData.resume.filename,
+        'Vishwanath Nishad - Senior Infrastructure Engineer.pdf'
+      );
+      assert.strictEqual(
+        handoffData.coverLetter.filename,
+        'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf'
+      );
 
       // Check download invocation
       let downloadedFilename = null;
@@ -694,10 +740,16 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       };
 
       await controller._triggerDownload('resume');
-      assert.strictEqual(downloadedFilename, 'Vishwanath Nishad - Senior Infrastructure Engineer.pdf');
+      assert.strictEqual(
+        downloadedFilename,
+        'Vishwanath Nishad - Senior Infrastructure Engineer.pdf'
+      );
 
       await controller._triggerDownload('cover-letter');
-      assert.strictEqual(downloadedFilename, 'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf');
+      assert.strictEqual(
+        downloadedFilename,
+        'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf'
+      );
 
       // Idempotency: re-preparing handoff does not change applicationId
       const originalAppId = controller.cachedState.applicationId;
@@ -757,8 +809,14 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
     it('43. Pending job notification is minimal and non-blocking', async () => {
       await controller.init();
       controller._renderPendingJobNotification(sampleJobB);
-      assert.strictEqual(domElements.get('pendingJobNotification').classList.contains('hidden'), false);
-      assert.strictEqual(domElements.get('pendingJobTitle').textContent, 'Staff Platform Architect • Web Scale Inc');
+      assert.strictEqual(
+        domElements.get('pendingJobNotification').classList.contains('hidden'),
+        false
+      );
+      assert.strictEqual(
+        domElements.get('pendingJobTitle').textContent,
+        'Staff Platform Architect • Web Scale Inc'
+      );
       assert.ok(domElements.get('rescanPendingBtn'));
     });
 

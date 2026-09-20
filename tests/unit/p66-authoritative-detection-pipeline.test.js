@@ -19,7 +19,10 @@ import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin
 import { JobDetectionEngine } from '../../extension/job-detection/detection-engine.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
 
 function createMockDocument({
@@ -68,7 +71,9 @@ function createMockDocument({
       }
       const cleanSelector = selector.replace(/\s+i\]/g, ']');
       if (elements[cleanSelector]) {
-        return Array.isArray(elements[cleanSelector]) ? elements[cleanSelector] : [elements[cleanSelector]];
+        return Array.isArray(elements[cleanSelector])
+          ? elements[cleanSelector]
+          : [elements[cleanSelector]];
       }
       return [];
     },
@@ -121,7 +126,8 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
         local: {
           _map: new Map(),
           get: async (key) => {
-            if (typeof key === 'string') return { [key]: global.chrome.storage.local._map.get(key) };
+            if (typeof key === 'string')
+              return { [key]: global.chrome.storage.local._map.get(key) };
             return Object.fromEntries(global.chrome.storage.local._map.entries());
           },
           set: async (items) => {
@@ -187,9 +193,15 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
       pendingJobNotification: {
         classList: {
           _set: new Set(['hidden']),
-          add(c) { this._set.add(c); },
-          remove(c) { this._set.delete(c); },
-          contains(c) { return this._set.has(c); },
+          add(c) {
+            this._set.add(c);
+          },
+          remove(c) {
+            this._set.delete(c);
+          },
+          contains(c) {
+            return this._set.has(c);
+          },
         },
       },
       pendingJobTitle: { textContent: '' },
@@ -253,7 +265,11 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       assert.strictEqual(controller.activeJob, null, 'Passive event must not mutate activeJob');
-      assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.IDLE, 'State must remain IDLE');
+      assert.strictEqual(
+        controller.stateMachine.state,
+        WORKFLOW_STATES.IDLE,
+        'State must remain IDLE'
+      );
       assert.strictEqual(analyzeCalls, 0);
     });
   });
@@ -312,7 +328,11 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
       await flightA;
 
       // Active job on Tab 202 must NOT be overwritten by stale Tab 101 response
-      assert.strictEqual(controller.activeJob.title, jobB.title, 'Tab B active job must be preserved');
+      assert.strictEqual(
+        controller.activeJob.title,
+        jobB.title,
+        'Tab B active job must be preserved'
+      );
       assert.strictEqual(controller.activeTabId, 202);
       assert.strictEqual(analyzeCalls, 0);
     });
@@ -367,7 +387,11 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
 
       await controller.rescan();
 
-      assert.strictEqual(controller.activeJob, null, 'Unlocked active job must be cleared on non-job page');
+      assert.strictEqual(
+        controller.activeJob,
+        null,
+        'Unlocked active job must be cleared on non-job page'
+      );
       assert.strictEqual(controller.pendingDetectedJob, null);
       assert.strictEqual(controller.elements.jobTitle.textContent, '—');
       assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.IDLE);
@@ -391,7 +415,11 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
 
       await controller.rescan();
 
-      assert.strictEqual(controller.activeJob, null, 'Must NOT substitute pending job for active detection');
+      assert.strictEqual(
+        controller.activeJob,
+        null,
+        'Must NOT substitute pending job for active detection'
+      );
       assert.strictEqual(controller.pendingDetectedJob, null, 'Pending job must be cleared');
       assert.strictEqual(analyzeCalls, 0);
     });
@@ -405,7 +433,8 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
           'a.topcard__org-name-link': { textContent: 'General Motors' },
           'span.topcard__flavor--bullet': { textContent: 'Warren, MI' },
           '.show-more-less-html__markup': {
-            textContent: 'About General Motors: We are hiring a Senior Software Engineer specializing in Go microservices. Requirements: 5+ years Go, Kubernetes, event architectures.',
+            textContent:
+              'About General Motors: We are hiring a Senior Software Engineer specializing in Go microservices. Requirements: 5+ years Go, Kubernetes, event architectures.',
             querySelectorAll: () => [
               { textContent: '5+ years experience in Golang' },
               { textContent: 'Experience with Kubernetes and microservices' },
@@ -429,10 +458,13 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
     it('detects LinkedIn page via currentJobId query parameter with delayed description container', () => {
       const dom = createMockDocument({
         elements: {
-          'h2.job-details-jobs-unified-top-card__job-title': { textContent: 'Principal Distributed Systems Architect' },
+          'h2.job-details-jobs-unified-top-card__job-title': {
+            textContent: 'Principal Distributed Systems Architect',
+          },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'NextEra Energy' },
           '#job-details': {
-            textContent: 'NextEra Energy is seeking a Principal Distributed Systems Architect. Requirements include cloud-native distributed databases and zero-trust security.',
+            textContent:
+              'NextEra Energy is seeking a Principal Distributed Systems Architect. Requirements include cloud-native distributed databases and zero-trust security.',
             querySelectorAll: () => [{ textContent: 'Cloud-native distributed databases' }],
           },
         },
@@ -456,7 +488,8 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
             title: 'Lead Platform Architect',
             hiringOrganization: { name: 'AutoTech Robotics' },
             jobLocation: { address: { addressLocality: 'Detroit', addressRegion: 'MI' } },
-            description: '<p>Lead Platform Architect responsible for autonomous vehicle cloud infrastructure. Requirements: Go, Rust, distributed storage.</p>',
+            description:
+              '<p>Lead Platform Architect responsible for autonomous vehicle cloud infrastructure. Requirements: Go, Rust, distributed storage.</p>',
           },
         ],
       });
@@ -472,10 +505,12 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
 
     it('extracts title and company from document.title as resilient fallback during late hydration', () => {
       const dom = createMockDocument({
-        title: 'General Motors hiring Senior Software Engineer – Go (Golang) in Warren, MI | LinkedIn',
+        title:
+          'General Motors hiring Senior Software Engineer – Go (Golang) in Warren, MI | LinkedIn',
         elements: {
           '.show-more-less-html__markup': {
-            textContent: 'Join General Motors engineering team. We are hiring a Senior Software Engineer for Go services. Requirements: Go, Docker, gRPC.',
+            textContent:
+              'Join General Motors engineering team. We are hiring a Senior Software Engineer for Go services. Requirements: Go, Docker, gRPC.',
           },
         },
       });
@@ -515,7 +550,8 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
         title: 'Staff Site Reliability Engineer',
         company: 'CloudScale Infrastructure',
         sourceUrl: 'https://www.linkedin.com/jobs/view/8899',
-        description: 'Staff Site Reliability Engineer wanted to scale distributed infrastructure across Kubernetes clusters with high availability requirements.',
+        description:
+          'Staff Site Reliability Engineer wanted to scale distributed infrastructure across Kubernetes clusters with high availability requirements.',
       };
 
       tabMessageHandlers.set(101, async (msg) => {

@@ -18,13 +18,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  composeProfessionalSummary,
-} from '../../src/services/resume-accomplishment-composer.service.js';
+import { composeProfessionalSummary } from '../../src/services/resume-accomplishment-composer.service.js';
 
-import {
-  deriveTargetRoleHeading,
-} from '../../src/services/resume-content-strategy.service.js';
+import { deriveTargetRoleHeading } from '../../src/services/resume-content-strategy.service.js';
 
 import {
   CONTRIBUTION_CLASSES,
@@ -34,9 +30,7 @@ import {
   assertRenderedCandidateAgencyInvariant,
 } from '../../src/services/resume-composition-primitives.js';
 
-import {
-  defaultResumeClaimPlannerService,
-} from '../../src/services/resume-claim-planner.service.js';
+import { defaultResumeClaimPlannerService } from '../../src/services/resume-claim-planner.service.js';
 
 import {
   EVIDENCE_ROLES,
@@ -52,7 +46,8 @@ import { StructuredResumeDocumentSchema } from '../../src/domain/career/resume.s
 
 const FRONTEND_CANDIDATE = {
   headline: 'Frontend Engineer',
-  summary: 'Passionate full-stack developer specializing in building modern frontend interfaces and robust backend APIs.',
+  summary:
+    'Passionate full-stack developer specializing in building modern frontend interfaces and robust backend APIs.',
   skills: [
     { name: 'React', slug: 'react' },
     { name: 'TypeScript', slug: 'typescript' },
@@ -71,13 +66,15 @@ const FRONTEND_CANDIDATE = {
 
 const BACKEND_JOB = {
   title: 'Senior Backend Engineer',
-  description: 'We are looking for a Senior Backend Engineer to build scalable API services. Experience with PostgreSQL, Redis, and microservices architecture required.',
+  description:
+    'We are looking for a Senior Backend Engineer to build scalable API services. Experience with PostgreSQL, Redis, and microservices architecture required.',
   company: 'TechCorp',
 };
 
 const FRONTEND_JOB = {
   title: 'Frontend Developer',
-  description: 'Seeking a Frontend Developer experienced with React, TypeScript, and responsive design.',
+  description:
+    'Seeking a Frontend Developer experienced with React, TypeScript, and responsive design.',
   company: 'WebCorp',
 };
 
@@ -105,9 +102,7 @@ const DSA_CANDIDATE_WITH_URL = {
     { name: 'Algorithms', slug: 'algorithms' },
     { name: 'Python', slug: 'python' },
   ],
-  portfolioLinks: [
-    { label: 'LeetCode', url: 'https://leetcode.com/testuser' },
-  ],
+  portfolioLinks: [{ label: 'LeetCode', url: 'https://leetcode.com/testuser' }],
   profileMetadata: {
     education: [],
     experience: [],
@@ -133,17 +128,24 @@ describe('P19 Bug #1: Synthetic DSA Content Removal', () => {
 
     for (const phrase of BANNED_PHRASES) {
       const found = JSON.stringify(candidate).includes(phrase);
-      assert.strictEqual(found, false,
-        `Synthetic DSA phrase should not exist: "${phrase.slice(0, 50)}..."`);
+      assert.strictEqual(
+        found,
+        false,
+        `Synthetic DSA phrase should not exist: "${phrase.slice(0, 50)}..."`
+      );
     }
   });
 
   it('Case 13: LeetCode URL alone does not produce fabricated accomplishment bullets', () => {
     const candidate = DSA_CANDIDATE_WITH_URL;
-    const hasBullets = Array.isArray(candidate.problemSolving?.bullets) &&
+    const hasBullets =
+      Array.isArray(candidate.problemSolving?.bullets) &&
       candidate.problemSolving.bullets.length > 0;
-    assert.strictEqual(hasBullets, false,
-      'LeetCode URL alone should not fabricate problem-solving bullets');
+    assert.strictEqual(
+      hasBullets,
+      false,
+      'LeetCode URL alone should not fabricate problem-solving bullets'
+    );
   });
 
   it('Case 14: Candidate-authored DSA bullets are preserved when provided', () => {
@@ -173,8 +175,11 @@ describe('P19 Bug #1: Synthetic DSA Content Removal', () => {
     ];
 
     for (const phrase of BANNED) {
-      assert.strictEqual(src.includes(phrase), false,
-        `Source must not contain hardcoded synthetic DSA prose: "${phrase.slice(0, 60)}..."`);
+      assert.strictEqual(
+        src.includes(phrase),
+        false,
+        `Source must not contain hardcoded synthetic DSA prose: "${phrase.slice(0, 60)}..."`
+      );
     }
   });
 });
@@ -203,11 +208,17 @@ describe('P19 Bug #2: Candidate Headline Independence', () => {
       jobPosting: FRONTEND_JOB,
     });
 
-    assert.strictEqual(resultBackend.candidateHeadline, resultFrontend.candidateHeadline,
-      'Candidate headline must be stable across different target jobs');
+    assert.strictEqual(
+      resultBackend.candidateHeadline,
+      resultFrontend.candidateHeadline,
+      'Candidate headline must be stable across different target jobs'
+    );
 
-    assert.notStrictEqual(resultBackend.candidateHeadline, BACKEND_JOB.title,
-      'Candidate headline must not copy the backend job title');
+    assert.notStrictEqual(
+      resultBackend.candidateHeadline,
+      BACKEND_JOB.title,
+      'Candidate headline must not copy the backend job title'
+    );
   });
 
   it('Case 18: Fresher applying to senior job does not get inflated headline', () => {
@@ -230,8 +241,10 @@ describe('P19 Bug #2: Candidate Headline Independence', () => {
     });
 
     // The candidate's own headline must NOT contain "Senior" since they're a fresher
-    assert.ok(!/\bsenior\b/i.test(result.candidateHeadline),
-      `Fresher candidateHeadline must not contain "Senior" (got: "${result.candidateHeadline}")`);
+    assert.ok(
+      !/\bsenior\b/i.test(result.candidateHeadline),
+      `Fresher candidateHeadline must not contain "Senior" (got: "${result.candidateHeadline}")`
+    );
   });
 });
 
@@ -268,8 +281,10 @@ describe('P19 Bug #3: Summary Domain Contradictions', () => {
 
     // The authored summary says "full-stack" — after the fix, it should
     // NOT be force-replaced with "Backend"
-    assert.ok(!result.text.includes('Backend-focused') || FRONTEND_CANDIDATE.summary.includes('Backend'),
-      'Summary should not force-rewrite full-stack to Backend');
+    assert.ok(
+      !result.text.includes('Backend-focused') || FRONTEND_CANDIDATE.summary.includes('Backend'),
+      'Summary should not force-rewrite full-stack to Backend'
+    );
   });
 
   it('Case 21: Evidence-first scoring weights candidate evidence 2x over job signals', () => {
@@ -355,8 +370,10 @@ describe('P19 Bug #4: Rich Content Preservation', () => {
       claimFacts: richFacts,
       evidenceCount: 4,
     });
-    assert.ok(capacity.capacity >= 2,
-      `Project with 2 distinct contribution classes should allow 2+ bullets (got ${capacity.capacity})`);
+    assert.ok(
+      capacity.capacity >= 2,
+      `Project with 2 distinct contribution classes should allow 2+ bullets (got ${capacity.capacity})`
+    );
   });
 
   it('Case 3: Architecture + implementation do not collapse into one fact', () => {
@@ -396,8 +413,7 @@ describe('P19 Bug #5: Distinct Contribution Classes', () => {
   it('Case 6: Each contribution class is a unique string value', () => {
     const values = Object.values(CONTRIBUTION_CLASSES);
     const unique = new Set(values);
-    assert.strictEqual(values.length, unique.size,
-      'All contribution classes must be unique');
+    assert.strictEqual(values.length, unique.size, 'All contribution classes must be unique');
   });
 
   it('Case 7: Claim planner preserves distinct PAR components', () => {
@@ -450,8 +466,10 @@ describe('P19 Bug #5: Distinct Contribution Classes', () => {
       targetBullets: 3,
     });
     const totalFactsInGroups = groups.reduce((sum, g) => sum + g.facts.length, 0);
-    assert.ok(totalFactsInGroups >= parFacts.length,
-      'All PAR facts must be included in claim groups');
+    assert.ok(
+      totalFactsInGroups >= parFacts.length,
+      'All PAR facts must be included in claim groups'
+    );
   });
 });
 
@@ -476,8 +494,7 @@ describe('P19 Bug #6: Single-Fact Project Honesty', () => {
       claimFacts: [singleFact],
       evidenceCount: 2,
     });
-    assert.strictEqual(result.capacity, 1,
-      'Single-fact project must render exactly 1 bullet');
+    assert.strictEqual(result.capacity, 1, 'Single-fact project must render exactly 1 bullet');
   });
 
   it('Case 9: Empty-fact project produces 0 bullet capacity', () => {
@@ -485,8 +502,7 @@ describe('P19 Bug #6: Single-Fact Project Honesty', () => {
       claimFacts: [],
       evidenceCount: 0,
     });
-    assert.strictEqual(result.capacity, 0,
-      'Empty-fact project must produce 0 bullets');
+    assert.strictEqual(result.capacity, 0, 'Empty-fact project must produce 0 bullets');
   });
 });
 
@@ -497,8 +513,7 @@ describe('P19 Bug #7: Provenance Authority Levels', () => {
   it('Case 10: CLAIMED provenance has lower authority than VERIFIED', () => {
     const verifiedWeight = 2;
     const claimedWeight = 1;
-    assert.ok(verifiedWeight > claimedWeight,
-      'VERIFIED must have higher authority than CLAIMED');
+    assert.ok(verifiedWeight > claimedWeight, 'VERIFIED must have higher authority than CLAIMED');
   });
 
   it('Case 11: INFERRED provenance has lowest authority', () => {
@@ -521,8 +536,7 @@ describe('P19 Bug #8: Generic Tailoring Templates', () => {
 
     assert.ok(result, 'Summary result must not be null');
     assert.ok(result.text, 'Summary text must not be empty');
-    assert.ok(result.text.length >= 50,
-      'Summary must be substantive (50+ chars)');
+    assert.ok(result.text.length >= 50, 'Summary must be substantive (50+ chars)');
   });
 });
 
@@ -544,8 +558,10 @@ describe('P19 Bug #9: Unified Provenance Rendering', () => {
     };
 
     const result = isAccomplishmentCandidate(verifiedFact);
-    assert.ok(typeof result === 'boolean' || typeof result === 'object',
-      'isAccomplishmentCandidate must return a result');
+    assert.ok(
+      typeof result === 'boolean' || typeof result === 'object',
+      'isAccomplishmentCandidate must return a result'
+    );
   });
 });
 
@@ -687,7 +703,10 @@ describe('P19 Bug #10: Debug Trace Schema', () => {
       targetRole: 'Senior Backend Engineer',
     };
 
-    assert.notStrictEqual(trace.candidateHeadline, trace.targetRole,
-      'Debug trace must show separation between candidate headline and target role');
+    assert.notStrictEqual(
+      trace.candidateHeadline,
+      trace.targetRole,
+      'Debug trace must show separation between candidate headline and target role'
+    );
   });
 });

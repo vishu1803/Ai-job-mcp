@@ -57,16 +57,46 @@ const SECTION_LABELS = Object.freeze({
 
 /** Generic action/ownership verbs — taxonomy, not identity rules. */
 const ACTION_VERBS = Object.freeze([
-  'built', 'implemented', 'designed', 'engineered', 'developed', 'architected',
-  'integrated', 'automated', 'migrated', 'optimized', 'deployed', 'delivered',
-  'led', 'created', 'established', 'designed-and', 'instrumented', 'containerized',
+  'built',
+  'implemented',
+  'designed',
+  'engineered',
+  'developed',
+  'architected',
+  'integrated',
+  'automated',
+  'migrated',
+  'optimized',
+  'deployed',
+  'delivered',
+  'led',
+  'created',
+  'established',
+  'designed-and',
+  'instrumented',
+  'containerized',
 ]);
 
 /** Generic technology/complexity signal tokens. */
 const TECH_SIGNAL_TOKENS = Object.freeze([
-  'distributed', 'streaming', 'queue', 'pipeline', 'cache', 'index', 'worker',
-  'concurrent', 'concurrency', 'resilient', 'idempotent', 'observability',
-  'telemetry', 'horizontal', 'sharding', 'replication', 'inference', 'real-time',
+  'distributed',
+  'streaming',
+  'queue',
+  'pipeline',
+  'cache',
+  'index',
+  'worker',
+  'concurrent',
+  'concurrency',
+  'resilient',
+  'idempotent',
+  'observability',
+  'telemetry',
+  'horizontal',
+  'sharding',
+  'replication',
+  'inference',
+  'real-time',
 ]);
 
 const bulletText = (b) => (typeof b === 'string' ? b : b?.text || '');
@@ -102,15 +132,21 @@ export function computeResumeQualityScore({
   const projects = asList(doc.projects);
   const experience = asList(doc.experience);
   const projectBullets = projects.flatMap((p) => asList(p.bullets).map(bulletText).filter(Boolean));
-  const experienceBullets = experience.flatMap((e) => asList(e.bullets).map(bulletText).filter(Boolean));
+  const experienceBullets = experience.flatMap((e) =>
+    asList(e.bullets).map(bulletText).filter(Boolean)
+  );
   const summaryText = doc.summary?.text || '';
-  const skills = asList(doc.skills?.categories).flatMap((c) => asList(c.skills).map((s) => s?.name || s));
+  const skills = asList(doc.skills?.categories).flatMap((c) =>
+    asList(c.skills).map((s) => s?.name || s)
+  );
   const allBullets = [...projectBullets, ...experienceBullets];
   const dsaRendered = Boolean(doc.dsa?.hasSection);
 
   // ── 1. Evidence coverage ────────────────────────────────────────────────
   const bulletsWithEvidence = projects.flatMap((p) =>
-    asList(p.bullets).filter((b) => asList(typeof b === 'object' ? b?.evidenceRefs : null).length > 0)
+    asList(p.bullets).filter(
+      (b) => asList(typeof b === 'object' ? b?.evidenceRefs : null).length > 0
+    )
   );
   const evidenceCoverage = projectBullets.length
     ? clamp01(bulletsWithEvidence.length / projectBullets.length)
@@ -127,8 +163,9 @@ export function computeResumeQualityScore({
     const lower = t.toLowerCase();
     let s = 0;
     for (const tok of TECH_SIGNAL_TOKENS) if (lower.includes(tok)) s += 1;
-    const hasTech = asList(doc.projects.find((p) => asList(p.bullets).some((b) => bulletText(b) === t))?.technologies)
-      .some((tech) => lower.includes(String(tech).toLowerCase()));
+    const hasTech = asList(
+      doc.projects.find((p) => asList(p.bullets).some((b) => bulletText(b) === t))?.technologies
+    ).some((tech) => lower.includes(String(tech).toLowerCase()));
     if (hasTech) s += 1;
     return clamp01(s / 4);
   });
@@ -137,9 +174,13 @@ export function computeResumeQualityScore({
   // ── 4. Accomplishment strength (action-led, outcome-shaped) ─────────────
   const strengthScores = allBullets.map((t) => {
     const lower = t.toLowerCase();
-    const startsWithAction = ACTION_VERBS.some((v) => lower.startsWith(v + ' ') || lower.startsWith(v + 'a'));
+    const startsWithAction = ACTION_VERBS.some(
+      (v) => lower.startsWith(v + ' ') || lower.startsWith(v + 'a')
+    );
     const hasObject = t.split(/\s+/).length >= 10;
-    const hasClauses = /;|, (?:using|with|supporting|enabling|reducing|improving)|\bwhich\b/.test(lower);
+    const hasClauses = /;|, (?:using|with|supporting|enabling|reducing|improving)|\bwhich\b/.test(
+      lower
+    );
     return clamp01((startsWithAction ? 0.5 : 0) + (hasObject ? 0.25 : 0) + (hasClauses ? 0.25 : 0));
   });
   const accomplishmentStrength = allBullets.length ? mean(strengthScores) : 0;
@@ -172,7 +213,9 @@ export function computeResumeQualityScore({
     sectionPresent.DSA === dsaRendered, // rendered iff intended
     dsaRendered ? sectionPresent.DSA : true,
   ];
-  const sectionCompleteness = clamp01(completenessChecks.filter(Boolean).length / completenessChecks.length);
+  const sectionCompleteness = clamp01(
+    completenessChecks.filter(Boolean).length / completenessChecks.length
+  );
 
   // ── 7. Information density (words per bullet & summary economy) ────────
   const wordsPerBullet = mean(allBullets.map((t) => t.split(/\s+/).length));
@@ -187,7 +230,16 @@ export function computeResumeQualityScore({
 
   // ── 8. ATS structural correctness ───────────────────────────────────────
   const order = asList(doc.sectionOrder);
-  const canonicalOrder = ['HEADER', 'SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'DSA', 'EDUCATION', 'CERTIFICATIONS'];
+  const canonicalOrder = [
+    'HEADER',
+    'SUMMARY',
+    'SKILLS',
+    'EXPERIENCE',
+    'PROJECTS',
+    'DSA',
+    'EDUCATION',
+    'CERTIFICATIONS',
+  ];
   const orderIdx = order.map((s) => canonicalOrder.indexOf(s)).filter((i) => i >= 0);
   const orderValid = orderIdx.every((v, i) => i === 0 || v > orderIdx[i - 1]);
   const atsStructural = clamp01(
@@ -199,7 +251,8 @@ export function computeResumeQualityScore({
   );
 
   // ── 9. Unsupported-claim penalty (numeric metrics without evidence refs) ─
-  const metricPattern = /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers)|\$\s?\d|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/i;
+  const metricPattern =
+    /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers)|\$\s?\d|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/i;
   const evidencedBulletTexts = new Set(
     projects.flatMap((p) =>
       asList(p.bullets)
@@ -211,7 +264,10 @@ export function computeResumeQualityScore({
   for (const t of [...projectBullets, summaryText]) {
     if (metricPattern.test(t)) {
       const isEvidenced = evidencedBulletTexts.has(t);
-      const hasContext = /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset)\b/i.test(t);
+      const hasContext =
+        /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset)\b/i.test(
+          t
+        );
       if (!isEvidenced && !hasContext) unsupportedClaims += 1;
     }
   }
@@ -225,7 +281,10 @@ export function computeResumeQualityScore({
     }
   }
   const redundancyRate = allBullets.length > 1 ? redundantPairs / allBullets.length : 0;
-  const redundancyPenalty = Math.min(MAX_REDUNDANCY_PENALTY, Math.round(redundancyRate * MAX_REDUNDANCY_PENALTY));
+  const redundancyPenalty = Math.min(
+    MAX_REDUNDANCY_PENALTY,
+    Math.round(redundancyRate * MAX_REDUNDANCY_PENALTY)
+  );
 
   // ── Page constraint penalty ─────────────────────────────────────────────
   const pages = Number.isFinite(pageCount) ? pageCount : 1;
@@ -250,10 +309,17 @@ export function computeResumeQualityScore({
   const penalties = {
     unsupportedClaims: { count: unsupportedClaims, applied: unsupportedPenalty },
     redundancy: { rate: round2(redundancyRate), redundantPairs, applied: redundancyPenalty },
-    pageConstraint: { pageCount: pages, occupancy: Number.isFinite(occupancy) ? round2(occupancy) : null, applied: pagePenalty },
+    pageConstraint: {
+      pageCount: pages,
+      occupancy: Number.isFinite(occupancy) ? round2(occupancy) : null,
+      applied: pagePenalty,
+    },
   };
 
-  const score = Math.max(0, Math.min(100, Math.round(base - unsupportedPenalty - redundancyPenalty - pagePenalty)));
+  const score = Math.max(
+    0,
+    Math.min(100, Math.round(base - unsupportedPenalty - redundancyPenalty - pagePenalty))
+  );
 
   return {
     score,
@@ -280,7 +346,9 @@ export function computeResumeQualityScore({
 function collectJobTerms(doc, jobPosting) {
   const terms = new Set();
   const pushTerm = (raw) => {
-    const t = String(raw || '').trim().toLowerCase();
+    const t = String(raw || '')
+      .trim()
+      .toLowerCase();
     if (t.length >= 3 && t.length <= 40) terms.add(t);
   };
   const jp = jobPosting || {};
@@ -300,15 +368,23 @@ function collectJobTerms(doc, jobPosting) {
 /** Deterministic text synthesis from the structured document (no PDF needed). */
 function synthesizeText(doc) {
   const parts = [
-    (doc.summary?.text || ''),
+    doc.summary?.text || '',
     asList(doc.skills?.categories)
-      .map((c) => `${c.categoryName}: ${asList(c.skills).map((s) => s?.name || s).join(', ')}`)
+      .map(
+        (c) =>
+          `${c.categoryName}: ${asList(c.skills)
+            .map((s) => s?.name || s)
+            .join(', ')}`
+      )
       .join('\n'),
     asList(doc.projects)
       .map((p) => `${p.name}\n${asList(p.bullets).map(bulletText).join('\n')}`)
       .join('\n'),
     asList(doc.experience)
-      .map((e) => `${e.title || ''} ${e.company || ''}\n${asList(e.bullets).map(bulletText).join('\n')}`)
+      .map(
+        (e) =>
+          `${e.title || ''} ${e.company || ''}\n${asList(e.bullets).map(bulletText).join('\n')}`
+      )
       .join('\n'),
   ];
   return parts.filter(Boolean).join('\n');

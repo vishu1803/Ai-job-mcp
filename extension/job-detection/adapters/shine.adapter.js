@@ -26,10 +26,7 @@ export class ShineAdapter {
     } catch {
       /* fall through to DOM heuristics */
     }
-    return Boolean(
-      doc.querySelector('.job-title-title') ||
-      doc.querySelector('#job-description')
-    );
+    return Boolean(doc.querySelector('.job-title-title') || doc.querySelector('#job-description'));
   }
 
   /**
@@ -58,16 +55,13 @@ export class ShineAdapter {
       doc.querySelector('[class*="companyName"]') ||
       doc.querySelector('a[href*="/company-profile/"]');
 
-    const locationEl =
-      doc.querySelector('.job-location, [class*="location"]');
+    const locationEl = doc.querySelector('.job-location, [class*="location"]');
 
     const descEl =
       doc.querySelector('#job-description') ||
       doc.querySelector('.jd-job-desc, [class*="job-description"], [class*="job_desc"]');
 
-    const title = titleEl
-      ? titleEl.textContent.trim()
-      : metaContent('meta[property="og:title"]');
+    const title = titleEl ? titleEl.textContent.trim() : metaContent('meta[property="og:title"]');
     const company = companyEl
       ? companyEl.textContent.trim()
       : metaContent('meta[property="og:site_name"]') || 'Company';

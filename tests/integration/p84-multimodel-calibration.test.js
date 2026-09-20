@@ -54,7 +54,11 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
         email: 'vishwanath@candidate.io',
         phone: '+91 9876543210',
         links: [
-          { platform: 'LINKEDIN', label: 'LinkedIn', url: 'https://linkedin.com/in/vishwanath-nishad' },
+          {
+            platform: 'LINKEDIN',
+            label: 'LinkedIn',
+            url: 'https://linkedin.com/in/vishwanath-nishad',
+          },
           { platform: 'GITHUB', label: 'GitHub', url: 'https://github.com/vishwanath' },
           { platform: 'PORTFOLIO', label: 'Portfolio', url: 'https://vishwanath.dev' },
           { platform: 'LEETCODE', label: 'LeetCode', url: 'https://leetcode.com/vishwanath' },
@@ -67,7 +71,12 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
         categories: [
           {
             categoryName: 'Languages & Core Systems',
-            skills: [{ name: 'Python' }, { name: 'TypeScript' }, { name: 'JavaScript' }, { name: 'SQL' }],
+            skills: [
+              { name: 'Python' },
+              { name: 'TypeScript' },
+              { name: 'JavaScript' },
+              { name: 'SQL' },
+            ],
           },
           {
             categoryName: 'Frontend Development',
@@ -79,7 +88,12 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
           },
           {
             categoryName: 'Databases & Tools',
-            skills: [{ name: 'PostgreSQL' }, { name: 'Redis' }, { name: 'Prisma ORM' }, { name: 'Git' }],
+            skills: [
+              { name: 'PostgreSQL' },
+              { name: 'Redis' },
+              { name: 'Prisma ORM' },
+              { name: 'Git' },
+            ],
           },
         ],
       },
@@ -89,9 +103,15 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
           displayName: 'Collaborative Task Manager',
           technologies: ['TypeScript', 'Next.js', 'Express.js', 'PostgreSQL', 'Prisma'],
           bullets: [
-            { text: 'Architected responsive task management platform using Next.js and TypeScript with server-side rendering.' },
-            { text: 'Implemented RESTful CRUD APIs with Node.js, Express.js, and Prisma ORM backed by PostgreSQL.' },
-            { text: 'Engineered role-based access control and JWT authentication for secure session management.' },
+            {
+              text: 'Architected responsive task management platform using Next.js and TypeScript with server-side rendering.',
+            },
+            {
+              text: 'Implemented RESTful CRUD APIs with Node.js, Express.js, and Prisma ORM backed by PostgreSQL.',
+            },
+            {
+              text: 'Engineered role-based access control and JWT authentication for secure session management.',
+            },
           ],
         },
         {
@@ -99,9 +119,15 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
           displayName: 'AI-Powered Code Review Assistant',
           technologies: ['Python', 'FastAPI', 'Redis', 'Next.js'],
           bullets: [
-            { text: 'Built automated code review service integrating OpenAI API with asynchronous FastAPI endpoints.' },
-            { text: 'Automated code evaluation across multiple repositories using asynchronous webhook queues.' },
-            { text: 'Integrated Redis caching layer reducing redundant API evaluations and latency for repeated diffs.' },
+            {
+              text: 'Built automated code review service integrating OpenAI API with asynchronous FastAPI endpoints.',
+            },
+            {
+              text: 'Automated code evaluation across multiple repositories using asynchronous webhook queues.',
+            },
+            {
+              text: 'Integrated Redis caching layer reducing redundant API evaluations and latency for repeated diffs.',
+            },
           ],
         },
       ],
@@ -112,9 +138,15 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
           startDate: '2024-06',
           endDate: '2024-09',
           bullets: [
-            { text: 'Designed and implemented modular RESTful APIs for core scheduling and customer operations.' },
-            { text: 'Optimized critical backend database queries, accelerating query execution times.' },
-            { text: 'Built secure role-based access control (RBAC) middleware for multi-tenant branch authentication.' },
+            {
+              text: 'Designed and implemented modular RESTful APIs for core scheduling and customer operations.',
+            },
+            {
+              text: 'Optimized critical backend database queries, accelerating query execution times.',
+            },
+            {
+              text: 'Built secure role-based access control (RBAC) middleware for multi-tenant branch authentication.',
+            },
           ],
         },
       ],
@@ -128,7 +160,9 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
       ],
       dsa: {
         hasSection: true,
-        bullets: ['LeetCode: 300+ problems solved across Data Structures, Algorithms, and System Design fundamentals.'],
+        bullets: [
+          'LeetCode: 300+ problems solved across Data Structures, Algorithms, and System Design fundamentals.',
+        ],
       },
     };
 
@@ -171,9 +205,20 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
       },
       skills: {
         categories: [
-          { categoryName: 'Languages', skills: [{ name: 'Python' }, { name: 'TypeScript' }, { name: 'JavaScript' }] },
+          {
+            categoryName: 'Languages',
+            skills: [{ name: 'Python' }, { name: 'TypeScript' }, { name: 'JavaScript' }],
+          },
           { categoryName: 'Frontend', skills: [{ name: 'React' }, { name: 'Next.js' }] },
-          { categoryName: 'Backend & DB', skills: [{ name: 'Node.js' }, { name: 'Express.js' }, { name: 'PostgreSQL' }, { name: 'REST APIs' }] },
+          {
+            categoryName: 'Backend & DB',
+            skills: [
+              { name: 'Node.js' },
+              { name: 'Express.js' },
+              { name: 'PostgreSQL' },
+              { name: 'REST APIs' },
+            ],
+          },
         ],
       },
       projects: [
@@ -209,7 +254,7 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
 
     const jobMatchReport = {
       jobMatchScore: 78,
-      confidence: 0.90,
+      confidence: 0.9,
     };
 
     const engineReport = generateUnifiedQualityReport({
@@ -264,9 +309,15 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
     assert.equal(cloudFinding.consensus, 'CONSENSUS');
 
     // Conflicting findings (Redis satisfies NoSQL)
-    const redisFinding = calReport.findingConsensus.find((f) => f.finding === 'REDIS_SATISFIES_NOSQL');
+    const redisFinding = calReport.findingConsensus.find(
+      (f) => f.finding === 'REDIS_SATISFIES_NOSQL'
+    );
     assert.equal(redisFinding.consensus, 'CONFLICTING');
-    assert.equal(redisFinding.actionableForOptimizer, false, 'Must not auto-optimize on conflicting finding');
+    assert.equal(
+      redisFinding.actionableForOptimizer,
+      false,
+      'Must not auto-optimize on conflicting finding'
+    );
 
     // Production verdict honesty
     assert.equal(calReport.sampleSize, 1);
@@ -281,9 +332,7 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
   // ── 3. Generation Safety & Evidence Integrity (Anti-Gaming) ───────────────
   it('Branch 3: Proves AI generation safety blocks unevidenced AWS and ungrounded metrics', () => {
     const candidateProfile = {
-      facts: [
-        { text: 'Engineered RESTful APIs with Node.js, Express, and PostgreSQL.' },
-      ],
+      facts: [{ text: 'Engineered RESTful APIs with Node.js, Express, and PostgreSQL.' }],
     };
 
     const structuredResume = {
@@ -300,12 +349,18 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
     assert.ok(awsAudit.decision.includes('DO NOT add AWS'));
 
     // 2. Audit NestJS: Missing project evidence -> UNSUPPORTED, UNSAFE
-    const nestAudit = auditClaimEvidenceProvenance('NestJS', { candidateProfile, structuredResume });
+    const nestAudit = auditClaimEvidenceProvenance('NestJS', {
+      candidateProfile,
+      structuredResume,
+    });
     assert.equal(nestAudit.status, 'UNSUPPORTED');
     assert.equal(nestAudit.optimizationSafety, 'UNSAFE');
 
     // 3. Audit 40% Metric: Lacks baseline/measurement method -> PARTIALLY_SUPPORTED, CONDITIONAL
-    const metricAudit = auditClaimEvidenceProvenance('40% page-load reduction', { candidateProfile, structuredResume });
+    const metricAudit = auditClaimEvidenceProvenance('40% page-load reduction', {
+      candidateProfile,
+      structuredResume,
+    });
     assert.equal(metricAudit.status, 'PARTIALLY_SUPPORTED');
     assert.equal(metricAudit.optimizationSafety, 'CONDITIONAL');
 
@@ -335,7 +390,9 @@ describe('P84 Integration: Multi-Model Blind ATS Benchmark & Calibration', () =>
             // Incomplete bullet flagged by Gemini: lacks tech/method and result
             { text: 'Automated code evaluation across multiple repositories.' },
             // Complete bullet
-            { text: 'Engineered asynchronous webhook queue using FastAPI and Redis to optimize review response times.' },
+            {
+              text: 'Engineered asynchronous webhook queue using FastAPI and Redis to optimize review response times.',
+            },
           ],
         },
       ],

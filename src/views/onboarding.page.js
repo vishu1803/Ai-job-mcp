@@ -735,16 +735,14 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
               let iconHtml = '<span style="color:var(--text-dim); font-size:0.95rem;">○</span>';
               let badgeClass = 'badge-neutral';
               if (isRepoCompleted) {
-                iconHtml =
-                  `<span style="color:#10B981; display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>`;
+                iconHtml = `<span style="color:#10B981; display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>`;
                 badgeClass = 'badge-success';
               } else if (isRepoRunning) {
                 iconHtml =
                   '<span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
                 badgeClass = 'badge-cyan';
               } else if (isRepoFailed) {
-                iconHtml =
-                  `<span style="color:#EF4444; display:inline-flex; align-items:center;">${renderIcon('cross', { size: 14 })}</span>`;
+                iconHtml = `<span style="color:#EF4444; display:inline-flex; align-items:center;">${renderIcon('cross', { size: 14 })}</span>`;
                 badgeClass = 'badge-danger';
               }
 
@@ -1156,4 +1154,3 @@ function renderStep5Complete({ candidate, selectedRepos, user = null }) {
     </div>
   `;
 }
-

@@ -144,9 +144,7 @@ export const CALLING_CODES_SET = new Set(COUNTRY_CALLING_CODES.map((c) => c.dial
 /**
  * Sorted dial codes descending by length for prefix matching.
  */
-const PREFIX_SORTED_DIAL_CODES = Array.from(CALLING_CODES_SET).sort(
-  (a, b) => b.length - a.length
-);
+const PREFIX_SORTED_DIAL_CODES = Array.from(CALLING_CODES_SET).sort((a, b) => b.length - a.length);
 
 /**
  * Determines whether a given dial code is recognized in the catalog.

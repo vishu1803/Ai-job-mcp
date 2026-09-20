@@ -180,9 +180,12 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
     // ---- Tenant B (cross-tenant) ----
     const tenantBId = crypto.randomUUID();
     createdTenantIds.push(tenantBId);
-    await db
-      .insert(tenants)
-      .values({ id: tenantBId, name: 'P15-002 Tenant B', slug: `p15b-${Date.now()}`, tier: 'FREE' });
+    await db.insert(tenants).values({
+      id: tenantBId,
+      name: 'P15-002 Tenant B',
+      slug: `p15b-${Date.now()}`,
+      tier: 'FREE',
+    });
 
     const userBId = crypto.randomUUID();
     await db.insert(users).values({
@@ -209,7 +212,9 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
     try {
       if (createdTenantIds.length > 0) {
         await db.delete(jobApplications).where(inArray(jobApplications.tenantId, createdTenantIds));
-        await db.delete(applicationPackages).where(inArray(applicationPackages.tenantId, createdTenantIds));
+        await db
+          .delete(applicationPackages)
+          .where(inArray(applicationPackages.tenantId, createdTenantIds));
         await db.delete(candidates).where(inArray(candidates.tenantId, createdTenantIds));
         await db.delete(users).where(inArray(users.tenantId, createdTenantIds));
         await db.delete(tenants).where(inArray(tenants.id, createdTenantIds));
@@ -288,7 +293,11 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
           },
         });
         assert.equal(analyzeRes.statusCode, 200);
-        assert.equal(JSON.parse(analyzeRes.payload).isSubmitted, true, `analyze-job isSubmitted for ${status}`);
+        assert.equal(
+          JSON.parse(analyzeRes.payload).isSubmitted,
+          true,
+          `analyze-job isSubmitted for ${status}`
+        );
       });
     }
 
@@ -329,10 +338,17 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
     it('isSubmittedApplication honors appliedAt and externalSubmissionState', () => {
       assert.equal(isSubmittedApplication({ status: 'SAVED', appliedAt: new Date() }), true);
       assert.equal(
-        isSubmittedApplication({ status: 'SAVED', appliedAt: null, metadata: { externalSubmissionState: 'SUBMITTED' } }),
+        isSubmittedApplication({
+          status: 'SAVED',
+          appliedAt: null,
+          metadata: { externalSubmissionState: 'SUBMITTED' },
+        }),
         true
       );
-      assert.equal(isSubmittedApplication({ status: 'SAVED', appliedAt: null, metadata: {} }), false);
+      assert.equal(
+        isSubmittedApplication({ status: 'SAVED', appliedAt: null, metadata: {} }),
+        false
+      );
       assert.equal(isSubmittedApplication(null), false);
     });
   });
@@ -424,8 +440,13 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
         EXTENSION_ALLOWED_ORIGINS: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
         NODE_ENV: 'production',
       });
-      assert.ok(isAllowedExtensionOrigin('chrome-extension://abcdefghijklmnopabcdefghijklmnop', origins));
-      assert.equal(isAllowedExtensionOrigin('chrome-extension://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', origins), false);
+      assert.ok(
+        isAllowedExtensionOrigin('chrome-extension://abcdefghijklmnopabcdefghijklmnop', origins)
+      );
+      assert.equal(
+        isAllowedExtensionOrigin('chrome-extension://zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz', origins),
+        false
+      );
       assert.equal(isAllowedExtensionOrigin('https://evil-localhost.com', origins), false);
     });
 
@@ -778,7 +799,11 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
       });
       assert.equal(res.statusCode, 200);
       const json = JSON.parse(res.payload);
-      assert.notEqual(json.applicationId, archivedAppId, 'fresh application must be created for the archived identity');
+      assert.notEqual(
+        json.applicationId,
+        archivedAppId,
+        'fresh application must be created for the archived identity'
+      );
       assert.equal(json.lifecycleAction, 'CREATED');
     });
 
@@ -850,7 +875,10 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
       assert.equal(json.code, 'PREPARE_HANDOFF_FAILED');
       assert.ok(!json.message?.includes('ECONNREFUSED'), 'raw error must not leak');
       assert.ok(!json.message?.includes('pg-internal'), 'internal host must not leak');
-      assert.ok(!JSON.stringify(json).includes('ECONNREFUSED'), 'raw error must not leak anywhere in body');
+      assert.ok(
+        !JSON.stringify(json).includes('ECONNREFUSED'),
+        'raw error must not leak anywhere in body'
+      );
     });
   });
 });

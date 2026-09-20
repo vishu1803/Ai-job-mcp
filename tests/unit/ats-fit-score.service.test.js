@@ -290,7 +290,14 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
             matchConfidence: 0.95,
             isUserClaim: false,
             relationshipType: 'EXACT',
-            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'requirements.txt', confidenceScore: 0.95 },
+            primaryEvidence: {
+              id: randomUUID(),
+              resourceId: randomUUID(),
+              resourceName: 'trading-api',
+              evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+              filePath: 'requirements.txt',
+              confidenceScore: 0.95,
+            },
             supportingEvidence: [],
             explanation: 'Verified',
           },
@@ -305,7 +312,14 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
             matchConfidence: 0.95,
             isUserClaim: false,
             relationshipType: 'EXACT',
-            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/main.py', confidenceScore: 0.95 },
+            primaryEvidence: {
+              id: randomUUID(),
+              resourceId: randomUUID(),
+              resourceName: 'trading-api',
+              evidenceType: 'CODE_IMPORT_USAGE',
+              filePath: 'src/main.py',
+              confidenceScore: 0.95,
+            },
             supportingEvidence: [],
             explanation: 'Verified',
           },
@@ -320,7 +334,14 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
             matchConfidence: 0.9,
             isUserClaim: false,
             relationshipType: 'EXACT',
-            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'CONFIG_SYNTAX_DECLARATION', filePath: 'Dockerfile', confidenceScore: 0.9 },
+            primaryEvidence: {
+              id: randomUUID(),
+              resourceId: randomUUID(),
+              resourceName: 'trading-api',
+              evidenceType: 'CONFIG_SYNTAX_DECLARATION',
+              filePath: 'Dockerfile',
+              confidenceScore: 0.9,
+            },
             supportingEvidence: [],
             explanation: 'Verified',
           },
@@ -924,28 +945,58 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       const matchAnalysis = createMockMatchAnalysis({
         requirementMatches: [
           {
-            requirementId: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0,
-            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
           },
           {
-            requirementId: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0,
-            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
           },
           {
-            requirementId: randomUUID(), category: 'SKILL', importance: 'PREFERRED', weight: 1.0,
-            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'PREFERRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
           },
           {
-            requirementId: randomUUID(), category: 'EXPERIENCE', importance: 'REQUIRED', weight: 1.0,
-            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'EXPERIENCE',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
           },
           {
-            requirementId: randomUUID(), category: 'EDUCATION', importance: 'REQUIRED', weight: 0.75,
-            matchStatus: 'MATCHED', matchConfidence: 0.95, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'EDUCATION',
+            importance: 'REQUIRED',
+            weight: 0.75,
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            supportingEvidence: [],
           },
           {
-            requirementId: randomUUID(), category: 'LOCATION', importance: 'REQUIRED', weight: 1.0,
-            matchStatus: 'MATCHED', matchConfidence: 0.95, supportingEvidence: [],
+            requirementId: randomUUID(),
+            category: 'LOCATION',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            supportingEvidence: [],
           },
         ],
       });
@@ -1154,8 +1205,10 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       // Total: 40 + 15 + 20 + 10 + 5 + 5 + 4.75 = 99.75 but capped at 100
       // With PACKAGE_MANIFEST (0.75 weight): (0.75 + 0.75) / 2 * 5 = 3.75
       // Total: 40 + 15 + 20 + 10 + 5 + 5 + 3.75 = 98.75
-      assert.ok(res.overallScore >= 98.0 && res.overallScore <= 100.0,
-        `Overall score ${res.overallScore} should be in upper range [98.0, 100.0]`);
+      assert.ok(
+        res.overallScore >= 98.0 && res.overallScore <= 100.0,
+        `Overall score ${res.overallScore} should be in upper range [98.0, 100.0]`
+      );
       assert.strictEqual(res.fitBand, 'EXCELLENT');
       assert.strictEqual(res.isCapped, false);
     });

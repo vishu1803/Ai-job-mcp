@@ -247,9 +247,7 @@ describe('Unit: Application Content Defects & Readiness Regression Suite', () =>
 
       const resume = service.buildTailoredResumeMarkdown(candidateData, dummyJob);
       // Name can appear in heading + link once, but the project heading ### must appear exactly once
-      const headingMatches = [
-        ...resume.markdownContent.matchAll(/###\s+\[AI Job MCP\]/g),
-      ];
+      const headingMatches = [...resume.markdownContent.matchAll(/###\s+\[AI Job MCP\]/g)];
       assert.strictEqual(
         headingMatches.length,
         1,

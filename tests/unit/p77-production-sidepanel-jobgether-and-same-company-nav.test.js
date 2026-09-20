@@ -28,7 +28,10 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 
@@ -50,9 +53,15 @@ function createMockElement(id = '', defaultText = '') {
     children: [],
     classList: {
       _set: new Set(['hidden']),
-      add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
-      contains(c) { return this._set.has(c); },
+      add(c) {
+        this._set.add(c);
+      },
+      remove(c) {
+        this._set.delete(c);
+      },
+      contains(c) {
+        return this._set.has(c);
+      },
       toggle(c, force) {
         if (force === true) this._set.add(c);
         else if (force === false) this._set.delete(c);
@@ -78,29 +87,89 @@ function createMockElement(id = '', defaultText = '') {
 function setupMockDocument() {
   const elements = new Map();
   const elementIds = [
-    'connectionBadge', 'connectionText', 'refreshBtn', 'rescanBtn',
-    'pendingJobNotification', 'pendingJobTitle', 'rescanPendingBtn',
-    'authBar', 'authUnauthenticatedState', 'authAuthenticatedState',
-    'loginBtn', 'logoutBtn', 'userName', 'userEmail', 'userAvatar',
-    'sessionExpiredNotice', 'reauthBtn', 'workflowStatusBar', 'workflowStateText',
-    'workflowLockedBadge', 'syncIndicator', 'portalCard', 'portalName',
-    'confidenceBadge', 'capJob', 'capApp', 'capForm', 'capAutofill',
-    'jobCard', 'reanalyzeBtn', 'jobNotDetectedState', 'jobDetectedState',
-    'jobTitle', 'jobCompany', 'jobLocation', 'jobType', 'jobIdTag',
-    'analyzeJobBtn', 'descriptionLoadingNotice', 'descriptionLoadingText',
-    'analysisErrorBanner', 'analysisErrorMessage', 'retryAnalysisBtn',
-    'analysisCard', 'matchBandBadge', 'scoreValue', 'matchedSkillsCount',
-    'missingSkillsCount', 'experienceFitVal', 'matchedSkillsList', 'missingSkillsList',
-    'analysisNextActionBox', 'projectsCard', 'recommendedProjectsList',
-    'handoffCard', 'handoffStatusBadge', 'handoffTelemetryRow', 'handoffAppId',
-    'handoffPackageMeta', 'workflowLockBanner', 'resetWorkflowBtn',
-    'handoffErrorBanner', 'handoffErrorMessage', 'retryHandoffBtn',
-    'prepareHandoffBtn', 'prepareSpinner', 'prepareBtnText',
-    'regenerateHandoffBtn', 'regenerateConfirmBox', 'cancelRegenerateBtn',
-    'confirmRegenerateBtn', 'artifactsContainer', 'reviewResumeBtn',
-    'downloadResumeBtn', 'reviewCoverLetterBtn', 'downloadCoverLetterBtn',
-    'downloadBundleBtn', 'viewAppDashboardLink', 'formDetectionCard',
-    'stepIndicator', 'formStatusMessage', 'formFieldsSummary', 'autofillFormBtn',
+    'connectionBadge',
+    'connectionText',
+    'refreshBtn',
+    'rescanBtn',
+    'pendingJobNotification',
+    'pendingJobTitle',
+    'rescanPendingBtn',
+    'authBar',
+    'authUnauthenticatedState',
+    'authAuthenticatedState',
+    'loginBtn',
+    'logoutBtn',
+    'userName',
+    'userEmail',
+    'userAvatar',
+    'sessionExpiredNotice',
+    'reauthBtn',
+    'workflowStatusBar',
+    'workflowStateText',
+    'workflowLockedBadge',
+    'syncIndicator',
+    'portalCard',
+    'portalName',
+    'confidenceBadge',
+    'capJob',
+    'capApp',
+    'capForm',
+    'capAutofill',
+    'jobCard',
+    'reanalyzeBtn',
+    'jobNotDetectedState',
+    'jobDetectedState',
+    'jobTitle',
+    'jobCompany',
+    'jobLocation',
+    'jobType',
+    'jobIdTag',
+    'analyzeJobBtn',
+    'descriptionLoadingNotice',
+    'descriptionLoadingText',
+    'analysisErrorBanner',
+    'analysisErrorMessage',
+    'retryAnalysisBtn',
+    'analysisCard',
+    'matchBandBadge',
+    'scoreValue',
+    'matchedSkillsCount',
+    'missingSkillsCount',
+    'experienceFitVal',
+    'matchedSkillsList',
+    'missingSkillsList',
+    'analysisNextActionBox',
+    'projectsCard',
+    'recommendedProjectsList',
+    'handoffCard',
+    'handoffStatusBadge',
+    'handoffTelemetryRow',
+    'handoffAppId',
+    'handoffPackageMeta',
+    'workflowLockBanner',
+    'resetWorkflowBtn',
+    'handoffErrorBanner',
+    'handoffErrorMessage',
+    'retryHandoffBtn',
+    'prepareHandoffBtn',
+    'prepareSpinner',
+    'prepareBtnText',
+    'regenerateHandoffBtn',
+    'regenerateConfirmBox',
+    'cancelRegenerateBtn',
+    'confirmRegenerateBtn',
+    'artifactsContainer',
+    'reviewResumeBtn',
+    'downloadResumeBtn',
+    'reviewCoverLetterBtn',
+    'downloadCoverLetterBtn',
+    'downloadBundleBtn',
+    'viewAppDashboardLink',
+    'formDetectionCard',
+    'stepIndicator',
+    'formStatusMessage',
+    'formFieldsSummary',
+    'autofillFormBtn',
   ];
 
   for (const id of elementIds) {
@@ -208,7 +277,8 @@ const sampleJobgether4466834190 = {
   provider: 'LINKEDIN',
   externalJobId: '4466834190',
   sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/',
-  description: 'Jobgether is seeking a Full Stack Engineer to build scalable, maintainable architectures. Remote opportunity.',
+  description:
+    'Jobgether is seeking a Full Stack Engineer to build scalable, maintainable architectures. Remote opportunity.',
   descriptionLength: 104,
   descriptionSource: 'SELECTOR',
   jobRootSource: '.details',
@@ -244,8 +314,10 @@ const sampleParticle41Job1 = {
   industries: 'Information Technology and Services',
   provider: 'LINKEDIN',
   externalJobId: '4121993912',
-  sourceUrl: 'https://in.linkedin.com/jobs/view/full-stack-javascript-database-developer-at-particle41-4121993912',
-  description: 'Particle41 is hiring a Full Stack Javascript & Database Developer proficient in PostgreSQL, Node.js, and React.',
+  sourceUrl:
+    'https://in.linkedin.com/jobs/view/full-stack-javascript-database-developer-at-particle41-4121993912',
+  description:
+    'Particle41 is hiring a Full Stack Javascript & Database Developer proficient in PostgreSQL, Node.js, and React.',
   descriptionLength: 114,
   descriptionSource: 'SELECTOR',
   jobRootSource: '.details',
@@ -273,8 +345,10 @@ const sampleParticle41Job2 = {
   industries: 'Information Technology and Services',
   provider: 'LINKEDIN',
   externalJobId: '4467464995',
-  sourceUrl: 'https://in.linkedin.com/jobs/view/full-stack-javascript-developer-at-particle41-4467464995',
-  description: 'Particle41 is hiring a Full Stack Javascript Developer for modern frontend web applications and API integration.',
+  sourceUrl:
+    'https://in.linkedin.com/jobs/view/full-stack-javascript-developer-at-particle41-4467464995',
+  description:
+    'Particle41 is hiring a Full Stack Javascript Developer for modern frontend web applications and API integration.',
   descriptionLength: 118,
   descriptionSource: 'SELECTOR',
   jobRootSource: '.details',
@@ -316,7 +390,11 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
 
     global.chrome.tabs._messageHandler = async (tabId, msg) => {
       if (msg.type === 'DETECT_JOB_PAGE') {
-        const resp = tabMockResponses.get(tabId) || { success: true, detected: false, jobData: null };
+        const resp = tabMockResponses.get(tabId) || {
+          success: true,
+          detected: false,
+          jobData: null,
+        };
         return {
           ...resp,
           tabId,
@@ -339,7 +417,12 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
         user: controller.currentUser,
       }),
       analyzeJob: async () => ({
-        fitAnalysis: { overallScore: 85, recommendationBand: 'RECOMMENDED', matchedSkills: [], missingSkills: [] },
+        fitAnalysis: {
+          overallScore: 85,
+          recommendationBand: 'RECOMMENDED',
+          matchedSkills: [],
+          missingSkills: [],
+        },
         recommendedProjects: [],
         analysisSnapshotId: 'snap-p77',
       }),
@@ -433,11 +516,17 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
       assert.strictEqual(sampleParticle41Job1.company, sampleParticle41Job2.company);
 
       const isSame = JobIdentity.isSameJobIdentity(sampleParticle41Job1, sampleParticle41Job2);
-      assert.strictEqual(isSame, false, 'Jobs at same company with different titles/IDs must NOT be identical');
+      assert.strictEqual(
+        isSame,
+        false,
+        'Jobs at same company with different titles/IDs must NOT be identical'
+      );
     });
 
     it('isSameJobIdentity returns true when comparing identical role at same company', () => {
-      const isSame = JobIdentity.isSameJobIdentity(sampleParticle41Job1, { ...sampleParticle41Job1 });
+      const isSame = JobIdentity.isSameJobIdentity(sampleParticle41Job1, {
+        ...sampleParticle41Job1,
+      });
       assert.strictEqual(isSame, true, 'Identical role at same company must match');
     });
 
@@ -447,7 +536,11 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
 
       assert.strictEqual(fp1.length, 64);
       assert.strictEqual(fp2.length, 64);
-      assert.notStrictEqual(fp1, fp2, 'Fingerprints must differ for distinct roles at same company');
+      assert.notStrictEqual(
+        fp1,
+        fp2,
+        'Fingerprints must differ for distinct roles at same company'
+      );
     });
   });
 
@@ -469,7 +562,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
 
       await controller.init();
 
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Javascript & Database Developer');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Full Stack Javascript & Database Developer'
+      );
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Particle41');
       const fp1 = JobIdentity.deriveJobFingerprint(sampleParticle41Job1);
       assert.strictEqual(controller.activeJobFingerprint, fp1);
@@ -489,7 +585,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Particle41');
 
       // Verify Title updated to Job 2
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Javascript Developer');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Full Stack Javascript Developer'
+      );
 
       // Verify Fingerprint transitioned to fp2
       const fp2 = JobIdentity.deriveJobFingerprint(sampleParticle41Job2);
@@ -509,7 +608,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
 
       // Verify Job 1 restored cleanly
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Particle41');
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Javascript & Database Developer');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Full Stack Javascript & Database Developer'
+      );
       assert.strictEqual(controller.activeJobFingerprint, fp1);
     });
 
@@ -556,7 +658,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
       // Job 2 has not been analyzed yet: analysis card must be hidden / reset, not showing Job 1's score 88
       const isCardHidden = domElements.get('analysisCard').classList.contains('hidden');
       const scoreText = domElements.get('scoreValue').textContent;
-      assert.ok(isCardHidden || scoreText === '--', 'Analysis score from Job 1 must not contaminate Job 2 at same company');
+      assert.ok(
+        isCardHidden || scoreText === '--',
+        'Analysis score from Job 1 must not contaminate Job 2 at same company'
+      );
     });
   });
 
@@ -617,7 +722,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
         portalMetadata: { portalName: 'LinkedIn Jobs', confidence: 'HIGH' },
       });
       await controller.rescan();
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Javascript & Database Developer');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Full Stack Javascript & Database Developer'
+      );
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Particle41');
 
       // 3. Navigate to Particle41 Job 2 (Same Company, Different Job)
@@ -629,7 +737,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
         portalMetadata: { portalName: 'LinkedIn Jobs', confidence: 'HIGH' },
       });
       await controller.rescan();
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Javascript Developer');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Full Stack Javascript Developer'
+      );
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Particle41');
 
       // 4. Navigate back to Jobgether 4466834190
@@ -644,7 +755,10 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
       assert.strictEqual(domElements.get('jobTitle').textContent, 'Full Stack Engineer');
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Jobgether');
       assert.strictEqual(domElements.get('jobType').textContent, 'FULL_TIME');
-      assert.strictEqual(controller.activeJobFingerprint, JobIdentity.deriveJobFingerprint(sampleJobgether4466834190));
+      assert.strictEqual(
+        controller.activeJobFingerprint,
+        JobIdentity.deriveJobFingerprint(sampleJobgether4466834190)
+      );
     });
   });
 });

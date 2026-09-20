@@ -3,7 +3,8 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import http from 'node:http';
 
 const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const profileDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-chrome-profile-fresh';
+const profileDir =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-chrome-profile-fresh';
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const extensionId = 'dncmnfnoboajlbmmjigjljgnlijgkhib';
 const port = 9333;
@@ -19,17 +20,21 @@ const server = http.createServer((req, res) => {
   </body>
   </html>`);
 });
-await new Promise(r => server.listen(serverPort, '127.0.0.1', r));
+await new Promise((r) => server.listen(serverPort, '127.0.0.1', r));
 
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  `http://127.0.0.1:${serverPort}/`
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    `http://127.0.0.1:${serverPort}/`,
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -50,15 +55,18 @@ async function cdpSend(ws, method, params = {}) {
 async function run() {
   await sleep(2500);
   const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-  console.log('Targets:', list.map(t => ({ type: t.type, url: t.url, title: t.title })));
+  console.log(
+    'Targets:',
+    list.map((t) => ({ type: t.type, url: t.url, title: t.title }))
+  );
 
-  const frameTarget = list.find(t => t.url.includes('popup.html') || t.type === 'iframe');
+  const frameTarget = list.find((t) => t.url.includes('popup.html') || t.type === 'iframe');
   console.log('Frame target in list:', frameTarget);
 
   // Connect to main page
-  const pageTarget = list.find(t => t.url.includes(String(serverPort)));
+  const pageTarget = list.find((t) => t.url.includes(String(serverPort)));
   const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
-  await new Promise(r => ws.addEventListener('open', r));
+  await new Promise((r) => ws.addEventListener('open', r));
 
   await cdpSend(ws, 'Runtime.enable');
   await sleep(1500);
@@ -72,7 +80,7 @@ async function run() {
         href: frame?.contentWindow?.location?.href
       };
     })()`,
-    returnByValue: true
+    returnByValue: true,
   });
   console.log('Host Page Frame Eval Result:', evalRes.result?.value);
 
@@ -80,7 +88,7 @@ async function run() {
   server.close();
 }
 
-run().catch(e => {
+run().catch((e) => {
   console.error(e);
   p.kill('SIGKILL');
   server.close();

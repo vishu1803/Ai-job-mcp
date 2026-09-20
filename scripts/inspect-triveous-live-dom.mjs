@@ -8,13 +8,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-inspect-triveous-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\7c255938-ff51-431c-ad8d-b46eb1e7d510';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\7c255938-ff51-431c-ad8d-b46eb1e7d510';
 const CDP_PORT = 9477;
 
-const TARGET_URL = 'https://www.linkedin.com/jobs/search-results/?currentJobId=4465164301&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=vjoxbQhpD6d2Ctrioeoo%2BA%3D%3D&trackingId=vQGl23XF3Y5oVEO2QyfVNg%3D%3D&keywords=Back%20End%20Developer%20or%20Frontend%20Developer%20or%20Software%20Developer%20or%20Full-stack%20Developer%2C%20on-site%20or%20hybrid%20or%20remote&origin=PREFERENCES_LANDING&geoId=107102089';
+const TARGET_URL =
+  'https://www.linkedin.com/jobs/search-results/?currentJobId=4465164301&eBP=NOT_ELIGIBLE_FOR_CHARGING&refId=vjoxbQhpD6d2Ctrioeoo%2BA%3D%3D&trackingId=vQGl23XF3Y5oVEO2QyfVNg%3D%3D&keywords=Back%20End%20Developer%20or%20Frontend%20Developer%20or%20Software%20Developer%20or%20Full-stack%20Developer%2C%20on-site%20or%20hybrid%20or%20remote&origin=PREFERENCES_LANDING&geoId=107102089';
 
 class CDPClient {
   constructor(wsUrl) {
@@ -46,7 +49,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 25000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 15000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 15000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -90,7 +94,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -321,13 +327,14 @@ async function main() {
 
     console.log('=== FORENSIC LIVE DOM INSPECTION RESULTS ===');
     console.log(JSON.stringify(forensics, null, 2));
-
   } catch (err) {
     console.error('Error during forensics:', err);
   } finally {
     if (tabCdp) tabCdp.close();
     if (browserCdp) browserCdp.close();
-    try { chromeProcess.kill('SIGTERM'); } catch {}
+    try {
+      chromeProcess.kill('SIGTERM');
+    } catch {}
   }
 }
 

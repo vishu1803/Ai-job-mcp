@@ -55,7 +55,11 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
     className: attributes.class || attributes.className || '',
     _textContent: textContent,
     get textContent() {
-      if (this._textContent !== undefined && this._textContent !== null && this._textContent !== '') {
+      if (
+        this._textContent !== undefined &&
+        this._textContent !== null &&
+        this._textContent !== ''
+      ) {
         return this._textContent;
       }
       if (this.children.length > 0) {
@@ -79,7 +83,10 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
       if (name === 'class' || name === 'className') {
         el.className = val;
         classListSet.clear();
-        val.split(/\s+/).filter(Boolean).forEach((c) => classListSet.add(c));
+        val
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((c) => classListSet.add(c));
       }
     },
     classList: {
@@ -106,11 +113,16 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const normSel = sel.trim().toLowerCase();
 
         // Tag + attribute e.g. h1[class*="title" i]
-        const tagAttrMatch = normSel.match(/^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const tagAttrMatch = normSel.match(
+          /^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (tagAttrMatch) {
           const [, expectedTag, attrName, op, expectedVal] = tagAttrMatch;
           if (node.tagName.toLowerCase() !== expectedTag.toLowerCase()) return false;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -126,7 +138,12 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         }
 
         // Class only
-        if (normSel.startsWith('.') && !normSel.includes('[') && !normSel.includes(' ') && !normSel.slice(1).includes('.')) {
+        if (
+          normSel.startsWith('.') &&
+          !normSel.includes('[') &&
+          !normSel.includes(' ') &&
+          !normSel.slice(1).includes('.')
+        ) {
           return node.classList.contains(normSel.slice(1));
         }
 
@@ -134,7 +151,10 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const tagClassMatch = normSel.match(/^([a-z0-9]+)\.([a-z0-9_-]+)$/i);
         if (tagClassMatch) {
           const [, expectedTag, expectedClass] = tagClassMatch;
-          return node.tagName.toLowerCase() === expectedTag.toLowerCase() && node.classList.contains(expectedClass);
+          return (
+            node.tagName.toLowerCase() === expectedTag.toLowerCase() &&
+            node.classList.contains(expectedClass)
+          );
         }
 
         // Tag with multiple classes e.g. h1.topcard__title
@@ -147,10 +167,15 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         }
 
         // Attribute only [attr*="val"] or [attr="val"]
-        const attrMatch = normSel.match(/^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const attrMatch = normSel.match(
+          /^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (attrMatch) {
           const [, attrName, op, expectedVal] = attrMatch;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -191,9 +216,15 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const m = normSel.match(/\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]/i);
         if (m) {
           const [, attrName, op, expectedVal] = m;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? curr.className : curr.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? curr.className
+              : curr.getAttribute(attrName);
           if (actualVal) {
-            if (!op || (op === '*=' && actualVal.toLowerCase().includes(expectedVal.toLowerCase()))) {
+            if (
+              !op ||
+              (op === '*=' && actualVal.toLowerCase().includes(expectedVal.toLowerCase()))
+            ) {
               return curr;
             }
           }
@@ -248,7 +279,6 @@ function createMockDocument(options = {}) {
 }
 
 describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
-
   // =========================================================================
   // 1. isValidTitleString unit checks
   // =========================================================================
@@ -304,18 +334,36 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       // 2. AI assessment widget with H2 "Use AI to assess how you fit"
       // 3. Job description container
 
-      const topCardHeader = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card__primary-description' }, '', [
-        createMockElement('H1', { class: 'top-card-layout__title' }, 'Full Stack Developer'),
-        createMockElement('A', { class: 'topcard__org-name-link', href: 'https://www.linkedin.com/company/triveous' }, 'Triveous'),
-      ]);
+      const topCardHeader = createMockElement(
+        'DIV',
+        { class: 'job-details-jobs-unified-top-card__primary-description' },
+        '',
+        [
+          createMockElement('H1', { class: 'top-card-layout__title' }, 'Full Stack Developer'),
+          createMockElement(
+            'A',
+            { class: 'topcard__org-name-link', href: 'https://www.linkedin.com/company/triveous' },
+            'Triveous'
+          ),
+        ]
+      );
 
-      const aiMatchWidget = createMockElement('DIV', { class: 'artdeco-card job-details-premium-insight' }, '', [
-        createMockElement('H2', { class: 't-16' }, 'Use AI to assess how you fit'),
-        createMockElement('BUTTON', {}, 'Try AI Match'),
-      ]);
+      const aiMatchWidget = createMockElement(
+        'DIV',
+        { class: 'artdeco-card job-details-premium-insight' },
+        '',
+        [
+          createMockElement('H2', { class: 't-16' }, 'Use AI to assess how you fit'),
+          createMockElement('BUTTON', {}, 'Try AI Match'),
+        ]
+      );
 
       const jobDesc = createMockElement('DIV', { class: 'jobs-description__content' }, '', [
-        createMockElement('DIV', { class: 'jobs-box__html-content' }, 'We are looking for a skilled Full Stack Developer to build modern apps...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'jobs-box__html-content' },
+          'We are looking for a skilled Full Stack Developer to build modern apps...'.repeat(5)
+        ),
       ]);
 
       const lazyColumn = createMockElement('DIV', { 'data-testid': 'lazy-column' }, '', [
@@ -326,11 +374,18 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
 
       body.children.push(lazyColumn);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4465164301/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4465164301/'
+      );
 
       assert.equal(payload.title, 'Full Stack Developer', 'Must extract authentic job title');
       assert.equal(payload.company, 'Triveous', 'Must extract authentic company');
-      assert.notEqual(payload.title, 'Use AI to assess how you fit', 'Must NEVER extract AI match heading');
+      assert.notEqual(
+        payload.title,
+        'Use AI to assess how you fit',
+        'Must NEVER extract AI match heading'
+      );
     });
 
     it('works when H1 title is within topcard header regardless of AI heading order', () => {
@@ -344,11 +399,19 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       ]);
 
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
-        createMockElement('H1', { class: 'job-details-jobs-unified-top-card__job-title' }, 'Full Stack Developer'),
+        createMockElement(
+          'H1',
+          { class: 'job-details-jobs-unified-top-card__job-title' },
+          'Full Stack Developer'
+        ),
         createMockElement('A', { href: '/company/triveous/' }, 'Triveous'),
       ]);
 
-      const desc = createMockElement('DIV', { class: 'jobs-description-content' }, 'Full stack development role...'.repeat(5));
+      const desc = createMockElement(
+        'DIV',
+        { class: 'jobs-description-content' },
+        'Full stack development role...'.repeat(5)
+      );
 
       const root = createMockElement('DIV', { 'data-testid': 'lazy-column' }, '', [
         aiWidget,
@@ -357,7 +420,10 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       ]);
       body.children.push(root);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4465164301/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4465164301/'
+      );
       assert.equal(payload.title, 'Full Stack Developer');
       assert.equal(payload.company, 'Triveous');
     });
@@ -371,7 +437,11 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       const { doc, body } = createMockDocument();
 
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
-        createMockElement('H1', { class: 'job-details-jobs-unified-top-card__job-title' }, 'Senior Cloud Architect'),
+        createMockElement(
+          'H1',
+          { class: 'job-details-jobs-unified-top-card__job-title' },
+          'Senior Cloud Architect'
+        ),
         createMockElement('A', { href: '/company/cloudcorp/' }, 'CloudCorp'),
       ]);
 
@@ -379,7 +449,11 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
         createMockElement('H2', {}, 'Take the next step in your job search'),
       ]);
 
-      const desc = createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Cloud architect responsibilities...'.repeat(5));
+      const desc = createMockElement(
+        'DIV',
+        { class: 'show-more-less-html__markup' },
+        'Cloud architect responsibilities...'.repeat(5)
+      );
 
       const root = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
         topCard,
@@ -397,7 +471,11 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       const { doc, body } = createMockDocument();
 
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
-        createMockElement('H1', { class: 'job-details-jobs-unified-top-card__job-title' }, 'Data Engineer'),
+        createMockElement(
+          'H1',
+          { class: 'job-details-jobs-unified-top-card__job-title' },
+          'Data Engineer'
+        ),
         createMockElement('A', { href: '/company/datalabs/' }, 'DataLabs'),
       ]);
 
@@ -406,7 +484,11 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
         createMockElement('H2', {}, 'People also viewed'),
       ]);
 
-      const desc = createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Data pipeline engineering...'.repeat(5));
+      const desc = createMockElement(
+        'DIV',
+        { class: 'show-more-less-html__markup' },
+        'Data pipeline engineering...'.repeat(5)
+      );
 
       const root = createMockElement('DIV', { 'data-testid': 'lazy-column' }, '', [
         topCard,
@@ -448,7 +530,11 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       });
       const profile = createMockElement('DIV', { class: 'profile-container' }, '', [
         createMockElement('H1', {}, 'Jane Doe'),
-        createMockElement('DIV', { class: 'text-body-medium' }, 'Senior Software Engineer at TechCo'),
+        createMockElement(
+          'DIV',
+          { class: 'text-body-medium' },
+          'Senior Software Engineer at TechCo'
+        ),
       ]);
       body.children.push(profile);
 
@@ -467,9 +553,19 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       ]);
       body.children.push(searchList);
 
-      assert.equal(LinkedInAdapter.canHandle(doc, 'https://www.linkedin.com/jobs/search/?keywords=developer'), false);
-      const result = JobPageDetector.detect(doc, 'https://www.linkedin.com/jobs/search/?keywords=developer');
-      assert.equal(result.isConfident, false, 'Search page without active job view must not detect');
+      assert.equal(
+        LinkedInAdapter.canHandle(doc, 'https://www.linkedin.com/jobs/search/?keywords=developer'),
+        false
+      );
+      const result = JobPageDetector.detect(
+        doc,
+        'https://www.linkedin.com/jobs/search/?keywords=developer'
+      );
+      assert.equal(
+        result.isConfident,
+        false,
+        'Search page without active job view must not detect'
+      );
     });
   });
 
@@ -484,13 +580,24 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
 
       const topCard = createMockElement('DIV', { class: 'top-card-layout' }, '', [
         createMockElement('H1', { class: 'top-card-layout__title' }, 'DevOps Engineer'),
-        createMockElement('A', { class: 'topcard__org-name-link', href: '/company/acme/' }, 'Acme Corp'),
+        createMockElement(
+          'A',
+          { class: 'topcard__org-name-link', href: '/company/acme/' },
+          'Acme Corp'
+        ),
       ]);
-      const desc = createMockElement('DIV', { class: 'description__text' }, 'DevOps responsibilities include CI/CD...'.repeat(5));
+      const desc = createMockElement(
+        'DIV',
+        { class: 'description__text' },
+        'DevOps responsibilities include CI/CD...'.repeat(5)
+      );
 
       body.children.push(topCard, desc);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.title, 'DevOps Engineer');
       assert.equal(payload.company, 'Acme Corp');
     });
@@ -502,12 +609,23 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       });
 
       const root = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
-        createMockElement('A', { class: 'company-name', href: '/company/cyberguard/' }, 'CyberGuard'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Cybersecurity responsibilities...'.repeat(5)),
+        createMockElement(
+          'A',
+          { class: 'company-name', href: '/company/cyberguard/' },
+          'CyberGuard'
+        ),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Cybersecurity responsibilities...'.repeat(5)
+        ),
       ]);
       body.children.push(root);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.title, 'Staff Security Engineer');
       assert.equal(payload.company, 'CyberGuard');
     });
@@ -526,11 +644,18 @@ describe('P81: Live LinkedIn Title Extraction False Positive Fix', () => {
       const root = createMockElement('DIV', { 'data-testid': 'lazy-column' }, '', [
         createMockElement('H2', {}, 'Use AI to assess how you fit'),
         createMockElement('A', { href: '/company/triveous/' }, 'Triveous'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Job description content...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Job description content...'.repeat(5)
+        ),
       ]);
       body.children.push(root);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4465164301/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4465164301/'
+      );
       // Must NOT use the AI heading as title
       assert.notEqual(payload.title, 'Use AI to assess how you fit');
       // Must fail closed to Untitled Role (not a marketing heading)

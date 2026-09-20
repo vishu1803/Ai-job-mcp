@@ -21,14 +21,13 @@ const FIXED_JOB_ID = '44444444-4444-4444-8444-444444444444';
 const FIXED_CANDIDATE_ID = '33333333-3333-4333-8333-333333333333';
 
 describe('analyze_job_fit Live Semantic Fixes Regression', () => {
-
   // ===========================================================================
   // 1. Company Prose Filtering
   // ===========================================================================
   describe('1. Company prose is NOT extracted as requirements', () => {
     it('skips "Company is the agentic infrastructure company"', () => {
       const isProse = JobDescriptionParser._isCompanyProse(
-        'Vercel is the agentic infrastructure company. We free people and agents to ship what\'s next.'
+        "Vercel is the agentic infrastructure company. We free people and agents to ship what's next."
       );
       assert.strictEqual(isProse, true, 'Company description should be detected as prose');
     });
@@ -66,7 +65,7 @@ describe('analyze_job_fit Live Semantic Fixes Regression', () => {
       assert.strictEqual(isProse2, false, 'Experience requirement should NOT be prose');
 
       const isProse3 = JobDescriptionParser._isCompanyProse(
-        'Bachelor\'s degree in Computer Science or equivalent'
+        "Bachelor's degree in Computer Science or equivalent"
       );
       assert.strictEqual(isProse3, false, 'Education requirement should NOT be prose');
     });
@@ -90,18 +89,22 @@ Requirements:
         { tenantId: FIXED_TENANT_ID }
       );
 
-      const skillReqs = result.requirements.filter(r => r.category === 'SKILL');
-      const skillNames = skillReqs.map(r => r.extractedValue.toLowerCase());
+      const skillReqs = result.requirements.filter((r) => r.category === 'SKILL');
+      const skillNames = skillReqs.map((r) => r.extractedValue.toLowerCase());
 
       // Should NOT contain "Next.js" from "infrastructure company" or "ship what's next"
-      assert.ok(!skillNames.includes('next.js'),
-        `Should not extract "Next.js" from company prose. Got: ${JSON.stringify(skillNames)}`);
+      assert.ok(
+        !skillNames.includes('next.js'),
+        `Should not extract "Next.js" from company prose. Got: ${JSON.stringify(skillNames)}`
+      );
 
       // Should NOT contain "JavaScript" from "Vercel has shaped how the web is built"
       // But SHOULD contain it from the actual requirements section
       // The key check: company prose should not generate spurious requirements
-      assert.ok(skillNames.length >= 3,
-        `Should extract at least 3 skills from requirements section. Got ${skillNames.length}: ${JSON.stringify(skillNames)}`);
+      assert.ok(
+        skillNames.length >= 3,
+        `Should extract at least 3 skills from requirements section. Got ${skillNames.length}: ${JSON.stringify(skillNames)}`
+      );
     });
   });
 
@@ -169,13 +172,19 @@ Requirements:
         profileMetadata: {},
       };
 
-      const result = EvidenceMatchingService.matchJobToCandidate(context, jobDescription, candidateProfile);
-      const tsMatch = result.requirementMatches.find(m => m.skillSlug === 'typescript');
+      const result = EvidenceMatchingService.matchJobToCandidate(
+        context,
+        jobDescription,
+        candidateProfile
+      );
+      const tsMatch = result.requirementMatches.find((m) => m.skillSlug === 'typescript');
 
       assert.ok(tsMatch, 'Should have TypeScript match');
       assert.strictEqual(tsMatch.matchStatus, 'MATCHED');
-      assert.ok(tsMatch.primaryEvidence || tsMatch.supportingEvidence.length > 0,
-        'MATCHED requirement must have evidence: ' + JSON.stringify(tsMatch.primaryEvidence));
+      assert.ok(
+        tsMatch.primaryEvidence || tsMatch.supportingEvidence.length > 0,
+        'MATCHED requirement must have evidence: ' + JSON.stringify(tsMatch.primaryEvidence)
+      );
     });
   });
 
@@ -243,8 +252,12 @@ Requirements:
         profileMetadata: {},
       };
 
-      const result = EvidenceMatchingService.matchJobToCandidate(context, jobDescription, candidateProfile);
-      const sqlMatch = result.requirementMatches.find(m => m.skillSlug === 'sql');
+      const result = EvidenceMatchingService.matchJobToCandidate(
+        context,
+        jobDescription,
+        candidateProfile
+      );
+      const sqlMatch = result.requirementMatches.find((m) => m.skillSlug === 'sql');
 
       assert.ok(sqlMatch, 'Should have SQL match');
       assert.ok(
@@ -256,7 +269,7 @@ Requirements:
         `candidateSkills must include PostgreSQL. Got: ${JSON.stringify(sqlMatch.candidateSkills)}`
       );
       assert.ok(
-        sqlMatch.candidateSkills.some(s => s.toLowerCase().includes('postgresql')),
+        sqlMatch.candidateSkills.some((s) => s.toLowerCase().includes('postgresql')),
         `candidateSkills should contain PostgreSQL. Got: ${JSON.stringify(sqlMatch.candidateSkills)}`
       );
       assert.ok(
@@ -272,29 +285,58 @@ Requirements:
   describe('4. node_modules evidence does NOT produce VERIFIED status', () => {
     it('_isLowTrustEvidence detects node_modules paths', () => {
       const nodeModulesEv = {
-        sourceLocation: { filePath: 'ai-job-board-backend/node_modules/@huggingface/inference/package.json' },
+        sourceLocation: {
+          filePath: 'ai-job-board-backend/node_modules/@huggingface/inference/package.json',
+        },
       };
       assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence(nodeModulesEv), true);
     });
 
     it('_isLowTrustEvidence detects lock files', () => {
-      assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'package-lock.json' } }), true);
-      assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'yarn.lock' } }), true);
-      assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'pnpm-lock.yaml' } }), true);
+      assert.strictEqual(
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: 'package-lock.json' },
+        }),
+        true
+      );
+      assert.strictEqual(
+        EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'yarn.lock' } }),
+        true
+      );
+      assert.strictEqual(
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: 'pnpm-lock.yaml' },
+        }),
+        true
+      );
     });
 
     it('_isLowTrustEvidence detects generated/dist directories', () => {
-      assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: '.next/server/page.js' } }), true);
-      assert.strictEqual(EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'dist/bundle.js' } }), true);
+      assert.strictEqual(
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: '.next/server/page.js' },
+        }),
+        true
+      );
+      assert.strictEqual(
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: 'dist/bundle.js' },
+        }),
+        true
+      );
     });
 
     it('_isLowTrustEvidence accepts normal source code', () => {
       assert.strictEqual(
-        EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'src/services/api.ts' } }),
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: 'src/services/api.ts' },
+        }),
         false
       );
       assert.strictEqual(
-        EvidenceMatchingService._isLowTrustEvidence({ sourceLocation: { filePath: 'package.json' } }),
+        EvidenceMatchingService._isLowTrustEvidence({
+          sourceLocation: { filePath: 'package.json' },
+        }),
         false
       );
     });
@@ -320,8 +362,10 @@ Requirements:
       const refs = EvidenceMatchingService._selectEvidenceRefs(evidenceList, new Map());
       assert.ok(refs.length > 0, 'Should have at least one evidence ref');
       const primaryFilePath = refs[0].filePath || '';
-      assert.ok(!primaryFilePath.includes('node_modules'),
-        `Primary evidence should not be from node_modules when high-trust evidence exists. Got: ${primaryFilePath}`);
+      assert.ok(
+        !primaryFilePath.includes('node_modules'),
+        `Primary evidence should not be from node_modules when high-trust evidence exists. Got: ${primaryFilePath}`
+      );
     });
   });
 
@@ -364,7 +408,7 @@ Requirements:
             slug: 'docker',
             name: 'Docker',
             provenanceStatus: 'CORROBORATED',
-            confidenceScore: 0.90,
+            confidenceScore: 0.9,
             evidenceItems: [
               {
                 id: randomUUID(),
@@ -389,8 +433,12 @@ Requirements:
         profileMetadata: {},
       };
 
-      const result = EvidenceMatchingService.matchJobToCandidate(context, jobDescription, candidateProfile);
-      const dockerMatch = result.requirementMatches.find(m => m.skillSlug === 'docker');
+      const result = EvidenceMatchingService.matchJobToCandidate(
+        context,
+        jobDescription,
+        candidateProfile
+      );
+      const dockerMatch = result.requirementMatches.find((m) => m.skillSlug === 'docker');
 
       assert.ok(dockerMatch, 'Should have Docker match');
       assert.strictEqual(
@@ -703,7 +751,8 @@ Vercel is an equal opportunity employer and values diversity at our company.
               id: randomUUID(),
               name: 'High-Throughput API Gateway',
               slug: 'api-gateway',
-              description: 'Backend gateway built with Fastify, TypeScript, Node.js, and PostgreSQL.',
+              description:
+                'Backend gateway built with Fastify, TypeScript, Node.js, and PostgreSQL.',
               evidence: [
                 {
                   id: randomUUID(),
@@ -803,10 +852,7 @@ Requirements:
       // 5. Verify topRelevantProjects has matchedRequirements populated
       assert.ok(output.topRelevantProjects.length > 0, 'Must have at least 1 top relevant project');
       const topProject = output.topRelevantProjects[0];
-      assert.ok(
-        topProject.relevanceScore > 0,
-        'Project relevance score should be > 0'
-      );
+      assert.ok(topProject.relevanceScore > 0, 'Project relevance score should be > 0');
       assert.ok(
         topProject.matchedRequirements.length > 0,
         `Project matchedRequirements must be populated, got: ${JSON.stringify(topProject.matchedRequirements)}`
@@ -814,4 +860,3 @@ Requirements:
     });
   });
 });
-

@@ -110,8 +110,14 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
     assert.ok(res.relevanceScore > 40.0, `Expected score > 40, got ${res.relevanceScore}`);
     assert.ok(res.contributingSkills.includes('react'), 'Should include react');
     assert.ok(res.contributingSkills.includes('typescript'), 'Should include typescript');
-    assert.ok(res.contributingSkills.includes('python') || res.architecturalSignals.includes('API_ROUTING'), 'Should detect routing');
-    assert.ok(res.architecturalSignals.includes('DATA_PERSISTENCE'), 'Should detect PostgreSQL persistence');
+    assert.ok(
+      res.contributingSkills.includes('python') || res.architecturalSignals.includes('API_ROUTING'),
+      'Should detect routing'
+    );
+    assert.ok(
+      res.architecturalSignals.includes('DATA_PERSISTENCE'),
+      'Should detect PostgreSQL persistence'
+    );
   });
 
   it('2. ProjectRelevanceService recognizes real-time systems (socket-io, websockets) as an architectural dimension', () => {
@@ -152,10 +158,19 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
     };
 
     const res = ProjectRelevanceService.computeProjectRelevance(context, job, project);
-    assert.ok(res.architecturalSignals.includes('REALTIME_COMMUNICATION'), 'Should detect REALTIME_COMMUNICATION');
-    assert.ok(res.architecturalSignals.includes('API_ROUTING'), 'Should detect API_ROUTING (Express)');
+    assert.ok(
+      res.architecturalSignals.includes('REALTIME_COMMUNICATION'),
+      'Should detect REALTIME_COMMUNICATION'
+    );
+    assert.ok(
+      res.architecturalSignals.includes('API_ROUTING'),
+      'Should detect API_ROUTING (Express)'
+    );
     assert.ok(res.architecturalSignals.includes('TESTING'), 'Should detect TESTING (Jest)');
-    assert.ok(res.scoreBreakdown.architecturalDensityScore >= 10.0, 'Should have >= 10.0 architectural density');
+    assert.ok(
+      res.scoreBreakdown.architecturalDensityScore >= 10.0,
+      'Should have >= 10.0 architectural density'
+    );
   });
 
   it('3. PortfolioRecommendationService selects 2-3 relevant projects and does not penalize repeated core skills', () => {
@@ -214,7 +229,11 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           projectName: p2.name,
           projectSlug: p2.slug,
           relevanceScore: 58.0,
-          matchedRequirementIds: [job.requirements[0].id, job.requirements[1].id, job.requirements[2].id], // typescript, react, python
+          matchedRequirementIds: [
+            job.requirements[0].id,
+            job.requirements[1].id,
+            job.requirements[2].id,
+          ], // typescript, react, python
           contributingSkills: ['react', 'typescript', 'python', 'fastapi'],
           architecturalSignals: ['API_ROUTING', 'DATA_PERSISTENCE', 'CLOUD_DEVOPS'],
           scoreBreakdown: {
@@ -232,7 +251,12 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           relevanceScore: 50.0,
           matchedRequirementIds: [job.requirements[0].id, job.requirements[1].id], // typescript, react
           contributingSkills: ['react', 'typescript', 'express'],
-          architecturalSignals: ['API_ROUTING', 'DATA_PERSISTENCE', 'TESTING', 'REALTIME_COMMUNICATION'],
+          architecturalSignals: [
+            'API_ROUTING',
+            'DATA_PERSISTENCE',
+            'TESTING',
+            'REALTIME_COMMUNICATION',
+          ],
           scoreBreakdown: {
             requirementCoverageScore: 25.0,
             architecturalDensityScore: 10.0,
@@ -263,10 +287,23 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
     );
 
     // Verifies 3 projects are selected (not 1!)
-    assert.strictEqual(result.featuredProjects.length, 3, 'Must feature 3 projects when 3 projects have high independent relevance');
-    assert.ok(result.featuredProjects.some((p) => p.projectId === p1.id), 'Should feature Product-Data-Explorer');
-    assert.ok(result.featuredProjects.some((p) => p.projectId === p2.id), 'Should feature Ai-powered-code-review-assistant');
-    assert.ok(result.featuredProjects.some((p) => p.projectId === p3.id), 'Should feature Collaborative-task-manager');
+    assert.strictEqual(
+      result.featuredProjects.length,
+      3,
+      'Must feature 3 projects when 3 projects have high independent relevance'
+    );
+    assert.ok(
+      result.featuredProjects.some((p) => p.projectId === p1.id),
+      'Should feature Product-Data-Explorer'
+    );
+    assert.ok(
+      result.featuredProjects.some((p) => p.projectId === p2.id),
+      'Should feature Ai-powered-code-review-assistant'
+    );
+    assert.ok(
+      result.featuredProjects.some((p) => p.projectId === p3.id),
+      'Should feature Collaborative-task-manager'
+    );
   });
 
   it('4. PortfolioRecommendationService deduplicates duplicate canonical projects with different slug formats', () => {
@@ -305,7 +342,12 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           matchedRequirementIds: [],
           contributingSkills: [],
           architecturalSignals: [],
-          scoreBreakdown: { architecturalDensityScore: 7.5, evidenceQualityScore: 10.0, projectCompletenessScore: 3.5, recencyScore: 5.0 },
+          scoreBreakdown: {
+            architecturalDensityScore: 7.5,
+            evidenceQualityScore: 10.0,
+            projectCompletenessScore: 3.5,
+            recencyScore: 5.0,
+          },
         },
         {
           projectId: p1_dup.id,
@@ -314,12 +356,22 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           matchedRequirementIds: [],
           contributingSkills: [],
           architecturalSignals: [],
-          scoreBreakdown: { architecturalDensityScore: 7.5, evidenceQualityScore: 9.0, projectCompletenessScore: 3.5, recencyScore: 5.0 },
+          scoreBreakdown: {
+            architecturalDensityScore: 7.5,
+            evidenceQualityScore: 9.0,
+            projectCompletenessScore: 3.5,
+            recencyScore: 5.0,
+          },
         },
       ],
     };
 
-    const matchAnalysis = { jobDescriptionId: job.id, candidateId: CANDIDATE_ID, tenantId: TENANT_ID, matches: [] };
+    const matchAnalysis = {
+      jobDescriptionId: job.id,
+      candidateId: CANDIDATE_ID,
+      tenantId: TENANT_ID,
+      matches: [],
+    };
 
     const result = PortfolioRecommendationService.recommendPortfolio(
       context,
@@ -338,7 +390,11 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
       ...result.deprioritizedProjects.map((p) => p.projectName),
     ];
 
-    assert.strictEqual(allProjectNames.length, 1, 'Duplicate Ai-job-mcp must be deduplicated to exactly 1 entry');
+    assert.strictEqual(
+      allProjectNames.length,
+      1,
+      'Duplicate Ai-job-mcp must be deduplicated to exactly 1 entry'
+    );
   });
 
   it('5. PortfolioRecommendationService excludes archived projects', () => {
@@ -378,7 +434,12 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           matchedRequirementIds: [],
           contributingSkills: [],
           architecturalSignals: [],
-          scoreBreakdown: { architecturalDensityScore: 7.5, evidenceQualityScore: 10.0, projectCompletenessScore: 3.5, recencyScore: 5.0 },
+          scoreBreakdown: {
+            architecturalDensityScore: 7.5,
+            evidenceQualityScore: 10.0,
+            projectCompletenessScore: 3.5,
+            recencyScore: 5.0,
+          },
         },
         {
           projectId: archivedProject.id,
@@ -387,12 +448,22 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           matchedRequirementIds: [],
           contributingSkills: [],
           architecturalSignals: [],
-          scoreBreakdown: { architecturalDensityScore: 7.5, evidenceQualityScore: 10.0, projectCompletenessScore: 3.5, recencyScore: 5.0 },
+          scoreBreakdown: {
+            architecturalDensityScore: 7.5,
+            evidenceQualityScore: 10.0,
+            projectCompletenessScore: 3.5,
+            recencyScore: 5.0,
+          },
         },
       ],
     };
 
-    const matchAnalysis = { jobDescriptionId: job.id, candidateId: CANDIDATE_ID, tenantId: TENANT_ID, matches: [] };
+    const matchAnalysis = {
+      jobDescriptionId: job.id,
+      candidateId: CANDIDATE_ID,
+      tenantId: TENANT_ID,
+      matches: [],
+    };
 
     const result = PortfolioRecommendationService.recommendPortfolio(
       context,
@@ -443,12 +514,22 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
           matchedRequirementIds: [job.requirements[0].id, job.requirements[1].id], // only typescript and react
           contributingSkills: ['react', 'typescript'],
           architecturalSignals: ['API_ROUTING', 'DATA_PERSISTENCE'],
-          scoreBreakdown: { architecturalDensityScore: 7.5, evidenceQualityScore: 10.0, projectCompletenessScore: 3.5, recencyScore: 5.0 },
+          scoreBreakdown: {
+            architecturalDensityScore: 7.5,
+            evidenceQualityScore: 10.0,
+            projectCompletenessScore: 3.5,
+            recencyScore: 5.0,
+          },
         },
       ],
     };
 
-    const matchAnalysis = { jobDescriptionId: job.id, candidateId: CANDIDATE_ID, tenantId: TENANT_ID, matches: [] };
+    const matchAnalysis = {
+      jobDescriptionId: job.id,
+      candidateId: CANDIDATE_ID,
+      tenantId: TENANT_ID,
+      matches: [],
+    };
 
     const result = PortfolioRecommendationService.recommendPortfolio(
       context,
@@ -462,10 +543,17 @@ describe('Portfolio Recommendation Scoring & Evidence Pipeline Fix Unit Tests (P
     const flaskCoverage = result.targetRequirementsCovered.find((r) => r.skillSlug === 'flask');
     assert.ok(flaskCoverage, 'Flask coverage record should exist in targetRequirementsCovered');
     assert.strictEqual(flaskCoverage.status, 'MISSING', 'Flask status must be MISSING');
-    assert.strictEqual(flaskCoverage.coveredByProjectId, null, 'Flask must not be covered by any project');
+    assert.strictEqual(
+      flaskCoverage.coveredByProjectId,
+      null,
+      'Flask must not be covered by any project'
+    );
     assert.strictEqual(flaskCoverage.contributionScore, 0, 'Flask contribution score must be 0');
 
     // Uncovered requirements list must clearly include Flask and LLM
-    assert.ok(result.uncoveredRequirements.some((u) => u.toLowerCase().includes('flask')), 'Uncovered requirements must list Flask');
+    assert.ok(
+      result.uncoveredRequirements.some((u) => u.toLowerCase().includes('flask')),
+      'Uncovered requirements must list Flask'
+    );
   });
 });

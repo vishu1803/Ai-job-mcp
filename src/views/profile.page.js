@@ -35,13 +35,13 @@ import { renderIcon } from './components/icons.js';
 
 /** Legacy tab alias mapping to ensure 100% backward compatibility */
 const TAB_ALIASES = {
-  'links': 'contact',
-  'experience': 'professional',
-  'education': 'professional',
-  'skills': 'skills-projects',
-  'projects': 'skills-projects',
-  'credentials': 'skills-projects',
-  'readiness': 'overview',
+  links: 'contact',
+  experience: 'professional',
+  education: 'professional',
+  skills: 'skills-projects',
+  projects: 'skills-projects',
+  credentials: 'skills-projects',
+  readiness: 'overview',
 };
 
 /**
@@ -89,10 +89,7 @@ export function renderProfilePage({
   const userLocation = profile?.location || userCustom.location || '';
   const summaryText = profile?.summary || userCustom.summary || candidate?.summary || '';
   const careerStatusVal =
-    userCustom.careerStatus ||
-    profile?.seniority ||
-    profile?.careerStatus ||
-    'FRESHER';
+    userCustom.careerStatus || profile?.seniority || profile?.careerStatus || 'FRESHER';
   const timezoneVal = jobPrefs.timezone || userCustom.timezone || profile?.timezone || '';
 
   // Experience, Education, Projects, Credentials
@@ -117,10 +114,7 @@ export function renderProfilePage({
   // Contact resolution
   const authenticEmail = profile?.canonicalEmail || candidate?.canonicalEmail || user?.email || '';
   const candidatePhone =
-    profile?.phone ||
-    userCustom.phone ||
-    candidate?.profileMetadata?.phone ||
-    '';
+    profile?.phone || userCustom.phone || candidate?.profileMetadata?.phone || '';
   const storedCountryCode = profile?.countryCode || userCustom.countryCode || '';
   const storedPhoneNumber = profile?.phoneNumber || userCustom.phoneNumber || '';
 
@@ -146,7 +140,8 @@ export function renderProfilePage({
   const salaryFloor = jobPrefs.salaryFloor != null ? jobPrefs.salaryFloor : '';
   const targetSalary = jobPrefs.targetSalary != null ? jobPrefs.targetSalary : '';
   const salaryCurrency = jobPrefs.salaryCurrency || '';
-  const compensationPeriodVal = normalizeCompensationPeriod(jobPrefs.compensationPeriod || '') || '';
+  const compensationPeriodVal =
+    normalizeCompensationPeriod(jobPrefs.compensationPeriod || '') || '';
   const compensationType = jobPrefs.compensationType || '';
   const preferredTechStackList = jobPrefs.preferredTechStack || [];
   const industriesList = jobPrefs.industries || [];
@@ -156,25 +151,47 @@ export function renderProfilePage({
   // Eligibility
   const workAuthList = Array.isArray(jobPrefs.workAuthorization)
     ? jobPrefs.workAuthorization
-    : jobPrefs.workAuthorization ? [jobPrefs.workAuthorization] : [];
-  const rawVisa = jobPrefs.visaSponsorshipRequired != null
-    ? jobPrefs.visaSponsorshipRequired
-    : (userCustom.visaSponsorshipRequired != null ? userCustom.visaSponsorshipRequired : '');
+    : jobPrefs.workAuthorization
+      ? [jobPrefs.workAuthorization]
+      : [];
+  const rawVisa =
+    jobPrefs.visaSponsorshipRequired != null
+      ? jobPrefs.visaSponsorshipRequired
+      : userCustom.visaSponsorshipRequired != null
+        ? userCustom.visaSponsorshipRequired
+        : '';
   const visaSponsorshipVal = normalizeVisaSponsorship(rawVisa) || '';
-  const noticePeriodVal = normalizeNoticePeriod(jobPrefs.noticePeriod || profile?.noticePeriod || userCustom.noticePeriod || '') || '';
-  const customNoticeVal = jobPrefs.customNoticePeriod || profile?.customNoticePeriod || userCustom.customNoticePeriod || '';
+  const noticePeriodVal =
+    normalizeNoticePeriod(
+      jobPrefs.noticePeriod || profile?.noticePeriod || userCustom.noticePeriod || ''
+    ) || '';
+  const customNoticeVal =
+    jobPrefs.customNoticePeriod ||
+    profile?.customNoticePeriod ||
+    userCustom.customNoticePeriod ||
+    '';
   const availabilityDateVal = jobPrefs.availabilityDate || '';
-  const isCurrentlyEmployed = Boolean(jobPrefs.isCurrentlyEmployed || userCustom.isCurrentlyEmployed);
-  const availableImmediately = Boolean(jobPrefs.availableImmediately || userCustom.availableImmediately);
-  const workAuthConfirmedByUser = Boolean(jobPrefs.workAuthConfirmedByUser || userCustom.workAuthConfirmedByUser);
-  const visaSponsorshipConfirmedByUser = Boolean(jobPrefs.visaSponsorshipConfirmedByUser || userCustom.visaSponsorshipConfirmedByUser);
+  const isCurrentlyEmployed = Boolean(
+    jobPrefs.isCurrentlyEmployed || userCustom.isCurrentlyEmployed
+  );
+  const availableImmediately = Boolean(
+    jobPrefs.availableImmediately || userCustom.availableImmediately
+  );
+  const workAuthConfirmedByUser = Boolean(
+    jobPrefs.workAuthConfirmedByUser || userCustom.workAuthConfirmedByUser
+  );
+  const visaSponsorshipConfirmedByUser = Boolean(
+    jobPrefs.visaSponsorshipConfirmedByUser || userCustom.visaSponsorshipConfirmedByUser
+  );
 
   // Application Readiness evaluation
   const readinessEvaluator = new ApplicationReadinessService();
-  const evaluatedReadiness = readiness || readinessEvaluator.evaluateReadiness({
-    candidateProfile: profile,
-    candidate,
-  });
+  const evaluatedReadiness =
+    readiness ||
+    readinessEvaluator.evaluateReadiness({
+      candidateProfile: profile,
+      candidate,
+    });
 
   const readinessItems = evaluatedReadiness.items || [];
   const readinessSemantics = evaluatedReadiness.semantics || {};
@@ -243,12 +260,36 @@ export function renderProfilePage({
 
   // 6 Consolidated Primary Domains
   const navTabs = [
-    { id: 'overview', label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-    { id: 'professional', label: 'Professional', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
-    { id: 'skills-projects', label: 'Skills & Projects', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
-    { id: 'preferences', label: 'Job Preferences', icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
-    { id: 'eligibility', label: 'Application & Eligibility', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-    { id: 'contact', label: 'Contact & Links', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+    },
+    {
+      id: 'professional',
+      label: 'Professional',
+      icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    },
+    {
+      id: 'skills-projects',
+      label: 'Skills & Projects',
+      icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+    },
+    {
+      id: 'preferences',
+      label: 'Job Preferences',
+      icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4',
+    },
+    {
+      id: 'eligibility',
+      label: 'Application & Eligibility',
+      icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+    },
+    {
+      id: 'contact',
+      label: 'Contact & Links',
+      icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+    },
   ];
 
   const content = `
@@ -1228,22 +1269,32 @@ export function renderProfilePage({
       </header>
 
       <!-- Flash Messages -->
-      ${flashMessage ? `
+      ${
+        flashMessage
+          ? `
         <div class="alert alert-success" role="alert" id="flashSuccessAlert">
           <span class="alert-icon">${renderIcon('check', { size: 16 })}</span>
           <span>${escapeHtml(flashMessage)}</span>
         </div>
-      ` : ''}
-      ${errorMessage ? `
+      `
+          : ''
+      }
+      ${
+        errorMessage
+          ? `
         <div class="alert alert-error" role="alert" id="flashErrorAlert">
           <span class="alert-icon">${renderIcon('alertTriangle', { size: 16 })}</span>
           <span>${escapeHtml(errorMessage)}</span>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
 
       <!-- Target Navigation Tab Bar (6 Consolidated Groups) -->
       <nav class="profile-nav-tabs" aria-label="Profile Sections" role="tablist">
-        ${navTabs.map((tab) => `
+        ${navTabs
+          .map(
+            (tab) => `
           <button
             type="button"
             role="tab"
@@ -1260,7 +1311,9 @@ export function renderProfilePage({
             <span class="tab-label">${tab.label}</span>
             ${tab.id === 'eligibility' && attentionItems.length > 0 ? `<span class="tab-badge-warning">${attentionItems.length}</span>` : ''}
           </button>
-        `).join('')}
+        `
+          )
+          .join('')}
       </nav>
 
       <!-- Main Profile Form -->
@@ -1299,14 +1352,21 @@ export function renderProfilePage({
               <h3 class="action-items-heading">
                 ${attentionItems.length > 0 ? `${attentionItems.length} issue(s) require your attention` : `${renderIcon('check', { size: 16 })} All screening fields verified`}
               </h3>
-              ${attentionItems.length > 0 ? `
+              ${
+                attentionItems.length > 0
+                  ? `
                 <ul class="action-items-list" aria-label="Unresolved screening items">
-                  ${attentionItems.map((item) => {
-                    const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
-                      ? 'eligibility'
-                      : 'contact';
-                    const actionVerb = item.status === 'MISSING' ? 'Add' : 'Confirm';
-                    return `
+                  ${attentionItems
+                    .map((item) => {
+                      const targetTab =
+                        item.field === 'workAuthorization' ||
+                        item.field === 'visaSponsorship' ||
+                        item.field === 'noticePeriod' ||
+                        item.field === 'availability'
+                          ? 'eligibility'
+                          : 'contact';
+                      const actionVerb = item.status === 'MISSING' ? 'Add' : 'Confirm';
+                      return `
                       <li class="action-item">
                         <span class="action-item-icon">${renderIcon('alertCircle', { size: 14 })}</span>
                         <div class="action-item-details">
@@ -1324,11 +1384,14 @@ export function renderProfilePage({
                         </div>
                       </li>
                     `;
-                  }).join('')}
+                    })
+                    .join('')}
                 </ul>
-              ` : `
+              `
+                  : `
                 <p class="empty-action-notes">Your profile contains verified work authorization, contact information, availability, and professional credentials.</p>
-              `}
+              `
+              }
             </div>
           </div>
 
@@ -1345,7 +1408,9 @@ export function renderProfilePage({
               </div>
               <p class="card-subtitle">Information populated and ready for employer review.</p>
               <div class="ready-list">
-                ${readyItems.map((item) => `
+                ${readyItems
+                  .map(
+                    (item) => `
                   <div class="ready-item status-ready">
                     <div class="ready-item-left">
                       <span class="check-circle">${renderIcon('check', { size: 13 })}</span>
@@ -1353,7 +1418,9 @@ export function renderProfilePage({
                     </div>
                     <span class="ready-val">${escapeHtml(item.value || 'Verified')}</span>
                   </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
                 ${readyItems.length === 0 ? '<p class="text-muted" style="padding:12px; font-size:0.85rem;">No items ready yet. Complete your profile sections below.</p>' : ''}
               </div>
             </div>
@@ -1369,11 +1436,16 @@ export function renderProfilePage({
               </div>
               <p class="card-subtitle">Critical parameters required by employer screening questionnaires.</p>
               <div class="attention-stack">
-                ${attentionItems.map((item) => {
-                  const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
-                    ? 'eligibility'
-                    : 'contact';
-                  return `
+                ${attentionItems
+                  .map((item) => {
+                    const targetTab =
+                      item.field === 'workAuthorization' ||
+                      item.field === 'visaSponsorship' ||
+                      item.field === 'noticePeriod' ||
+                      item.field === 'availability'
+                        ? 'eligibility'
+                        : 'contact';
+                    return `
                     <div class="attention-item-card">
                       <div>
                         <div class="attention-title">${escapeHtml(item.label)}</div>
@@ -1384,8 +1456,11 @@ export function renderProfilePage({
                       </button>
                     </div>
                   `;
-                }).join('')}
-                ${attentionItems.length === 0 ? `
+                  })
+                  .join('')}
+                ${
+                  attentionItems.length === 0
+                    ? `
                   <div class="all-clear-box">
                     <span style="color:#10B981;">${renderIcon('check', { size: 18 })}</span>
                     <div>
@@ -1393,7 +1468,9 @@ export function renderProfilePage({
                       <p style="margin:4px 0 0; font-size:0.8rem; color:#9CA3AF;">Your profile contains verified work authorization, contact information, and availability parameters.</p>
                     </div>
                   </div>
-                ` : ''}
+                `
+                    : ''
+                }
               </div>
             </div>
           </div>
@@ -1425,11 +1502,16 @@ export function renderProfilePage({
                 <p><strong>Highlighted Projects:</strong> ${projectsList.length} project(s)</p>
                 <p><strong>Certifications:</strong> ${certsList.length} credential(s)</p>
                 <div class="chips-cluster" style="margin-top:8px;">
-                  ${primarySkillsList.slice(0, 4).map((s) => `
+                  ${primarySkillsList
+                    .slice(0, 4)
+                    .map(
+                      (s) => `
                     <span class="skill-chip ${s.provenanceStatus === 'VERIFIED' ? 'chip-verified' : ''}">
                       ${escapeHtml(s.skillName || s.name || s)}
                     </span>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                 </div>
               </div>
             </div>
@@ -1456,7 +1538,7 @@ export function renderProfilePage({
               </div>
               <div class="snapshot-body">
                 <p><strong>Work Auth:</strong> ${workAuthList.length > 0 ? escapeHtml(workAuthList.join(', ')) : 'Not set'}</p>
-                <p><strong>Visa Sponsorship:</strong> ${visaSponsorshipVal === 'NO' ? 'Not Required' : (visaSponsorshipVal === 'YES' ? 'Required' : 'Not Set')}</p>
+                <p><strong>Visa Sponsorship:</strong> ${visaSponsorshipVal === 'NO' ? 'Not Required' : visaSponsorshipVal === 'YES' ? 'Required' : 'Not Set'}</p>
                 <p><strong>Notice Period:</strong> ${escapeHtml(formatNoticePeriodLabel(noticePeriodVal, customNoticeVal))}</p>
                 <p><strong>Availability:</strong> ${availabilityDateVal ? escapeHtml(availabilityDateVal) : 'Immediate / Flexible'}</p>
               </div>
@@ -1554,7 +1636,9 @@ export function renderProfilePage({
             </div>
 
             <div id="experienceItemsContainer" class="records-container">
-              ${experienceList.map((exp, idx) => `
+              ${experienceList
+                .map(
+                  (exp, idx) => `
                 <div class="record-card" data-index="${idx}">
                   <div class="record-card-header">
                     <div>
@@ -1564,14 +1648,20 @@ export function renderProfilePage({
                     <span class="record-dates">${escapeHtml(exp.startDate || '')} — ${escapeHtml(exp.endDate || (exp.isCurrent ? 'Present' : ''))}</span>
                   </div>
                   ${exp.description ? `<p class="record-description">${escapeHtml(exp.description)}</p>` : ''}
-                  ${Array.isArray(exp.highlights) && exp.highlights.length > 0 ? `
+                  ${
+                    Array.isArray(exp.highlights) && exp.highlights.length > 0
+                      ? `
                     <ul class="record-bullets">
                       ${exp.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
                     </ul>
-                  ` : ''}
+                  `
+                      : ''
+                  }
 
                   <!-- Progressive Disclosure for Code Verification -->
-                  ${exp.astEvidenceCount || exp.repositoryCorroboration ? `
+                  ${
+                    exp.astEvidenceCount || exp.repositoryCorroboration
+                      ? `
                     <details class="advanced-disclosure">
                       <summary>Show repository verification details</summary>
                       <div class="disclosure-content">
@@ -1579,9 +1669,13 @@ export function renderProfilePage({
                         ${exp.repositoryCorroboration ? `<p>Repository: <code>${escapeHtml(exp.repositoryCorroboration)}</code></p>` : ''}
                       </div>
                     </details>
-                  ` : ''}
+                  `
+                      : ''
+                  }
                 </div>
-              `).join('')}
+              `
+                )
+                .join('')}
               ${experienceList.length === 0 ? '<p class="empty-state-notice">No positions recorded yet. Click "+ Add Position" to add your work history.</p>' : ''}
             </div>
 
@@ -1601,7 +1695,9 @@ export function renderProfilePage({
             </div>
 
             <div id="educationItemsContainer" class="records-container">
-              ${educationList.map((edu, idx) => `
+              ${educationList
+                .map(
+                  (edu, idx) => `
                 <div class="record-card" data-index="${idx}">
                   <div class="record-card-header">
                     <div>
@@ -1611,7 +1707,9 @@ export function renderProfilePage({
                     <span class="record-dates">${escapeHtml(edu.graduationYear || edu.year || '')}</span>
                   </div>
                 </div>
-              `).join('')}
+              `
+                )
+                .join('')}
               ${educationList.length === 0 ? '<p class="empty-state-notice">No education entries yet. Click "+ Add Education" to add your degree or coursework.</p>' : ''}
             </div>
 
@@ -1637,12 +1735,16 @@ export function renderProfilePage({
             <div class="skills-section-block">
               <h3 class="sub-heading">Primary Technical Skills (${primarySkillsList.length})</h3>
               <div class="chips-cluster">
-                ${primarySkillsList.map((s) => `
+                ${primarySkillsList
+                  .map(
+                    (s) => `
                   <div class="skill-badge-chip">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
                     <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Claimed'}</span>
                   </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
                 ${primarySkillsList.length === 0 ? '<p class="text-muted">No primary skills indexed.</p>' : ''}
               </div>
             </div>
@@ -1653,36 +1755,52 @@ export function renderProfilePage({
                 <h3 class="sub-heading">Additional Libraries & Tools (${technologySignalsList.length + additionalSkills.length})</h3>
               </div>
               <div class="chips-cluster" id="additionalSkillsChips">
-                ${additionalSkills.map((s) => `
+                ${additionalSkills
+                  .map(
+                    (s) => `
                   <div class="skill-badge-chip chip-declared">
                     <span class="skill-name">${escapeHtml(s.canonicalName || s.name || s.slug || 'Tool')}</span>
                     <span class="skill-proficiency-tag">${escapeHtml(s.proficiency || 'Proficient')}</span>
                   </div>
-                `).join('')}
-                ${technologySignalsList.map((s) => `
+                `
+                  )
+                  .join('')}
+                ${technologySignalsList
+                  .map(
+                    (s) => `
                   <div class="skill-badge-chip chip-signal">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
                     <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Signal'}</span>
                   </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
                 ${additionalSkills.length === 0 && technologySignalsList.length === 0 ? '<p class="text-muted">No additional skills added.</p>' : ''}
               </div>
             </div>
 
             <!-- Progressive Disclosure for AST Code Evidence -->
-            ${technologySignalsList.length > 0 ? `
+            ${
+              technologySignalsList.length > 0
+                ? `
               <details class="advanced-disclosure" style="margin-top: 1.5rem;">
                 <summary>Show secondary technology signals (${technologySignalsList.length})</summary>
                 <div class="disclosure-content">
                   <p class="text-muted" style="margin-bottom: 0.5rem;">Technologies detected in repository configuration or dependencies:</p>
                   <div class="chips-cluster">
-                    ${technologySignalsList.map((s) => `
+                    ${technologySignalsList
+                      .map(
+                        (s) => `
                       <span class="skill-chip chip-signal">${escapeHtml(s.skillName || s.name || s)}</span>
-                    `).join('')}
+                    `
+                      )
+                      .join('')}
                   </div>
                 </div>
               </details>
-            ` : ''}
+            `
+                : ''
+            }
           </div>
 
           <!-- Section 3.2: Highlighted Projects (Consolidated from former Tab 6) -->
@@ -1691,42 +1809,66 @@ export function renderProfilePage({
             <p class="card-subtitle">Real-world technical projects demonstrating applied architecture, engineering rigor, and code quality.</p>
 
             <div class="projects-grid">
-              ${projectsList.map((p) => `
+              ${projectsList
+                .map(
+                  (p) => `
                 <div class="project-card">
                   <div class="project-card-header">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <h3 class="project-title">${escapeHtml(p.name || 'Project')}</h3>
-                      ${(p.provenanceStatus === 'CORROBORATED' || p.corroborated) ? `
+                      ${
+                        p.provenanceStatus === 'CORROBORATED' || p.corroborated
+                          ? `
                         <span class="badge badge-verified" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">${renderIcon('check', { size: 10 })} Corroborated</span>
-                      ` : (p.provenanceStatus === 'VERIFIED' ? `
+                      `
+                          : p.provenanceStatus === 'VERIFIED'
+                            ? `
                         <span class="badge badge-verified" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">${renderIcon('check', { size: 10 })} Verified</span>
-                      ` : (p.provenanceStatus ? `
+                      `
+                            : p.provenanceStatus
+                              ? `
                         <span class="badge badge-claimed" style="font-size: 0.7rem;">Claimed</span>
-                      ` : ''))}
+                      `
+                              : ''
+                      }
                     </div>
-                    ${p.repositoryUrl ? `
+                    ${
+                      p.repositoryUrl
+                        ? `
                       <a href="${escapeHtml(p.repositoryUrl)}" target="_blank" rel="noopener noreferrer" class="link-icon-btn" aria-label="View repository">
                         <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                       </a>
-                    ` : ''}
+                    `
+                        : ''
+                    }
                   </div>
                   <p class="project-desc">${escapeHtml(p.description || 'Technical project application.')}</p>
-                  ${Array.isArray(p.technologies) && p.technologies.length > 0 ? `
+                  ${
+                    Array.isArray(p.technologies) && p.technologies.length > 0
+                      ? `
                     <div class="project-tech-tags">
                       ${p.technologies.map((t) => `<span class="tech-tag">${escapeHtml(t)}</span>`).join('')}
                     </div>
-                  ` : ''}
+                  `
+                      : ''
+                  }
 
-                  ${p.astEvidence || p.commitCount ? `
+                  ${
+                    p.astEvidence || p.commitCount
+                      ? `
                     <details class="advanced-disclosure">
                       <summary>Show verification details</summary>
                       <div class="disclosure-content">
                         <p>Evidence: Grounded in repository commit history.</p>
                       </div>
                     </details>
-                  ` : ''}
+                  `
+                      : ''
+                  }
                 </div>
-              `).join('')}
+              `
+                )
+                .join('')}
               ${projectsList.length === 0 ? '<p class="empty-state-notice">No highlighted projects found. Connect your GitHub account to automatically index repositories.</p>' : ''}
             </div>
           </div>
@@ -1740,12 +1882,16 @@ export function renderProfilePage({
               <div>
                 <h3 class="sub-heading">Certifications (${certsList.length})</h3>
                 <div class="records-container">
-                  ${certsList.map((c) => `
+                  ${certsList
+                    .map(
+                      (c) => `
                     <div class="record-card">
                       <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
                       <span class="record-subtitle">${escapeHtml(c.issuer || 'Issuing Body')} • ${escapeHtml(c.issueDate || '')}</span>
                     </div>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                   ${certsList.length === 0 ? '<p class="text-muted">No certifications recorded.</p>' : ''}
                 </div>
               </div>
@@ -1753,12 +1899,16 @@ export function renderProfilePage({
               <div>
                 <h3 class="sub-heading">Spoken Languages (${languagesList.length})</h3>
                 <div class="records-container">
-                  ${languagesList.map((l) => `
+                  ${languagesList
+                    .map(
+                      (l) => `
                     <div class="record-card">
                       <h4 class="record-title">${escapeHtml(l.language || l.name || 'Language')}</h4>
                       <span class="record-subtitle">${escapeHtml(l.proficiency || 'Native / Fluent')}</span>
                     </div>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                   ${languagesList.length === 0 ? '<p class="text-muted">No languages specified.</p>' : ''}
                 </div>
               </div>
@@ -1959,11 +2109,13 @@ export function renderProfilePage({
                 <div class="phone-input-group">
                   <select id="contactCountryCodeSelect" name="contactCountryCode" class="form-control phone-code-select">
                     <option value="">Choose code...</option>
-                    ${COUNTRY_CALLING_CODES.map((c) => `
+                    ${COUNTRY_CALLING_CODES.map(
+                      (c) => `
                       <option value="${escapeHtml(c.dialCode)}" ${initialCountryCode === c.dialCode ? 'selected' : ''}>
                         ${escapeHtml(c.flag)} ${escapeHtml(c.name)} (${escapeHtml(c.dialCode)})
                       </option>
-                    `).join('')}
+                    `
+                    ).join('')}
                   </select>
                   <input
                     type="tel"
@@ -2328,6 +2480,7 @@ export function renderProfilePage({
     content,
     activeNav: 'profile',
     user,
-    description: 'Maintain your professional candidate profile, job preferences, and application readiness.',
+    description:
+      'Maintain your professional candidate profile, job preferences, and application readiness.',
   });
 }

@@ -299,7 +299,11 @@ describe('P19: Authoritative Resume Evidence Pipeline (Tests A through X)', () =
     });
 
     assert.equal(plan.plannedClaims.length, 1, 'Should produce 1 composed claim');
-    assert.equal(plan.plannedClaims[0].factIds.length, 2, 'Claim should legitimately compose 2 facts');
+    assert.equal(
+      plan.plannedClaims[0].factIds.length,
+      2,
+      'Claim should legitimately compose 2 facts'
+    );
     assert.ok(plan.plannedClaims[0].factIds.includes('f-opt-1'));
     assert.ok(plan.plannedClaims[0].factIds.includes('f-out-1'));
   });
@@ -580,14 +584,8 @@ describe('P19: Authoritative Resume Evidence Pipeline (Tests A through X)', () =
 
     assert.equal(snap1.structuredResume.targetRole, 'Distributed Systems Engineer');
     assert.equal(snap2.structuredResume.targetRole, 'Cloud Infrastructure Engineer');
-    assert.equal(
-      snap1.structuredResume.candidateIdentity.headline,
-      'Backend Software Engineer'
-    );
-    assert.equal(
-      snap2.structuredResume.candidateIdentity.headline,
-      'Backend Software Engineer'
-    );
+    assert.equal(snap1.structuredResume.candidateIdentity.headline, 'Backend Software Engineer');
+    assert.equal(snap2.structuredResume.candidateIdentity.headline, 'Backend Software Engineer');
   });
 
   // ---------------------------------------------------------------------------
@@ -648,7 +646,13 @@ describe('P19: Authoritative Resume Evidence Pipeline (Tests A through X)', () =
       headline: 'Full-Stack Software Engineer',
       skills: [
         { id: 'sk-go', name: 'Go', slug: 'go', verified: true, provenanceStatus: 'VERIFIED' },
-        { id: 'sk-pg', name: 'PostgreSQL', slug: 'postgresql', verified: true, provenanceStatus: 'VERIFIED' },
+        {
+          id: 'sk-pg',
+          name: 'PostgreSQL',
+          slug: 'postgresql',
+          verified: true,
+          provenanceStatus: 'VERIFIED',
+        },
       ],
       projects: [
         {
@@ -750,11 +754,17 @@ describe('P19: Authoritative Resume Evidence Pipeline (Tests A through X)', () =
     };
 
     const mockAnalyzer = new PdfGeometryAnalyzer();
-    mockAnalyzer.measurePdfBottom = () => ({ lowestY: 200, bottomWhitespacePt: 80, pageOccupancyRatio: 0.88 });
+    mockAnalyzer.measurePdfBottom = () => ({
+      lowestY: 200,
+      bottomWhitespacePt: 80,
+      pageOccupancyRatio: 0.88,
+    });
     mockAnalyzer._detectPageCount = () => 1;
 
     const mockGenerator = {
-      generateTailoredResumeLatex: () => ({ texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}' }),
+      generateTailoredResumeLatex: () => ({
+        texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}',
+      }),
     };
 
     const optimizer = new ResumeContentOptimizer({

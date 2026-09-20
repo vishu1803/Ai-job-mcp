@@ -22,10 +22,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p66-live-linkedin-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9366;
 const LIVE_LINKEDIN_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
 
@@ -85,7 +87,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -120,7 +124,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch real Chrome with extension loaded
   console.log('\n3. Spawning real Chrome MV3 browser instance...');
@@ -215,7 +221,9 @@ async function main() {
         if (msg.method === 'Network.requestWillBeSent') {
           if (msg.params?.request?.url?.includes('/api/extension/analyze-job')) {
             serverAnalyzeCalls++;
-            console.log(`   [SERVER CALL DETECTED] /api/extension/analyze-job (call #${serverAnalyzeCalls})`);
+            console.log(
+              `   [SERVER CALL DETECTED] /api/extension/analyze-job (call #${serverAnalyzeCalls})`
+            );
           }
         }
       } catch {}
@@ -295,14 +303,18 @@ async function main() {
       throw new Error(`Live LinkedIn job was NOT detected: ${JSON.stringify(detectionState)}`);
     }
 
-    if (!detectionState.activeJob.title.toLowerCase().includes('engineer') &&
-        !detectionState.activeJob.title.toLowerCase().includes('software') &&
-        !detectionState.activeJob.title.toLowerCase().includes('golang')) {
+    if (
+      !detectionState.activeJob.title.toLowerCase().includes('engineer') &&
+      !detectionState.activeJob.title.toLowerCase().includes('software') &&
+      !detectionState.activeJob.title.toLowerCase().includes('golang')
+    ) {
       throw new Error(`Unexpected job title: ${detectionState.activeJob.title}`);
     }
 
     if (detectionState.activeJob.externalJobId !== '4419969671') {
-      throw new Error(`Expected externalJobId 4419969671, got: ${detectionState.activeJob.externalJobId}`);
+      throw new Error(
+        `Expected externalJobId 4419969671, got: ${detectionState.activeJob.externalJobId}`
+      );
     }
 
     if (serverAnalyzeCalls !== 0) {
@@ -425,7 +437,10 @@ async function main() {
           };
         })()
       `);
-      if (analyzedState?.workflowState === 'ANALYSIS_READY' || analyzedState?.workflowState === 'APPLICATION_READY') {
+      if (
+        analyzedState?.workflowState === 'ANALYSIS_READY' ||
+        analyzedState?.workflowState === 'APPLICATION_READY'
+      ) {
         break;
       }
     }
@@ -436,7 +451,9 @@ async function main() {
     console.log('   After Analyze - Total /analyze-job server calls:', serverAnalyzeCalls);
 
     if (serverAnalyzeCalls !== 1) {
-      throw new Error(`Explicit Analyze MUST trigger exactly 1 server call! Got: ${serverAnalyzeCalls}`);
+      throw new Error(
+        `Explicit Analyze MUST trigger exactly 1 server call! Got: ${serverAnalyzeCalls}`
+      );
     }
 
     const screenshot4Path = path.join(SCREENSHOT_DIR, 'p66-04-live-linkedin-analyzed.png');

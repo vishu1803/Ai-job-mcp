@@ -256,10 +256,7 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(initialRows.length, 0, 'Initial active application count must be 0');
 
@@ -275,9 +272,17 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
 
     preparedVercelPackage = JSON.parse(body.result.content[0].text);
     assert.ok(preparedVercelPackage.applicationId, 'Must return applicationId');
-    assert.strictEqual(preparedVercelPackage.lifecycleAction, 'CREATED', 'Must report CREATED action');
+    assert.strictEqual(
+      preparedVercelPackage.lifecycleAction,
+      'CREATED',
+      'Must report CREATED action'
+    );
     assert.ok(preparedVercelPackage.packageHash, 'Must include packageHash');
-    assert.strictEqual(preparedVercelPackage.packageVersion, 1, 'Initial package version must be 1');
+    assert.strictEqual(
+      preparedVercelPackage.packageVersion,
+      1,
+      'Initial package version must be 1'
+    );
 
     vercelApplicationId = preparedVercelPackage.applicationId;
 
@@ -286,10 +291,7 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(afterRows.length, 1, 'Exactly one application row must exist in DB');
     assert.strictEqual(afterRows[0].id, vercelApplicationId);
@@ -331,7 +333,11 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
     const prepBody = JSON.parse(prepRes.payload);
     const prepResult = JSON.parse(prepBody.result.content[0].text);
 
-    assert.strictEqual(prepResult.applicationId, stripeApplicationId, 'Must reuse tracked application ID');
+    assert.strictEqual(
+      prepResult.applicationId,
+      stripeApplicationId,
+      'Must reuse tracked application ID'
+    );
     assert.strictEqual(prepResult.lifecycleAction, 'REUSED', 'Must report REUSED action');
 
     // Verify DB count: only 2 applications (Vercel and Stripe)
@@ -339,10 +345,7 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(appRows.length, 2, 'Must have exactly 2 active applications');
   });
@@ -377,10 +380,7 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(totalApps.length, 2, 'DB application count must remain exactly 2');
   });
@@ -403,20 +403,25 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
     const body = JSON.parse(res.payload);
     const result = JSON.parse(body.result.content[0].text);
 
-    assert.strictEqual(result.applicationId, vercelApplicationId, 'Application ID must remain the same');
+    assert.strictEqual(
+      result.applicationId,
+      vercelApplicationId,
+      'Application ID must remain the same'
+    );
     assert.strictEqual(result.packageVersion, 2, 'Version must increment to 2');
     assert.strictEqual(result.lifecycleAction, 'UPDATED', 'Action must be UPDATED');
-    assert.notStrictEqual(result.packageHash, preparedVercelPackage.packageHash, 'Hash must differ');
+    assert.notStrictEqual(
+      result.packageHash,
+      preparedVercelPackage.packageHash,
+      'Hash must differ'
+    );
 
     // Still exactly 2 application rows in DB
     const totalApps = await db
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(totalApps.length, 2, 'DB application count must remain 2');
   });
@@ -484,7 +489,10 @@ describe('MCP Job Application Workflow Remediation (P14-028)', () => {
     assert.ok(validation.jobConsistency);
     assert.strictEqual(validation.jobConsistency.isConsistent, true);
     assert.strictEqual(validation.jobConsistency.targetCompany, 'Vercel');
-    assert.strictEqual(validation.jobConsistency.targetTitle, 'Senior Software Engineer - Infrastructure');
+    assert.strictEqual(
+      validation.jobConsistency.targetTitle,
+      'Senior Software Engineer - Infrastructure'
+    );
 
     // Subcategory: provenanceIssues
     assert.ok(validation.provenanceIssues);

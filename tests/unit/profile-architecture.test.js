@@ -85,7 +85,13 @@ describe('Profile Architecture - Bootstrap DTO', () => {
   it('bootstrap DTO includes catalog with enough data for local search', () => {
     const catalog = {
       items: [
-        { id: '1', canonicalName: 'AWS', slug: 'aws', category: 'CLOUD', aliases: ['Amazon Web Services'] },
+        {
+          id: '1',
+          canonicalName: 'AWS',
+          slug: 'aws',
+          category: 'CLOUD',
+          aliases: ['Amazon Web Services'],
+        },
         { id: '2', canonicalName: 'Docker', slug: 'docker', category: 'CONTAINERS', aliases: [] },
       ],
       categories: [
@@ -150,7 +156,7 @@ describe('Profile Architecture - Additional Skills Local State', () => {
     function addSkillLocal(skillId, name, category, proficiency) {
       const isLearning = proficiency === 'CURRENTLY_LEARNING';
       const newSkill = {
-        id: 'local-' + (++_localSkillIdCounter),
+        id: 'local-' + ++_localSkillIdCounter,
         catalogSkillId: skillId,
         skillName: name,
         skillSlug: name.toLowerCase().replace(/\s+/g, '-'),
@@ -181,7 +187,7 @@ describe('Profile Architecture - Additional Skills Local State', () => {
       { id: '3', skillName: 'Redis' },
     ];
 
-    additionalSkillsData = additionalSkillsData.filter(s => s.id !== '2');
+    additionalSkillsData = additionalSkillsData.filter((s) => s.id !== '2');
 
     assert.strictEqual(additionalSkillsData.length, 2, '1 skill removed locally');
     assert.strictEqual(additionalSkillsData[0].skillName, 'AWS', 'AWS remains');
@@ -190,21 +196,41 @@ describe('Profile Architecture - Additional Skills Local State', () => {
 
   it('local catalog search finds skills without network calls', () => {
     const catalog = [
-      { id: '1', canonicalName: 'AWS', slug: 'aws', category: 'CLOUD', aliases: ['Amazon Web Services', 'Amazon AWS'] },
+      {
+        id: '1',
+        canonicalName: 'AWS',
+        slug: 'aws',
+        category: 'CLOUD',
+        aliases: ['Amazon Web Services', 'Amazon AWS'],
+      },
       { id: '2', canonicalName: 'Docker', slug: 'docker', category: 'CONTAINERS', aliases: [] },
-      { id: '3', canonicalName: 'Kubernetes', slug: 'kubernetes', category: 'CONTAINERS', aliases: ['K8s'] },
-      { id: '4', canonicalName: 'React', slug: 'react', category: 'FRAMEWORK', aliases: ['ReactJS'] },
+      {
+        id: '3',
+        canonicalName: 'Kubernetes',
+        slug: 'kubernetes',
+        category: 'CONTAINERS',
+        aliases: ['K8s'],
+      },
+      {
+        id: '4',
+        canonicalName: 'React',
+        slug: 'react',
+        category: 'FRAMEWORK',
+        aliases: ['ReactJS'],
+      },
     ];
 
     function searchCatalog(q, existingSlugs = new Set()) {
       const query = q.toLowerCase().trim();
       return catalog
-        .filter(s => {
+        .filter((s) => {
           if (existingSlugs.has(s.slug)) return false;
           const name = (s.canonicalName || '').toLowerCase();
           const slug = (s.slug || '').toLowerCase();
-          const aliases = Array.isArray(s.aliases) ? s.aliases.map(a => a.toLowerCase()) : [];
-          return name.includes(query) || slug.includes(query) || aliases.some(a => a.includes(query));
+          const aliases = Array.isArray(s.aliases) ? s.aliases.map((a) => a.toLowerCase()) : [];
+          return (
+            name.includes(query) || slug.includes(query) || aliases.some((a) => a.includes(query))
+          );
         })
         .slice(0, 30);
     }
@@ -217,8 +243,16 @@ describe('Profile Architecture - Additional Skills Local State', () => {
 
     // With existing skills filtered out
     const existing = new Set(['docker']);
-    assert.strictEqual(searchCatalog('docker', existing).length, 0, 'Docker excluded when already added');
-    assert.strictEqual(searchCatalog('aws', existing).length, 1, 'AWS still found when Docker excluded');
+    assert.strictEqual(
+      searchCatalog('docker', existing).length,
+      0,
+      'Docker excluded when already added'
+    );
+    assert.strictEqual(
+      searchCatalog('aws', existing).length,
+      1,
+      'AWS still found when Docker excluded'
+    );
   });
 
   it('local category filter works without network calls', () => {
@@ -230,7 +264,7 @@ describe('Profile Architecture - Additional Skills Local State', () => {
     ];
 
     function filterByCategory(cat) {
-      return catalog.filter(s => s.category === cat);
+      return catalog.filter((s) => s.category === cat);
     }
 
     assert.strictEqual(filterByCategory('CLOUD').length, 1, '1 CLOUD skill');
@@ -275,14 +309,22 @@ describe('Profile Architecture - Evidence Protection', () => {
     };
 
     assert.notStrictEqual(skill.provenanceStatus, 'VERIFIED', 'SELF_DECLARED is not VERIFIED');
-    assert.notStrictEqual(skill.provenanceStatus, 'CORROBORATED', 'SELF_DECLARED is not CORROBORATED');
+    assert.notStrictEqual(
+      skill.provenanceStatus,
+      'CORROBORATED',
+      'SELF_DECLARED is not CORROBORATED'
+    );
   });
 
   it('LEARNING skills are distinguished from SELF_DECLARED', () => {
     const learning = { provenanceStatus: 'LEARNING', proficiency: 'CURRENTLY_LEARNING' };
     const selfDeclared = { provenanceStatus: 'SELF_DECLARED', proficiency: 'PROFICIENT' };
 
-    assert.notStrictEqual(learning.provenanceStatus, selfDeclared.provenanceStatus, 'LEARNING !== SELF_DECLARED');
+    assert.notStrictEqual(
+      learning.provenanceStatus,
+      selfDeclared.provenanceStatus,
+      'LEARNING !== SELF_DECLARED'
+    );
   });
 
   it('evidence-backed skills are preserved when additional skills are saved', () => {
@@ -291,13 +333,21 @@ describe('Profile Architecture - Evidence Protection', () => {
       { id: 'e2', skillName: 'React', provenanceStatus: 'CORROBORATED', source: 'BOTH' },
     ];
     const additionalSkills = [
-      { id: 'a1', skillName: 'AWS', provenanceStatus: 'SELF_DECLARED', source: 'CANDIDATE_DECLARED' },
+      {
+        id: 'a1',
+        skillName: 'AWS',
+        provenanceStatus: 'SELF_DECLARED',
+        source: 'CANDIDATE_DECLARED',
+      },
     ];
 
     // Additional skills save should NOT touch evidence-backed skills
-    const savedIds = additionalSkills.map(s => s.catalogSkillId);
+    const savedIds = additionalSkills.map((s) => s.catalogSkillId);
     for (const evidence of evidenceBackedSkills) {
-      assert.ok(!savedIds.includes(evidence.id), `Evidence-backed ${evidence.skillName} not in additional save`);
+      assert.ok(
+        !savedIds.includes(evidence.id),
+        `Evidence-backed ${evidence.skillName} not in additional save`
+      );
     }
   });
 });

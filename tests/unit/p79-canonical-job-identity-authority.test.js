@@ -33,17 +33,27 @@ function createMockElement(id = '', defaultText = '') {
   return {
     id,
     _textContent: defaultText,
-    get textContent() { return this._textContent; },
-    set textContent(val) { this._textContent = val === null || val === undefined ? '' : String(val); },
+    get textContent() {
+      return this._textContent;
+    },
+    set textContent(val) {
+      this._textContent = val === null || val === undefined ? '' : String(val);
+    },
     innerHTML: '',
     className: '',
     disabled: false,
     children: [],
     classList: {
       _set: new Set(['hidden']),
-      add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
-      contains(c) { return this._set.has(c); },
+      add(c) {
+        this._set.add(c);
+      },
+      remove(c) {
+        this._set.delete(c);
+      },
+      contains(c) {
+        return this._set.has(c);
+      },
       toggle(c, force) {
         if (force === true) this._set.add(c);
         else if (force === false) this._set.delete(c);
@@ -51,42 +61,114 @@ function createMockElement(id = '', defaultText = '') {
         else this._set.add(c);
       },
     },
-    addEventListener(event, fn) { this[`on_${event}`] = fn; },
-    appendChild(child) { this.children.push(child); },
-    removeAttribute(attr) { if (attr === 'disabled') this.disabled = false; },
-    setAttribute(attr, val) { if (attr === 'disabled') this.disabled = Boolean(val); },
+    addEventListener(event, fn) {
+      this[`on_${event}`] = fn;
+    },
+    appendChild(child) {
+      this.children.push(child);
+    },
+    removeAttribute(attr) {
+      if (attr === 'disabled') this.disabled = false;
+    },
+    setAttribute(attr, val) {
+      if (attr === 'disabled') this.disabled = Boolean(val);
+    },
   };
 }
 
 function setupMockDocument() {
   const elements = new Map();
   const elementIds = [
-    'connectionBadge', 'connectionText', 'refreshBtn', 'rescanBtn',
-    'pendingJobNotification', 'pendingJobTitle', 'rescanPendingBtn',
-    'authBar', 'authUnauthenticatedState', 'authAuthenticatedState',
-    'loginBtn', 'logoutBtn', 'userName', 'userEmail', 'userAvatar',
-    'sessionExpiredNotice', 'reauthBtn', 'workflowStatusBar', 'workflowStateText',
-    'workflowLockedBadge', 'syncIndicator', 'portalCard', 'portalName',
-    'confidenceBadge', 'capJob', 'capApp', 'capForm', 'capAutofill',
-    'jobCard', 'reanalyzeBtn', 'jobNotDetectedState', 'jobDetectedState',
-    'jobTitle', 'jobCompany', 'jobLocation', 'jobType', 'jobIdTag',
-    'analyzeJobBtn', 'descriptionLoadingNotice', 'descriptionLoadingText',
-    'analysisErrorBanner', 'analysisErrorMessage', 'retryAnalysisBtn',
-    'analysisCard', 'matchBandBadge', 'scoreValue', 'matchedSkillsCount',
-    'missingSkillsCount', 'experienceFitVal', 'matchedSkillsList', 'missingSkillsList',
-    'analysisNextActionBox', 'projectsCard', 'recommendedProjectsList',
-    'handoffCard', 'handoffStatusBadge', 'handoffTelemetryRow', 'handoffAppId',
-    'handoffPackageMeta', 'workflowLockBanner', 'resetWorkflowBtn',
-    'handoffErrorBanner', 'handoffErrorMessage', 'retryHandoffBtn',
-    'prepareHandoffBtn', 'prepareSpinner', 'prepareBtnText',
-    'regenerateHandoffBtn', 'regenerateConfirmBox', 'cancelRegenerateBtn',
-    'confirmRegenerateBtn', 'artifactsContainer', 'reviewResumeBtn',
-    'downloadResumeBtn', 'reviewCoverLetterBtn', 'downloadCoverLetterBtn',
-    'downloadBundleBtn', 'formDetectionCard', 'stepIndicator',
-    'formStatusMessage', 'formFieldsSummary', 'autofillFormBtn',
-    'autofillFormSpinner', 'autofillBtnText', 'autofillSuccessBanner',
-    'autofillErrorBanner', 'autofillErrorMessage', 'viewApplicationLink',
-    'sidebarVersionTag', 'exportLogsBtn'
+    'connectionBadge',
+    'connectionText',
+    'refreshBtn',
+    'rescanBtn',
+    'pendingJobNotification',
+    'pendingJobTitle',
+    'rescanPendingBtn',
+    'authBar',
+    'authUnauthenticatedState',
+    'authAuthenticatedState',
+    'loginBtn',
+    'logoutBtn',
+    'userName',
+    'userEmail',
+    'userAvatar',
+    'sessionExpiredNotice',
+    'reauthBtn',
+    'workflowStatusBar',
+    'workflowStateText',
+    'workflowLockedBadge',
+    'syncIndicator',
+    'portalCard',
+    'portalName',
+    'confidenceBadge',
+    'capJob',
+    'capApp',
+    'capForm',
+    'capAutofill',
+    'jobCard',
+    'reanalyzeBtn',
+    'jobNotDetectedState',
+    'jobDetectedState',
+    'jobTitle',
+    'jobCompany',
+    'jobLocation',
+    'jobType',
+    'jobIdTag',
+    'analyzeJobBtn',
+    'descriptionLoadingNotice',
+    'descriptionLoadingText',
+    'analysisErrorBanner',
+    'analysisErrorMessage',
+    'retryAnalysisBtn',
+    'analysisCard',
+    'matchBandBadge',
+    'scoreValue',
+    'matchedSkillsCount',
+    'missingSkillsCount',
+    'experienceFitVal',
+    'matchedSkillsList',
+    'missingSkillsList',
+    'analysisNextActionBox',
+    'projectsCard',
+    'recommendedProjectsList',
+    'handoffCard',
+    'handoffStatusBadge',
+    'handoffTelemetryRow',
+    'handoffAppId',
+    'handoffPackageMeta',
+    'workflowLockBanner',
+    'resetWorkflowBtn',
+    'handoffErrorBanner',
+    'handoffErrorMessage',
+    'retryHandoffBtn',
+    'prepareHandoffBtn',
+    'prepareSpinner',
+    'prepareBtnText',
+    'regenerateHandoffBtn',
+    'regenerateConfirmBox',
+    'cancelRegenerateBtn',
+    'confirmRegenerateBtn',
+    'artifactsContainer',
+    'reviewResumeBtn',
+    'downloadResumeBtn',
+    'reviewCoverLetterBtn',
+    'downloadCoverLetterBtn',
+    'downloadBundleBtn',
+    'formDetectionCard',
+    'stepIndicator',
+    'formStatusMessage',
+    'formFieldsSummary',
+    'autofillFormBtn',
+    'autofillFormSpinner',
+    'autofillBtnText',
+    'autofillSuccessBanner',
+    'autofillErrorBanner',
+    'autofillErrorMessage',
+    'viewApplicationLink',
+    'sidebarVersionTag',
+    'exportLogsBtn',
   ];
 
   for (const id of elementIds) {
@@ -137,8 +219,14 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
     });
 
     it('identifies identical jobs correctly even with tracking query params', () => {
-      const jobA1 = { ...sampleJobA, sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/?utm_source=feed&refId=abc' };
-      const jobA2 = { ...sampleJobA, sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/?trackingId=xyz' };
+      const jobA1 = {
+        ...sampleJobA,
+        sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/?utm_source=feed&refId=abc',
+      };
+      const jobA2 = {
+        ...sampleJobA,
+        sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/?trackingId=xyz',
+      };
       const id1 = new CanonicalJobIdentity(jobA1);
       const id2 = new CanonicalJobIdentity(jobA2);
       assert.strictEqual(id1.isSameAs(id2), true);
@@ -157,23 +245,41 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
 
     it('requires at least one authoritative anchor for validity (provider+extId, canonicalJobId, provider+url, title+company+url)', () => {
       // Valid with provider + externalJobId
-      const idProvider = new CanonicalJobIdentity({ title: 'Software Engineer', provider: 'LINKEDIN', externalJobId: '12345' });
+      const idProvider = new CanonicalJobIdentity({
+        title: 'Software Engineer',
+        provider: 'LINKEDIN',
+        externalJobId: '12345',
+      });
       assert.strictEqual(idProvider.isValid(), true);
 
       // Valid with canonicalJobId
-      const idCanonical = new CanonicalJobIdentity({ title: 'Software Engineer', canonicalJobId: 'canon-123' });
+      const idCanonical = new CanonicalJobIdentity({
+        title: 'Software Engineer',
+        canonicalJobId: 'canon-123',
+      });
       assert.strictEqual(idCanonical.isValid(), true);
 
       // Valid with provider + normalizedUrl
-      const idProviderUrl = new CanonicalJobIdentity({ title: 'Software Engineer', provider: 'GREENHOUSE', sourceUrl: 'https://careers.company.com/job/1' });
+      const idProviderUrl = new CanonicalJobIdentity({
+        title: 'Software Engineer',
+        provider: 'GREENHOUSE',
+        sourceUrl: 'https://careers.company.com/job/1',
+      });
       assert.strictEqual(idProviderUrl.isValid(), true);
 
       // Valid with validated title + company + url
-      const idFull = new CanonicalJobIdentity({ title: 'Software Engineer', company: 'Acme', url: 'https://acme.org/jobs/42' });
+      const idFull = new CanonicalJobIdentity({
+        title: 'Software Engineer',
+        company: 'Acme',
+        url: 'https://acme.org/jobs/42',
+      });
       assert.strictEqual(idFull.isValid(), true);
 
       // Invalid with normalizedUrl alone (no provider, no company)
-      const idUrlAlone = new CanonicalJobIdentity({ title: 'Software Engineer', sourceUrl: 'https://careers.company.com/job/1' });
+      const idUrlAlone = new CanonicalJobIdentity({
+        title: 'Software Engineer',
+        sourceUrl: 'https://careers.company.com/job/1',
+      });
       assert.strictEqual(idUrlAlone.isValid(), false);
     });
 
@@ -369,13 +475,17 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
         type: SIGNAL_TYPES.HYDRATE_DESCRIPTION,
         jobFingerprint: idA.fingerprint,
         detectedJob: {
-          description: 'A newly hydrated detailed description with more than 50 characters for this exact role.',
+          description:
+            'A newly hydrated detailed description with more than 50 characters for this exact role.',
         },
       };
 
       const decision = JobIdentityAuthority.evaluateTransition(context, signal);
       assert.strictEqual(decision.action, TRANSITION_ACTIONS.RETAIN_AND_ENRICH);
-      assert.strictEqual(decision.activeJob.description.includes('newly hydrated detailed description'), true);
+      assert.strictEqual(
+        decision.activeJob.description.includes('newly hydrated detailed description'),
+        true
+      );
       assert.strictEqual(decision.activeJob.title, sampleJobA.title);
       assert.strictEqual(decision.activeJob.company, sampleJobA.company);
     });
@@ -416,7 +526,10 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
 
       const decision = JobIdentityAuthority.evaluateTransition(context, signal);
       assert.strictEqual(decision.action, TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION);
-      assert.strictEqual(decision.reason.includes('does not match active canonical identity'), true);
+      assert.strictEqual(
+        decision.reason.includes('does not match active canonical identity'),
+        true
+      );
       assert.strictEqual(decision.activeJob.title, sampleJobA.title);
     });
 
@@ -458,7 +571,10 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
 
       const decision = JobIdentityAuthority.evaluateTransition(context, signal);
       assert.strictEqual(decision.action, TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION);
-      assert.strictEqual(decision.reason.includes('does not match active canonical identity'), true);
+      assert.strictEqual(
+        decision.reason.includes('does not match active canonical identity'),
+        true
+      );
       assert.strictEqual(decision.activeJob.title, sampleJobA.title);
     });
 
@@ -501,9 +617,14 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
             get: (keys, cb) => {
               const res = {};
               if (typeof keys === 'string') res[keys] = mockStorage.get(keys);
-              else if (Array.isArray(keys)) keys.forEach((k) => { res[k] = mockStorage.get(k); });
+              else if (Array.isArray(keys))
+                keys.forEach((k) => {
+                  res[k] = mockStorage.get(k);
+                });
               else if (typeof keys === 'object' && keys !== null) {
-                Object.keys(keys).forEach((k) => { res[k] = mockStorage.has(k) ? mockStorage.get(k) : keys[k]; });
+                Object.keys(keys).forEach((k) => {
+                  res[k] = mockStorage.has(k) ? mockStorage.get(k) : keys[k];
+                });
               }
               if (cb) cb(res);
               return Promise.resolve(res);

@@ -38,16 +38,42 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
     displayName: 'Alex Morgan',
     email: 'alex.morgan@example.com',
     skills: [
-      { id: 'sk-1', name: 'TypeScript', slug: 'typescript', category: 'Languages', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-2', name: 'React', slug: 'react', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-3', name: 'Node.js', slug: 'node-js', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-4', name: 'PostgreSQL', slug: 'postgresql', category: 'Databases', provenanceStatus: 'VERIFIED' },
+      {
+        id: 'sk-1',
+        name: 'TypeScript',
+        slug: 'typescript',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-2',
+        name: 'React',
+        slug: 'react',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-3',
+        name: 'Node.js',
+        slug: 'node-js',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-4',
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'Databases',
+        provenanceStatus: 'VERIFIED',
+      },
     ],
     experience: [
       {
         company: 'CloudSystems Inc',
         title: 'Full-Stack Engineer',
-        bullets: ['Architected microservices handling high concurrency with Node.js and PostgreSQL.'],
+        bullets: [
+          'Architected microservices handling high concurrency with Node.js and PostgreSQL.',
+        ],
       },
     ],
     education: [
@@ -130,7 +156,10 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
   it('1. Extracts >=3 authentic source bullets per candidate project', () => {
     for (const proj of baseProfile.projects) {
       assert.ok(Array.isArray(proj.bullets), `Project ${proj.name} should have bullets array`);
-      assert.ok(proj.bullets.length >= 3, `Project ${proj.name} must have >= 3 authentic bullets, got ${proj.bullets.length}`);
+      assert.ok(
+        proj.bullets.length >= 3,
+        `Project ${proj.name} must have >= 3 authentic bullets, got ${proj.bullets.length}`
+      );
     }
   });
 
@@ -145,11 +174,22 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
 
     const rendered = snapshot.structuredResume.projects;
     assert.equal(rendered.length, 2, 'Must render exactly N=2 projects');
-    assert.equal(rendered[0].projectId, proj1Id, 'First project must match top authoritative ranking');
-    assert.equal(rendered[1].projectId, proj2Id, 'Second project must match second authoritative ranking');
+    assert.equal(
+      rendered[0].projectId,
+      proj1Id,
+      'First project must match top authoritative ranking'
+    );
+    assert.equal(
+      rendered[1].projectId,
+      proj2Id,
+      'Second project must match second authoritative ranking'
+    );
 
     for (const p of rendered) {
-      assert.ok(p.bullets.length >= 3, `Project ${p.displayName} must have >= 3 bullets, got ${p.bullets.length}`);
+      assert.ok(
+        p.bullets.length >= 3,
+        `Project ${p.displayName} must have >= 3 bullets, got ${p.bullets.length}`
+      );
     }
 
     assert.equal(snapshot.evidenceValidationReceipt.overallStatus, 'PASS');
@@ -169,8 +209,10 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
     for (const renderedProj of rendered) {
       const sourceProj = baseProfile.projects.find((p) => p.id === renderedProj.projectId);
       assert.ok(sourceProj, `Source project must exist for ${renderedProj.displayName}`);
-      
-      const sourceBulletTexts = sourceProj.bullets.map((b) => (typeof b === 'string' ? b : b.text).trim());
+
+      const sourceBulletTexts = sourceProj.bullets.map((b) =>
+        (typeof b === 'string' ? b : b.text).trim()
+      );
       for (const b of renderedProj.bullets) {
         const text = (typeof b === 'string' ? b : b.text).trim();
         assert.ok(
@@ -205,15 +247,28 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
       jobPosting: sampleJob,
       options: {
         projectRankings: [
-          { id: proj1Id, projectId: proj1Id, name: 'Thin Project Alpha', relevanceScore: 90, status: 'SELECTED' },
-          { id: proj2Id, projectId: proj2Id, name: 'Thin Project Beta', relevanceScore: 80, status: 'SELECTED' },
+          {
+            id: proj1Id,
+            projectId: proj1Id,
+            name: 'Thin Project Alpha',
+            relevanceScore: 90,
+            status: 'SELECTED',
+          },
+          {
+            id: proj2Id,
+            projectId: proj2Id,
+            name: 'Thin Project Beta',
+            relevanceScore: 80,
+            status: 'SELECTED',
+          },
         ],
       },
     });
 
     // Both projects should be dropped due to <3 bullets
     assert.equal(doc.projects.length, 0, 'Both thin projects must be dropped from rendering');
-    const removalRecords = doc.debugTrace?.projectRemovalRecords || doc.metadata?.projectRemovalRecords || [];
+    const removalRecords =
+      doc.debugTrace?.projectRemovalRecords || doc.metadata?.projectRemovalRecords || [];
     assert.ok(removalRecords.length >= 2, 'Must record project removal records');
     assert.ok(
       removalRecords.every((r) => r.reason === 'INSUFFICIENT_CANDIDATE_BULLETS'),
@@ -222,16 +277,24 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
 
     // Evidence validation receipt audit
     const receipt = validateStructuredResumeIntegrity(doc);
-    assert.equal(receipt.overallStatus, 'FAIL', 'Integrity validation must FAIL when 0 projects rendered due to insufficient source evidence');
-    
-    const violation = receipt.violations.find((v) => v.violationType === 'INSUFFICIENT_SOURCE_EVIDENCE');
+    assert.equal(
+      receipt.overallStatus,
+      'FAIL',
+      'Integrity validation must FAIL when 0 projects rendered due to insufficient source evidence'
+    );
+
+    const violation = receipt.violations.find(
+      (v) => v.violationType === 'INSUFFICIENT_SOURCE_EVIDENCE'
+    );
     assert.ok(violation, 'Must emit INSUFFICIENT_SOURCE_EVIDENCE violation');
     assert.match(violation.message, /lack the required minimum 3 candidate-supported bullets/);
 
     // Pre-render content quality gate
     const gate = assessPreRenderQuality({ structuredResume: doc });
     assert.equal(gate.passed, false, 'Quality gate must fail');
-    const gateFinding = gate.findings.find((f) => f.code === GATE_FINDING_CODES.INSUFFICIENT_SOURCE_EVIDENCE);
+    const gateFinding = gate.findings.find(
+      (f) => f.code === GATE_FINDING_CODES.INSUFFICIENT_SOURCE_EVIDENCE
+    );
     assert.ok(gateFinding, 'Gate must emit INSUFFICIENT_SOURCE_EVIDENCE finding');
     assert.equal(gateFinding.severity, GATE_SEVERITY.FAIL);
   });
@@ -276,13 +339,23 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
     };
 
     const receipt = validateStructuredResumeIntegrity(mockZeroDoc);
-    assert.equal(receipt.overallStatus, 'PASS', 'Zero projects is permitted when candidate genuinely has zero eligible projects');
+    assert.equal(
+      receipt.overallStatus,
+      'PASS',
+      'Zero projects is permitted when candidate genuinely has zero eligible projects'
+    );
     assert.equal(receipt.violations.length, 0);
 
     const gate = assessPreRenderQuality({ structuredResume: mockZeroDoc });
     const projectFindings = gate.findings.filter(
-      (f) => f.code === GATE_FINDING_CODES.INSUFFICIENT_SOURCE_EVIDENCE || f.code === GATE_FINDING_CODES.PIPELINE_FAILURE
+      (f) =>
+        f.code === GATE_FINDING_CODES.INSUFFICIENT_SOURCE_EVIDENCE ||
+        f.code === GATE_FINDING_CODES.PIPELINE_FAILURE
     );
-    assert.equal(projectFindings.length, 0, 'No project failure findings when zero eligible projects exist');
+    assert.equal(
+      projectFindings.length,
+      0,
+      'No project failure findings when zero eligible projects exist'
+    );
   });
 });

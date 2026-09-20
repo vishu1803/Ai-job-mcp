@@ -42,7 +42,8 @@ export function renderAssistantPage({
   aiAvailable = true,
 }) {
   const userName = escapeHtml(user?.displayName || candidate?.displayName || 'Candidate');
-  const readinessScore = readiness?.readinessScore ?? readiness?.semantics?.overallReadinessScore ?? 85;
+  const readinessScore =
+    readiness?.readinessScore ?? readiness?.semantics?.overallReadinessScore ?? 85;
 
   const content = `
   <div class="container assistant-container" style="max-width: 1080px; margin: 32px auto; padding: 0 16px;">

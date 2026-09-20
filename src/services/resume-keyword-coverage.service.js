@@ -14,17 +14,9 @@
  * 5. Deterministic, auditable output validated against ResumeKeywordCoverageReportSchema.
  */
 
-import {
-  SkillTaxonomyEngine,
-  CANONICAL_SKILLS,
-} from '../domain/career/skill-taxonomy.js';
-import {
-  CANONICAL_TECH_MAP,
-  normalizeTechnologyName,
-} from '../utils/technology-normalizer.js';
-import {
-  ResumeKeywordCoverageReportSchema,
-} from '../domain/career/resume-keyword-coverage.schemas.js';
+import { SkillTaxonomyEngine, CANONICAL_SKILLS } from '../domain/career/skill-taxonomy.js';
+import { CANONICAL_TECH_MAP, normalizeTechnologyName } from '../utils/technology-normalizer.js';
+import { ResumeKeywordCoverageReportSchema } from '../domain/career/resume-keyword-coverage.schemas.js';
 import { defaultAtsParseabilityService } from './resume-ats-parseability.service.js';
 
 export class ResumeKeywordCoverageService {
@@ -69,8 +61,7 @@ export class ResumeKeywordCoverageService {
     // 2c. Candidate profile verified skill inventory
     const candidateSkills = new Set();
     if (candidateProfile) {
-      const profSkills =
-        candidateProfile.profileMetadata?.skills || candidateProfile.skills || [];
+      const profSkills = candidateProfile.profileMetadata?.skills || candidateProfile.skills || [];
       for (const s of profSkills) {
         const sName = typeof s === 'string' ? s : s.name;
         if (sName) {
@@ -192,7 +183,10 @@ export class ResumeKeywordCoverageService {
           if (intendedSatisfies) intendedSatisfiedWeight += termWeight * 0.5;
           if (renderedSatisfies) renderedSatisfiedWeight += termWeight * 0.5;
         }
-      } else if (evalResult.matchType === 'MISSING' || evalResult.matchType === 'UNSUPPORTED_CANDIDATE') {
+      } else if (
+        evalResult.matchType === 'MISSING' ||
+        evalResult.matchType === 'UNSUPPORTED_CANDIDATE'
+      ) {
         missingTerms++;
         if (isRequired) {
           criticalMissingTerms++;
@@ -207,7 +201,10 @@ export class ResumeKeywordCoverageService {
           category: jobTerm.category || 'TOOL',
           occurrences: evalResult.occurrences,
           sections: evalResult.placements,
-          contextualBreadthScore: Math.min(1.0, evalResult.placements.filter(p => p !== 'header').length / 3.0),
+          contextualBreadthScore: Math.min(
+            1.0,
+            evalResult.placements.filter((p) => p !== 'header').length / 3.0
+          ),
           isNaturalUsage: true,
           stuffingWarning: null,
         });
@@ -275,44 +272,73 @@ export class ResumeKeywordCoverageService {
         : 100;
 
     // The rendered PDF is the final ground truth (Rule 25)
-    const overallCoveragePercent = artifactText
-      ? renderedCoveragePercent
-      : intendedCoveragePercent;
+    const overallCoveragePercent = artifactText ? renderedCoveragePercent : intendedCoveragePercent;
 
     // Inspectable Multi-Factor Confidence (Weakness 1)
-    const pdfExtractionQuality = Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 50
-      ? (artifactText && artifactText.length >= 250 && !/[\uFFFD]/.test(artifactText) ? 0.98 : 0.88)
-      : (extractedText ? 0.85 : 0.75);
+    const pdfExtractionQuality =
+      Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 50
+        ? artifactText && artifactText.length >= 250 && !/[\uFFFD]/.test(artifactText)
+          ? 0.98
+          : 0.88
+        : extractedText
+          ? 0.85
+          : 0.75;
 
-    const requirementExtractionQuality = jobTerms.length > 0
-      ? Math.round((jobTerms.filter(t => CANONICAL_SKILLS[t.canonicalSlug] !== undefined).length / jobTerms.length) * 100) / 100
-      : 1.0;
+    const requirementExtractionQuality =
+      jobTerms.length > 0
+        ? Math.round(
+            (jobTerms.filter((t) => CANONICAL_SKILLS[t.canonicalSlug] !== undefined).length /
+              jobTerms.length) *
+              100
+          ) / 100
+        : 1.0;
 
-    const taxonomyResolution = termBreakdown.length > 0
-      ? Math.round((termBreakdown.filter(t => t.matchType !== 'MISSING' && t.matchType !== 'UNSUPPORTED_CANDIDATE').length / Math.max(1, termBreakdown.length)) * 100) / 100
-      : 1.0;
+    const taxonomyResolution =
+      termBreakdown.length > 0
+        ? Math.round(
+            (termBreakdown.filter(
+              (t) => t.matchType !== 'MISSING' && t.matchType !== 'UNSUPPORTED_CANDIDATE'
+            ).length /
+              Math.max(1, termBreakdown.length)) *
+              100
+          ) / 100
+        : 1.0;
 
-    const nonMissingMatches = termBreakdown.filter(t => t.matchType !== 'MISSING');
-    const authorizedMatches = nonMissingMatches.filter(t => t.candidateAuthorization === 'AUTHORIZED');
-    const rawEvidenceCoverage = candidateSkills.size > 0
-      ? (nonMissingMatches.length > 0 ? Math.round((authorizedMatches.length / nonMissingMatches.length) * 100) / 100 : 0.85)
-      : (candidateProfile ? 0.70 : 1.0);
+    const nonMissingMatches = termBreakdown.filter((t) => t.matchType !== 'MISSING');
+    const authorizedMatches = nonMissingMatches.filter(
+      (t) => t.candidateAuthorization === 'AUTHORIZED'
+    );
+    const rawEvidenceCoverage =
+      candidateSkills.size > 0
+        ? nonMissingMatches.length > 0
+          ? Math.round((authorizedMatches.length / nonMissingMatches.length) * 100) / 100
+          : 0.85
+        : candidateProfile
+          ? 0.7
+          : 1.0;
 
-    const evidenceCoverage = Math.min(1.0, Math.max(0.50, rawEvidenceCoverage));
+    const evidenceCoverage = Math.min(1.0, Math.max(0.5, rawEvidenceCoverage));
 
     const confidenceFactors = {
-      pdfExtractionQuality: Math.min(1.0, Math.max(0.50, pdfExtractionQuality)),
-      requirementExtractionQuality: Math.min(1.0, Math.max(0.50, requirementExtractionQuality)),
-      taxonomyResolution: Math.min(1.0, Math.max(0.60, taxonomyResolution)),
+      pdfExtractionQuality: Math.min(1.0, Math.max(0.5, pdfExtractionQuality)),
+      requirementExtractionQuality: Math.min(1.0, Math.max(0.5, requirementExtractionQuality)),
+      taxonomyResolution: Math.min(1.0, Math.max(0.6, taxonomyResolution)),
       evidenceCoverage,
     };
 
-    const compositeConfidence = Math.min(1.0, Math.max(0.50, Math.round(
-      (0.35 * confidenceFactors.pdfExtractionQuality +
-       0.25 * confidenceFactors.requirementExtractionQuality +
-       0.20 * confidenceFactors.taxonomyResolution +
-       0.20 * confidenceFactors.evidenceCoverage) * 100
-    ) / 100));
+    const compositeConfidence = Math.min(
+      1.0,
+      Math.max(
+        0.5,
+        Math.round(
+          (0.35 * confidenceFactors.pdfExtractionQuality +
+            0.25 * confidenceFactors.requirementExtractionQuality +
+            0.2 * confidenceFactors.taxonomyResolution +
+            0.2 * confidenceFactors.evidenceCoverage) *
+            100
+        ) / 100
+      )
+    );
 
     const report = {
       overallCoveragePercent,
@@ -332,9 +358,7 @@ export class ResumeKeywordCoverageService {
       stuffingWarnings,
       confidence: compositeConfidence,
       confidenceFactors,
-      analyzedAt: analyzedAt
-        ? new Date(analyzedAt).toISOString()
-        : new Date().toISOString(),
+      analyzedAt: analyzedAt ? new Date(analyzedAt).toISOString() : new Date().toISOString(),
     };
 
     return ResumeKeywordCoverageReportSchema.parse(report);
@@ -454,7 +478,7 @@ export class ResumeKeywordCoverageService {
         wordCount: 0,
       },
       summary: {
-        text: typeof doc.summary === 'string' ? doc.summary : (doc.summary?.text || ''),
+        text: typeof doc.summary === 'string' ? doc.summary : doc.summary?.text || '',
         termCounts: new Map(),
         wordCount: 0,
       },
@@ -762,9 +786,12 @@ export class ResumeKeywordCoverageService {
     const escaped = termStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(?:^|[^a-zA-Z0-9+#.])(${escaped})(?:$|[^a-zA-Z0-9+#.])`, 'gi');
 
-    const negationPattern = /\b(?:no\s+experience(?:\s+with|\s+in)?|not\s+(?:familiar|experienced)(?:\s+with)?|never\s+used|haven't\s+used|have\s+not\s+used|without\s+using|zero\s+knowledge\s+of|lack(?:\s+of)?|neither|nor|was\s+not\s+used|was\s+not\s+required|not\s+allowed|not\s+supported|not\s+used)\b/i;
-    const aspirationalPattern = /\b(?:interested\s+in\s+learning|eager\s+to\s+learn|looking\s+to\s+learn|aspiring\s+to|currently\s+(?:studying|learning|exploring)|hoping\s+to|aiming\s+to|plan(?:\s+to)?\s+learn)\b/i;
-    const contextOnlyPattern = /\b(?:migrated\s+away\s+from|replaced\s+.*\s+with|evaluated\s+.*\s+but|was\s+not\s+required|not\s+needed|in\s+contrast\s+to|alternative\s+to)\b/i;
+    const negationPattern =
+      /\b(?:no\s+experience(?:\s+with|\s+in)?|not\s+(?:familiar|experienced)(?:\s+with)?|never\s+used|haven't\s+used|have\s+not\s+used|without\s+using|zero\s+knowledge\s+of|lack(?:\s+of)?|neither|nor|was\s+not\s+used|was\s+not\s+required|not\s+allowed|not\s+supported|not\s+used)\b/i;
+    const aspirationalPattern =
+      /\b(?:interested\s+in\s+learning|eager\s+to\s+learn|looking\s+to\s+learn|aspiring\s+to|currently\s+(?:studying|learning|exploring)|hoping\s+to|aiming\s+to|plan(?:\s+to)?\s+learn)\b/i;
+    const contextOnlyPattern =
+      /\b(?:migrated\s+away\s+from|replaced\s+.*\s+with|evaluated\s+.*\s+but|was\s+not\s+required|not\s+needed|in\s+contrast\s+to|alternative\s+to)\b/i;
 
     let match;
     let hasPositive = false;

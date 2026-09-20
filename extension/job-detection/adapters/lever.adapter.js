@@ -58,7 +58,8 @@ export class LeverAdapter {
       }
     }
 
-    const locationEl = doc.querySelector('.posting-categories .location') || doc.querySelector('.location');
+    const locationEl =
+      doc.querySelector('.posting-categories .location') || doc.querySelector('.location');
     const workplaceEl = doc.querySelector('.posting-categories .workplaceTypes');
 
     const title = titleEl ? titleEl.textContent.trim() : '';
@@ -75,7 +76,9 @@ export class LeverAdapter {
     const location = locationEl ? locationEl.textContent.trim() : '';
 
     // Description container
-    const sectionContainers = doc.querySelectorAll('.section-wrapper, [data-qa="job-description"], .posting-page .content');
+    const sectionContainers = doc.querySelectorAll(
+      '.section-wrapper, [data-qa="job-description"], .posting-page .content'
+    );
     let description = '';
     const requirements = [];
 

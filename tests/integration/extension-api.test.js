@@ -167,7 +167,9 @@ describe('Extension Backend API Routes (P15-001)', () => {
     try {
       if (createdTenantIds.length > 0) {
         await db.delete(jobApplications).where(inArray(jobApplications.tenantId, createdTenantIds));
-        await db.delete(applicationPackages).where(inArray(applicationPackages.tenantId, createdTenantIds));
+        await db
+          .delete(applicationPackages)
+          .where(inArray(applicationPackages.tenantId, createdTenantIds));
         await db.delete(candidateSkills).where(inArray(candidateSkills.tenantId, createdTenantIds));
         await db.delete(projects).where(inArray(projects.tenantId, createdTenantIds));
         await db.delete(resources).where(inArray(resources.tenantId, createdTenantIds));
@@ -255,7 +257,8 @@ describe('Extension Backend API Routes (P15-001)', () => {
         },
         payload: {
           job: {
-            sourceUrl: 'https://boards.greenhouse.io/acme/jobs/54321?gh_jid=54321&utm_source=linkedin',
+            sourceUrl:
+              'https://boards.greenhouse.io/acme/jobs/54321?gh_jid=54321&utm_source=linkedin',
             provider: 'GREENHOUSE',
             title: 'Senior Backend Engineer',
             company: 'Acme',
@@ -461,4 +464,3 @@ describe('Extension Backend API Routes (P15-001)', () => {
     await closeDatabase();
   });
 });
-

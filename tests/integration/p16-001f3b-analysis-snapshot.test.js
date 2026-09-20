@@ -151,7 +151,11 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
           userCustom: {},
           systemInferred: { onboardingState: 'COMPLETED' },
           resumeData: {
-            identity: { fullName: 'Alice Cloudflare Candidate', email: userA.email, phone: '+1-555-0199' },
+            identity: {
+              fullName: 'Alice Cloudflare Candidate',
+              email: userA.email,
+              phone: '+1-555-0199',
+            },
             skills: ['Rust', 'Distributed Systems', 'TypeScript', 'Node.js', 'PostgreSQL'],
             projects: [
               {
@@ -160,7 +164,9 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
                 title: 'Product-Data-Explorer',
                 summary: 'High-throughput distributed telemetry in Rust.',
                 technologies: ['Rust', 'Distributed Systems', 'Raft', 'Streaming', 'TypeScript'],
-                bullets: ['Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.'],
+                bullets: [
+                  'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+                ],
                 url: 'https://github.com/alice/product-data-explorer',
               },
               {
@@ -169,7 +175,9 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
                 title: 'Collaborative-task-manager',
                 summary: 'Real-time collaborative task manager.',
                 technologies: ['TypeScript', 'Node.js', 'PostgreSQL', 'WebSockets'],
-                bullets: ['Built real-time task manager using Node.js, TypeScript, and WebSockets.'],
+                bullets: [
+                  'Built real-time task manager using Node.js, TypeScript, and WebSockets.',
+                ],
                 url: 'https://github.com/alice/collaborative-task-manager',
               },
               {
@@ -214,10 +222,13 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
         summary: 'High-throughput distributed telemetry in Rust.',
         metadata: {
           portfolioStatus: 'FEATURED',
-          description: 'High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines.',
+          description:
+            'High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines.',
           technologies: ['Rust', 'Distributed Systems', 'Raft', 'Streaming', 'TypeScript'],
           skills: ['Rust', 'Distributed Systems', 'Streaming'],
-          bullets: ['Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.'],
+          bullets: [
+            'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+          ],
         },
       },
       {
@@ -266,7 +277,11 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
     }
 
     const skillRust = await getOrCreateSkill('rust', 'Rust', 'LANGUAGE');
-    const skillDist = await getOrCreateSkill('distributed-systems', 'Distributed Systems', 'FRAMEWORK');
+    const skillDist = await getOrCreateSkill(
+      'distributed-systems',
+      'Distributed Systems',
+      'FRAMEWORK'
+    );
 
     await db.insert(candidateSkills).values([
       {
@@ -284,7 +299,7 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
         skillId: skillDist.id,
         category: 'FRAMEWORK',
         provenanceStatus: 'VERIFIED',
-        confidenceScore: 0.90,
+        confidenceScore: 0.9,
         evidenceCount: 1,
       },
     ]);
@@ -299,7 +314,10 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
         skillId: skillRust.id,
         evidenceType: 'CODE_IMPORT_USAGE',
         sourceProvider: 'GITHUB_APP',
-        sourceLocation: { filePath: 'src/main.rs', commitSha: 'abcdef1234567890abcdef1234567890abcdef12' },
+        sourceLocation: {
+          filePath: 'src/main.rs',
+          commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
+        },
         excerpt: 'use tokio::sync::mpsc;',
         confidenceScore: 0.95,
       },
@@ -312,7 +330,10 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
         skillId: skillDist.id,
         evidenceType: 'CODE_IMPORT_USAGE',
         sourceProvider: 'GITHUB_APP',
-        sourceLocation: { filePath: 'src/raft.rs', commitSha: 'abcdef1234567890abcdef1234567890abcdef12' },
+        sourceLocation: {
+          filePath: 'src/raft.rs',
+          commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
+        },
         excerpt: 'impl RaftConsensus for Node',
         confidenceScore: 0.92,
       },
@@ -403,9 +424,13 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
   after(async () => {
     try {
       if (createdTenantIds.length > 0) {
-        await db.delete(jobAnalysisSnapshots).where(inArray(jobAnalysisSnapshots.tenantId, createdTenantIds));
+        await db
+          .delete(jobAnalysisSnapshots)
+          .where(inArray(jobAnalysisSnapshots.tenantId, createdTenantIds));
         await db.delete(jobApplications).where(inArray(jobApplications.tenantId, createdTenantIds));
-        await db.delete(applicationPackages).where(inArray(applicationPackages.tenantId, createdTenantIds));
+        await db
+          .delete(applicationPackages)
+          .where(inArray(applicationPackages.tenantId, createdTenantIds));
         await db.delete(candidateSkills).where(inArray(candidateSkills.tenantId, createdTenantIds));
         await db.delete(projects).where(inArray(projects.tenantId, createdTenantIds));
         await db.delete(resources).where(inArray(resources.tenantId, createdTenantIds));
@@ -514,7 +539,7 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
     const topProjTitle = structuredProjects[0].title || structuredProjects[0].name;
     assert.ok(
       topProjTitle.toLowerCase().includes('product-data-explorer') ||
-      topProjTitle.toLowerCase().includes('product'),
+        topProjTitle.toLowerCase().includes('product'),
       `Expected top project Product-Data-Explorer, got: "${topProjTitle}"`
     );
   });
@@ -618,7 +643,9 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
   it('Flow 10: Tampered job description causes content hash mismatch and falls back safely', async () => {
     const tamperedPayload = {
       ...CLOUDFLARE_JOB_PAYLOAD,
-      description: CLOUDFLARE_JOB_PAYLOAD.description + ' Highly altered requirement for 20 years COBOL experience.',
+      description:
+        CLOUDFLARE_JOB_PAYLOAD.description +
+        ' Highly altered requirement for 20 years COBOL experience.',
     };
 
     const res = await app.inject({
@@ -709,7 +736,7 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
 
     assert.ok(
       topProjTitle.toLowerCase().includes('product-data-explorer') ||
-      topProjTitle.toLowerCase().includes('product'),
+        topProjTitle.toLowerCase().includes('product'),
       `Fallback top project must match Analyze ranking: "${topProjTitle}"`
     );
   });

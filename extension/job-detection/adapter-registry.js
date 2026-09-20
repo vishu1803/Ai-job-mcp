@@ -297,7 +297,11 @@ export class AdapterRegistry {
       if (typeof doc.querySelectorAll === 'function') {
         try {
           const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
-          if (jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd) && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+          if (
+            jsonLd &&
+            GenericCareerPageAdapter.isJobPosting(jsonLd) &&
+            (jsonLd.title || jsonLd.name || jsonLd.description)
+          ) {
             hasJobPostingJsonLd = true;
           }
         } catch {
@@ -391,12 +395,18 @@ export class AdapterRegistry {
     const list = AdapterRegistry.getAdapters().sort((a, b) => b.priority - a.priority);
 
     // 1. If portal matches a dedicated adapter (e.g. LINKEDIN, GREENHOUSE, LEVER)
-    if (portalIdentity.adapterId && portalIdentity.adapterId !== 'GENERIC' && portalIdentity.adapterId !== 'NONE') {
+    if (
+      portalIdentity.adapterId &&
+      portalIdentity.adapterId !== 'GENERIC' &&
+      portalIdentity.adapterId !== 'NONE'
+    ) {
       const dedicated = list.find((e) => e.id === portalIdentity.adapterId);
       if (dedicated) {
         let isJobPage = false;
         try {
-          isJobPage = typeof dedicated.adapter.canHandle === 'function' && dedicated.adapter.canHandle(doc, url);
+          isJobPage =
+            typeof dedicated.adapter.canHandle === 'function' &&
+            dedicated.adapter.canHandle(doc, url);
         } catch {
           isJobPage = false;
         }
@@ -412,7 +422,11 @@ export class AdapterRegistry {
 
     // 2. Specialized adapter by DOM inspection (e.g. custom domain hosting Greenhouse/Lever/etc.)
     for (const entry of list) {
-      if (entry.id !== 'GENERIC' && entry.id !== 'NONE' && typeof entry.adapter.canHandle === 'function') {
+      if (
+        entry.id !== 'GENERIC' &&
+        entry.id !== 'NONE' &&
+        typeof entry.adapter.canHandle === 'function'
+      ) {
         try {
           if (entry.adapter.canHandle(doc, url)) {
             const metadata = KNOWN_PORTAL_CAPABILITIES[entry.id] || {
@@ -442,7 +456,9 @@ export class AdapterRegistry {
         adapterId: 'GENERIC',
         portalName: isJsonLd
           ? 'Structured Web Page (JSON-LD JobPosting)'
-          : (portalIdentity.portalName === 'Web Page' ? 'Generic Career Portal' : portalIdentity.portalName),
+          : portalIdentity.portalName === 'Web Page'
+            ? 'Generic Career Portal'
+            : portalIdentity.portalName,
         confidence: isJsonLd ? 'HIGH' : 'MEDIUM',
         capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
       };

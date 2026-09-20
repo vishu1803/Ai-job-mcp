@@ -372,7 +372,10 @@ export function isAccomplishmentCandidate(fact) {
   const agency = fact.agency || determineFactAgency(fact.text, fact);
   const agencyLevel = fact.agencyLevel || agency.level;
   const agencySource = fact.agencySource || agency.source;
-  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE || !isTrustedCandidateAgencySource(agencySource, fact)) {
+  if (
+    agencyLevel !== AGENCY_LEVELS.CANDIDATE ||
+    !isTrustedCandidateAgencySource(agencySource, fact)
+  ) {
     return false;
   }
   const role =
@@ -405,7 +408,10 @@ export function isProjectDescriptionFact(fact) {
   const agency = fact.agency || determineFactAgency(fact.text, fact);
   const agencyLevel = fact.agencyLevel || agency.level;
   const agencySource = fact.agencySource || agency.source;
-  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE || !isTrustedCandidateAgencySource(agencySource, fact)) {
+  if (
+    agencyLevel !== AGENCY_LEVELS.CANDIDATE ||
+    !isTrustedCandidateAgencySource(agencySource, fact)
+  ) {
     return true;
   }
   const role =
@@ -722,11 +728,17 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
     const projKey = p.id || p.projectId || p.name;
     const association = { projectId: projKey, projectName: p.name || p.title || '' };
-    let pBullets = Array.isArray(p.bullets) && p.bullets.length > 0
-      ? [...p.bullets]
-      : (Array.isArray(p.metadata?.bullets) ? [...p.metadata.bullets] : []);
+    let pBullets =
+      Array.isArray(p.bullets) && p.bullets.length > 0
+        ? [...p.bullets]
+        : Array.isArray(p.metadata?.bullets)
+          ? [...p.metadata.bullets]
+          : [];
 
-    if (pBullets.length < 3 && Array.isArray(candidateProfile?.profileMetadata?.resumeData?.projects)) {
+    if (
+      pBullets.length < 3 &&
+      Array.isArray(candidateProfile?.profileMetadata?.resumeData?.projects)
+    ) {
       const projName = (p.name || p.title || '').toLowerCase();
       const projSlug = (p.slug || '').toLowerCase();
       for (const metaProj of candidateProfile.profileMetadata.resumeData.projects) {
@@ -734,11 +746,11 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         const metaSlug = (metaProj.slug || '').toLowerCase();
         const isMatch =
           (projSlug && metaSlug && projSlug === metaSlug) ||
-          (projName && metaTitle && (
-            projName.includes(metaTitle) ||
-            metaTitle.includes(projName) ||
-            projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')
-          ));
+          (projName &&
+            metaTitle &&
+            (projName.includes(metaTitle) ||
+              metaTitle.includes(projName) ||
+              projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')));
         if (isMatch && Array.isArray(metaProj.bullets)) {
           for (const b of metaProj.bullets) {
             const bText = typeof b === 'string' ? b.trim() : (b?.text || '').trim();
@@ -755,26 +767,44 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         }
       }
     }
-    const pHighlights = Array.isArray(p.highlights) && p.highlights.length > 0
-      ? p.highlights
-      : (Array.isArray(p.metadata?.highlights) ? p.metadata.highlights : []);
-    const pFeatures = Array.isArray(p.features) && p.features.length > 0
-      ? p.features
-      : (Array.isArray(p.metadata?.features) ? p.metadata.features : []);
-    const pFeatureDescriptions = Array.isArray(p.featureDescriptions) && p.featureDescriptions.length > 0
-      ? p.featureDescriptions
-      : (Array.isArray(p.metadata?.featureDescriptions) ? p.metadata.featureDescriptions : []);
-    const pResponsibilities = Array.isArray(p.responsibilities) && p.responsibilities.length > 0
-      ? p.responsibilities
-      : (Array.isArray(p.metadata?.responsibilities) ? p.metadata.responsibilities : []);
-    const pImplementations = Array.isArray(p.implementationDescriptions) && p.implementationDescriptions.length > 0
-      ? p.implementationDescriptions
-      : (Array.isArray(p.metadata?.implementationDescriptions) ? p.metadata.implementationDescriptions : []);
-    const projTech = Array.isArray(p.technologies) && p.technologies.length > 0
-      ? p.technologies
-      : (Array.isArray(p.metadata?.technologies)
-        ? p.metadata.technologies
-        : (Array.isArray(p.metadata?.skills) ? p.metadata.skills : []));
+    const pHighlights =
+      Array.isArray(p.highlights) && p.highlights.length > 0
+        ? p.highlights
+        : Array.isArray(p.metadata?.highlights)
+          ? p.metadata.highlights
+          : [];
+    const pFeatures =
+      Array.isArray(p.features) && p.features.length > 0
+        ? p.features
+        : Array.isArray(p.metadata?.features)
+          ? p.metadata.features
+          : [];
+    const pFeatureDescriptions =
+      Array.isArray(p.featureDescriptions) && p.featureDescriptions.length > 0
+        ? p.featureDescriptions
+        : Array.isArray(p.metadata?.featureDescriptions)
+          ? p.metadata.featureDescriptions
+          : [];
+    const pResponsibilities =
+      Array.isArray(p.responsibilities) && p.responsibilities.length > 0
+        ? p.responsibilities
+        : Array.isArray(p.metadata?.responsibilities)
+          ? p.metadata.responsibilities
+          : [];
+    const pImplementations =
+      Array.isArray(p.implementationDescriptions) && p.implementationDescriptions.length > 0
+        ? p.implementationDescriptions
+        : Array.isArray(p.metadata?.implementationDescriptions)
+          ? p.metadata.implementationDescriptions
+          : [];
+    const projTech =
+      Array.isArray(p.technologies) && p.technologies.length > 0
+        ? p.technologies
+        : Array.isArray(p.metadata?.technologies)
+          ? p.metadata.technologies
+          : Array.isArray(p.metadata?.skills)
+            ? p.metadata.skills
+            : [];
 
     const projectLevelProvenance = p.provenanceStatus || 'USER_PROVIDED';
     const surfaces = [
@@ -1244,8 +1274,9 @@ function normalizedFactTokens(value) {
 function matchesRequirementConcept(fact, concept) {
   const factTokens = normalizedFactTokens(fact?.text);
   const technologyTokens = new Set(
-    (Array.isArray(fact?.technologies) ? fact.technologies : [])
-      .flatMap((technology) => [...normalizedFactTokens(technology)])
+    (Array.isArray(fact?.technologies) ? fact.technologies : []).flatMap((technology) => [
+      ...normalizedFactTokens(technology),
+    ])
   );
   const available = new Set([...factTokens, ...technologyTokens]);
   const conceptTokens = [...concept.tokens];
@@ -1299,65 +1330,65 @@ export function buildCandidateJobEvidenceGraph(facts, jobPosting) {
   return { job, facts: Array.isArray(facts) ? facts : [], matches };
 }
 
-  /**
-   * Computes specific requirement coverage for a fact set.
-   *
-   * @param {Array<object>} facts
-   * @param {object|null} jobPosting
-   * @returns {{matchedRequirementIds:string[], coveredCount:number, totalCount:number, coverage:number}}
-   */
+/**
+ * Computes specific requirement coverage for a fact set.
+ *
+ * @param {Array<object>} facts
+ * @param {object|null} jobPosting
+ * @returns {{matchedRequirementIds:string[], coveredCount:number, totalCount:number, coverage:number}}
+ */
 export function calculateRequirementCoverage(facts, jobPosting) {
-    const graph = buildCandidateJobEvidenceGraph(facts, jobPosting);
-    const concepts = getJobRequirementConcepts({ ...jobPosting, ...graph.job });
-    if (concepts.length === 0) {
-      return {
-        matchedRequirementIds: [],
-        coveredCount: 0,
-        totalCount: 0,
-        coverage: 1,
-        meaningfulCoverage: 1,
-        tier: 'C',
-        matches: [],
-      };
-    }
-    const matched = new Set(graph.matches.map((match) => match.requirementId));
-    const matches = graph.matches.map((match) => {
-      const concept = concepts.find((item) => item.id === match.requirementId);
-      return {
-        ...match,
-        requirement: concept?.text,
-        importance: concept?.importanceLabel,
-        requirementClass: concept?.requirementClass,
-        signal: match.matchType,
-      };
-    });
-    const totalWeight = concepts.reduce((sum, concept) => sum + concept.importance, 0);
-    const coveredWeight = concepts
-      .filter((concept) => matched.has(concept.id))
-      .reduce((sum, concept) => sum + concept.importance, 0);
-    const meaningfulCoverage = totalWeight > 0 ? coveredWeight / totalWeight : 0;
-    const requiredConcepts = concepts.filter((concept) => concept.importanceLabel === 'REQUIRED');
-    const requiredCovered = requiredConcepts.filter((concept) => matched.has(concept.id)).length;
-    const requiredCoverage =
-      requiredConcepts.length > 0 ? requiredCovered / requiredConcepts.length : meaningfulCoverage;
-    const tier =
-      requiredCoverage >= 0.75 || meaningfulCoverage >= 0.7
-        ? 'A'
-        : requiredCoverage > 0 || meaningfulCoverage >= 0.35
-          ? 'B'
-          : matched.size > 0
-            ? 'C'
-            : 'D';
+  const graph = buildCandidateJobEvidenceGraph(facts, jobPosting);
+  const concepts = getJobRequirementConcepts({ ...jobPosting, ...graph.job });
+  if (concepts.length === 0) {
     return {
-      matchedRequirementIds: [...matched],
-      coveredCount: matched.size,
-      totalCount: concepts.length,
-      coverage: matched.size / concepts.length,
-      meaningfulCoverage,
-      requiredCoverage,
-      tier,
-      matches,
+      matchedRequirementIds: [],
+      coveredCount: 0,
+      totalCount: 0,
+      coverage: 1,
+      meaningfulCoverage: 1,
+      tier: 'C',
+      matches: [],
     };
+  }
+  const matched = new Set(graph.matches.map((match) => match.requirementId));
+  const matches = graph.matches.map((match) => {
+    const concept = concepts.find((item) => item.id === match.requirementId);
+    return {
+      ...match,
+      requirement: concept?.text,
+      importance: concept?.importanceLabel,
+      requirementClass: concept?.requirementClass,
+      signal: match.matchType,
+    };
+  });
+  const totalWeight = concepts.reduce((sum, concept) => sum + concept.importance, 0);
+  const coveredWeight = concepts
+    .filter((concept) => matched.has(concept.id))
+    .reduce((sum, concept) => sum + concept.importance, 0);
+  const meaningfulCoverage = totalWeight > 0 ? coveredWeight / totalWeight : 0;
+  const requiredConcepts = concepts.filter((concept) => concept.importanceLabel === 'REQUIRED');
+  const requiredCovered = requiredConcepts.filter((concept) => matched.has(concept.id)).length;
+  const requiredCoverage =
+    requiredConcepts.length > 0 ? requiredCovered / requiredConcepts.length : meaningfulCoverage;
+  const tier =
+    requiredCoverage >= 0.75 || meaningfulCoverage >= 0.7
+      ? 'A'
+      : requiredCoverage > 0 || meaningfulCoverage >= 0.35
+        ? 'B'
+        : matched.size > 0
+          ? 'C'
+          : 'D';
+  return {
+    matchedRequirementIds: [...matched],
+    coveredCount: matched.size,
+    totalCount: concepts.length,
+    coverage: matched.size / concepts.length,
+    meaningfulCoverage,
+    requiredCoverage,
+    tier,
+    matches,
+  };
 }
 
 /**

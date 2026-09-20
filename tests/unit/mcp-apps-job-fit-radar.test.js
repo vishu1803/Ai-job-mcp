@@ -65,8 +65,14 @@ describe('Job Fit Radar MCP App (SEP-1865 / P13.5-005)', () => {
     // Official MCP Apps protocol: App + PostMessageTransport from ext-apps
     assert.ok(html.includes('McpApp'), 'Must use official MCP Apps App class');
     assert.ok(html.includes('McpPostMessageTransport'), 'Must use official PostMessageTransport');
-    assert.ok(html.includes('app.connect'), 'Must call app.connect() for official protocol handshake');
-    assert.ok(html.includes('ontoolresult'), 'Must register ontoolresult handler for tool result delivery');
+    assert.ok(
+      html.includes('app.connect'),
+      'Must call app.connect() for official protocol handshake'
+    );
+    assert.ok(
+      html.includes('ontoolresult'),
+      'Must register ontoolresult handler for tool result delivery'
+    );
   });
 
   it('should safely escape malicious XSS payloads in pre-hydrated data', () => {
@@ -118,10 +124,19 @@ describe('Job Fit Radar MCP App (SEP-1865 / P13.5-005)', () => {
 
     // The HTML must embed the official ext-apps client bundle
     assert.ok(html.includes('McpApp'), 'Must expose McpApp global');
-    assert.ok(html.includes('McpPostMessageTransport'), 'Must expose McpPostMessageTransport global');
+    assert.ok(
+      html.includes('McpPostMessageTransport'),
+      'Must expose McpPostMessageTransport global'
+    );
     // Official protocol elements
-    assert.ok(html.includes('ui/notifications/tool-result'), 'Must reference official tool-result notification');
-    assert.ok(html.includes('structuredContent'), 'Must check structuredContent for data extraction');
+    assert.ok(
+      html.includes('ui/notifications/tool-result'),
+      'Must reference official tool-result notification'
+    );
+    assert.ok(
+      html.includes('structuredContent'),
+      'Must check structuredContent for data extraction'
+    );
   });
 
   it('should handle tool result extraction from structuredContent', () => {

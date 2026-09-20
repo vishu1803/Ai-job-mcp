@@ -12,12 +12,7 @@ export class JobPortalAdapterBase {
    * @param {number} [options.priority=10]
    * @param {object} [options.capabilities]
    */
-  constructor({
-    id,
-    name,
-    priority = 10,
-    capabilities = {},
-  }) {
+  constructor({ id, name, priority = 10, capabilities = {} }) {
     this.id = id;
     this.name = name;
     this.priority = priority;

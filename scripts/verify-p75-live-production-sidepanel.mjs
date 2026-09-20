@@ -41,14 +41,17 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p75-production-sidepanel-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
 const CDP_PORT = 9433;
 
 const LIVE_QUIK_HIRE_URL = 'https://www.linkedin.com/jobs/view/4466448213/';
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 const LIVE_CHATGPT_URL = 'https://chatgpt.com/';
 const LIVE_GREENHOUSE_URL = 'https://job-boards.greenhouse.io/cloudflare/jobs/8102350';
 
@@ -86,7 +89,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 45000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 10000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 10000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -128,7 +132,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -157,7 +163,9 @@ async function main() {
     userId: canonicalUser.id,
     tenantId: canonicalUser.tenantId,
   });
-  console.log(`   Session created for user ${canonicalUser.id} (${session.rawToken.slice(0, 16)}...)`);
+  console.log(
+    `   Session created for user ${canonicalUser.id} (${session.rawToken.slice(0, 16)}...)`
+  );
 
   // 3. Spawn Real Chrome for Testing (CFT)
   console.log(`\n3. Spawning Chrome for Testing (CDP port ${CDP_PORT})...`);
@@ -203,7 +211,9 @@ async function main() {
     await swCdp.send('Runtime.enable');
 
     // 4. OPEN AUTHENTIC PRODUCTION CHROME SIDE PANEL (chrome.sidePanel.open)
-    console.log('\n4. Opening Authentic Production Chrome Side Panel via chrome.sidePanel.open()...');
+    console.log(
+      '\n4. Opening Authentic Production Chrome Side Panel via chrome.sidePanel.open()...'
+    );
     const popupTarget = await browserCdp.send('Target.createTarget', {
       url: `chrome-extension://${extId}/popup/popup.html`,
     });
@@ -235,7 +245,9 @@ async function main() {
     );
 
     if (!sidePanelTargetInfo) {
-      throw new Error('Real production Chrome Side Panel target not found! Expected sidebar.html with NO ?tabId= parameter.');
+      throw new Error(
+        'Real production Chrome Side Panel target not found! Expected sidebar.html with NO ?tabId= parameter.'
+      );
     }
 
     console.log('   [SUCCESS] Found Authentic Side Panel Target:');
@@ -263,7 +275,9 @@ async function main() {
     })()`);
     console.log('   Production Side Panel Controller State:', JSON.stringify(sidePanelInitProps));
     if (sidePanelInitProps.pinnedTabId !== undefined && sidePanelInitProps.pinnedTabId !== null) {
-      throw new Error(`CRITICAL: Production Side Panel must have pinnedTabId === null, got ${sidePanelInitProps.pinnedTabId}`);
+      throw new Error(
+        `CRITICAL: Production Side Panel must have pinnedTabId === null, got ${sidePanelInitProps.pinnedTabId}`
+      );
     }
 
     // 5. CREATE REAL MULTI-TAB ENVIRONMENT (Tab A: Quik Hire, Tab B: Appinventiv)
@@ -344,17 +358,27 @@ async function main() {
 
     // Assertions for Tab A
     if (sidebarTabAState.activeTabId !== tabAId) {
-      throw new Error(`Tab A activation failure: expected activeTabId ${tabAId}, got ${sidebarTabAState.activeTabId}`);
+      throw new Error(
+        `Tab A activation failure: expected activeTabId ${tabAId}, got ${sidebarTabAState.activeTabId}`
+      );
     }
-    const isMarketingA = (sidebarTabAState.title || '').toLowerCase().includes('take the next step');
+    const isMarketingA = (sidebarTabAState.title || '')
+      .toLowerCase()
+      .includes('take the next step');
     if (isMarketingA) {
-      throw new Error(`CRITICAL BUG: Title was extracted as marketing heading "${sidebarTabAState.title}"`);
+      throw new Error(
+        `CRITICAL BUG: Title was extracted as marketing heading "${sidebarTabAState.title}"`
+      );
     }
     if (!sidebarTabAState.title.toLowerCase().includes('backend software engineer')) {
-      throw new Error(`Tab A title mismatch: expected Backend Software Engineer, got "${sidebarTabAState.title}"`);
+      throw new Error(
+        `Tab A title mismatch: expected Backend Software Engineer, got "${sidebarTabAState.title}"`
+      );
     }
     if (!sidebarTabAState.company.toLowerCase().includes('quik hire')) {
-      throw new Error(`Tab A company mismatch: expected Quik Hire Staffing, got "${sidebarTabAState.company}"`);
+      throw new Error(
+        `Tab A company mismatch: expected Quik Hire Staffing, got "${sidebarTabAState.company}"`
+      );
     }
 
     const screenshotTabAPath = path.join(SCREENSHOT_DIR, 'p75-01-tab-a-quik-hire.png');
@@ -375,31 +399,46 @@ async function main() {
     const csJob = tabAContentScriptResponse?.jobData;
     const sbJob = sidebarTabAState.rawJobData;
 
-    console.log('   Tab A Content Script Diagnostic Result:', JSON.stringify(csJob ? {
-      title: csJob.title,
-      company: csJob.company,
-      selectedRootSelector: csJob.selectedRootSelector,
-      selectedRootTag: csJob.selectedRootTag,
-      selectedRootClass: csJob.selectedRootClass,
-      titleSelectorUsed: csJob.titleSelectorUsed,
-      companySelectorUsed: csJob.companySelectorUsed,
-      descriptionSelectorUsed: csJob.descriptionSelectorUsed,
-      descriptionLength: csJob.descriptionLength,
-      isReady: csJob.isReady,
-      analysisReady: csJob.analysisReady,
-    } : null, null, 2));
+    console.log(
+      '   Tab A Content Script Diagnostic Result:',
+      JSON.stringify(
+        csJob
+          ? {
+              title: csJob.title,
+              company: csJob.company,
+              selectedRootSelector: csJob.selectedRootSelector,
+              selectedRootTag: csJob.selectedRootTag,
+              selectedRootClass: csJob.selectedRootClass,
+              titleSelectorUsed: csJob.titleSelectorUsed,
+              companySelectorUsed: csJob.companySelectorUsed,
+              descriptionSelectorUsed: csJob.descriptionSelectorUsed,
+              descriptionLength: csJob.descriptionLength,
+              isReady: csJob.isReady,
+              analysisReady: csJob.analysisReady,
+            }
+          : null,
+        null,
+        2
+      )
+    );
 
     if (!csJob || !sbJob) {
-      throw new Error('Failed to retrieve content-script or sidebar job object for diagnostic parity');
+      throw new Error(
+        'Failed to retrieve content-script or sidebar job object for diagnostic parity'
+      );
     }
 
     // Assert parity
     console.log('   Asserting: content-script title === sidebar title:');
-    console.log(`     CS: "${csJob.title}" vs SB: "${sbJob.title}" -> ${csJob.title === sbJob.title ? 'MATCH' : 'MISMATCH'}`);
+    console.log(
+      `     CS: "${csJob.title}" vs SB: "${sbJob.title}" -> ${csJob.title === sbJob.title ? 'MATCH' : 'MISMATCH'}`
+    );
     if (csJob.title !== sbJob.title) throw new Error('Diagnostic parity mismatch on title');
 
     console.log('   Asserting: content-script company === sidebar company:');
-    console.log(`     CS: "${csJob.company}" vs SB: "${sbJob.company}" -> ${csJob.company === sbJob.company ? 'MATCH' : 'MISMATCH'}`);
+    console.log(
+      `     CS: "${csJob.company}" vs SB: "${sbJob.company}" -> ${csJob.company === sbJob.company ? 'MATCH' : 'MISMATCH'}`
+    );
     if (csJob.company !== sbJob.company) throw new Error('Diagnostic parity mismatch on company');
 
     console.log('   Asserting: content-script fingerprint === sidebar fingerprint:');
@@ -433,13 +472,19 @@ async function main() {
     console.log(`     Fingerprint:   ${sidebarTabBState.fingerprint}`);
 
     if (sidebarTabBState.activeTabId !== tabBId) {
-      throw new Error(`Tab B activation failure: expected activeTabId ${tabBId}, got ${sidebarTabBState.activeTabId}`);
+      throw new Error(
+        `Tab B activation failure: expected activeTabId ${tabBId}, got ${sidebarTabBState.activeTabId}`
+      );
     }
     if (!sidebarTabBState.title.toLowerCase().includes('software engineer')) {
-      throw new Error(`Tab B title mismatch: expected Software Engineer, got "${sidebarTabBState.title}"`);
+      throw new Error(
+        `Tab B title mismatch: expected Software Engineer, got "${sidebarTabBState.title}"`
+      );
     }
     if (!sidebarTabBState.company.toLowerCase().includes('appinventiv')) {
-      throw new Error(`Tab B company mismatch: expected Appinventiv, got "${sidebarTabBState.company}"`);
+      throw new Error(
+        `Tab B company mismatch: expected Appinventiv, got "${sidebarTabBState.company}"`
+      );
     }
     if (sidebarTabBState.fingerprint === sidebarTabAState.fingerprint) {
       throw new Error('Tab B fingerprint must be distinct from Tab A fingerprint');
@@ -476,13 +521,19 @@ async function main() {
     console.log(`     Fingerprint:   ${sidebarRestoredA.fingerprint}`);
 
     if (sidebarRestoredA.activeTabId !== tabAId) {
-      throw new Error(`Tab A reactivation failure: expected activeTabId ${tabAId}, got ${sidebarRestoredA.activeTabId}`);
+      throw new Error(
+        `Tab A reactivation failure: expected activeTabId ${tabAId}, got ${sidebarRestoredA.activeTabId}`
+      );
     }
     if (!sidebarRestoredA.title.toLowerCase().includes('backend software engineer')) {
-      throw new Error(`Tab A restored title mismatch: expected Backend Software Engineer, got "${sidebarRestoredA.title}"`);
+      throw new Error(
+        `Tab A restored title mismatch: expected Backend Software Engineer, got "${sidebarRestoredA.title}"`
+      );
     }
     if (!sidebarRestoredA.company.toLowerCase().includes('quik hire')) {
-      throw new Error(`Tab A restored company mismatch: expected Quik Hire Staffing, got "${sidebarRestoredA.company}"`);
+      throw new Error(
+        `Tab A restored company mismatch: expected Quik Hire Staffing, got "${sidebarRestoredA.company}"`
+      );
     }
 
     const screenshotTabARestoredPath = path.join(SCREENSHOT_DIR, 'p75-03-tab-a-restored.png');
@@ -490,7 +541,9 @@ async function main() {
     console.log(`   Saved screenshot: ${screenshotTabARestoredPath}`);
 
     // 7. FRESH DETECTION VS PERSISTED STATE CONVERGENCE
-    console.log('\n7. Verifying 3-Way State Convergence on Tab A (Persisted === Fresh === Rendered)...');
+    console.log(
+      '\n7. Verifying 3-Way State Convergence on Tab A (Persisted === Fresh === Rendered)...'
+    );
     const persistedStateTabA = await swCdp.evaluate(`
       new Promise((resolve) => {
         chrome.storage.local.get('ach_wf_tab_${tabAId}', (items) => resolve(items['ach_wf_tab_${tabAId}']));
@@ -501,9 +554,13 @@ async function main() {
     const freshJob = csJob;
     const renderedJob = sidebarRestoredA;
 
-    console.log(`   Persisted Job: "${persistedJob?.title}" at "${persistedJob?.company}" (FP: ${persistedStateTabA?.jobFingerprint})`);
+    console.log(
+      `   Persisted Job: "${persistedJob?.title}" at "${persistedJob?.company}" (FP: ${persistedStateTabA?.jobFingerprint})`
+    );
     console.log(`   Fresh Job:     "${freshJob?.title}" at "${freshJob?.company}"`);
-    console.log(`   Rendered Job:  "${renderedJob.title}" at "${renderedJob.company}" (FP: ${renderedJob.fingerprint})`);
+    console.log(
+      `   Rendered Job:  "${renderedJob.title}" at "${renderedJob.company}" (FP: ${renderedJob.fingerprint})`
+    );
 
     if (persistedJob?.title !== freshJob?.title || freshJob?.title !== renderedJob.title) {
       throw new Error('Title convergence failure across persisted, fresh, and rendered states');
@@ -515,7 +572,9 @@ async function main() {
 
     // 8. RELOAD FRESH-DETECTION PROOF
     console.log('\n8. Executing Real Tab Reload & Fresh-Detection Verification...');
-    const reqIdBeforeReload = await sidebarCdp.evaluate(`window.__sidebarController._detectionRequestId`);
+    const reqIdBeforeReload = await sidebarCdp.evaluate(
+      `window.__sidebarController._detectionRequestId`
+    );
     console.log(`   Detection Request ID before reload: ${reqIdBeforeReload}`);
 
     console.log('   Reloading Tab A in Chrome...');
@@ -524,11 +583,15 @@ async function main() {
     console.log('   Waiting for content script reinitialization and fresh detection delivery...');
     await sleep(7000);
 
-    const reqIdAfterReload = await sidebarCdp.evaluate(`window.__sidebarController._detectionRequestId`);
+    const reqIdAfterReload = await sidebarCdp.evaluate(
+      `window.__sidebarController._detectionRequestId`
+    );
     console.log(`   Detection Request ID after reload: ${reqIdAfterReload}`);
 
     if (reqIdAfterReload <= reqIdBeforeReload) {
-      throw new Error(`CRITICAL: Tab reload did not initiate fresh detection! Expected request ID > ${reqIdBeforeReload}, got ${reqIdAfterReload}`);
+      throw new Error(
+        `CRITICAL: Tab reload did not initiate fresh detection! Expected request ID > ${reqIdBeforeReload}, got ${reqIdAfterReload}`
+      );
     }
 
     const reloadedSidebarState = await sidebarCdp.evaluate(`(() => {
@@ -540,9 +603,13 @@ async function main() {
       };
     })()`);
 
-    console.log(`   Reloaded Sidebar State: "${reloadedSidebarState.title}" at "${reloadedSidebarState.company}"`);
+    console.log(
+      `   Reloaded Sidebar State: "${reloadedSidebarState.title}" at "${reloadedSidebarState.company}"`
+    );
     if (!reloadedSidebarState.title.toLowerCase().includes('backend software engineer')) {
-      throw new Error(`Reloaded title mismatch: expected Backend Software Engineer, got "${reloadedSidebarState.title}"`);
+      throw new Error(
+        `Reloaded title mismatch: expected Backend Software Engineer, got "${reloadedSidebarState.title}"`
+      );
     }
 
     const screenshotReloadPath = path.join(SCREENSHOT_DIR, 'p75-04-tab-a-reloaded-fresh.png');
@@ -589,7 +656,9 @@ async function main() {
         fingerprint: window.__sidebarController?.activeJobFingerprint,
       };
     })()`);
-    console.log(`   SPA Job A Restored: "${spaJobARestored.title}" at "${spaJobARestored.company}"`);
+    console.log(
+      `   SPA Job A Restored: "${spaJobARestored.title}" at "${spaJobARestored.company}"`
+    );
     if (!spaJobARestored.title.toLowerCase().includes('backend software engineer')) {
       throw new Error(`SPA transition back to Job A failed: got "${spaJobARestored.title}"`);
     }
@@ -600,7 +669,9 @@ async function main() {
 
     // 10. MANUAL RESCAN SEMANTICS
     console.log('\n10. Testing Manual Rescan in Real Side Panel...');
-    const rescanBefore = await sidebarCdp.evaluate(`window.__sidebarController._detectionRequestId`);
+    const rescanBefore = await sidebarCdp.evaluate(
+      `window.__sidebarController._detectionRequestId`
+    );
     await sidebarCdp.evaluate(`document.getElementById('rescanBtn').click()`);
     await sleep(3000);
     const rescanAfter = await sidebarCdp.evaluate(`window.__sidebarController._detectionRequestId`);
@@ -643,10 +714,14 @@ async function main() {
     console.log(`     activeJob:       ${chatgptSidebarState.activeJob}`);
 
     if (chatgptSidebarState.portal !== 'Web Page') {
-      throw new Error(`ChatGPT portal mismatch: expected "Web Page", got "${chatgptSidebarState.portal}"`);
+      throw new Error(
+        `ChatGPT portal mismatch: expected "Web Page", got "${chatgptSidebarState.portal}"`
+      );
     }
     if (chatgptSidebarState.title !== '—' || chatgptSidebarState.company !== '—') {
-      throw new Error(`ChatGPT title/company must be empty "—", got "${chatgptSidebarState.title}" / "${chatgptSidebarState.company}"`);
+      throw new Error(
+        `ChatGPT title/company must be empty "—", got "${chatgptSidebarState.title}" / "${chatgptSidebarState.company}"`
+      );
     }
     if (chatgptSidebarState.analyzeDisabled !== true) {
       throw new Error('Analyze Job button must be disabled on ChatGPT');
@@ -682,10 +757,14 @@ async function main() {
         company: document.getElementById('jobCompany')?.textContent.trim(),
       };
     })()`);
-    console.log(`    Greenhouse Portal State: "${greenhouseSidebarState.portal}" ("${greenhouseSidebarState.title}" at "${greenhouseSidebarState.company}")`);
+    console.log(
+      `    Greenhouse Portal State: "${greenhouseSidebarState.portal}" ("${greenhouseSidebarState.title}" at "${greenhouseSidebarState.company}")`
+    );
 
     if (!greenhouseSidebarState.portal.toLowerCase().includes('greenhouse')) {
-      throw new Error(`Greenhouse portal mismatch: expected Greenhouse ATS, got "${greenhouseSidebarState.portal}"`);
+      throw new Error(
+        `Greenhouse portal mismatch: expected Greenhouse ATS, got "${greenhouseSidebarState.portal}"`
+      );
     }
 
     const screenshotPortalsPath = path.join(SCREENSHOT_DIR, 'p75-07-working-portals.png');
@@ -695,7 +774,6 @@ async function main() {
     console.log('\n=================================================================');
     console.log('=== P75 LIVE ACCEPTANCE: ALL 12 VERIFICATION PHASES PASSED! ===');
     console.log('=================================================================\n');
-
   } finally {
     if (browserCdp) browserCdp.close();
     if (swCdp) swCdp.close();
@@ -717,4 +795,3 @@ main()
     console.error('\n❌ P75 VERIFICATION FAILED:', err);
     process.exit(1);
   });
-

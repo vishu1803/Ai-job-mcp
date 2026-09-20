@@ -113,7 +113,9 @@ export class PopupController {
     this.prepareHandoffBtn.addEventListener('click', () => this.handlePrepareHandoff());
 
     this.downloadResumeBtn.addEventListener('click', () => this.handleDownloadArtifact('resume'));
-    this.downloadCoverLetterBtn.addEventListener('click', () => this.handleDownloadArtifact('cover-letter'));
+    this.downloadCoverLetterBtn.addEventListener('click', () =>
+      this.handleDownloadArtifact('cover-letter')
+    );
     this.downloadBundleBtn.addEventListener('click', () => this.handleDownloadArtifact('bundle'));
     this.openAppBtn.addEventListener('click', () => this.handleOpenApp());
 
@@ -273,7 +275,10 @@ export class PopupController {
         }
         if (response?.success && response.job && response.job.isConfident) break;
         if (attempt < DETECTION_ATTEMPTS) {
-          this.showState(this.stateLoading, `Still detecting job page... (attempt ${attempt + 1} of ${DETECTION_ATTEMPTS})`);
+          this.showState(
+            this.stateLoading,
+            `Still detecting job page... (attempt ${attempt + 1} of ${DETECTION_ATTEMPTS})`
+          );
           await new Promise((resolve) => setTimeout(resolve, DETECTION_RETRY_DELAY_MS));
         }
       }
@@ -344,8 +349,7 @@ export class PopupController {
       // P15-002: protection state derived from the authoritative shared
       // predicate so the popup never drifts from backend semantics.
       const statusIsSubmitted =
-        result.isSubmitted ||
-        isSubmittedApplicationStatus(result.existingApplication?.status);
+        result.isSubmitted || isSubmittedApplicationStatus(result.existingApplication?.status);
       if (statusIsSubmitted) {
         this.submittedWarning.classList.remove('hidden');
         this.prepareHandoffBtn.disabled = true;
@@ -372,7 +376,8 @@ export class PopupController {
     this.analysisJobTitle.textContent = `${result.canonicalJob?.title || 'Job'} at ${result.canonicalJob?.company || ''}`;
     this.fitScoreNum.textContent = fit.score != null ? Math.round(fit.score) : '--';
     this.fitGradeBadge.textContent = `Grade ${fit.grade || 'N/A'}`;
-    this.fitRecommendationText.textContent = fit.recommendation?.replace(/_/g, ' ') || 'Assessment Complete';
+    this.fitRecommendationText.textContent =
+      fit.recommendation?.replace(/_/g, ' ') || 'Assessment Complete';
 
     // Hard blockers
     this.blockersItems.innerHTML = '';
@@ -400,7 +405,8 @@ export class PopupController {
         this.matchedItems.appendChild(div);
       });
     } else {
-      this.matchedItems.innerHTML = '<div class="req-item text-muted">No explicit requirement matches found.</div>';
+      this.matchedItems.innerHTML =
+        '<div class="req-item text-muted">No explicit requirement matches found.</div>';
     }
 
     // Missing
@@ -413,14 +419,16 @@ export class PopupController {
         this.missingItems.appendChild(div);
       });
     } else {
-      this.missingItems.innerHTML = '<div class="req-item text-muted">No hard missing requirements identified.</div>';
+      this.missingItems.innerHTML =
+        '<div class="req-item text-muted">No hard missing requirements identified.</div>';
     }
 
     // Portfolio projects (P57: Consumes authoritative recommendedProjects contract)
     this.featuredProjectsList.innerHTML = '';
-    const featured = (Array.isArray(result.recommendedProjects) && result.recommendedProjects.length > 0)
-      ? result.recommendedProjects
-      : (result.portfolioRecommendations?.featuredProjects || []);
+    const featured =
+      Array.isArray(result.recommendedProjects) && result.recommendedProjects.length > 0
+        ? result.recommendedProjects
+        : result.portfolioRecommendations?.featuredProjects || [];
     if (featured.length > 0) {
       featured.forEach((p) => {
         const div = document.createElement('div');
@@ -435,7 +443,8 @@ export class PopupController {
         this.featuredProjectsList.appendChild(div);
       });
     } else {
-      this.featuredProjectsList.innerHTML = '<div class="project-item text-muted">No verified portfolio projects linked.</div>';
+      this.featuredProjectsList.innerHTML =
+        '<div class="project-item text-muted">No verified portfolio projects linked.</div>';
     }
 
     // Omitted projects
@@ -485,7 +494,9 @@ export class PopupController {
       this.showState(this.stateHandoffReady);
     } catch (err) {
       if (err.code === 'ANALYSIS_JOB_MISMATCH') {
-        this.showAlert('Analysis snapshot mismatch: job was altered or belongs to another posting.');
+        this.showAlert(
+          'Analysis snapshot mismatch: job was altered or belongs to another posting.'
+        );
       } else if (err.code === 'APPLICATION_ALREADY_SUBMITTED' || err.status === 409) {
         this.showAlert('Application already submitted. Handoff kit is read-only.');
       } else {
@@ -500,20 +511,30 @@ export class PopupController {
 
     // Status badges
     this.statusResumeBadge.textContent = handoff.artifacts?.resume?.ready ? 'READY' : 'GENERATED';
-    this.statusCoverLetterBadge.textContent = handoff.artifacts?.coverLetter?.ready ? 'READY' : 'GENERATED';
+    this.statusCoverLetterBadge.textContent = handoff.artifacts?.coverLetter?.ready
+      ? 'READY'
+      : 'GENERATED';
 
-    const valPassed = validation?.overallStatus === 'PASSED' || (validation?.errors || []).length === 0;
+    const valPassed =
+      validation?.overallStatus === 'PASSED' || (validation?.errors || []).length === 0;
     this.statusValidationBadge.textContent = valPassed ? 'PASSED' : 'WARNING';
     this.statusValidationBadge.className = `badge ${valPassed ? 'badge-success' : 'badge-saved'}`;
 
     // Telemetry
     const rq = handoff.resumeQuality || {};
-    this.telParseability.textContent = rq.atsParseability?.score != null ? `${Math.round(rq.atsParseability.score)}/100` : '100/100';
-    this.telJobMatch.textContent = rq.jobMatch?.score != null ? `${Math.round(rq.jobMatch.score)}/100` : '--/100';
-    this.telEvidenceCoverage.textContent = rq.evidenceCoverage?.score != null ? `${Math.round(rq.evidenceCoverage.score)}/100` : '100/100';
+    this.telParseability.textContent =
+      rq.atsParseability?.score != null ? `${Math.round(rq.atsParseability.score)}/100` : '100/100';
+    this.telJobMatch.textContent =
+      rq.jobMatch?.score != null ? `${Math.round(rq.jobMatch.score)}/100` : '--/100';
+    this.telEvidenceCoverage.textContent =
+      rq.evidenceCoverage?.score != null
+        ? `${Math.round(rq.evidenceCoverage.score)}/100`
+        : '100/100';
 
     const ld = handoff.layoutDiagnostics || {};
-    this.telLayoutProfile.textContent = ld.densityProfile ? ld.densityProfile.toUpperCase() : 'BALANCED';
+    this.telLayoutProfile.textContent = ld.densityProfile
+      ? ld.densityProfile.toUpperCase()
+      : 'BALANCED';
   }
 
   async handleDownloadArtifact(artifactType) {
@@ -528,11 +549,12 @@ export class PopupController {
         applicationId: this.handoffData.applicationId,
         artifactType,
         packageHash: this.handoffData.packageHash,
-        filename: artifactType === 'bundle'
-          ? `handoff-kit-${this.handoffData.applicationId.slice(0, 8)}.zip`
-          : artifactType === 'resume'
-            ? 'tailored-resume.pdf'
-            : 'tailored-cover-letter.pdf',
+        filename:
+          artifactType === 'bundle'
+            ? `handoff-kit-${this.handoffData.applicationId.slice(0, 8)}.zip`
+            : artifactType === 'resume'
+              ? 'tailored-resume.pdf'
+              : 'tailored-cover-letter.pdf',
       });
     } catch (err) {
       this.showAlert(`Download failed: ${err.message}`);

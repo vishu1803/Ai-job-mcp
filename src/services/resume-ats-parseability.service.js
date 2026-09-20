@@ -38,13 +38,38 @@ export const ATS_CHECK_WEIGHTS = Object.freeze({
 });
 
 const STANDARD_ATS_HEADINGS = [
-  { key: 'SUMMARY', label: 'Summary', pattern: /\b(professional\s+summary|summary|profile|about\s+me)\b/i },
-  { key: 'SKILLS', label: 'Technical Skills', pattern: /\b(technical\s+skills|core\s+competencies|skills)\b/i },
-  { key: 'EXPERIENCE', label: 'Work Experience', pattern: /\b(professional\s+experience|work\s+experience|experience|employment\s+history)\b/i },
-  { key: 'PROJECTS', label: 'Projects', pattern: /\b(technical\s+projects|selected\s+projects|featured\s+projects|projects)\b/i },
+  {
+    key: 'SUMMARY',
+    label: 'Summary',
+    pattern: /\b(professional\s+summary|summary|profile|about\s+me)\b/i,
+  },
+  {
+    key: 'SKILLS',
+    label: 'Technical Skills',
+    pattern: /\b(technical\s+skills|core\s+competencies|skills)\b/i,
+  },
+  {
+    key: 'EXPERIENCE',
+    label: 'Work Experience',
+    pattern: /\b(professional\s+experience|work\s+experience|experience|employment\s+history)\b/i,
+  },
+  {
+    key: 'PROJECTS',
+    label: 'Projects',
+    pattern: /\b(technical\s+projects|selected\s+projects|featured\s+projects|projects)\b/i,
+  },
   { key: 'EDUCATION', label: 'Education', pattern: /\b(education|academic\s+background)\b/i },
-  { key: 'DSA', label: 'Problem Solving / DSA', pattern: /\b(problem\s+solving\s*(?:&|and)\s*algorithmic\s+practice|problem\s+solving|data\s+structures\s*(?:&|and)\s*algorithms)\b/i },
-  { key: 'CERTIFICATIONS', label: 'Certifications', pattern: /\b(certifications|certificates|licenses)\b/i },
+  {
+    key: 'DSA',
+    label: 'Problem Solving / DSA',
+    pattern:
+      /\b(problem\s+solving\s*(?:&|and)\s*algorithmic\s+practice|problem\s+solving|data\s+structures\s*(?:&|and)\s*algorithms)\b/i,
+  },
+  {
+    key: 'CERTIFICATIONS',
+    label: 'Certifications',
+    pattern: /\b(certifications|certificates|licenses)\b/i,
+  },
 ];
 
 const RAW_LATEX_PATTERNS = [
@@ -137,7 +162,11 @@ export class AtsParseabilityService {
     const isHeadingFirstLine = STANDARD_ATS_HEADINGS.some((h) => h.pattern.test(firstLine));
     const nameMatch = candidateName
       ? text.toLowerCase().includes(candidateName.toLowerCase())
-      : (!isHeadingFirstLine && firstLine.length >= 3 && !/^(professional\s+summary|summary|technical\s+skills|skills|experience|projects|education)/i.test(firstLine));
+      : !isHeadingFirstLine &&
+        firstLine.length >= 3 &&
+        !/^(professional\s+summary|summary|technical\s+skills|skills|experience|projects|education)/i.test(
+          firstLine
+        );
 
     // RULE: Artifact parseability requires actual presence in the extracted PDF text stream.
     // Structured resume values cannot make a missing artifact field pass.
@@ -146,7 +175,8 @@ export class AtsParseabilityService {
     const contactScoreEarned = (hasEmail ? 8 : 0) + (hasName ? 7 : 0);
     const contactPass = hasEmail && hasName;
 
-    const expectedEmail = structuredResume?.candidateIdentity?.email || structuredResume?.header?.email;
+    const expectedEmail =
+      structuredResume?.candidateIdentity?.email || structuredResume?.header?.email;
     if (expectedEmail && !hasEmail) {
       findings.push({
         dimension: 'contact',
@@ -156,7 +186,8 @@ export class AtsParseabilityService {
         observed: null,
         source: 'PDF_EXTRACTION',
         rule: 'P25_CONTACT_EMAIL',
-        message: 'Contact email is present in structured resume but missing from compiled PDF artifact',
+        message:
+          'Contact email is present in structured resume but missing from compiled PDF artifact',
       });
     } else if (!hasEmail) {
       findings.push({
@@ -180,7 +211,8 @@ export class AtsParseabilityService {
         observed: null,
         source: 'PDF_EXTRACTION',
         rule: 'P25_CANDIDATE_NAME',
-        message: 'Candidate name is present in structured resume but missing from compiled PDF artifact',
+        message:
+          'Candidate name is present in structured resume but missing from compiled PDF artifact',
       });
     } else if (!hasName) {
       findings.push({
@@ -216,7 +248,9 @@ export class AtsParseabilityService {
     }
     detectedHeadings.sort((a, b) => a.index - b.index);
 
-    const hasSkillsOrProjects = detectedHeadings.some((h) => h.key === 'SKILLS' || h.key === 'PROJECTS');
+    const hasSkillsOrProjects = detectedHeadings.some(
+      (h) => h.key === 'SKILLS' || h.key === 'PROJECTS'
+    );
     const headingCount = detectedHeadings.length;
     const headingsPass = headingCount >= 3 && hasSkillsOrProjects;
     checks.push({
@@ -237,7 +271,9 @@ export class AtsParseabilityService {
     }
 
     // ── 4. Reading Order & Multi-Column Risk Evaluation (10 pts) ──────────────
-    const multiColTex = /\\begin\{multicols\}|\\begin\{tabular\}|\\begin\{table\*?\}/i.test(texContent);
+    const multiColTex = /\\begin\{multicols\}|\\begin\{tabular\}|\\begin\{table\*?\}/i.test(
+      texContent
+    );
     const readingOrderPass = !multiColTex;
     checks.push({
       checkId: 'READING_ORDER',
@@ -252,7 +288,8 @@ export class AtsParseabilityService {
       findings.push({
         dimension: 'readingOrder',
         severity: 'FAIL',
-        message: 'Elevated parsing risk: multi-column/table formatting interferes with linear ATS extraction',
+        message:
+          'Elevated parsing risk: multi-column/table formatting interferes with linear ATS extraction',
       });
     }
 
@@ -273,7 +310,8 @@ export class AtsParseabilityService {
         observed: `${bulletMarkers} bullet markers`,
         source: 'PDF_EXTRACTION',
         rule: 'P25_BULLET_BOUNDARIES',
-        message: 'Bullet points defined in structured resume were not extractable from the compiled PDF artifact',
+        message:
+          'Bullet points defined in structured resume were not extractable from the compiled PDF artifact',
       });
     }
 
@@ -289,7 +327,9 @@ export class AtsParseabilityService {
 
     // ── 6. URL Safety & Formatting (10 pts) ───────────────────────────────────
     const urlMatches = text.match(/https?:\/\/[^\s)"]+/gi) || [];
-    const malformedUrls = urlMatches.filter((u) => !/^[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;%=]+$/.test(u));
+    const malformedUrls = urlMatches.filter(
+      (u) => !/^[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;%=]+$/.test(u)
+    );
     const urlPass = malformedUrls.length === 0;
     checks.push({
       checkId: 'URL_SAFETY',
@@ -340,7 +380,11 @@ export class AtsParseabilityService {
         : 'Detected Unicode replacement glyphs (U+FFFD or control characters) indicating broken font encoding',
     });
     if (hasReplacementGlyphs) {
-      findings.push({ dimension: 'glyphs', severity: 'FAIL', message: 'Unicode replacement glyphs found' });
+      findings.push({
+        dimension: 'glyphs',
+        severity: 'FAIL',
+        message: 'Unicode replacement glyphs found',
+      });
     }
 
     // ── 9. Word Fragmentation & Broken Hyphenation (5 pts) ────────────────────
@@ -370,7 +414,11 @@ export class AtsParseabilityService {
         : 'Synthetic placeholder dates (2022-01-01/2024-01-01) detected in document',
     });
     if (!datePass) {
-      findings.push({ dimension: 'dates', severity: 'FAIL', message: 'Synthetic placeholder dates detected' });
+      findings.push({
+        dimension: 'dates',
+        severity: 'FAIL',
+        message: 'Synthetic placeholder dates detected',
+      });
     }
 
     // ── Physical Observation Integration (if PDF binary provided) ─────────────
@@ -384,7 +432,11 @@ export class AtsParseabilityService {
       }
       if (Array.isArray(pdfObservation.findings)) {
         for (const f of pdfObservation.findings) {
-          if (f.finding === 'INVISIBLE_TEXT_DETECTED' || f.finding === 'MICROSCOPIC_TEXT_DETECTED' || f.finding === 'HIDDEN_TEXT_OFFSCREEN') {
+          if (
+            f.finding === 'INVISIBLE_TEXT_DETECTED' ||
+            f.finding === 'MICROSCOPIC_TEXT_DETECTED' ||
+            f.finding === 'HIDDEN_TEXT_OFFSCREEN'
+          ) {
             findings.push(f);
           }
         }
@@ -397,15 +449,22 @@ export class AtsParseabilityService {
       return sum + (c.passed ? c.weight : 0);
     }, 0);
     const totalPossible = Object.values(ATS_CHECK_WEIGHTS).reduce((a, b) => a + b, 0);
-    const atsParseabilityScore = Math.max(0, Math.min(100, Math.round((totalEarned / totalPossible) * 100)));
+    const atsParseabilityScore = Math.max(
+      0,
+      Math.min(100, Math.round((totalEarned / totalPossible) * 100))
+    );
 
     // Multi-factor inspectable confidence (Weakness 1)
     const isPdf = Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 20;
     const extractionQuality = isPdf
-      ? (textLength >= 250 && !hasReplacementGlyphs ? 0.98 : 0.88)
-      : (extractedText ? 0.85 : 0.75);
+      ? textLength >= 250 && !hasReplacementGlyphs
+        ? 0.98
+        : 0.88
+      : extractedText
+        ? 0.85
+        : 0.75;
     const structuralPurity = latexPass && brokenWordsPass ? 1.0 : 0.85;
-    const contactFidelity = contactPass ? 1.0 : 0.70;
+    const contactFidelity = contactPass ? 1.0 : 0.7;
     const headingCoherence = headingsPass ? 1.0 : 0.75;
     const confidenceFactors = {
       pdfExtractionQuality: extractionQuality,
@@ -413,9 +472,14 @@ export class AtsParseabilityService {
       contactFidelity,
       headingCoherence,
     };
-    const confidence = Math.round(
-      (0.35 * extractionQuality + 0.25 * structuralPurity + 0.20 * contactFidelity + 0.20 * headingCoherence) * 100
-    ) / 100;
+    const confidence =
+      Math.round(
+        (0.35 * extractionQuality +
+          0.25 * structuralPurity +
+          0.2 * contactFidelity +
+          0.2 * headingCoherence) *
+          100
+      ) / 100;
 
     return {
       atsParseabilityScore,
@@ -452,7 +516,12 @@ export class AtsParseabilityService {
    * @returns {object}
    */
   evaluateResumePdfRoundTrip(params = {}) {
-    if (!params?.pdfBuffer && !params?.extractedText && !params?.texContent && !params?.structuredResume) {
+    if (
+      !params?.pdfBuffer &&
+      !params?.extractedText &&
+      !params?.texContent &&
+      !params?.structuredResume
+    ) {
       throw new Error(
         'evaluateResumePdfRoundTrip requires a compiled PDF artifact, extracted text, or LaTeX source (Rule 25).'
       );
@@ -488,7 +557,7 @@ export class AtsParseabilityService {
       for (const p of structuredResume.projects) {
         parts.push(p.name || p.displayName || '');
         parts.push((p.technologies || []).join(', '));
-        for (const b of (p.bullets || [])) {
+        for (const b of p.bullets || []) {
           parts.push(`• ${typeof b === 'string' ? b : b.text || ''}`);
         }
       }
@@ -497,7 +566,7 @@ export class AtsParseabilityService {
       parts.push('Professional Experience');
       for (const e of structuredResume.experience) {
         parts.push(`${e.role || ''} at ${e.company || ''}`);
-        for (const b of (e.bullets || [])) {
+        for (const b of e.bullets || []) {
           parts.push(`• ${typeof b === 'string' ? b : b.text || ''}`);
         }
       }
@@ -510,7 +579,7 @@ export class AtsParseabilityService {
     }
     if (structuredResume.dsa?.hasSection) {
       parts.push('Problem Solving');
-      for (const b of (structuredResume.dsa.bullets || [])) {
+      for (const b of structuredResume.dsa.bullets || []) {
         parts.push(`• ${typeof b === 'string' ? b : b.text || ''}`);
       }
     }

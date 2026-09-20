@@ -193,7 +193,8 @@ export class JobDescriptionParser {
         tenantId,
         jobDescriptionId,
         location: validatedInput.location || inferredMetadata.location || null,
-        workplaceType: validatedInput.workplaceType || inferredMetadata.workplaceType || 'UNSPECIFIED',
+        workplaceType:
+          validatedInput.workplaceType || inferredMetadata.workplaceType || 'UNSPECIFIED',
       });
     }
 
@@ -924,8 +925,8 @@ export class JobDescriptionParser {
       'teamwork',
       'agile',
       'scrum',
-      'devops',  // too broad when not paired with specific tooling
-      'microservices',  // architecture pattern, not a specific technology
+      'devops', // too broad when not paired with specific tooling
+      'microservices', // architecture pattern, not a specific technology
       'api-design',
       'data-structures',
       'algorithms',

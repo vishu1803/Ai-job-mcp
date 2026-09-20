@@ -553,7 +553,7 @@ export function renderHandoffPage({
                              </td>
                              <td style="padding:12px;">
                                <span class="badge" style="background:${isCurrent ? 'rgba(16, 185, 129, 0.12)' : 'rgba(156, 163, 175, 0.15)'}; color:${isCurrent ? '#10B981' : '#9CA3AF'}; border:1px solid ${isCurrent ? 'rgba(16, 185, 129, 0.3)' : 'rgba(156, 163, 175, 0.3)'}; font-size:0.7rem; font-weight:700; padding:2px 6px; border-radius:3px;">
-                                 ${escapeHtml(isCurrent ? 'CURRENT' : (lifecycle || 'ARCHIVED'))}
+                                 ${escapeHtml(isCurrent ? 'CURRENT' : lifecycle || 'ARCHIVED')}
                                </span>
                              </td>
                              <td style="padding:12px; font-family:var(--font-mono); color:var(--text-muted);" title="${escapeHtml(pkg.packageHash || '')}">

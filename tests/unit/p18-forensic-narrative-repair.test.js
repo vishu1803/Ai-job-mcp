@@ -360,7 +360,11 @@ describe('Test E: PDE Case 1 vs Case 2', () => {
     });
 
     // In Case 1: Preserves candidate-authored accomplishment bullet (Engineered...)
-    assert.equal(composed.bullets.length, 1, 'Case 1 must render exactly 1 candidate accomplishment bullet');
+    assert.equal(
+      composed.bullets.length,
+      1,
+      'Case 1 must render exactly 1 candidate accomplishment bullet'
+    );
     assert.match(composed.bullets[0].text, /^Engineered\b/i);
 
     // Project description fact does NOT become a second candidate-agency bullet (no Architected...)
@@ -554,9 +558,7 @@ describe('Test H: No false narrative collapse', () => {
       factInventory,
     });
 
-    const collapseFinding = quality.findings.find(
-      (f) => f.code === 'PROJECT_NARRATIVE_COLLAPSE'
-    );
+    const collapseFinding = quality.findings.find((f) => f.code === 'PROJECT_NARRATIVE_COLLAPSE');
     assert.equal(
       collapseFinding,
       undefined,
@@ -964,10 +966,7 @@ describe('Test P: Full rendered trace & Formal Invariant Assertion', () => {
     assert.ok(Array.isArray(bullet.evidenceRefs));
 
     // Verify machine-verifiable invariant assertion
-    assert.equal(
-      assertRenderedCandidateAgencyInvariant(composed.bullets, [candFact]),
-      true
-    );
+    assert.equal(assertRenderedCandidateAgencyInvariant(composed.bullets, [candFact]), true);
   });
 });
 
@@ -1074,12 +1073,9 @@ describe('Test W: Rendered invariant rejects candidate metadata without trusted 
       agencySource: AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY,
       composedFromFactIds: ['fact-untrusted'],
     };
-    assert.throws(
-      () => {
-        assertRenderedCandidateAgencyInvariant([renderedBullet], [untrustedFact]);
-      },
-      /Rendered candidate agency invariant violated/
-    );
+    assert.throws(() => {
+      assertRenderedCandidateAgencyInvariant([renderedBullet], [untrustedFact]);
+    }, /Rendered candidate agency invariant violated/);
 
     // Also throws when fact has agencyLevel CANDIDATE but no source
     const noSourceFact = {
@@ -1094,11 +1090,8 @@ describe('Test W: Rendered invariant rejects candidate metadata without trusted 
       agencyLevel: AGENCY_LEVELS.CANDIDATE,
       composedFromFactIds: ['fact-no-source'],
     };
-    assert.throws(
-      () => {
-        assertRenderedCandidateAgencyInvariant([noSourceBullet], [noSourceFact]);
-      },
-      /Rendered candidate agency invariant violated/
-    );
+    assert.throws(() => {
+      assertRenderedCandidateAgencyInvariant([noSourceBullet], [noSourceFact]);
+    }, /Rendered candidate agency invariant violated/);
   });
 });

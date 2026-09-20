@@ -22,8 +22,18 @@ export const benchmarkBackendEarlyCareer = Object.freeze({
   github: 'https://github.com/alexrivera-dev',
   linkedin: 'https://linkedin.com/in/alexrivera-swe',
   skills: [
-    'Go', 'Python', 'Node.js', 'PostgreSQL', 'Redis', 'Docker', 'Kubernetes',
-    'gRPC', 'RESTful APIs', 'Git', 'Linux', 'Microservices'
+    'Go',
+    'Python',
+    'Node.js',
+    'PostgreSQL',
+    'Redis',
+    'Docker',
+    'Kubernetes',
+    'gRPC',
+    'RESTful APIs',
+    'Git',
+    'Linux',
+    'Microservices',
   ],
   education: [
     {
@@ -62,9 +72,7 @@ export const benchmarkBackendEarlyCareer = Object.freeze({
         'Implemented write-ahead logging (WAL) and memory-mapped SSTables to guarantee durable point-in-time state recovery.',
         'Benchmarked consensus performance under network partition scenarios using Chaos Mesh and Docker Compose.',
       ],
-      highlights: [
-        'Supports consistent snapshotting and log compaction.',
-      ],
+      highlights: ['Supports consistent snapshotting and log compaction.'],
     },
     {
       id: 'proj-rate-limiter',
@@ -96,8 +104,17 @@ export const benchmarkFullStackEarlyCareer = Object.freeze({
   github: 'https://github.com/mayachen-dev',
   linkedin: 'https://linkedin.com/in/mayachen-dev',
   skills: [
-    'TypeScript', 'React', 'Next.js', 'Node.js', 'Express.js', 'PostgreSQL',
-    'Prisma ORM', 'Tailwind CSS', 'Docker', 'GraphQL', 'Jest'
+    'TypeScript',
+    'React',
+    'Next.js',
+    'Node.js',
+    'Express.js',
+    'PostgreSQL',
+    'Prisma ORM',
+    'Tailwind CSS',
+    'Docker',
+    'GraphQL',
+    'Jest',
   ],
   education: [
     {
@@ -151,8 +168,16 @@ export const benchmarkFrontendEarlyCareer = Object.freeze({
   github: 'https://github.com/liamvance-dev',
   linkedin: 'https://linkedin.com/in/liamvance-ui',
   skills: [
-    'JavaScript', 'TypeScript', 'React', 'Redux Toolkit', 'Tailwind CSS',
-    'HTML5', 'CSS3', 'WebSockets', 'Vite', 'Vitest'
+    'JavaScript',
+    'TypeScript',
+    'React',
+    'Redux Toolkit',
+    'Tailwind CSS',
+    'HTML5',
+    'CSS3',
+    'WebSockets',
+    'Vite',
+    'Vitest',
   ],
   education: [
     {
@@ -187,8 +212,17 @@ export const benchmarkBackendMidLevel = Object.freeze({
   github: 'https://github.com/mbrody-eng',
   linkedin: 'https://linkedin.com/in/marcusbrody',
   skills: [
-    'Rust', 'Go', 'Python', 'Kafka', 'PostgreSQL', 'Docker', 'Kubernetes',
-    'Terraform', 'AWS', 'gRPC', 'Distributed Systems'
+    'Rust',
+    'Go',
+    'Python',
+    'Kafka',
+    'PostgreSQL',
+    'Docker',
+    'Kubernetes',
+    'Terraform',
+    'AWS',
+    'gRPC',
+    'Distributed Systems',
   ],
   education: [
     {
@@ -251,8 +285,16 @@ export const benchmarkDataEngineer = Object.freeze({
   location: 'Chicago, IL',
   github: 'https://github.com/sarapatel-data',
   skills: [
-    'Python', 'SQL', 'Apache Spark', 'Airflow', 'Snowflake', 'dbt',
-    'PostgreSQL', 'Docker', 'AWS', 'ETL'
+    'Python',
+    'SQL',
+    'Apache Spark',
+    'Airflow',
+    'Snowflake',
+    'dbt',
+    'PostgreSQL',
+    'Docker',
+    'AWS',
+    'ETL',
   ],
   education: [
     {
@@ -300,8 +342,15 @@ export const benchmarkMlEngineer = Object.freeze({
   location: 'Boston, MA',
   github: 'https://github.com/davidkim-ml',
   skills: [
-    'Python', 'PyTorch', 'HuggingFace', 'FastAPI', 'Docker', 'Redis',
-    'PostgreSQL', 'Linux', 'Vector Search'
+    'Python',
+    'PyTorch',
+    'HuggingFace',
+    'FastAPI',
+    'Docker',
+    'Redis',
+    'PostgreSQL',
+    'Linux',
+    'Vector Search',
   ],
   education: [
     {
@@ -359,8 +408,16 @@ export const criticalRegressionFixture = Object.freeze({
     github: 'https://github.com/devinthorne-dev',
     linkedin: 'https://linkedin.com/in/devinthorne',
     skills: [
-      'Rust', 'TypeScript', 'Go', 'PostgreSQL', 'Docker', 'Kubernetes',
-      'gRPC', 'Apache Kafka', 'Linux', 'Microservices'
+      'Rust',
+      'TypeScript',
+      'Go',
+      'PostgreSQL',
+      'Docker',
+      'Kubernetes',
+      'gRPC',
+      'Apache Kafka',
+      'Linux',
+      'Microservices',
     ],
     education: [
       {
@@ -434,7 +491,11 @@ export const criticalRegressionFixture = Object.freeze({
     company: 'CoreGrid Systems',
     requirements: [
       { id: 'req-1', keyword: 'Rust', title: 'Systems programming with Rust or Go' },
-      { id: 'req-2', keyword: 'Distributed', title: 'Understanding of distributed systems and consensus' },
+      {
+        id: 'req-2',
+        keyword: 'Distributed',
+        title: 'Understanding of distributed systems and consensus',
+      },
       { id: 'req-3', keyword: 'Kafka', title: 'Experience with event streaming and Kafka' },
       { id: 'req-4', keyword: 'gRPC', title: 'API development with gRPC or REST' },
       { id: 'req-5', keyword: 'Docker', title: 'Containerization with Docker' },

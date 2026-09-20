@@ -23,9 +23,21 @@ describe('Career Preferences & Profile Domain Schemas (P14-004C)', () => {
     assert.deepEqual(parsed.employmentTypes, [], 'employmentTypes must be empty array when unset');
     assert.equal(parsed.salaryFloor, null);
     assert.equal(parsed.targetSalary, null);
-    assert.equal(parsed.salaryCurrency, null, 'salaryCurrency must be null when unset (not defaulted to USD)');
-    assert.equal(parsed.visaSponsorshipRequired, null, 'visaSponsorshipRequired must be null when unset (not defaulted to false)');
-    assert.equal(parsed.relocationPreference, null, 'relocationPreference must be null when unset (not defaulted to REMOTE_ONLY)');
+    assert.equal(
+      parsed.salaryCurrency,
+      null,
+      'salaryCurrency must be null when unset (not defaulted to USD)'
+    );
+    assert.equal(
+      parsed.visaSponsorshipRequired,
+      null,
+      'visaSponsorshipRequired must be null when unset (not defaulted to false)'
+    );
+    assert.equal(
+      parsed.relocationPreference,
+      null,
+      'relocationPreference must be null when unset (not defaulted to REMOTE_ONLY)'
+    );
     assert.equal(parsed.noticePeriod, null, 'noticePeriod must be null when unset');
     assert.equal(parsed.timezone, null, 'timezone must be null when unset');
   });

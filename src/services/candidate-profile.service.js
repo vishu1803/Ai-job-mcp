@@ -325,14 +325,20 @@ export class CandidateProfileService {
         if (!url) continue;
         if (!repositoryUrl && linked.resourceType === 'REPOSITORY') {
           repositoryUrl = url;
-        } else if (!liveUrl && (linked.resourceType === 'PORTFOLIO_SITE' || linked.resourceType === 'DOCUMENT')) {
+        } else if (
+          !liveUrl &&
+          (linked.resourceType === 'PORTFOLIO_SITE' || linked.resourceType === 'DOCUMENT')
+        ) {
           liveUrl = url;
         }
       }
 
-      let bullets = Array.isArray(proj.bullets) && proj.bullets.length > 0
-        ? [...proj.bullets]
-        : (Array.isArray(proj.metadata?.bullets) ? [...proj.metadata.bullets] : []);
+      let bullets =
+        Array.isArray(proj.bullets) && proj.bullets.length > 0
+          ? [...proj.bullets]
+          : Array.isArray(proj.metadata?.bullets)
+            ? [...proj.metadata.bullets]
+            : [];
 
       // Defensive candidate-evidence enrichment: if DB metadata lacks 3 bullets, hydrate
       // from candidate's authentic master resume projects (zero fabrication, genuine candidate claims only).
@@ -344,11 +350,11 @@ export class CandidateProfileService {
           const metaSlug = (metaProj.slug || '').toLowerCase();
           const isMatch =
             (projSlug && metaSlug && projSlug === metaSlug) ||
-            (projName && metaTitle && (
-              projName.includes(metaTitle) ||
-              metaTitle.includes(projName) ||
-              projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')
-            ));
+            (projName &&
+              metaTitle &&
+              (projName.includes(metaTitle) ||
+                metaTitle.includes(projName) ||
+                projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')));
           if (isMatch && Array.isArray(metaProj.bullets)) {
             for (const b of metaProj.bullets) {
               const bText = typeof b === 'string' ? b.trim() : (b?.text || '').trim();
@@ -356,7 +362,8 @@ export class CandidateProfileService {
                 bText &&
                 !bullets.some(
                   (existing) =>
-                    (typeof existing === 'string' ? existing : existing?.text || '').trim() === bText
+                    (typeof existing === 'string' ? existing : existing?.text || '').trim() ===
+                    bText
                 )
               ) {
                 bullets.push(b);
@@ -366,11 +373,14 @@ export class CandidateProfileService {
         }
       }
 
-      const technologies = Array.isArray(proj.technologies) && proj.technologies.length > 0
-        ? proj.technologies
-        : (Array.isArray(proj.metadata?.technologies)
-          ? proj.metadata.technologies
-          : (Array.isArray(proj.metadata?.skills) ? proj.metadata.skills : []));
+      const technologies =
+        Array.isArray(proj.technologies) && proj.technologies.length > 0
+          ? proj.technologies
+          : Array.isArray(proj.metadata?.technologies)
+            ? proj.metadata.technologies
+            : Array.isArray(proj.metadata?.skills)
+              ? proj.metadata.skills
+              : [];
       const description = proj.description || proj.metadata?.description || proj.summary || null;
 
       projectList.push({
@@ -485,22 +495,24 @@ export class CandidateProfileService {
     const rawResumeSections = await this._db
       .select()
       .from(resumeSections)
-      .where(and(eq(resumeSections.tenantId, tenantId), eq(resumeSections.candidateId, candidateId)))
+      .where(
+        and(eq(resumeSections.tenantId, tenantId), eq(resumeSections.candidateId, candidateId))
+      )
       .orderBy(asc(resumeSections.orderIndex));
 
     const meta = candidate.profileMetadata || {};
-    const portfolioLinks =
-      meta.portfolioLinks ||
-      meta.userCustom?.portfolioLinks ||
-      [];
-    const leetcodeLink = portfolioLinks.find(
-      (l) => typeof l?.url === 'string' && /leetcode\.com/i.test(l.url)
-    ) || null;
+    const portfolioLinks = meta.portfolioLinks || meta.userCustom?.portfolioLinks || [];
+    const leetcodeLink =
+      portfolioLinks.find((l) => typeof l?.url === 'string' && /leetcode\.com/i.test(l.url)) ||
+      null;
 
     let dsaBullets = [];
     if (Array.isArray(meta.dsa?.bullets) && meta.dsa.bullets.length > 0) {
       dsaBullets = meta.dsa.bullets.map(String);
-    } else if (Array.isArray(meta.userCustom?.dsa?.bullets) && meta.userCustom.dsa.bullets.length > 0) {
+    } else if (
+      Array.isArray(meta.userCustom?.dsa?.bullets) &&
+      meta.userCustom.dsa.bullets.length > 0
+    ) {
       dsaBullets = meta.userCustom.dsa.bullets.map(String);
     } else if (rawResumeSections.length > 0) {
       // Find authentic candidate-authored DSA bullets from parsed resume sections without fabricating
@@ -514,7 +526,10 @@ export class CandidateProfileService {
           const lines = text
             .split('\n')
             .map((l) => l.replace(/^[●•\-\*]\s*/, '').trim())
-            .filter((l) => l.length > 10 && !/^\s*(?:problem\s*solving|algorithmic\s*practice)\s*$/i.test(l));
+            .filter(
+              (l) =>
+                l.length > 10 && !/^\s*(?:problem\s*solving|algorithmic\s*practice)\s*$/i.test(l)
+            );
           if (lines.length > 0) {
             dsaBullets = lines;
             break;
@@ -1269,7 +1284,8 @@ export class CandidateProfileService {
       ...(sections.eligibility || {}),
       ...(sections.preferences ? { careerPreferences: sections.preferences } : {}),
       ...rawInput,
-      careerPreferences: rawInput.careerPreferences || rawInput.jobPreferences || sections.preferences,
+      careerPreferences:
+        rawInput.careerPreferences || rawInput.jobPreferences || sections.preferences,
     };
     if (input.noticePeriod && input.careerPreferences && !input.careerPreferences.noticePeriod) {
       input.careerPreferences = { ...input.careerPreferences, noticePeriod: input.noticePeriod };
@@ -1484,7 +1500,9 @@ export class CandidateProfileService {
       updatedCustom.github = input.github ? String(input.github).trim().slice(0, 1000) : null;
     }
     if (input.portfolio !== undefined) {
-      updatedCustom.portfolio = input.portfolio ? String(input.portfolio).trim().slice(0, 1000) : null;
+      updatedCustom.portfolio = input.portfolio
+        ? String(input.portfolio).trim().slice(0, 1000)
+        : null;
     }
     if (input.noticePeriod !== undefined) {
       const normNotice = normalizeNoticePeriod(input.noticePeriod);
@@ -1685,18 +1703,9 @@ export class CandidateProfileService {
 
     // Resolve authoritative phone information (preserves legacy un-prefixed records without hallucinating)
     const rawStoredPhone =
-      userCustom.phone ||
-      candidate.profileMetadata?.phone ||
-      resumeData?.identity?.phone ||
-      null;
-    const rawCountryCode =
-      userCustom.countryCode ||
-      candidate.profileMetadata?.countryCode ||
-      null;
-    const rawPhoneNumber =
-      userCustom.phoneNumber ||
-      candidate.profileMetadata?.phoneNumber ||
-      null;
+      userCustom.phone || candidate.profileMetadata?.phone || resumeData?.identity?.phone || null;
+    const rawCountryCode = userCustom.countryCode || candidate.profileMetadata?.countryCode || null;
+    const rawPhoneNumber = userCustom.phoneNumber || candidate.profileMetadata?.phoneNumber || null;
 
     let phone = rawStoredPhone;
     let countryCode = rawCountryCode;

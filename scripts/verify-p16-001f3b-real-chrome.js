@@ -19,7 +19,8 @@ import * as schema from '../src/db/schema.js';
 import { createSession } from '../src/security/session.service.js';
 import { ResumeParserService } from '../src/services/resume-parser.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const DOWNLOAD_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-downloads';
 const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-screens';
@@ -30,7 +31,10 @@ for (const d of [DOWNLOAD_DIR, SCREENSHOT_DIR]) fs.mkdirSync(d, { recursive: tru
 
 class CDPConnection {
   constructor(wsUrl) {
-    this.wsUrl = wsUrl; this.ws = null; this.nextId = 1; this.pending = new Map();
+    this.wsUrl = wsUrl;
+    this.ws = null;
+    this.nextId = 1;
+    this.pending = new Map();
   }
   async connect() {
     this.ws = new WebSocket(this.wsUrl);
@@ -58,9 +62,16 @@ class CDPConnection {
     });
   }
   async evaluate(expression, awaitPromise = true) {
-    const res = await this.send('Runtime.evaluate', { expression, awaitPromise, returnByValue: true });
+    const res = await this.send('Runtime.evaluate', {
+      expression,
+      awaitPromise,
+      returnByValue: true,
+    });
     if (res.exceptionDetails) {
-      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || JSON.stringify(res.exceptionDetails);
+      const desc =
+        res.exceptionDetails.exception?.description ||
+        res.exceptionDetails.text ||
+        JSON.stringify(res.exceptionDetails);
       throw new Error('Eval error: ' + desc);
     }
     return res.result?.value;
@@ -71,7 +82,13 @@ class CDPConnection {
     fs.writeFileSync(outPath, Buffer.from(res.data, 'base64'));
     console.log('  [Screenshot] ' + filename);
   }
-  close() { try { this.ws?.close(); } catch { /* noop */ } }
+  close() {
+    try {
+      this.ws?.close();
+    } catch {
+      /* noop */
+    }
+  }
 }
 
 async function main() {
@@ -80,12 +97,21 @@ async function main() {
 
   // Server identity check
   const { execSync } = await import('node:child_process');
-  const netstat = execSync('netstat -ano').toString().split('\n').filter((l) => l.includes(':3000') && l.includes('LISTENING'));
+  const netstat = execSync('netstat -ano')
+    .toString()
+    .split('\n')
+    .filter((l) => l.includes(':3000') && l.includes('LISTENING'));
   console.log('[Server] listeners: ' + JSON.stringify(netstat.map((l) => l.trim())));
 
   // 1. Session for real user
-  const [targetUser] = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
-  const [targetCand] = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const [targetUser] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const [targetCand] = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const session = await createSession(db, { userId: targetUser.id, tenantId: targetUser.tenantId });
   console.log('[Auth] user=' + targetUser.displayName + ' candidate=' + targetCand.id);
 
@@ -94,35 +120,57 @@ async function main() {
 
   // 2. Kill any Chrome already bound to CDP port (same policy as acceptance harness)
   try {
-    const existing = await fetch('http://127.0.0.1:' + CDP_PORT + '/json/version').catch(() => null);
+    const existing = await fetch('http://127.0.0.1:' + CDP_PORT + '/json/version').catch(
+      () => null
+    );
     if (existing && existing.ok) {
       console.log('[Chrome] pre-existing Chrome on CDP port — terminating');
-      try { execSync('powershell -Command "Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force"'); } catch { /* noop */ }
+      try {
+        execSync(
+          'powershell -Command "Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force"'
+        );
+      } catch {
+        /* noop */
+      }
       await sleep(1500);
     }
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 
   // 3. Launch Chrome
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-verify-'));
   console.log('[Chrome] launching…');
-  const chromeProcess = spawn(CHROME_PATH, [
-    '--remote-debugging-port=' + CDP_PORT,
-    '--user-data-dir=' + profileDir,
-    '--load-extension=' + EXTENSION_DIR,
-    '--disable-extensions-except=' + EXTENSION_DIR,
-    '--no-first-run',
-    '--no-default-browser-check',
-    'about:blank',
-  ], { detached: false, stdio: 'ignore' });
+  const chromeProcess = spawn(
+    CHROME_PATH,
+    [
+      '--remote-debugging-port=' + CDP_PORT,
+      '--user-data-dir=' + profileDir,
+      '--load-extension=' + EXTENSION_DIR,
+      '--disable-extensions-except=' + EXTENSION_DIR,
+      '--no-first-run',
+      '--no-default-browser-check',
+      'about:blank',
+    ],
+    { detached: false, stdio: 'ignore' }
+  );
 
   let versionInfo = null;
   for (let i = 0; i < 30; i++) {
     try {
       const res = await fetch('http://127.0.0.1:' + CDP_PORT + '/json/version');
-      if (res.ok) { versionInfo = await res.json(); break; }
-    } catch { await sleep(500); }
+      if (res.ok) {
+        versionInfo = await res.json();
+        break;
+      }
+    } catch {
+      await sleep(500);
+    }
   }
-  if (!versionInfo) { chromeProcess.kill('SIGKILL'); throw new Error('Chrome did not start'); }
+  if (!versionInfo) {
+    chromeProcess.kill('SIGKILL');
+    throw new Error('Chrome did not start');
+  }
   console.log('[Chrome] connected: ' + versionInfo.Browser);
 
   const browserCdp = new CDPConnection(versionInfo.webSocketDebuggerUrl);
@@ -131,7 +179,9 @@ async function main() {
   let swTarget = null;
   for (let i = 0; i < 20; i++) {
     const t = await browserCdp.send('Target.getTargets');
-    swTarget = t.targetInfos.find((x) => x.type === 'service_worker' && x.url.includes('background/service-worker.js'));
+    swTarget = t.targetInfos.find(
+      (x) => x.type === 'service_worker' && x.url.includes('background/service-worker.js')
+    );
     if (swTarget) break;
     await sleep(500);
   }
@@ -139,14 +189,31 @@ async function main() {
   const extensionId = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//)[1];
   console.log('[Extension] id=' + extensionId);
 
-  await browserCdp.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOAD_DIR, eventsEnabled: true });
+  await browserCdp.send('Browser.setDownloadBehavior', {
+    behavior: 'allow',
+    downloadPath: DOWNLOAD_DIR,
+    eventsEnabled: true,
+  });
 
   // Auth cookie
   const expires = Math.floor(Date.now() / 1000) + 7 * 86400;
   await browserCdp.send('Storage.setCookies', {
     cookies: [
-      { name: 'career_hub_session', value: session.rawToken, domain: 'localhost', path: '/', httpOnly: true, expires },
-      { name: 'career_hub_session', value: session.rawToken, url: 'http://localhost:3000/', httpOnly: true, expires },
+      {
+        name: 'career_hub_session',
+        value: session.rawToken,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        expires,
+      },
+      {
+        name: 'career_hub_session',
+        value: session.rawToken,
+        url: 'http://localhost:3000/',
+        httpOnly: true,
+        expires,
+      },
     ],
   });
   console.log('[Auth] cookie injected');
@@ -159,20 +226,40 @@ async function main() {
     await conn.connect();
     await conn.send('Page.enable');
     await conn.send('Runtime.enable');
-    return { conn, targetId, evaluate: (e, a) => conn.evaluate(e, a), shot: (f) => conn.captureScreenshot(f), close: async () => { conn.close(); await browserCdp.send('Target.closeTarget', { targetId }); } };
+    return {
+      conn,
+      targetId,
+      evaluate: (e, a) => conn.evaluate(e, a),
+      shot: (f) => conn.captureScreenshot(f),
+      close: async () => {
+        conn.close();
+        await browserCdp.send('Target.closeTarget', { targetId });
+      },
+    };
   }
 
   async function resolveNumericTabId(urlFragment, maxAttempts = 10) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const targetsRes = await browserCdp.send('Target.getTargets');
-        const swInfo = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+        const swInfo = targetsRes.targetInfos.find(
+          (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+        );
         if (swInfo) {
-          const { sessionId } = await browserCdp.send('Target.attachToTarget', { targetId: swInfo.targetId, flatten: true });
-          const evalRes = await browserCdp.send('Runtime.evaluate', {
-            expression: 'chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))',
-            awaitPromise: true, returnByValue: true,
-          }, sessionId);
+          const { sessionId } = await browserCdp.send('Target.attachToTarget', {
+            targetId: swInfo.targetId,
+            flatten: true,
+          });
+          const evalRes = await browserCdp.send(
+            'Runtime.evaluate',
+            {
+              expression:
+                'chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))',
+              awaitPromise: true,
+              returnByValue: true,
+            },
+            sessionId
+          );
           await browserCdp.send('Target.detachFromTarget', { sessionId }).catch(() => null);
           const tabs = evalRes?.result?.value;
           if (Array.isArray(tabs)) {
@@ -180,7 +267,9 @@ async function main() {
             if (match) return match.id;
           }
         }
-      } catch (e) { console.log('  [tabId] attempt ' + attempt + ': ' + e.message); }
+      } catch (e) {
+        console.log('  [tabId] attempt ' + attempt + ': ' + e.message);
+      }
       if (attempt < maxAttempts) await sleep(1000);
     }
     return null;
@@ -197,32 +286,50 @@ async function main() {
     console.log('[STEP4] job tab numeric id: ' + numericTabId);
 
     // 5. Open popup
-    const popupUrl = 'chrome-extension://' + extensionId + '/popup/popup.html?tabId=' + numericTabId;
+    const popupUrl =
+      'chrome-extension://' + extensionId + '/popup/popup.html?tabId=' + numericTabId;
     const popup = await openTab(popupUrl);
     for (let i = 0; i < 20; i++) {
-      try { await popup.evaluate('!!document.getElementById("authStatusText")'); break; } catch { await sleep(300); }
+      try {
+        await popup.evaluate('!!document.getElementById("authStatusText")');
+        break;
+      } catch {
+        await sleep(300);
+      }
     }
     for (let i = 0; i < 20; i++) {
-      const t = await popup.evaluate('document.getElementById("authStatusText")?.textContent?.trim() || ""');
+      const t = await popup.evaluate(
+        'document.getElementById("authStatusText")?.textContent?.trim() || ""'
+      );
       if (t && t !== 'Checking...') break;
       await sleep(300);
     }
-    const authStatus = await popup.evaluate('document.getElementById("authStatusText")?.textContent?.trim() || ""');
+    const authStatus = await popup.evaluate(
+      'document.getElementById("authStatusText")?.textContent?.trim() || ""'
+    );
     console.log('[STEP4] popup auth: ' + authStatus);
     if (authStatus !== 'Connected') throw new Error('Popup not authenticated: ' + authStatus);
 
     // Wait for job detection
     let detected = false;
     for (let i = 0; i < 40 && !detected; i++) {
-      detected = await popup.evaluate('!document.getElementById("stateDetected")?.classList?.contains("hidden")');
+      detected = await popup.evaluate(
+        '!document.getElementById("stateDetected")?.classList?.contains("hidden")'
+      );
       if (!detected) {
-        const noJob = await popup.evaluate('!document.getElementById("stateNoJob")?.classList?.contains("hidden")');
-        if (noJob) { await sleep(2500); await popup.evaluate('document.getElementById("retryDetectBtn")?.click()'); }
-        else await sleep(500);
+        const noJob = await popup.evaluate(
+          '!document.getElementById("stateNoJob")?.classList?.contains("hidden")'
+        );
+        if (noJob) {
+          await sleep(2500);
+          await popup.evaluate('document.getElementById("retryDetectBtn")?.click()');
+        } else await sleep(500);
       }
     }
     if (!detected) throw new Error('Job detection did not complete');
-    const detectedTitle = await popup.evaluate('document.getElementById("jobTitle")?.textContent?.trim()');
+    const detectedTitle = await popup.evaluate(
+      'document.getElementById("jobTitle")?.textContent?.trim()'
+    );
     console.log('[STEP4] detected job: ' + detectedTitle);
     await popup.shot('v-01-detected.png');
 
@@ -232,15 +339,25 @@ async function main() {
     let analysisReady = false;
     for (let i = 0; i < 60 && !analysisReady; i++) {
       await sleep(1000);
-      analysisReady = await popup.evaluate('!document.getElementById("stateAnalysis")?.classList?.contains("hidden")');
+      analysisReady = await popup.evaluate(
+        '!document.getElementById("stateAnalysis")?.classList?.contains("hidden")'
+      );
     }
     if (!analysisReady) {
-      const alert = await popup.evaluate('document.getElementById("alertMessage")?.textContent?.trim() || ""');
+      const alert = await popup.evaluate(
+        'document.getElementById("alertMessage")?.textContent?.trim() || ""'
+      );
       throw new Error('Analysis did not complete: ' + alert);
     }
-    const fitScore = await popup.evaluate('document.getElementById("fitScoreNum")?.textContent?.trim()');
-    const fitGrade = await popup.evaluate('document.getElementById("fitGradeBadge")?.textContent?.trim()');
-    const uiProjects = await popup.evaluate('Array.from(document.getElementById("featuredProjectsList")?.children || []).map(c => c.textContent.trim())');
+    const fitScore = await popup.evaluate(
+      'document.getElementById("fitScoreNum")?.textContent?.trim()'
+    );
+    const fitGrade = await popup.evaluate(
+      'document.getElementById("fitGradeBadge")?.textContent?.trim()'
+    );
+    const uiProjects = await popup.evaluate(
+      'Array.from(document.getElementById("featuredProjectsList")?.children || []).map(c => c.textContent.trim())'
+    );
     console.log('[STEP4] fit: ' + fitScore + ' ' + fitGrade);
     console.log('[STEP4] UI recommended projects:');
     for (const p of uiProjects) console.log('   ' + p);
@@ -253,25 +370,57 @@ async function main() {
     let handoffReady = false;
     for (let i = 0; i < 75 && !handoffReady; i++) {
       await sleep(2000);
-      handoffReady = await popup.evaluate('!document.getElementById("stateHandoffReady")?.classList?.contains("hidden")');
+      handoffReady = await popup.evaluate(
+        '!document.getElementById("stateHandoffReady")?.classList?.contains("hidden")'
+      );
       if (!handoffReady && i % 15 === 14) {
-        const alert = await popup.evaluate('document.getElementById("alertMessage")?.textContent?.trim() || ""');
+        const alert = await popup.evaluate(
+          'document.getElementById("alertMessage")?.textContent?.trim() || ""'
+        );
         console.log('   [handoff wait ' + (i + 1) * 2 + 's] alert: ' + alert);
       }
     }
     if (!handoffReady) {
-      const alert = await popup.evaluate('document.getElementById("alertMessage")?.textContent?.trim() || ""');
+      const alert = await popup.evaluate(
+        'document.getElementById("alertMessage")?.textContent?.trim() || ""'
+      );
       await popup.shot('v-handoff-timeout.png');
       throw new Error('Handoff did not complete: ' + alert);
     }
-    const lifecycleAction = await popup.evaluate('document.getElementById("lifecycleActionBadge")?.textContent?.trim()');
-    const validationStatus = await popup.evaluate('document.getElementById("statusValidationBadge")?.textContent?.trim()');
-    const resumeStatus = await popup.evaluate('document.getElementById("statusResumeBadge")?.textContent?.trim()');
-    const parseability = await popup.evaluate('document.getElementById("telParseability")?.textContent?.trim()');
-    const jobMatch = await popup.evaluate('document.getElementById("telJobMatch")?.textContent?.trim()');
-    const evidenceCoverage = await popup.evaluate('document.getElementById("telEvidenceCoverage")?.textContent?.trim()');
-    console.log('[STEP4] handoff READY: action=' + lifecycleAction + ' validation=' + validationStatus + ' resume=' + resumeStatus);
-    console.log('[STEP4] telemetry: parseability=' + parseability + ' jobMatch=' + jobMatch + ' evidence=' + evidenceCoverage);
+    const lifecycleAction = await popup.evaluate(
+      'document.getElementById("lifecycleActionBadge")?.textContent?.trim()'
+    );
+    const validationStatus = await popup.evaluate(
+      'document.getElementById("statusValidationBadge")?.textContent?.trim()'
+    );
+    const resumeStatus = await popup.evaluate(
+      'document.getElementById("statusResumeBadge")?.textContent?.trim()'
+    );
+    const parseability = await popup.evaluate(
+      'document.getElementById("telParseability")?.textContent?.trim()'
+    );
+    const jobMatch = await popup.evaluate(
+      'document.getElementById("telJobMatch")?.textContent?.trim()'
+    );
+    const evidenceCoverage = await popup.evaluate(
+      'document.getElementById("telEvidenceCoverage")?.textContent?.trim()'
+    );
+    console.log(
+      '[STEP4] handoff READY: action=' +
+        lifecycleAction +
+        ' validation=' +
+        validationStatus +
+        ' resume=' +
+        resumeStatus
+    );
+    console.log(
+      '[STEP4] telemetry: parseability=' +
+        parseability +
+        ' jobMatch=' +
+        jobMatch +
+        ' evidence=' +
+        evidenceCoverage
+    );
     await popup.shot('v-03-handoff-ready.png');
     result.lifecycleAction = lifecycleAction;
     result.validationStatus = validationStatus;
@@ -288,24 +437,37 @@ async function main() {
 
   // ---------------- SERVER-SIDE VERIFICATION (STEPS 5-8) ----------------
   console.log('\n[STEP5] latest snapshot for candidate…');
-  const snap = (await db.execute(sql`
+  const snap = (
+    await db.execute(sql`
     SELECT id, canonical_job_id, job_content_hash, analyzed_at, project_rankings
     FROM job_analysis_snapshots
     WHERE candidate_id = ${targetCand.id}
-    ORDER BY analyzed_at DESC LIMIT 1`)).rows[0];
+    ORDER BY analyzed_at DESC LIMIT 1`)
+  ).rows[0];
   if (!snap) throw new Error('No snapshot row found for candidate');
   const snapRankings = snap.project_rankings || [];
   result.snapshotId = snap.id;
-  console.log(JSON.stringify({
-    snapshotId: snap.id,
-    canonicalJobId: snap.canonical_job_id,
-    analyzedAt: snap.analyzed_at,
-    jobContentHash: snap.job_content_hash.slice(0, 16) + '…',
-    rankings: snapRankings.map((r) => ({ name: r.projectName || r.name, score: r.relevanceScore, rank: r.relevanceRank })),
-  }, null, 1));
+  console.log(
+    JSON.stringify(
+      {
+        snapshotId: snap.id,
+        canonicalJobId: snap.canonical_job_id,
+        analyzedAt: snap.analyzed_at,
+        jobContentHash: snap.job_content_hash.slice(0, 16) + '…',
+        rankings: snapRankings.map((r) => ({
+          name: r.projectName || r.name,
+          score: r.relevanceScore,
+          rank: r.relevanceRank,
+        })),
+      },
+      null,
+      1
+    )
+  );
 
   console.log('\n[STEP7] latest package for application 2f71f4cf…');
-  const pkg = (await db.execute(sql`
+  const pkg = (
+    await db.execute(sql`
     SELECT version, package_hash, lifecycle_state, prepared_at,
            package_payload->>'generationContractVersion' AS contract,
            package_payload->'structuredResume'->>'schemaVersion' AS sr_schema,
@@ -318,31 +480,54 @@ async function main() {
            package_payload->'structuredResume'->'summary'->>'text' AS summary_text
     FROM application_packages
     WHERE application_id = '2f71f4cf-0f86-43eb-b1c0-687e2e2d2d1c'
-    ORDER BY version DESC LIMIT 1`)).rows[0];
+    ORDER BY version DESC LIMIT 1`)
+  ).rows[0];
   if (!pkg) throw new Error('No package found');
   const srProjects = pkg.sr_projects || [];
   result.packageVersion = pkg.version;
   result.contract = pkg.contract;
-  console.log(JSON.stringify({
-    version: pkg.version,
-    lifecycleState: pkg.lifecycle_state,
-    packageHash: pkg.package_hash.slice(0, 16) + '…',
-    generationContractVersion: pkg.contract,
-    structuredResumeSchemaVersion: pkg.sr_schema,
-    fitSource: pkg.fit_source,
-    fitSnapshotId: pkg.fit_snapshot_id,
-    fitRankings: (pkg.fit_rankings || []).map((r) => ({ name: r.projectName || r.name, score: r.relevanceScore, rank: r.relevanceRank })),
-    headline: pkg.headline,
-    summaryFirst140: (pkg.summary_text || '').slice(0, 140),
-    structuredResumeProjects: srProjects.map((p) => ({ name: p.name, rank: p.rank, score: p.relevanceScore })),
-  }, null, 1));
+  console.log(
+    JSON.stringify(
+      {
+        version: pkg.version,
+        lifecycleState: pkg.lifecycle_state,
+        packageHash: pkg.package_hash.slice(0, 16) + '…',
+        generationContractVersion: pkg.contract,
+        structuredResumeSchemaVersion: pkg.sr_schema,
+        fitSource: pkg.fit_source,
+        fitSnapshotId: pkg.fit_snapshot_id,
+        fitRankings: (pkg.fit_rankings || []).map((r) => ({
+          name: r.projectName || r.name,
+          score: r.relevanceScore,
+          rank: r.relevanceRank,
+        })),
+        headline: pkg.headline,
+        summaryFirst140: (pkg.summary_text || '').slice(0, 140),
+        structuredResumeProjects: srProjects.map((p) => ({
+          name: p.name,
+          rank: p.rank,
+          score: p.relevanceScore,
+        })),
+      },
+      null,
+      1
+    )
+  );
 
   // Kit resume hash
-  const kit = (await db.execute(sql`
+  const kit = (
+    await db.execute(sql`
     SELECT metadata->'handoffKit'->>'packageHash' AS kit_hash,
            metadata->'handoffKit'->'resume'->>'contentHash' AS pdf_hash
-    FROM job_applications WHERE id = '2f71f4cf-0f86-43eb-b1c0-687e2e2d2d1c'`)).rows[0];
-  console.log('\n[STEP8] kit: packageHash=' + (kit.kit_hash || '').slice(0, 16) + '… pdfHash=' + (kit.pdf_hash || '').slice(0, 16) + '…');
+    FROM job_applications WHERE id = '2f71f4cf-0f86-43eb-b1c0-687e2e2d2d1c'`)
+  ).rows[0];
+  console.log(
+    '\n[STEP8] kit: packageHash=' +
+      (kit.kit_hash || '').slice(0, 16) +
+      '… pdfHash=' +
+      (kit.pdf_hash || '').slice(0, 16) +
+      '…'
+  );
 
   // Identify the downloaded PDF matching the new kit hash
   console.log('\n[STEP8] downloaded PDF identity…');
@@ -355,7 +540,11 @@ async function main() {
   for (const f of pdfCandidates) {
     const bytes = fs.readFileSync(path.join(DOWNLOAD_DIR, f));
     const h = crypto.createHash('sha256').update(bytes).digest('hex');
-    if (h === kit.pdf_hash) { matchedPdf = f; downloadedBytes = bytes; break; }
+    if (h === kit.pdf_hash) {
+      matchedPdf = f;
+      downloadedBytes = bytes;
+      break;
+    }
   }
   if (!matchedPdf && pdfCandidates.length > 0) {
     downloadedBytes = fs.readFileSync(path.join(DOWNLOAD_DIR, pdfCandidates[0]));
@@ -375,21 +564,32 @@ async function main() {
   const pdeIdx = text.search(/product[\s-]*data[\s-]*explorer/i);
   const ctmIdx = text.search(/collaborative[\s-]*task[\s-]*manager/i);
   const acraIdx = text.search(/ai[\s-]*powered[\s-]*code[\s-]*review/i);
-  const orderOk = pdeIdx >= 0 && (pdeIdx < ctmIdx || ctmIdx < 0) && (pdeIdx < acraIdx || acraIdx < 0);
-  console.log(JSON.stringify({
-    matchedPdf,
-    projectPresence: probes,
-    firstMentionOrder: { pde: pdeIdx, ctm: ctmIdx, acra: acraIdx },
-    pdeBeforeOthers: orderOk,
-    pdfHeadlineExcerpt: text.slice(0, 220).replace(/\s+/g, ' '),
-    pdfSummaryExcerpt: (text.match(/PROFESSIONAL SUMMARY\s+([\s\S]{0,200})/i)?.[1] || '').replace(/\s+/g, ' ').slice(0, 200),
-  }, null, 1));
+  const orderOk =
+    pdeIdx >= 0 && (pdeIdx < ctmIdx || ctmIdx < 0) && (pdeIdx < acraIdx || acraIdx < 0);
+  console.log(
+    JSON.stringify(
+      {
+        matchedPdf,
+        projectPresence: probes,
+        firstMentionOrder: { pde: pdeIdx, ctm: ctmIdx, acra: acraIdx },
+        pdeBeforeOthers: orderOk,
+        pdfHeadlineExcerpt: text.slice(0, 220).replace(/\s+/g, ' '),
+        pdfSummaryExcerpt: (text.match(/PROFESSIONAL SUMMARY\s+([\s\S]{0,200})/i)?.[1] || '')
+          .replace(/\s+/g, ' ')
+          .slice(0, 200),
+      },
+      null,
+      1
+    )
+  );
 
   // Final verdict
   const srNames = srProjects.map((p) => (p.name || '').toLowerCase());
   const verdict = {
     snapshotPersisted: Boolean(snap.id),
-    snapshotPdeRank1: (snapRankings[0]?.projectName || snapRankings[0]?.name || '').toLowerCase().includes('product-data-explorer'),
+    snapshotPdeRank1: (snapRankings[0]?.projectName || snapRankings[0]?.name || '')
+      .toLowerCase()
+      .includes('product-data-explorer'),
     packageStructured: pkg.contract === 'P16-001F' && srProjects.length > 0,
     pdeFirstInStructuredResume: (srNames[0] || '').includes('product-data-explorer'),
     pdeInPdf: probes['Product-Data-Explorer'],
@@ -407,6 +607,10 @@ async function main() {
 
 main().catch(async (e) => {
   console.error('CHROME VERIFY ERROR:', e.message);
-  try { await pool.end(); } catch { /* noop */ }
+  try {
+    await pool.end();
+  } catch {
+    /* noop */
+  }
   process.exit(1);
 });

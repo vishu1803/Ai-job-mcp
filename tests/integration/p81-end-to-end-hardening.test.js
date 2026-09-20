@@ -37,7 +37,13 @@ describe('P81 Integration: End-to-End Hardening & Real PDF Fixtures', () => {
     companyName: 'CloudCorp',
     requirements: [
       { id: randomUUID(), skill: 'Go', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
-      { id: randomUUID(), skill: 'PostgreSQL', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
+      {
+        id: randomUUID(),
+        skill: 'PostgreSQL',
+        importance: 'REQUIRED',
+        category: 'SKILL',
+        weight: 1.0,
+      },
     ],
   };
 
@@ -144,7 +150,10 @@ B.S. in Computer Science, MIT
     });
 
     assert.equal(atsResult.passed, true);
-    assert.ok(atsResult.atsParseabilityScore >= 90, `Expected score >= 90, got ${atsResult.atsParseabilityScore}`);
+    assert.ok(
+      atsResult.atsParseabilityScore >= 90,
+      `Expected score >= 90, got ${atsResult.atsParseabilityScore}`
+    );
     assert.equal(atsResult.confidence, 0.95);
     const contactCheck = atsResult.checks.find((c) => c.checkId === 'CONTACT_COMPLETENESS');
     assert.equal(contactCheck.passed, true);
@@ -153,7 +162,11 @@ B.S. in Computer Science, MIT
     const keywordResult = ResumeKeywordCoverageService.analyzeKeywordCoverage({
       jobDescription: targetJob,
       structuredResume: {
-        skills: { categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }, { name: 'PostgreSQL' }] }] },
+        skills: {
+          categories: [
+            { categoryName: 'Languages', skills: [{ name: 'Go' }, { name: 'PostgreSQL' }] },
+          ],
+        },
         projects: [{ name: 'Distributed KV Store', bullets: ['Engineered raft consensus in Go'] }],
       },
       pdfBuffer: compileResult.pdfBuffer,
@@ -184,7 +197,10 @@ B.S. in Computer Science, MIT
     });
 
     assert.ok(qualityResult.writingQualityScore >= 80);
-    assert.equal(qualityResult.findings.some((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM'), false);
+    assert.equal(
+      qualityResult.findings.some((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM'),
+      false
+    );
 
     // 4. Claim Validation
     const validationResult = ResumeClaimValidationService.validateClaim(
@@ -285,7 +301,9 @@ Raft Store in Go
     // Structured resume claims PostgreSQL in skills
     const structuredResume = {
       skills: {
-        categories: [{ categoryName: 'Databases', skills: [{ name: 'PostgreSQL' }, { name: 'Go' }] }],
+        categories: [
+          { categoryName: 'Databases', skills: [{ name: 'PostgreSQL' }, { name: 'Go' }] },
+        ],
       },
     };
 
@@ -296,7 +314,10 @@ Raft Store in Go
     });
 
     assert.ok(keywordResult.unrenderedTerms.includes('PostgreSQL'));
-    assert.equal(keywordResult.renderedCoveragePercent < keywordResult.intendedCoveragePercent, true);
+    assert.equal(
+      keywordResult.renderedCoveragePercent < keywordResult.intendedCoveragePercent,
+      true
+    );
 
     const pgItem = keywordResult.termBreakdown.find((t) => t.term === 'PostgreSQL');
     assert.equal(pgItem.intendedPresence, true);
@@ -329,7 +350,9 @@ Raft Store in Go
       structuredResume: resumeWithFabricatedMetric,
       factInventory: canonicalFactInventory,
     });
-    const unauthFinding = qualityResult.findings.find((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM');
+    const unauthFinding = qualityResult.findings.find(
+      (f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM'
+    );
     assert.ok(unauthFinding);
 
     // 2. Claim Validation fails
@@ -367,9 +390,7 @@ Raft Store in Go
   it('Fixture E: Candidate profile lacks AWS ECS; classified as UNSUPPORTED_CANDIDATE', () => {
     const jobWithAws = {
       title: 'Cloud Engineer',
-      requirements: [
-        { skill: 'AWS ECS', importance: 'REQUIRED' },
-      ],
+      requirements: [{ skill: 'AWS ECS', importance: 'REQUIRED' }],
     };
 
     const resumeWithFabricatedTech = {

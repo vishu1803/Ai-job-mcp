@@ -137,7 +137,10 @@ export class ApplicationReadinessService {
     items.push({
       field: 'email',
       label: 'Candidate Email',
-      value: emailDetails.status === 'READY' || emailDetails.status === 'NEEDS_CONFIRMATION' ? emailDetails.email : null,
+      value:
+        emailDetails.status === 'READY' || emailDetails.status === 'NEEDS_CONFIRMATION'
+          ? emailDetails.email
+          : null,
       status: emailDetails.status,
       presence: emailDetails.presence,
       state: emailDetails.state,
@@ -380,7 +383,9 @@ export class ApplicationReadinessService {
               ? 'PROFILE_USER_CUSTOM'
               : 'RESUME_CLAIM';
         if (typeof rawPrefSponsorship === 'boolean') {
-          resolvedVisaString = rawPrefSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
+          resolvedVisaString = rawPrefSponsorship
+            ? 'Sponsorship Required'
+            : 'No Sponsorship Needed';
         } else if (prefBool !== null) {
           resolvedVisaString = prefBool ? 'Sponsorship Required' : 'No Sponsorship Needed';
         } else {
@@ -695,9 +700,7 @@ export class ApplicationReadinessService {
       resolvedNoticeString =
         formatNoticePeriodLabel(effectiveNormNotice, customNoticeVal) ||
         (effectiveNormNotice === 'CUSTOM'
-          ? customNoticeVal ||
-            rawAppNotice ||
-            (rawPrefNotice !== 'CUSTOM' ? rawPrefNotice : null)
+          ? customNoticeVal || rawAppNotice || (rawPrefNotice !== 'CUSTOM' ? rawPrefNotice : null)
           : null);
     }
 

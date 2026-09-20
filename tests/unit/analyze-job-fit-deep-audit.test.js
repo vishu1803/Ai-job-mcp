@@ -105,21 +105,206 @@ const CANDIDATE_PROFILE = {
 };
 
 const CANDIDATE_SKILLS = [
-  { id: randomUUID(), slug: 'typescript', name: 'TypeScript', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 15, evidenceItems: [{ id: randomUUID(), skillSlug: 'typescript', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'javascript', name: 'JavaScript', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 20, evidenceItems: [{ id: randomUUID(), skillSlug: 'javascript', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/index.js', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'node-js', name: 'Node.js', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 12, evidenceItems: [{ id: randomUUID(), skillSlug: 'node-js', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'react', name: 'React', provenanceStatus: 'VERIFIED', confidenceScore: 0.9, evidenceCount: 8, evidenceItems: [{ id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/App.tsx', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'postgresql', name: 'PostgreSQL', provenanceStatus: 'VERIFIED', confidenceScore: 0.9, evidenceCount: 5, evidenceItems: [{ id: randomUUID(), skillSlug: 'postgresql', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'next-js', name: 'Next.js', provenanceStatus: 'CORROBORATED', confidenceScore: 0.88, evidenceCount: 10, evidenceItems: [{ id: randomUUID(), skillSlug: 'next-js', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/app/page.tsx', confidenceScore: 0.9, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'fastapi', name: 'FastAPI', provenanceStatus: 'VERIFIED', confidenceScore: 0.85, evidenceCount: 3, evidenceItems: [{ id: randomUUID(), skillSlug: 'fastapi', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'main.py', confidenceScore: 0.9, resourceName: 'VamTech' }] },
-  { id: randomUUID(), slug: 'git', name: 'Git', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 25 },
-  { id: randomUUID(), slug: 'github', name: 'GitHub', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 20 },
-  { id: randomUUID(), slug: 'python', name: 'Python', provenanceStatus: 'VERIFIED', confidenceScore: 0.88, evidenceCount: 8 },
-  { id: randomUUID(), slug: 'tailwind-css', name: 'Tailwind CSS', provenanceStatus: 'VERIFIED', confidenceScore: 0.85, evidenceCount: 5 },
-  { id: randomUUID(), slug: 'aws', name: 'AWS', provenanceStatus: 'INFERRED', confidenceScore: 0.5, evidenceCount: 2, evidenceItems: [{ id: randomUUID(), skillSlug: 'aws', evidenceType: 'README_SPECIFICATION', filePath: 'README.md', confidenceScore: 0.3, resourceName: 'Ai-job-mcp' }] },
-  { id: randomUUID(), slug: 'prisma', name: 'Prisma', provenanceStatus: 'VERIFIED', confidenceScore: 0.9, evidenceCount: 6 },
-  { id: randomUUID(), slug: 'sql', name: 'SQL', provenanceStatus: 'CORROBORATED', confidenceScore: 0.85, evidenceCount: 4 },
-  { id: randomUUID(), slug: 'mongodb', name: 'MongoDB', provenanceStatus: 'CLAIMED', confidenceScore: 0.5, evidenceCount: 0 },
+  {
+    id: randomUUID(),
+    slug: 'typescript',
+    name: 'TypeScript',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.95,
+    evidenceCount: 15,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'typescript',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'javascript',
+    name: 'JavaScript',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.95,
+    evidenceCount: 20,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'javascript',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'src/index.js',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'node-js',
+    name: 'Node.js',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.95,
+    evidenceCount: 12,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'node-js',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'react',
+    name: 'React',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.9,
+    evidenceCount: 8,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'react',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'src/App.tsx',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'postgresql',
+    name: 'PostgreSQL',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.9,
+    evidenceCount: 5,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'postgresql',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'next-js',
+    name: 'Next.js',
+    provenanceStatus: 'CORROBORATED',
+    confidenceScore: 0.88,
+    evidenceCount: 10,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'next-js',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'src/app/page.tsx',
+        confidenceScore: 0.9,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'fastapi',
+    name: 'FastAPI',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.85,
+    evidenceCount: 3,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'fastapi',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'main.py',
+        confidenceScore: 0.9,
+        resourceName: 'VamTech',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'git',
+    name: 'Git',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.95,
+    evidenceCount: 25,
+  },
+  {
+    id: randomUUID(),
+    slug: 'github',
+    name: 'GitHub',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.95,
+    evidenceCount: 20,
+  },
+  {
+    id: randomUUID(),
+    slug: 'python',
+    name: 'Python',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.88,
+    evidenceCount: 8,
+  },
+  {
+    id: randomUUID(),
+    slug: 'tailwind-css',
+    name: 'Tailwind CSS',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.85,
+    evidenceCount: 5,
+  },
+  {
+    id: randomUUID(),
+    slug: 'aws',
+    name: 'AWS',
+    provenanceStatus: 'INFERRED',
+    confidenceScore: 0.5,
+    evidenceCount: 2,
+    evidenceItems: [
+      {
+        id: randomUUID(),
+        skillSlug: 'aws',
+        evidenceType: 'README_SPECIFICATION',
+        filePath: 'README.md',
+        confidenceScore: 0.3,
+        resourceName: 'Ai-job-mcp',
+      },
+    ],
+  },
+  {
+    id: randomUUID(),
+    slug: 'prisma',
+    name: 'Prisma',
+    provenanceStatus: 'VERIFIED',
+    confidenceScore: 0.9,
+    evidenceCount: 6,
+  },
+  {
+    id: randomUUID(),
+    slug: 'sql',
+    name: 'SQL',
+    provenanceStatus: 'CORROBORATED',
+    confidenceScore: 0.85,
+    evidenceCount: 4,
+  },
+  {
+    id: randomUUID(),
+    slug: 'mongodb',
+    name: 'MongoDB',
+    provenanceStatus: 'CLAIMED',
+    confidenceScore: 0.5,
+    evidenceCount: 0,
+  },
 ];
 
 const CANDIDATE_PROJECTS = [
@@ -131,11 +316,46 @@ const CANDIDATE_PROJECTS = [
     technologies: ['TypeScript', 'Node.js', 'Fastify', 'PostgreSQL', 'React', 'Next.js'],
     resources: [{ id: randomUUID(), name: 'Ai-job-mcp' }],
     evidence: [
-      { id: randomUUID(), skillSlug: 'typescript', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' },
-      { id: randomUUID(), skillSlug: 'node-js', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' },
-      { id: randomUUID(), skillSlug: 'fastify', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' },
-      { id: randomUUID(), skillSlug: 'postgresql', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json', confidenceScore: 1.0, resourceName: 'Ai-job-mcp' },
-      { id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/App.tsx', confidenceScore: 0.9, resourceName: 'Ai-job-mcp' },
+      {
+        id: randomUUID(),
+        skillSlug: 'typescript',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+      {
+        id: randomUUID(),
+        skillSlug: 'node-js',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+      {
+        id: randomUUID(),
+        skillSlug: 'fastify',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+      {
+        id: randomUUID(),
+        skillSlug: 'postgresql',
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        filePath: 'package.json',
+        confidenceScore: 1.0,
+        resourceName: 'Ai-job-mcp',
+      },
+      {
+        id: randomUUID(),
+        skillSlug: 'react',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'src/App.tsx',
+        confidenceScore: 0.9,
+        resourceName: 'Ai-job-mcp',
+      },
     ],
   },
   {
@@ -146,8 +366,22 @@ const CANDIDATE_PROJECTS = [
     technologies: ['Python', 'FastAPI', 'React', 'Next.js'],
     resources: [{ id: randomUUID(), name: 'Ai-powered-code-review-assistant' }],
     evidence: [
-      { id: randomUUID(), skillSlug: 'python', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'main.py', confidenceScore: 0.9, resourceName: 'Ai-powered-code-review-assistant' },
-      { id: randomUUID(), skillSlug: 'fastapi', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'main.py', confidenceScore: 0.9, resourceName: 'Ai-powered-code-review-assistant' },
+      {
+        id: randomUUID(),
+        skillSlug: 'python',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'main.py',
+        confidenceScore: 0.9,
+        resourceName: 'Ai-powered-code-review-assistant',
+      },
+      {
+        id: randomUUID(),
+        skillSlug: 'fastapi',
+        evidenceType: 'CODE_IMPORT_USAGE',
+        filePath: 'main.py',
+        confidenceScore: 0.9,
+        resourceName: 'Ai-powered-code-review-assistant',
+      },
     ],
   },
 ];
@@ -211,22 +445,26 @@ function createMockJob(overrides = {}) {
 async function runAnalyzeJobFit(overrides = {}) {
   const context = createMockContext();
   const mockJob = createMockJob(overrides.jobOverrides);
-  const result = await handleAnalyzeJobFit(context, { jobId: mockJob.id, candidateId: MOCK_CANDIDATE_ID }, {
-    candidateProfileService: {
-      getProfile: async () => createMockProfileView(),
-      getCareerProfile: async () => createMockCareerProfile(),
-    },
-    discoveryService: { findJobById: async () => mockJob },
-    db: {
-      select: () => ({
-        from: () => ({
-          where: () => ({
-            limit: async () => [{ id: MOCK_CANDIDATE_ID }],
+  const result = await handleAnalyzeJobFit(
+    context,
+    { jobId: mockJob.id, candidateId: MOCK_CANDIDATE_ID },
+    {
+      candidateProfileService: {
+        getProfile: async () => createMockProfileView(),
+        getCareerProfile: async () => createMockCareerProfile(),
+      },
+      discoveryService: { findJobById: async () => mockJob },
+      db: {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [{ id: MOCK_CANDIDATE_ID }],
+            }),
           }),
         }),
-      }),
-    },
-  });
+      },
+    }
+  );
   return result;
 }
 
@@ -251,13 +489,24 @@ describe('CRITICAL 1 — Job Identity Verification', () => {
   });
 
   it('preserves source and application URLs', () => {
-    assert.strictEqual(result.jobContext.sourceUrl, 'https://boards.greenhouse.io/vercel/jobs/5430088004');
-    assert.strictEqual(result.jobContext.applicationUrl, 'https://boards.greenhouse.io/vercel/jobs/5430088004');
+    assert.strictEqual(
+      result.jobContext.sourceUrl,
+      'https://boards.greenhouse.io/vercel/jobs/5430088004'
+    );
+    assert.strictEqual(
+      result.jobContext.applicationUrl,
+      'https://boards.greenhouse.io/vercel/jobs/5430088004'
+    );
   });
 
   it('identifies a non-Vercel job differently', async () => {
     const otherResult = await runAnalyzeJobFit({
-      jobOverrides: { id: randomUUID(), company: 'Stripe', title: 'Software Engineer', externalJobId: 'gh-stripe-123' },
+      jobOverrides: {
+        id: randomUUID(),
+        company: 'Stripe',
+        title: 'Software Engineer',
+        externalJobId: 'gh-stripe-123',
+      },
     });
     assert.notStrictEqual(otherResult.jobContext.company, 'Vercel');
     assert.strictEqual(otherResult.jobContext.externalJobId, 'gh-stripe-123');
@@ -272,7 +521,10 @@ describe('CRITICAL 2 — Requirement Extraction (No Company Prose, No Compound S
   });
 
   it('extracts a reasonable number of requirements from the Vercel posting', () => {
-    assert.ok(result.jobContext.totalRequirementsIdentified >= 20, `Expected at least 20 requirements, got ${result.jobContext.totalRequirementsIdentified}`);
+    assert.ok(
+      result.jobContext.totalRequirementsIdentified >= 20,
+      `Expected at least 20 requirements, got ${result.jobContext.totalRequirementsIdentified}`
+    );
   });
 
   it('does NOT extract company marketing prose as requirements', () => {
@@ -285,8 +537,9 @@ describe('CRITICAL 2 — Requirement Extraction (No Company Prose, No Compound S
     ];
     for (const phrase of marketingPhrases) {
       const found = result.requirementMatches.some(
-        (m) => m.normalizedRequirement?.toLowerCase().includes(phrase.toLowerCase()) ||
-               m.originalRequirement?.toLowerCase().includes(phrase.toLowerCase())
+        (m) =>
+          m.normalizedRequirement?.toLowerCase().includes(phrase.toLowerCase()) ||
+          m.originalRequirement?.toLowerCase().includes(phrase.toLowerCase())
       );
       assert.ok(!found, `Company prose "${phrase}" should not appear as a requirement`);
     }
@@ -348,9 +601,7 @@ describe('CRITICAL 2 — Requirement Extraction (No Company Prose, No Compound S
   it('extracts access control models (RBAC, ABAC, ReBAC)', () => {
     const accessModels = ['Role-Based Access Control', 'ABAC', 'ReBAC'];
     for (const model of accessModels) {
-      const req = result.requirementMatches.find(
-        (m) => m.normalizedRequirement === model
-      );
+      const req = result.requirementMatches.find((m) => m.normalizedRequirement === model);
       assert.ok(req, `${model} should be extracted as a requirement`);
     }
   });
@@ -365,8 +616,9 @@ describe('CRITICAL 2 — Requirement Extraction (No Company Prose, No Compound S
     ];
     for (const slug of badSlugs) {
       const found = result.requirementMatches.some(
-        (m) => m.normalizedRequirement?.toLowerCase().includes(slug) ||
-               m.skillSlug?.toLowerCase() === slug
+        (m) =>
+          m.normalizedRequirement?.toLowerCase().includes(slug) ||
+          m.skillSlug?.toLowerCase() === slug
       );
       assert.ok(!found, `Compound pseudo-slug "${slug}" should not appear`);
     }
@@ -382,31 +634,54 @@ describe('CRITICAL 3 — Subjective/Soft Skills Classification', () => {
 
   it('does NOT classify Problem Solving as a hard technical SKILL', () => {
     const problemSolving = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Problem Solving' || m.normalizedRequirement === 'problem-solving'
+      (m) =>
+        m.normalizedRequirement === 'Problem Solving' ||
+        m.normalizedRequirement === 'problem-solving'
     );
     if (problemSolving) {
-      assert.notStrictEqual(problemSolving.matchStatus, 'MISSING', 'Problem Solving should not be a MISSING hard skill');
-      assert.strictEqual(problemSolving.category !== 'SKILL' || problemSolving.matchStatus === 'UNKNOWN',
-        'Problem Solving should be UNKNOWN or non-SKILL category');
+      assert.notStrictEqual(
+        problemSolving.matchStatus,
+        'MISSING',
+        'Problem Solving should not be a MISSING hard skill'
+      );
+      assert.strictEqual(
+        problemSolving.category !== 'SKILL' || problemSolving.matchStatus === 'UNKNOWN',
+        'Problem Solving should be UNKNOWN or non-SKILL category'
+      );
     }
   });
 
   it('does NOT classify Communication as a hard technical SKILL', () => {
     const communication = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Communication' || m.normalizedRequirement === 'communication'
+      (m) =>
+        m.normalizedRequirement === 'Communication' || m.normalizedRequirement === 'communication'
     );
     if (communication) {
-      assert.notStrictEqual(communication.matchStatus, 'MISSING', 'Communication should not be a MISSING hard skill');
-      assert.strictEqual(communication.category !== 'SKILL' || communication.matchStatus === 'UNKNOWN',
-        'Communication should be UNKNOWN or non-SKILL category');
+      assert.notStrictEqual(
+        communication.matchStatus,
+        'MISSING',
+        'Communication should not be a MISSING hard skill'
+      );
+      assert.strictEqual(
+        communication.category !== 'SKILL' || communication.matchStatus === 'UNKNOWN',
+        'Communication should be UNKNOWN or non-SKILL category'
+      );
     }
   });
 
   it('subjective skills do NOT inflate the technical skill denominator', () => {
     const subjectiveInSkills = result.requirementMatches.filter(
-      (m) => m.category === 'SKILL' && ['problem-solving', 'communication', 'teamwork', 'adaptability'].includes(m.normalizedRequirement?.toLowerCase())
+      (m) =>
+        m.category === 'SKILL' &&
+        ['problem-solving', 'communication', 'teamwork', 'adaptability'].includes(
+          m.normalizedRequirement?.toLowerCase()
+        )
     );
-    assert.strictEqual(subjectiveInSkills.length, 0, 'No subjective skills should be classified as hard SKILL');
+    assert.strictEqual(
+      subjectiveInSkills.length,
+      0,
+      'No subjective skills should be classified as hard SKILL'
+    );
   });
 });
 
@@ -418,17 +693,13 @@ describe('CRITICAL 4 — Node.js Evidence Trust', () => {
   });
 
   it('Node.js match has candidateSkills populated', () => {
-    const nodeReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Node.js'
-    );
+    const nodeReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'Node.js');
     assert.ok(nodeReq, 'Node.js should be a requirement');
     assert.ok(nodeReq.candidateSkills.length > 0, 'Node.js candidateSkills should not be empty');
   });
 
   it('Node.js primary evidence is NOT from node_modules', () => {
-    const nodeReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Node.js'
-    );
+    const nodeReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'Node.js');
     assert.ok(nodeReq, 'Node.js should be a requirement');
     if (nodeReq.primaryEvidence) {
       assert.ok(
@@ -439,16 +710,19 @@ describe('CRITICAL 4 — Node.js Evidence Trust', () => {
   });
 
   it('Node.js supporting evidence does not exclusively come from node_modules', () => {
-    const nodeReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Node.js'
-    );
+    const nodeReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'Node.js');
     assert.ok(nodeReq, 'Node.js should be a requirement');
-    const allEvidence = [nodeReq.primaryEvidence, ...(nodeReq.supportingEvidence || [])].filter(Boolean);
+    const allEvidence = [nodeReq.primaryEvidence, ...(nodeReq.supportingEvidence || [])].filter(
+      Boolean
+    );
     if (allEvidence.length > 0) {
       const hasNonNodeModulesEvidence = allEvidence.some(
         (ev) => !ev.filePath?.includes('node_modules')
       );
-      assert.ok(hasNonNodeModulesEvidence, 'Node.js should have at least one non-node_modules evidence item');
+      assert.ok(
+        hasNonNodeModulesEvidence,
+        'Node.js should have at least one non-node_modules evidence item'
+      );
     }
   });
 });
@@ -461,17 +735,13 @@ describe('CRITICAL 5 — Provenance Preservation', () => {
   });
 
   it('preserves VERIFIED provenance for TypeScript', () => {
-    const tsReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'TypeScript'
-    );
+    const tsReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'TypeScript');
     assert.ok(tsReq, 'TypeScript should be a requirement');
     assert.strictEqual(tsReq.candidateProvenance, 'VERIFIED');
   });
 
   it('preserves CORROBORATED provenance for Next.js', () => {
-    const nextReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'Next.js'
-    );
+    const nextReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'Next.js');
     if (nextReq && nextReq.candidateProvenance !== 'NONE') {
       assert.strictEqual(nextReq.candidateProvenance, 'CORROBORATED');
     }
@@ -479,9 +749,7 @@ describe('CRITICAL 5 — Provenance Preservation', () => {
 
   it('preserves CLAIMED provenance for MongoDB (no evidence)', () => {
     // MongoDB is CLAIMED in candidate skills but should show no high-trust evidence
-    const mongoReq = result.requirementMatches.find(
-      (m) => m.normalizedRequirement === 'MongoDB'
-    );
+    const mongoReq = result.requirementMatches.find((m) => m.normalizedRequirement === 'MongoDB');
     if (mongoReq) {
       assert.ok(
         mongoReq.candidateProvenance === 'CLAIMED' || mongoReq.candidateProvenance === 'NONE',
@@ -529,7 +797,11 @@ describe('CRITICAL 6 — Experience Requirement for Freshers', () => {
       (m) => m.category === 'EXPERIENCE' && m.normalizedRequirement?.includes('Node.js')
     );
     assert.ok(expReq, 'Should have a Node.js EXPERIENCE requirement');
-    assert.strictEqual(expReq.matchStatus, 'PARTIAL', 'Fresher with 0 professional months should get PARTIAL, not MATCHED');
+    assert.strictEqual(
+      expReq.matchStatus,
+      'PARTIAL',
+      'Fresher with 0 professional months should get PARTIAL, not MATCHED'
+    );
   });
 
   it('experience explanation mentions internship vs professional tenure distinction', () => {
@@ -538,7 +810,9 @@ describe('CRITICAL 6 — Experience Requirement for Freshers', () => {
     );
     assert.ok(expReq, 'Should have a Node.js EXPERIENCE requirement');
     assert.ok(
-      expReq.explanation?.includes('internship') || expReq.explanation?.includes('professional tenure') || expReq.explanation?.includes('PARTIAL'),
+      expReq.explanation?.includes('internship') ||
+        expReq.explanation?.includes('professional tenure') ||
+        expReq.explanation?.includes('PARTIAL'),
       `Experience explanation should mention tenure distinction: ${expReq.explanation}`
     );
   });
@@ -552,17 +826,13 @@ describe('CRITICAL 7 — Location & Eligibility Semantics', () => {
   });
 
   it('has a LOCATION requirement for Remote - United States', () => {
-    const locReq = result.requirementMatches.find(
-      (m) => m.category === 'LOCATION'
-    );
+    const locReq = result.requirementMatches.find((m) => m.category === 'LOCATION');
     assert.ok(locReq, 'Should have a LOCATION requirement');
     assert.strictEqual(locReq.normalizedRequirement, 'Remote - United States');
   });
 
   it('has an ELIGIBILITY requirement for US work authorization', () => {
-    const eligReq = result.requirementMatches.find(
-      (m) => m.category === 'ELIGIBILITY'
-    );
+    const eligReq = result.requirementMatches.find((m) => m.category === 'ELIGIBILITY');
     assert.ok(eligReq, 'Should have an ELIGIBILITY requirement');
     assert.strictEqual(eligReq.normalizedRequirement, 'United States Work Authorization');
   });
@@ -590,20 +860,43 @@ describe('CRITICAL 8 — Score Traceability & Analysis Status', () => {
 
   it('has a valid ATS score', () => {
     assert.ok(typeof result.overallFit.atsScore === 'number', 'atsScore should be a number');
-    assert.ok(result.overallFit.atsScore >= 0 && result.overallFit.atsScore <= 100,
-      `atsScore should be 0-100, got ${result.overallFit.atsScore}`);
+    assert.ok(
+      result.overallFit.atsScore >= 0 && result.overallFit.atsScore <= 100,
+      `atsScore should be 0-100, got ${result.overallFit.atsScore}`
+    );
   });
 
   it('scoreBreakdown has all required components', () => {
     const breakdown = result.overallFit.scoreBreakdown;
     assert.ok(breakdown, 'scoreBreakdown should exist');
-    assert.ok(typeof breakdown.requiredSkillsScore === 'number', 'requiredSkillsScore should be a number');
-    assert.ok(typeof breakdown.preferredSkillsScore === 'number', 'preferredSkillsScore should be a number');
-    assert.ok(typeof breakdown.projectRelevanceScore === 'number', 'projectRelevanceScore should be a number');
-    assert.ok(typeof breakdown.experienceFitScore === 'number', 'experienceFitScore should be a number');
-    assert.ok(typeof breakdown.educationFitScore === 'number', 'educationFitScore should be a number');
-    assert.ok(typeof breakdown.locationFitScore === 'number', 'locationFitScore should be a number');
-    assert.ok(typeof breakdown.evidenceConfidenceScore === 'number', 'evidenceConfidenceScore should be a number');
+    assert.ok(
+      typeof breakdown.requiredSkillsScore === 'number',
+      'requiredSkillsScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.preferredSkillsScore === 'number',
+      'preferredSkillsScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.projectRelevanceScore === 'number',
+      'projectRelevanceScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.experienceFitScore === 'number',
+      'experienceFitScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.educationFitScore === 'number',
+      'educationFitScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.locationFitScore === 'number',
+      'locationFitScore should be a number'
+    );
+    assert.ok(
+      typeof breakdown.evidenceConfidenceScore === 'number',
+      'evidenceConfidenceScore should be a number'
+    );
   });
 
   it('scoreBreakdown has semantic fit objects for experience, education, and location', () => {
@@ -642,7 +935,7 @@ describe('Parser — Company Prose Detection', () => {
   it('filters Vercel company description as company prose', () => {
     const proseLines = [
       'Vercel is the agentic infrastructure company.',
-      'We free people and agents to ship what\'s next.',
+      "We free people and agents to ship what's next.",
       'For more than a decade, Vercel has shaped how the web is built.',
       'Now, software is entering a new era.',
       'They will be built, extended, and operated by agents.',

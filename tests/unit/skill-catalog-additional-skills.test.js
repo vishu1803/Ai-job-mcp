@@ -13,8 +13,15 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { SKILL_CATALOG_SEED, getCatalogCategories, getCatalogByCategory } from '../../src/services/skill-catalog.seed.js';
-import { PROFICIENCY_LEVELS, USAGE_CONTEXTS } from '../../src/services/candidate-additional-skills.service.js';
+import {
+  SKILL_CATALOG_SEED,
+  getCatalogCategories,
+  getCatalogByCategory,
+} from '../../src/services/skill-catalog.seed.js';
+import {
+  PROFICIENCY_LEVELS,
+  USAGE_CONTEXTS,
+} from '../../src/services/candidate-additional-skills.service.js';
 import { SkillTaxonomyEngine } from '../../src/domain/career/skill-taxonomy.js';
 import { EvidenceMatchingService } from '../../src/services/evidence-matching.service.js';
 
@@ -23,7 +30,10 @@ import { EvidenceMatchingService } from '../../src/services/evidence-matching.se
 // ============================================================================
 describe('Skill Catalog Seed Data', () => {
   it('has a non-empty catalog', () => {
-    assert.ok(SKILL_CATALOG_SEED.length > 100, `Expected >100 skills, got ${SKILL_CATALOG_SEED.length}`);
+    assert.ok(
+      SKILL_CATALOG_SEED.length > 100,
+      `Expected >100 skills, got ${SKILL_CATALOG_SEED.length}`
+    );
   });
 
   it('every entry has required fields', () => {
@@ -37,13 +47,13 @@ describe('Skill Catalog Seed Data', () => {
   });
 
   it('all slugs are unique', () => {
-    const slugs = SKILL_CATALOG_SEED.map(s => s.slug);
+    const slugs = SKILL_CATALOG_SEED.map((s) => s.slug);
     const uniqueSlugs = new Set(slugs);
     assert.strictEqual(slugs.length, uniqueSlugs.size, 'Duplicate slugs found in catalog');
   });
 
   it('all canonical names are unique', () => {
-    const names = SKILL_CATALOG_SEED.map(s => s.canonicalName);
+    const names = SKILL_CATALOG_SEED.map((s) => s.canonicalName);
     const uniqueNames = new Set(names);
     assert.strictEqual(names.length, uniqueNames.size, 'Duplicate canonical names found');
   });
@@ -223,7 +233,13 @@ describe('Evidence Matching — SELF_DECLARED Skills', () => {
     skillsBySlug.set('typescript', selfDeclaredSkill); // Set self-declared first
     // Simulate the priority check from _indexCandidateProfile
     const PROVENANCE_PRIORITY = {
-      CORROBORATED: 5, VERIFIED: 4, INFERRED: 3, CLAIMED: 2, SELF_DECLARED: 1, LEARNING: 0, MISSING: 0,
+      CORROBORATED: 5,
+      VERIFIED: 4,
+      INFERRED: 3,
+      CLAIMED: 2,
+      SELF_DECLARED: 1,
+      LEARNING: 0,
+      MISSING: 0,
     };
     const rankExisting = PROVENANCE_PRIORITY[selfDeclaredSkill.provenanceStatus] || 0;
     const rankNew = PROVENANCE_PRIORITY[verifiedSkill.provenanceStatus] || 0;
@@ -245,7 +261,13 @@ describe('Evidence Matching — SELF_DECLARED Skills', () => {
 describe('Evidence Matching — Provenance Priority', () => {
   it('CORROBORATED has highest priority', () => {
     const PROVENANCE_PRIORITY = {
-      CORROBORATED: 5, VERIFIED: 4, INFERRED: 3, CLAIMED: 2, SELF_DECLARED: 1, LEARNING: 0, MISSING: 0,
+      CORROBORATED: 5,
+      VERIFIED: 4,
+      INFERRED: 3,
+      CLAIMED: 2,
+      SELF_DECLARED: 1,
+      LEARNING: 0,
+      MISSING: 0,
     };
     assert.ok(PROVENANCE_PRIORITY.CORROBORATED > PROVENANCE_PRIORITY.VERIFIED);
     assert.ok(PROVENANCE_PRIORITY.VERIFIED > PROVENANCE_PRIORITY.INFERRED);

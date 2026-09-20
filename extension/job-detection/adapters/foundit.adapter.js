@@ -28,8 +28,7 @@ export class FounditAdapter {
       /* fall through to DOM heuristics */
     }
     return Boolean(
-      doc.querySelector('#jobDescription') ||
-      doc.querySelector('[class*="job-detail"]')
+      doc.querySelector('#jobDescription') || doc.querySelector('[class*="job-detail"]')
     );
   }
 
@@ -59,17 +58,14 @@ export class FounditAdapter {
       doc.querySelector('a[href*="/companies/"]');
 
     const locationEl =
-      doc.querySelector('[class*="location"]') ||
-      doc.querySelector('.job-location');
+      doc.querySelector('[class*="location"]') || doc.querySelector('.job-location');
 
     const descEl =
       doc.querySelector('#jobDescription') ||
       doc.querySelector('[class*="job-description"]') ||
       doc.querySelector('[class*="job-detail"]');
 
-    let title = titleEl
-      ? titleEl.textContent.trim()
-      : metaContent('meta[property="og:title"]');
+    let title = titleEl ? titleEl.textContent.trim() : metaContent('meta[property="og:title"]');
 
     // Foundit og:title convention: "<Role> hiring <Company> - <Location>" or
     // "<Role> - <Company> - <Experience> - <Location>".
@@ -87,7 +83,10 @@ export class FounditAdapter {
         ogCompany = dashParts[0] || '';
         ogLocation = dashParts[dashParts.length - 1] || '';
       } else if (title.includes(' - ')) {
-        const parts = title.split(' - ').map((p) => p.trim()).filter(Boolean);
+        const parts = title
+          .split(' - ')
+          .map((p) => p.trim())
+          .filter(Boolean);
         if (parts.length >= 2) {
           title = parts[0];
           ogCompany = parts[1];
@@ -103,9 +102,7 @@ export class FounditAdapter {
       'Company';
 
     const location =
-      (locationEl ? locationEl.textContent.trim() : '') ||
-      ogLocation ||
-      'Not specified';
+      (locationEl ? locationEl.textContent.trim() : '') || ogLocation || 'Not specified';
 
     const description = descEl
       ? descEl.textContent.trim()

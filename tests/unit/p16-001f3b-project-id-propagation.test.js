@@ -26,7 +26,10 @@ import { buildStructuredResumeDocument } from '../../src/services/structured-res
 const PDE_ID = '95a13c93-a198-4473-bf64-5b8a50cbd3b9'; // real Product-Data-Explorer UUID
 const CTM_ID = '389d1357-156a-4296-a1bb-603140897bc3'; // real Collaborative-task-manager UUID
 
-const slugKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const slugKey = (s) =>
+  String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 const findPde = (list) => list.find((p) => slugKey(p.name).includes('productdataexplorer'));
 
 /** Real-shape profileView.projects entries (as returned by CandidateProfileService). */
@@ -82,8 +85,20 @@ const resumeDataProjects = [
 
 /** Authoritative snapshot rankings (real UUIDs from job_analysis_snapshots). */
 const authoritativeRankings = [
-  { projectId: PDE_ID, projectName: 'vishu1803/Product-Data-Explorer', relevanceScore: 65.11, relevanceRank: 1, matchedRequirementIds: ['req-1'] },
-  { projectId: CTM_ID, projectName: 'vishu1803/Collaborative-task-manager', relevanceScore: 49.51, relevanceRank: 2, matchedRequirementIds: ['req-2'] },
+  {
+    projectId: PDE_ID,
+    projectName: 'vishu1803/Product-Data-Explorer',
+    relevanceScore: 65.11,
+    relevanceRank: 1,
+    matchedRequirementIds: ['req-1'],
+  },
+  {
+    projectId: CTM_ID,
+    projectName: 'vishu1803/Collaborative-task-manager',
+    relevanceScore: 49.51,
+    relevanceRank: 2,
+    matchedRequirementIds: ['req-2'],
+  },
 ];
 
 const jobPosting = {
@@ -141,7 +156,10 @@ describe('P16-001F-3B: Project-ID Propagation Through Reconciliation', () => {
       options: { projectRankings: authoritativeRankings },
     });
 
-    assert.ok(doc.tailoringPlan.selectedProjectIds.includes(PDE_ID), 'plan must select the real UUID');
+    assert.ok(
+      doc.tailoringPlan.selectedProjectIds.includes(PDE_ID),
+      'plan must select the real UUID'
+    );
     assert.ok(
       doc.projects.length >= 1,
       'structuredResume.projects must be non-empty (was the silent-omission bug)'
@@ -244,7 +262,10 @@ describe('P16-001F-3B: Project-ID Propagation Through Reconciliation', () => {
     assert.ok(pde, 'merged entry must exist');
     assert.ok(pde.slug, 'slug must remain present');
     assert.ok(pde.name, 'name must remain present');
-    assert.ok(Array.isArray(pde.technologies) && pde.technologies.length > 0, 'verified technologies must remain');
+    assert.ok(
+      Array.isArray(pde.technologies) && pde.technologies.length > 0,
+      'verified technologies must remain'
+    );
     assert.equal(pde.provenanceStatus, 'CORROBORATED', 'provenance upgrade must remain');
     assert.ok(pde.evidenceCount > 0, 'evidence metadata must remain');
     assert.equal(

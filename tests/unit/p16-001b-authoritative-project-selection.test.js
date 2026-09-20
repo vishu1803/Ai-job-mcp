@@ -58,15 +58,58 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
     phone: '+1-555-0199',
     location: 'Seattle, WA',
     headline: 'Senior Systems & Cloud Engineer',
-    summary: 'Experienced engineer building high-scale distributed systems and responsive user interfaces.',
+    summary:
+      'Experienced engineer building high-scale distributed systems and responsive user interfaces.',
     skills: [
-      { id: '10000000-0000-0000-0000-000000000001', name: 'Python', slug: 'python', category: 'Languages', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000002', name: 'FastAPI', slug: 'fastapi', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000003', name: 'PostgreSQL', slug: 'postgresql', category: 'Databases', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000004', name: 'TypeScript', slug: 'typescript', category: 'Languages', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000005', name: 'React', slug: 'react', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000006', name: 'Next.js', slug: 'next-js', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: '10000000-0000-0000-0000-000000000007', name: 'Rust', slug: 'rust', category: 'Languages', provenanceStatus: 'VERIFIED' },
+      {
+        id: '10000000-0000-0000-0000-000000000001',
+        name: 'Python',
+        slug: 'python',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000002',
+        name: 'FastAPI',
+        slug: 'fastapi',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000003',
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'Databases',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000004',
+        name: 'TypeScript',
+        slug: 'typescript',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000005',
+        name: 'React',
+        slug: 'react',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000006',
+        name: 'Next.js',
+        slug: 'next-js',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: '10000000-0000-0000-0000-000000000007',
+        name: 'Rust',
+        slug: 'rust',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+      },
     ],
     experience: [
       {
@@ -122,7 +165,7 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
             id: 'e1111111-1111-4111-8111-111111111113',
             evidenceType: 'CODE_USAGE',
             skillSlug: 'postgresql',
-            confidenceScore: 0.90,
+            confidenceScore: 0.9,
             sourceLocation: { filePath: 'app/db/session.py' },
           },
         ],
@@ -133,7 +176,8 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
         name: 'Distributed Cache and Rate Limiter',
         title: 'Distributed Cache and Rate Limiter',
         repositoryUrl: 'https://github.com/alexrivers/distributed-cache',
-        summary: 'Distributed in-memory caching and token bucket rate limiter in Python and FastAPI.',
+        summary:
+          'Distributed in-memory caching and token bucket rate limiter in Python and FastAPI.',
         technologies: ['Python', 'FastAPI', 'PostgreSQL'],
         bullets: [
           'Implemented token bucket rate limiter middleware for FastAPI backend services.',
@@ -154,7 +198,7 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
             id: 'e1111111-1111-4111-8111-111111111122',
             evidenceType: 'CODE_USAGE',
             skillSlug: 'fastapi',
-            confidenceScore: 0.90,
+            confidenceScore: 0.9,
             sourceLocation: { filePath: 'cache/middleware.py' },
           },
           {
@@ -200,7 +244,7 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
             id: 'e2222222-2222-4222-8222-222222222223',
             evidenceType: 'CODE_USAGE',
             skillSlug: 'typescript',
-            confidenceScore: 0.90,
+            confidenceScore: 0.9,
             sourceLocation: { filePath: 'src/types/canvas.ts' },
           },
         ],
@@ -237,7 +281,8 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
     tenantId: TENANT_ID,
     title: 'Python Backend Engineer',
     company: 'DataStream Inc.',
-    description: 'Looking for a Python Backend Engineer to build robust services with FastAPI and PostgreSQL.',
+    description:
+      'Looking for a Python Backend Engineer to build robust services with FastAPI and PostgreSQL.',
     requirements: [
       {
         id: 'd1111111-1111-4111-8111-111111111111',
@@ -269,7 +314,8 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
     tenantId: TENANT_ID,
     title: 'Frontend UI Architect',
     company: 'Modern Web Labs',
-    description: 'Looking for a Senior Frontend Engineer proficient in React, Next.js, and TypeScript.',
+    description:
+      'Looking for a Senior Frontend Engineer proficient in React, Next.js, and TypeScript.',
     requirements: [
       {
         id: 'd2222222-2222-4222-8222-222222222221',

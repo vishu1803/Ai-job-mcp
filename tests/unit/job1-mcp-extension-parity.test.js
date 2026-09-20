@@ -119,7 +119,10 @@ Requirements:
       { db, workflowService }
     );
     assert.ok(mcpResult.resume, 'MCP result must contain resume');
-    assert.ok(mcpResult.structuredResume, 'MCP result must contain canonical structuredResume snapshot');
+    assert.ok(
+      mcpResult.structuredResume,
+      'MCP result must contain canonical structuredResume snapshot'
+    );
 
     // 3. Project IDs and ordering parity
     const extProjectIds = extStructured.projects.map((p) => p.projectId);
@@ -130,16 +133,36 @@ Requirements:
       '389d1357-156a-4296-a1bb-603140897bc3', // Collaborative Task Manager
       'ea5137c3-2f7f-4e29-a884-28ff3c659ebf', // AI-Powered Code Review Assistant
     ];
-    assert.deepStrictEqual(extProjectIds, expectedProjectIds, 'Extension must select authoritative top-2 projects');
-    assert.deepStrictEqual(mcpStructuredProjectIds, expectedProjectIds, 'MCP structuredResume must match expected project IDs');
-    assert.deepStrictEqual(mcpEnvelopeProjectIds, expectedProjectIds, 'MCP resume envelope must match expected project IDs');
+    assert.deepStrictEqual(
+      extProjectIds,
+      expectedProjectIds,
+      'Extension must select authoritative top-2 projects'
+    );
+    assert.deepStrictEqual(
+      mcpStructuredProjectIds,
+      expectedProjectIds,
+      'MCP structuredResume must match expected project IDs'
+    );
+    assert.deepStrictEqual(
+      mcpEnvelopeProjectIds,
+      expectedProjectIds,
+      'MCP resume envelope must match expected project IDs'
+    );
 
     // 4. Project Names parity
     const extProjectNames = extStructured.projects.map((p) => p.name || p.displayName);
     const mcpProjectNames = mcpResult.resume.projects.map((p) => p.name || p.displayName);
     const expectedProjectNames = ['Collaborative Task Manager', 'AI-Powered Code Review Assistant'];
-    assert.deepStrictEqual(extProjectNames, expectedProjectNames, 'Extension project names must match canonical names');
-    assert.deepStrictEqual(mcpProjectNames, expectedProjectNames, 'MCP project names must match Extension project names');
+    assert.deepStrictEqual(
+      extProjectNames,
+      expectedProjectNames,
+      'Extension project names must match canonical names'
+    );
+    assert.deepStrictEqual(
+      mcpProjectNames,
+      expectedProjectNames,
+      'MCP project names must match Extension project names'
+    );
 
     // 5. Skills, categories, and ordering parity
     const extSkillCategories = extStructured.skills.categories.map((c) => ({
@@ -178,8 +201,16 @@ Requirements:
     const mcpEnvelopeSummary = mcpResult.resume.basics.summary;
 
     assert.ok(extSummary && extSummary.length > 50, 'Extension summary must be populated');
-    assert.strictEqual(mcpStructuredSummary, extSummary, 'MCP structuredResume summary must match Extension summary');
-    assert.strictEqual(mcpEnvelopeSummary, extSummary, 'MCP resume envelope summary must match Extension summary');
+    assert.strictEqual(
+      mcpStructuredSummary,
+      extSummary,
+      'MCP structuredResume summary must match Extension summary'
+    );
+    assert.strictEqual(
+      mcpEnvelopeSummary,
+      extSummary,
+      'MCP resume envelope summary must match Extension summary'
+    );
 
     // 6b. Target role heading parity
     assert.strictEqual(
@@ -203,7 +234,10 @@ Requirements:
     const mcpStructuredFingerprint = computeResumeSemanticFingerprint(mcpResult.structuredResume);
     const mcpResultFingerprint = computeResumeSemanticFingerprint(mcpResult);
 
-    assert.ok(extFingerprint && extFingerprint.length === 64, 'Extension fingerprint must be 64-character SHA-256');
+    assert.ok(
+      extFingerprint && extFingerprint.length === 64,
+      'Extension fingerprint must be 64-character SHA-256'
+    );
     assert.strictEqual(
       mcpStructuredFingerprint,
       extFingerprint,

@@ -32,14 +32,17 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p80-identity-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\93a47748-8fd0-419b-8656-f7e93b0a6a67';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\93a47748-8fd0-419b-8656-f7e93b0a6a67';
 const CDP_PORT = 9465;
 
 const LIVE_QUIK_HIRE_URL = 'https://www.linkedin.com/jobs/view/4466448213/';
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -75,7 +78,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 25000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 15000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 15000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -119,7 +123,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -299,8 +305,14 @@ async function main() {
           reqId: window.__sidebarController?._detectionRequestId,
         }))()
       `);
-      if (tabAState?.domTitle && tabAState.domTitle !== '—' && tabAState.domCompany?.includes('Quik Hire')) {
-        console.log(`   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`);
+      if (
+        tabAState?.domTitle &&
+        tabAState.domTitle !== '—' &&
+        tabAState.domCompany?.includes('Quik Hire')
+      ) {
+        console.log(
+          `   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`
+        );
         break;
       }
     }
@@ -332,7 +344,9 @@ async function main() {
       company: tabAState.domCompany,
       fingerprint: tabAState.fingerprint,
     };
-    console.log(`   Canonical Quik Hire: "${quikHireCanonical.title}" | "${quikHireCanonical.company}" | FP: ${quikHireCanonical.fingerprint}`);
+    console.log(
+      `   Canonical Quik Hire: "${quikHireCanonical.title}" | "${quikHireCanonical.company}" | FP: ${quikHireCanonical.fingerprint}`
+    );
 
     // =========================================================================
     // STEP B: OPEN TAB B (Appinventiv) & RECORD CANONICAL IDENTITY
@@ -375,8 +389,14 @@ async function main() {
           reqId: window.__sidebarController?._detectionRequestId,
         }))()
       `);
-      if (tabBState?.domTitle && tabBState.domTitle !== '—' && tabBState.domCompany?.includes('Appinventiv')) {
-        console.log(`   [T+${i}s] Tab B Rendered: "${tabBState.domTitle}" at "${tabBState.domCompany}"`);
+      if (
+        tabBState?.domTitle &&
+        tabBState.domTitle !== '—' &&
+        tabBState.domCompany?.includes('Appinventiv')
+      ) {
+        console.log(
+          `   [T+${i}s] Tab B Rendered: "${tabBState.domTitle}" at "${tabBState.domCompany}"`
+        );
         break;
       }
     }
@@ -408,7 +428,9 @@ async function main() {
       company: tabBState.domCompany,
       fingerprint: tabBState.fingerprint,
     };
-    console.log(`   Canonical Appinventiv: "${appinventivCanonical.title}" | "${appinventivCanonical.company}" | FP: ${appinventivCanonical.fingerprint}`);
+    console.log(
+      `   Canonical Appinventiv: "${appinventivCanonical.title}" | "${appinventivCanonical.company}" | FP: ${appinventivCanonical.fingerprint}`
+    );
 
     // =========================================================================
     // STEP C: TAB SWITCHING (Tab B -> Tab A) & RESTORATION ASSERTIONS
@@ -432,18 +454,30 @@ async function main() {
     console.log('\n--- TAB A RESTORED STATE ---');
     console.log(JSON.stringify(tabARestored, null, 2));
 
-    console.log(`   Assertion [Tab Switching]: Title preserved: ${tabARestored.domTitle === quikHireCanonical.title ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Tab Switching]: Company preserved: ${tabARestored.domCompany === quikHireCanonical.company ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Tab Switching]: Fingerprint preserved: ${tabARestored.fingerprint === quikHireCanonical.fingerprint ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   Assertion [Tab Switching]: Title preserved: ${tabARestored.domTitle === quikHireCanonical.title ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Tab Switching]: Company preserved: ${tabARestored.domCompany === quikHireCanonical.company ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Tab Switching]: Fingerprint preserved: ${tabARestored.fingerprint === quikHireCanonical.fingerprint ? 'PASS' : 'FAIL'}`
+    );
 
     if (tabARestored.domTitle !== quikHireCanonical.title) {
-      throw new Error(`Tab switching corrupted Quik Hire title: expected "${quikHireCanonical.title}", got "${tabARestored.domTitle}"`);
+      throw new Error(
+        `Tab switching corrupted Quik Hire title: expected "${quikHireCanonical.title}", got "${tabARestored.domTitle}"`
+      );
     }
     if (tabARestored.domCompany !== quikHireCanonical.company) {
-      throw new Error(`Tab switching corrupted Quik Hire company: expected "${quikHireCanonical.company}", got "${tabARestored.domCompany}"`);
+      throw new Error(
+        `Tab switching corrupted Quik Hire company: expected "${quikHireCanonical.company}", got "${tabARestored.domCompany}"`
+      );
     }
     if (tabARestored.fingerprint !== quikHireCanonical.fingerprint) {
-      throw new Error(`Tab switching corrupted Quik Hire fingerprint: expected "${quikHireCanonical.fingerprint}", got "${tabARestored.fingerprint}"`);
+      throw new Error(
+        `Tab switching corrupted Quik Hire fingerprint: expected "${quikHireCanonical.fingerprint}", got "${tabARestored.fingerprint}"`
+      );
     }
 
     const shot1 = path.join(SCREENSHOT_DIR, 'p80-01-tab-a-switched.png');
@@ -480,23 +514,39 @@ async function main() {
     console.log('\n--- QUIK HIRE RELOADED STATE ---');
     console.log(JSON.stringify(quikReloaded, null, 2));
 
-    console.log(`   Detection Request ID after reload: ${quikReloaded.reqId} (fresh detection confirmed: ${quikReloaded.reqId > reqIdBeforeQuikReload})`);
+    console.log(
+      `   Detection Request ID after reload: ${quikReloaded.reqId} (fresh detection confirmed: ${quikReloaded.reqId > reqIdBeforeQuikReload})`
+    );
     if (quikReloaded.reqId <= reqIdBeforeQuikReload) {
-      throw new Error(`CRITICAL: Tab reload did not initiate fresh detection! Expected request ID > ${reqIdBeforeQuikReload}, got ${quikReloaded.reqId}`);
+      throw new Error(
+        `CRITICAL: Tab reload did not initiate fresh detection! Expected request ID > ${reqIdBeforeQuikReload}, got ${quikReloaded.reqId}`
+      );
     }
 
-    console.log(`   Assertion [Quik Hire Reload]: Title unchanged: ${quikReloaded.domTitle === quikHireCanonical.title ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Quik Hire Reload]: Company unchanged: ${quikReloaded.domCompany === quikHireCanonical.company ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Quik Hire Reload]: Fingerprint unchanged: ${quikReloaded.fingerprint === quikHireCanonical.fingerprint ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   Assertion [Quik Hire Reload]: Title unchanged: ${quikReloaded.domTitle === quikHireCanonical.title ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Quik Hire Reload]: Company unchanged: ${quikReloaded.domCompany === quikHireCanonical.company ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Quik Hire Reload]: Fingerprint unchanged: ${quikReloaded.fingerprint === quikHireCanonical.fingerprint ? 'PASS' : 'FAIL'}`
+    );
 
     if (quikReloaded.domTitle !== quikHireCanonical.title) {
-      throw new Error(`Quik Hire reload title mismatch: expected "${quikHireCanonical.title}", got "${quikReloaded.domTitle}"`);
+      throw new Error(
+        `Quik Hire reload title mismatch: expected "${quikHireCanonical.title}", got "${quikReloaded.domTitle}"`
+      );
     }
     if (quikReloaded.domCompany !== quikHireCanonical.company) {
-      throw new Error(`Quik Hire reload company mismatch: expected "${quikHireCanonical.company}", got "${quikReloaded.domCompany}"`);
+      throw new Error(
+        `Quik Hire reload company mismatch: expected "${quikHireCanonical.company}", got "${quikReloaded.domCompany}"`
+      );
     }
     if (quikReloaded.fingerprint !== quikHireCanonical.fingerprint) {
-      throw new Error(`Quik Hire reload fingerprint mismatch: expected "${quikHireCanonical.fingerprint}", got "${quikReloaded.fingerprint}"`);
+      throw new Error(
+        `Quik Hire reload fingerprint mismatch: expected "${quikHireCanonical.fingerprint}", got "${quikReloaded.fingerprint}"`
+      );
     }
 
     const shot2 = path.join(SCREENSHOT_DIR, 'p80-02-quik-hire-reloaded.png');
@@ -539,30 +589,50 @@ async function main() {
           reqId: window.__sidebarController?._detectionRequestId,
         }))()
       `);
-      if (appinventivReloaded.reqId > tabBBeforeReload.reqId && appinventivReloaded.domTitle !== '—') break;
+      if (
+        appinventivReloaded.reqId > tabBBeforeReload.reqId &&
+        appinventivReloaded.domTitle !== '—'
+      )
+        break;
       await sleep(1000);
     }
 
     console.log('\n--- APPINVENTIV RELOADED STATE ---');
     console.log(JSON.stringify(appinventivReloaded, null, 2));
 
-    console.log(`   Detection Request ID after Appinventiv reload: ${appinventivReloaded.reqId} (fresh detection confirmed: ${appinventivReloaded.reqId > tabBBeforeReload.reqId})`);
+    console.log(
+      `   Detection Request ID after Appinventiv reload: ${appinventivReloaded.reqId} (fresh detection confirmed: ${appinventivReloaded.reqId > tabBBeforeReload.reqId})`
+    );
     if (appinventivReloaded.reqId <= tabBBeforeReload.reqId) {
-      throw new Error(`CRITICAL: Tab B reload did not initiate fresh detection! Expected request ID > ${tabBBeforeReload.reqId}, got ${appinventivReloaded.reqId}`);
+      throw new Error(
+        `CRITICAL: Tab B reload did not initiate fresh detection! Expected request ID > ${tabBBeforeReload.reqId}, got ${appinventivReloaded.reqId}`
+      );
     }
 
-    console.log(`   Assertion [Appinventiv Reload]: Title unchanged: ${appinventivReloaded.domTitle === appinventivCanonical.title ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Appinventiv Reload]: Company unchanged: ${appinventivReloaded.domCompany === appinventivCanonical.company ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Appinventiv Reload]: Fingerprint unchanged: ${appinventivReloaded.fingerprint === appinventivCanonical.fingerprint ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   Assertion [Appinventiv Reload]: Title unchanged: ${appinventivReloaded.domTitle === appinventivCanonical.title ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Appinventiv Reload]: Company unchanged: ${appinventivReloaded.domCompany === appinventivCanonical.company ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Appinventiv Reload]: Fingerprint unchanged: ${appinventivReloaded.fingerprint === appinventivCanonical.fingerprint ? 'PASS' : 'FAIL'}`
+    );
 
     if (appinventivReloaded.domTitle !== appinventivCanonical.title) {
-      throw new Error(`Appinventiv reload title mismatch: expected "${appinventivCanonical.title}", got "${appinventivReloaded.domTitle}"`);
+      throw new Error(
+        `Appinventiv reload title mismatch: expected "${appinventivCanonical.title}", got "${appinventivReloaded.domTitle}"`
+      );
     }
     if (appinventivReloaded.domCompany !== appinventivCanonical.company) {
-      throw new Error(`Appinventiv reload company mismatch: expected "${appinventivCanonical.company}", got "${appinventivReloaded.domCompany}"`);
+      throw new Error(
+        `Appinventiv reload company mismatch: expected "${appinventivCanonical.company}", got "${appinventivReloaded.domCompany}"`
+      );
     }
     if (appinventivReloaded.fingerprint !== appinventivCanonical.fingerprint) {
-      throw new Error(`Appinventiv reload fingerprint mismatch: expected "${appinventivCanonical.fingerprint}", got "${appinventivReloaded.fingerprint}"`);
+      throw new Error(
+        `Appinventiv reload fingerprint mismatch: expected "${appinventivCanonical.fingerprint}", got "${appinventivReloaded.fingerprint}"`
+      );
     }
 
     const shot3 = path.join(SCREENSHOT_DIR, 'p80-03-appinventiv-reloaded.png');
@@ -592,19 +662,33 @@ async function main() {
     console.log('\n--- EXPLICIT RESCAN STATE ---');
     console.log(JSON.stringify(rescanState, null, 2));
 
-    console.log(`   Detection Request ID after rescan: ${rescanState.reqId} (new request confirmed: ${rescanState.reqId > reqIdBeforeRescan})`);
-    console.log(`   Assertion [Explicit Rescan]: Title unchanged: ${rescanState.domTitle === appinventivCanonical.title ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Explicit Rescan]: Company unchanged: ${rescanState.domCompany === appinventivCanonical.company ? 'PASS' : 'FAIL'}`);
-    console.log(`   Assertion [Explicit Rescan]: Fingerprint unchanged: ${rescanState.fingerprint === appinventivCanonical.fingerprint ? 'PASS' : 'FAIL'}`);
+    console.log(
+      `   Detection Request ID after rescan: ${rescanState.reqId} (new request confirmed: ${rescanState.reqId > reqIdBeforeRescan})`
+    );
+    console.log(
+      `   Assertion [Explicit Rescan]: Title unchanged: ${rescanState.domTitle === appinventivCanonical.title ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Explicit Rescan]: Company unchanged: ${rescanState.domCompany === appinventivCanonical.company ? 'PASS' : 'FAIL'}`
+    );
+    console.log(
+      `   Assertion [Explicit Rescan]: Fingerprint unchanged: ${rescanState.fingerprint === appinventivCanonical.fingerprint ? 'PASS' : 'FAIL'}`
+    );
 
     if (rescanState.domTitle !== appinventivCanonical.title) {
-      throw new Error(`Explicit rescan title mismatch: expected "${appinventivCanonical.title}", got "${rescanState.domTitle}"`);
+      throw new Error(
+        `Explicit rescan title mismatch: expected "${appinventivCanonical.title}", got "${rescanState.domTitle}"`
+      );
     }
     if (rescanState.domCompany !== appinventivCanonical.company) {
-      throw new Error(`Explicit rescan company mismatch: expected "${appinventivCanonical.company}", got "${rescanState.domCompany}"`);
+      throw new Error(
+        `Explicit rescan company mismatch: expected "${appinventivCanonical.company}", got "${rescanState.domCompany}"`
+      );
     }
     if (rescanState.fingerprint !== appinventivCanonical.fingerprint) {
-      throw new Error(`Explicit rescan fingerprint mismatch: expected "${appinventivCanonical.fingerprint}", got "${rescanState.fingerprint}"`);
+      throw new Error(
+        `Explicit rescan fingerprint mismatch: expected "${appinventivCanonical.fingerprint}", got "${rescanState.fingerprint}"`
+      );
     }
 
     const shot4 = path.join(SCREENSHOT_DIR, 'p80-04-explicit-rescan.png');
@@ -620,14 +704,15 @@ async function main() {
     console.log('  ✔ Explicit Rescan: title, company, fingerprint strictly invariant');
     console.log('  ✔ 4 visual proof screenshots captured to brain artifact directory');
     console.log('=========================================================================\n');
-
   } finally {
     if (sidebarCdp) sidebarCdp.close();
     if (swCdp) swCdp.close();
     if (tabACdp) tabACdp.close();
     if (tabBCdp) tabBCdp.close();
     if (browserCdp) browserCdp.close();
-    try { chromeProcess.kill('SIGTERM'); } catch {}
+    try {
+      chromeProcess.kill('SIGTERM');
+    } catch {}
   }
 }
 

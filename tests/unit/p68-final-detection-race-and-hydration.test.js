@@ -67,7 +67,8 @@ function setupMockDOM() {
               company: 'General Motors',
               location: 'Warren, MI',
               employmentType: 'FULL_TIME',
-              description: 'General Motors is seeking a Senior Software Engineer with Go expertise.',
+              description:
+                'General Motors is seeking a Senior Software Engineer with Go expertise.',
               requirements: ['5+ years Go experience', 'Kubernetes'],
               responsibilities: ['Build distributed services'],
             },
@@ -110,9 +111,15 @@ function setupMockDOM() {
     className: '',
     classList: {
       _classes: new Set(['hidden']),
-      add(cls) { this._classes.add(cls); },
-      remove(cls) { this._classes.delete(cls); },
-      contains(cls) { return this._classes.has(cls); },
+      add(cls) {
+        this._classes.add(cls);
+      },
+      remove(cls) {
+        this._classes.delete(cls);
+      },
+      contains(cls) {
+        return this._classes.has(cls);
+      },
     },
     disabled: false,
     innerHTML: '',
@@ -185,7 +192,8 @@ const SAMPLE_JOB_B = {
   company: 'Morgan Corp.',
   location: 'Greenville, SC',
   employmentType: 'FULL_TIME',
-  description: 'Experienced Construction Manager responsible for heavy civil and infrastructure project oversight.',
+  description:
+    'Experienced Construction Manager responsible for heavy civil and infrastructure project oversight.',
   requirements: ['Heavy civil', 'OSHA 30'],
   responsibilities: ['Oversight'],
 };
@@ -246,7 +254,11 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
 
       assert.strictEqual(controller.activeJob.title, SAMPLE_JOB_A.title);
       assert.strictEqual(controller.activeJob.externalJobId, SAMPLE_JOB_A.externalJobId);
-      assert.strictEqual(controller.pendingDetectedJob, null, 'Passive event must not create pending job');
+      assert.strictEqual(
+        controller.pendingDetectedJob,
+        null,
+        'Passive event must not create pending job'
+      );
     });
 
     it('passive JOB_DETECTED_ON_PAGE arriving immediately before authoritative response does not mutate state', async () => {
@@ -329,7 +341,8 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
           if (sel.includes('company') || sel.includes('primary-description')) return null;
           if (sel.includes('description') || sel.includes('markup') || sel === '#job-details') {
             return {
-              textContent: 'Leading confidential tech client hiring a Principal Systems Engineer for core infrastructure platform development with Go and Kubernetes.',
+              textContent:
+                'Leading confidential tech client hiring a Principal Systems Engineer for core infrastructure platform development with Go and Kubernetes.',
               querySelectorAll: () => [],
             };
           }
@@ -340,18 +353,31 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
         body: { textContent: 'Full job description text...' },
       };
 
-      const extracted = LinkedInAdapter.extract(mockDoc, 'https://www.linkedin.com/jobs/view/999888777/');
+      const extracted = LinkedInAdapter.extract(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/999888777/'
+      );
       assert.strictEqual(extracted.externalJobId, '999888777');
       assert.strictEqual(extracted.title, 'Principal Systems Engineer');
-      assert.strictEqual(extracted.company, '', 'Company must be empty string, NEVER synthesized "Company"');
+      assert.strictEqual(
+        extracted.company,
+        '',
+        'Company must be empty string, NEVER synthesized "Company"'
+      );
       assert.strictEqual(extracted.isReady, true, 'Substantive description satisfies readiness');
 
-      const detected = JobPageDetector.detect(mockDoc, 'https://www.linkedin.com/jobs/view/999888777/');
+      const detected = JobPageDetector.detect(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/999888777/'
+      );
       assert.strictEqual(detected.company, '', 'Sanitized company must be empty string');
       assert.strictEqual(detected.isReady, true);
       assert.strictEqual(detected.isConfident, true);
 
-      const evaluated = JobDetectionEngine.evaluate(mockDoc, 'https://www.linkedin.com/jobs/view/999888777/');
+      const evaluated = JobDetectionEngine.evaluate(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/999888777/'
+      );
       assert.strictEqual(evaluated.detected, true);
       assert.strictEqual(evaluated.ready, true);
       assert.strictEqual(evaluated.jobData.company, '');
@@ -361,10 +387,12 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
       const mockDoc = {
         querySelector: (sel) => {
           if (sel.includes('job-title')) return { textContent: 'Distributed Systems Engineer' };
-          if (sel.includes('company-name') || sel.includes('company')) return { textContent: 'Company' };
+          if (sel.includes('company-name') || sel.includes('company'))
+            return { textContent: 'Company' };
           if (sel.includes('description') || sel === '#job-details') {
             return {
-              textContent: 'Engineering role building high-scale distributed backend systems and consensus protocols.',
+              textContent:
+                'Engineering role building high-scale distributed backend systems and consensus protocols.',
               querySelectorAll: () => [],
             };
           }
@@ -375,10 +403,20 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
         body: { textContent: 'Body content...' },
       };
 
-      const extracted = LinkedInAdapter.extract(mockDoc, 'https://www.linkedin.com/jobs/view/11223344/');
-      assert.strictEqual(extracted.company, '', 'Placeholder "Company" must be sanitized to empty string');
+      const extracted = LinkedInAdapter.extract(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/11223344/'
+      );
+      assert.strictEqual(
+        extracted.company,
+        '',
+        'Placeholder "Company" must be sanitized to empty string'
+      );
 
-      const detected = JobPageDetector.detect(mockDoc, 'https://www.linkedin.com/jobs/view/11223344/');
+      const detected = JobPageDetector.detect(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/11223344/'
+      );
       assert.strictEqual(detected.company, '');
     });
 
@@ -393,10 +431,20 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
         body: { textContent: 'Brief text' },
       };
 
-      const extracted = LinkedInAdapter.extract(mockDoc, 'https://www.linkedin.com/jobs/view/12345678/');
-      assert.strictEqual(extracted.isReady, false, 'Without company or >=50 char description, must not be ready');
+      const extracted = LinkedInAdapter.extract(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/12345678/'
+      );
+      assert.strictEqual(
+        extracted.isReady,
+        false,
+        'Without company or >=50 char description, must not be ready'
+      );
 
-      const evaluated = JobDetectionEngine.evaluate(mockDoc, 'https://www.linkedin.com/jobs/view/12345678/');
+      const evaluated = JobDetectionEngine.evaluate(
+        mockDoc,
+        'https://www.linkedin.com/jobs/view/12345678/'
+      );
       assert.strictEqual(evaluated.detected, false);
       assert.strictEqual(evaluated.ready, false);
     });
@@ -421,7 +469,11 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
       await controller._requestDetectionFromTab();
       assert.strictEqual(controller.activeJob.title, companylessJob.title);
       assert.strictEqual(controller.activeJob.company, '');
-      assert.strictEqual(mockElements.jobCompany.textContent, '—', 'Sidebar UI must render dash for empty company');
+      assert.strictEqual(
+        mockElements.jobCompany.textContent,
+        '—',
+        'Sidebar UI must render dash for empty company'
+      );
     });
   });
 
@@ -430,7 +482,11 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
       for (let cycle = 1; cycle <= 5; cycle++) {
         const result = await controller._requestDetectionFromTab();
         assert.strictEqual(result, true, `Cycle ${cycle} must detect successfully`);
-        assert.strictEqual(controller._isDetectingInFlight, false, `Cycle ${cycle} must release in-flight lock`);
+        assert.strictEqual(
+          controller._isDetectingInFlight,
+          false,
+          `Cycle ${cycle} must release in-flight lock`
+        );
       }
       assert.strictEqual(analyzeCalls, 0, 'All 5 detection cycles must produce ZERO server calls');
     });
@@ -605,7 +661,11 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
       await Promise.all([analyzePromise1, analyzePromise2]);
 
       // Exactly 1 call executed
-      assert.strictEqual(analyzeCalls, 1, 'Analyze Job Match must execute EXACTLY 1 call (double-click protected)');
+      assert.strictEqual(
+        analyzeCalls,
+        1,
+        'Analyze Job Match must execute EXACTLY 1 call (double-click protected)'
+      );
       assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.ANALYSIS_READY);
     });
   });

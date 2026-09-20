@@ -31,9 +31,8 @@ export function validateEvaluatorResponse(rawResponse, metadata = {}) {
     throw new Error('rawResponse is required');
   }
 
-  const rawResponseText = typeof rawResponse === 'string'
-    ? rawResponse
-    : JSON.stringify(rawResponse, null, 2);
+  const rawResponseText =
+    typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse, null, 2);
 
   const rawResponseSha256 = computeSha256(rawResponseText);
 
@@ -59,7 +58,9 @@ export function validateEvaluatorResponse(rawResponse, metadata = {}) {
   // Additional range and sanity verification
   for (const [key, val] of Object.entries(validatedRecord.scores)) {
     if (typeof val !== 'number' || val < 0 || val > 100 || Number.isNaN(val)) {
-      throw new Error(`Score for dimension "${key}" is invalid: ${val}. Must be between 0 and 100.`);
+      throw new Error(
+        `Score for dimension "${key}" is invalid: ${val}. Must be between 0 and 100.`
+      );
     }
   }
 

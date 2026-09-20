@@ -57,10 +57,10 @@ describe('Handoff Kit UI Package History Actions Contract', () => {
     const tableHtml = html.slice(tableStart, tableEnd);
 
     // Split rows
-    const rows = tableHtml.split('</tr>').filter(r => r.includes('<tr') && r.includes('<td'));
+    const rows = tableHtml.split('</tr>').filter((r) => r.includes('<tr') && r.includes('<td'));
     assert.equal(rows.length, 2, 'Should have 2 package rows');
 
-    const currentRow = rows.find(r => r.includes('v2'));
+    const currentRow = rows.find((r) => r.includes('v2'));
     assert.ok(currentRow, 'Current row v2 must be present');
 
     // Row v2 action checks
@@ -69,7 +69,10 @@ describe('Handoff Kit UI Package History Actions Contract', () => {
     assert.ok(/Archive\s*<\/button>/.test(currentRow), 'CURRENT must have [Archive]');
     assert.ok(/Regenerate\s*<\/button>/.test(currentRow), 'CURRENT must have [Regenerate]');
     assert.ok(!/Delete\s*<\/button>/.test(currentRow), 'CURRENT must NOT have [Delete]');
-    assert.ok(!currentRow.includes('/packages/2/delete'), 'CURRENT must not expose delete endpoint');
+    assert.ok(
+      !currentRow.includes('/packages/2/delete'),
+      'CURRENT must not expose delete endpoint'
+    );
   });
 
   test('ARCHIVED row renders [View] [Download] [Restore] [Delete] with destructive styling', () => {
@@ -87,8 +90,8 @@ describe('Handoff Kit UI Package History Actions Contract', () => {
     const tableEnd = html.indexOf('</table>', tableStart);
     const tableHtml = html.slice(tableStart, tableEnd);
 
-    const rows = tableHtml.split('</tr>').filter(r => r.includes('<tr') && r.includes('<td'));
-    const archivedRow = rows.find(r => r.includes('v1'));
+    const rows = tableHtml.split('</tr>').filter((r) => r.includes('<tr') && r.includes('<td'));
+    const archivedRow = rows.find((r) => r.includes('v1'));
     assert.ok(archivedRow, 'Archived row v1 must be present');
 
     // Row v1 action checks
@@ -100,10 +103,15 @@ describe('Handoff Kit UI Package History Actions Contract', () => {
     // Check destructive styling
     assert.ok(archivedRow.includes('color:#EF4444'), 'Delete button must have destructive color');
     assert.ok(
-      archivedRow.includes('Permanently delete package version v1 (b99c650628) and its document snapshots?'),
+      archivedRow.includes(
+        'Permanently delete package version v1 (b99c650628) and its document snapshots?'
+      ),
       'Delete button must have confirmation prompt with version and short hash'
     );
-    assert.ok(archivedRow.includes('/packages/1/delete'), 'Delete action must target correct endpoint');
+    assert.ok(
+      archivedRow.includes('/packages/1/delete'),
+      'Delete action must target correct endpoint'
+    );
   });
 
   test('CURRENT remains protected when viewingVersion is changed to 1', () => {
@@ -121,14 +129,20 @@ describe('Handoff Kit UI Package History Actions Contract', () => {
     const tableEnd = html.indexOf('</table>', tableStart);
     const tableHtml = html.slice(tableStart, tableEnd);
 
-    const rows = tableHtml.split('</tr>').filter(r => r.includes('<tr') && r.includes('<td'));
-    const currentRow = rows.find(r => r.includes('v2'));
-    const archivedRow = rows.find(r => r.includes('v1'));
+    const rows = tableHtml.split('</tr>').filter((r) => r.includes('<tr') && r.includes('<td'));
+    const currentRow = rows.find((r) => r.includes('v2'));
+    const archivedRow = rows.find((r) => r.includes('v1'));
 
     // Even when viewing v1, v2 is CURRENT and must NOT have Delete
-    assert.ok(!currentRow.includes('>Delete</button>'), 'CURRENT must NOT have Delete even when not viewing it');
+    assert.ok(
+      !currentRow.includes('>Delete</button>'),
+      'CURRENT must NOT have Delete even when not viewing it'
+    );
     assert.ok(currentRow.includes('>View</a>'), 'CURRENT still has View');
-    assert.ok(archivedRow.includes('>Delete</button>'), 'ARCHIVED still has Delete when viewing it');
+    assert.ok(
+      archivedRow.includes('>Delete</button>'),
+      'ARCHIVED still has Delete when viewing it'
+    );
     assert.ok(archivedRow.includes('>View</a>'), 'ARCHIVED still has View');
   });
 });

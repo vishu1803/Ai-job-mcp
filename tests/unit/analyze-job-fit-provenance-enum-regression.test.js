@@ -313,7 +313,10 @@ describe('analyze_job_fit candidateProvenance enum contract regression', () => {
           }),
         ],
       };
-      const result = runMatchService(profile, [req('typescript', 'TypeScript'), req('react', 'React')]);
+      const result = runMatchService(profile, [
+        req('typescript', 'TypeScript'),
+        req('react', 'React'),
+      ]);
       const provenances = result.requirementMatches.map((m) => m.candidateProvenance);
       assert.ok(provenances.includes('VERIFIED'));
       assert.ok(provenances.includes('CORROBORATED'));
@@ -323,7 +326,10 @@ describe('analyze_job_fit candidateProvenance enum contract regression', () => {
       const profile = {
         id: CANDIDATE_ID,
         tenantId: TENANT_ID,
-        skills: [makeSkill('redis', 'Redis', 'CLAIMED'), makeSkill('graphql', 'GraphQL', 'USER_PROVIDED')],
+        skills: [
+          makeSkill('redis', 'Redis', 'CLAIMED'),
+          makeSkill('graphql', 'GraphQL', 'USER_PROVIDED'),
+        ],
       };
       const result = runMatchService(profile, [req('redis', 'Redis'), req('graphql', 'GraphQL')]);
       const provenances = result.requirementMatches.map((m) => m.candidateProvenance);

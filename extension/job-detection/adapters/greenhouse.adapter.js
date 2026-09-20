@@ -21,7 +21,10 @@ export class GreenhouseAdapter {
   static canHandle(doc, url) {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
-    if (lowerUrl.includes('boards.greenhouse.io') || lowerUrl.includes('job-boards.greenhouse.io')) {
+    if (
+      lowerUrl.includes('boards.greenhouse.io') ||
+      lowerUrl.includes('job-boards.greenhouse.io')
+    ) {
       return true;
     }
     return Boolean(
@@ -117,7 +120,11 @@ export class GreenhouseAdapter {
       doc.querySelector('.job__description') ||
       doc.querySelector('#job-description');
 
-    const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
+    const description = descEl
+      ? descEl.textContent.trim()
+      : doc.body
+        ? doc.body.textContent.trim()
+        : '';
 
     // Extract bullet points for requirements/responsibilities
     const requirements = [];

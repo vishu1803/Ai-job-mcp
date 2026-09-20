@@ -12,10 +12,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-debug-analyze-title-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
 const CDP_PORT = 9449;
 
 const TARGET_JOB_URL = 'https://www.linkedin.com/jobs/view/4466834190/';
@@ -50,7 +52,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 25000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 15000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 15000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -92,7 +95,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -303,7 +308,6 @@ async function main() {
     const postScreenshot = path.join(SCREENSHOT_DIR, 'debug-4466834190-analyzed.png');
     await sidebarCdp.captureScreenshot(postScreenshot);
     console.log(`\nScreenshot saved to ${postScreenshot}`);
-
   } finally {
     if (browserCdp) browserCdp.close();
     if (swCdp) swCdp.close();

@@ -43,8 +43,11 @@ export class JobApplicationFlowService {
   constructor(dependencies = {}) {
     this.database = dependencies.database || defaultDb;
     this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
-    this.candidateProfileService = dependencies.candidateProfileService || new CandidateProfileService({ database: this.database });
-    this.logger = dependencies.logger || defaultLogger.child({ module: 'JobApplicationFlowService' });
+    this.candidateProfileService =
+      dependencies.candidateProfileService ||
+      new CandidateProfileService({ database: this.database });
+    this.logger =
+      dependencies.logger || defaultLogger.child({ module: 'JobApplicationFlowService' });
   }
 
   /**
@@ -117,7 +120,8 @@ export class JobApplicationFlowService {
       readyToApply.push({
         key: 'resume',
         label: 'Tailored Resume',
-        value: application?.metadata?.handoffKit?.resume?.filename || 'Resume ready for application',
+        value:
+          application?.metadata?.handoffKit?.resume?.filename || 'Resume ready for application',
         status: 'READY',
         source: 'ARTIFACT_STORE',
       });
@@ -136,13 +140,11 @@ export class JobApplicationFlowService {
 
     // B. Education Check
     const educationList =
-      candidateProfile?.education ||
-      cand.profileMetadata?.education ||
-      userCustom.education ||
-      [];
+      candidateProfile?.education || cand.profileMetadata?.education || userCustom.education || [];
     if (Array.isArray(educationList) && educationList.length > 0) {
       const topEdu = educationList[0];
-      const eduSummary = topEdu.institution || topEdu.school || topEdu.degree || 'Education history documented';
+      const eduSummary =
+        topEdu.institution || topEdu.school || topEdu.degree || 'Education history documented';
       readyToApply.push({
         key: 'education',
         label: 'Education',
@@ -168,7 +170,9 @@ export class JobApplicationFlowService {
       [];
     if (Array.isArray(experienceList) && experienceList.length > 0) {
       const topExp = experienceList[0];
-      const expSummary = topExp.title ? `${topExp.title} at ${topExp.company || 'Enterprise'}` : `${experienceList.length} roles documented`;
+      const expSummary = topExp.title
+        ? `${topExp.title} at ${topExp.company || 'Enterprise'}`
+        : `${experienceList.length} roles documented`;
       readyToApply.push({
         key: 'experience',
         label: 'Experience',
@@ -188,10 +192,7 @@ export class JobApplicationFlowService {
 
     // D. Skills Check
     const skillsList =
-      candidateProfile?.skills ||
-      cand.skills ||
-      candidateProfile?.primarySkills ||
-      [];
+      candidateProfile?.skills || cand.skills || candidateProfile?.primarySkills || [];
     if (Array.isArray(skillsList) && skillsList.length > 0) {
       readyToApply.push({
         key: 'skills',
@@ -251,7 +252,10 @@ export class JobApplicationFlowService {
           profileVal = formatNoticePeriodLabel(normPref) || rawPref;
           const rawApp = combinedAnswers.noticePeriod;
           const normApp = normalizeNoticePeriod(rawApp);
-          appVal = normApp === 'IMMEDIATE' ? 'immediate availability' : (formatNoticePeriodLabel(normApp) || rawApp);
+          appVal =
+            normApp === 'IMMEDIATE'
+              ? 'immediate availability'
+              : formatNoticePeriodLabel(normApp) || rawApp;
           const shortApp = normApp === 'IMMEDIATE' ? 'immediate' : appVal;
 
           needsAttention.push({
@@ -265,29 +269,44 @@ export class JobApplicationFlowService {
             choices: [
               { action: 'KEEP_PROFILE', label: `Keep ${profileVal}`, value: profileVal },
               { action: 'USE_APPLICATION', label: `Use ${shortApp}`, value: appVal },
-              { action: 'EDIT_PROFILE', label: 'Edit profile', url: item.profileAnchor || '/profile' },
+              {
+                action: 'EDIT_PROFILE',
+                label: 'Edit profile',
+                url: item.profileAnchor || '/profile',
+              },
             ],
             profileAnchor: item.profileAnchor,
             notes: item.notes,
           });
           continue;
         } else if (item.field === 'availability') {
-          profileVal = careerPreferences.availabilityDate || userCustom.availabilityDate || userCustom.availability || 'Immediate';
+          profileVal =
+            careerPreferences.availabilityDate ||
+            userCustom.availabilityDate ||
+            userCustom.availability ||
+            'Immediate';
           appVal = combinedAnswers.availability || 'Immediate';
         } else if (item.field === 'workAuthorization') {
           profileVal = Array.isArray(careerPreferences.workAuthorization)
-            ? careerPreferences.workAuthorization.map(a => typeof a === 'object' ? `${a.country || ''} (${a.status || ''})` : String(a)).join(', ')
+            ? careerPreferences.workAuthorization
+                .map((a) =>
+                  typeof a === 'object' ? `${a.country || ''} (${a.status || ''})` : String(a)
+                )
+                .join(', ')
             : userCustom.workAuthorization || 'Profile Authorization';
           appVal = combinedAnswers.workAuthorization || 'Application Authorization';
         } else if (item.field === 'visaSponsorship') {
-          profileVal = careerPreferences.visaSponsorshipRequired === true
-            ? 'Sponsorship Required'
-            : careerPreferences.visaSponsorshipRequired === false
-              ? 'No Sponsorship Needed'
-              : 'Unspecified';
-          appVal = combinedAnswers.visaSponsorship === true || combinedAnswers.visaSponsorshipRequired === true
-            ? 'Sponsorship Required'
-            : 'No Sponsorship Needed';
+          profileVal =
+            careerPreferences.visaSponsorshipRequired === true
+              ? 'Sponsorship Required'
+              : careerPreferences.visaSponsorshipRequired === false
+                ? 'No Sponsorship Needed'
+                : 'Unspecified';
+          appVal =
+            combinedAnswers.visaSponsorship === true ||
+            combinedAnswers.visaSponsorshipRequired === true
+              ? 'Sponsorship Required'
+              : 'No Sponsorship Needed';
         } else {
           profileVal = userCustom[item.field] || 'Profile value';
           appVal = combinedAnswers[item.field] || 'Application value';
@@ -304,7 +323,11 @@ export class JobApplicationFlowService {
           choices: [
             { action: 'KEEP_PROFILE', label: `Keep ${profileVal}`, value: profileVal },
             { action: 'USE_APPLICATION', label: `Use ${appVal}`, value: appVal },
-            { action: 'EDIT_PROFILE', label: 'Edit profile', url: item.profileAnchor || '/profile' },
+            {
+              action: 'EDIT_PROFILE',
+              label: 'Edit profile',
+              url: item.profileAnchor || '/profile',
+            },
           ],
           profileAnchor: item.profileAnchor,
           notes: item.notes,
@@ -354,7 +377,8 @@ export class JobApplicationFlowService {
     }
 
     // 4. Identify Application-Specific Questions
-    const customQuestions = application?.metadata?.customQuestions || targetJob?.customQuestions || [];
+    const customQuestions =
+      application?.metadata?.customQuestions || targetJob?.customQuestions || [];
     const applicationQuestions = customQuestions.map((q, idx) => ({
       id: q.id || `custom_q_${idx}`,
       prompt: q.prompt || q.question || 'Employer question',
@@ -364,7 +388,7 @@ export class JobApplicationFlowService {
       helpText: q.helpText || null,
     }));
 
-    const unansweredQuestions = applicationQuestions.filter(q => q.required && !q.answered);
+    const unansweredQuestions = applicationQuestions.filter((q) => q.required && !q.answered);
     const canSubmit = needsAttention.length === 0 && unansweredQuestions.length === 0;
 
     return {
@@ -381,9 +405,9 @@ export class JobApplicationFlowService {
       semantics: {
         ...semantics,
         canSubmit,
-        missingCount: needsAttention.filter(n => n.type === 'MISSING').length,
-        conflictCount: needsAttention.filter(n => n.type === 'CONFLICT').length,
-        confirmationCount: needsAttention.filter(n => n.type === 'CONFIRMATION').length,
+        missingCount: needsAttention.filter((n) => n.type === 'MISSING').length,
+        conflictCount: needsAttention.filter((n) => n.type === 'CONFLICT').length,
+        confirmationCount: needsAttention.filter((n) => n.type === 'CONFIRMATION').length,
         unansweredCustomCount: unansweredQuestions.length,
       },
     };
@@ -409,14 +433,21 @@ export class JobApplicationFlowService {
     if (choice === 'KEEP_PROFILE') {
       // Adopt the profile value for this application, resolving the conflict
       const userCustom = candidateProfile?.profileMetadata?.userCustom || {};
-      const prefs = candidateProfile?.jobPreferences || candidateProfile?.profileMetadata?.careerPreferences || {};
+      const prefs =
+        candidateProfile?.jobPreferences ||
+        candidateProfile?.profileMetadata?.careerPreferences ||
+        {};
 
       if (field === 'noticePeriod') {
         const profileVal = prefs.noticePeriod || userCustom.noticePeriod;
         existingAnswers.noticePeriod = profileVal;
         existingAnswers.noticePeriodConfirmed = true;
       } else if (field === 'availability') {
-        existingAnswers.availability = prefs.availabilityDate || userCustom.availabilityDate || userCustom.availability || 'Immediate';
+        existingAnswers.availability =
+          prefs.availabilityDate ||
+          userCustom.availabilityDate ||
+          userCustom.availability ||
+          'Immediate';
         existingAnswers.availabilityConfirmed = true;
       } else if (field === 'workAuthorization') {
         existingAnswers.workAuthorization = prefs.workAuthorization || userCustom.workAuthorization;
@@ -432,7 +463,9 @@ export class JobApplicationFlowService {
       if (field === 'workAuthorization') existingAnswers.workAuthConfirmed = true;
       if (field === 'visaSponsorship') existingAnswers.visaSponsorshipConfirmed = true;
     } else {
-      throw new ValidationError(`Invalid conflict choice '${choice}'. Must be KEEP_PROFILE or USE_APPLICATION.`);
+      throw new ValidationError(
+        `Invalid conflict choice '${choice}'. Must be KEEP_PROFILE or USE_APPLICATION.`
+      );
     }
 
     const updatedMetadata = {
@@ -520,7 +553,10 @@ export class JobApplicationFlowService {
           );
         }
       } catch (profileErr) {
-        this.logger.warn({ error: profileErr.message }, 'Failed to persist preference to profile; application answer saved safely');
+        this.logger.warn(
+          { error: profileErr.message },
+          'Failed to persist preference to profile; application answer saved safely'
+        );
       }
     }
 
@@ -541,11 +577,16 @@ export class JobApplicationFlowService {
 
     const cand = candidateProfile?.candidate || candidate || {};
     const answers = application.metadata?.answers || {};
-    const flowState = this.buildApplicationFlowState({ candidate, candidateProfile, application, answers });
+    const flowState = this.buildApplicationFlowState({
+      candidate,
+      candidateProfile,
+      application,
+      answers,
+    });
     const handoffKit = application.metadata?.handoffKit;
     const resume = handoffKit?.resume || {};
 
-    const unresolvedIssues = flowState.needsAttention.map(item => ({
+    const unresolvedIssues = flowState.needsAttention.map((item) => ({
       field: item.field,
       label: item.label,
       type: item.type,
@@ -570,30 +611,52 @@ export class JobApplicationFlowService {
     ];
 
     const importantAnswers = [];
-    if (answers.workAuthorization || flowState.readyToApply.find(i => i.key === 'workAuthorization')?.value) {
+    if (
+      answers.workAuthorization ||
+      flowState.readyToApply.find((i) => i.key === 'workAuthorization')?.value
+    ) {
       importantAnswers.push({
         label: 'Work Authorization',
-        value: answers.workAuthorization || flowState.readyToApply.find(i => i.key === 'workAuthorization')?.value,
+        value:
+          answers.workAuthorization ||
+          flowState.readyToApply.find((i) => i.key === 'workAuthorization')?.value,
       });
     }
-    if (answers.visaSponsorship !== undefined || flowState.readyToApply.find(i => i.key === 'visaSponsorship')?.value) {
+    if (
+      answers.visaSponsorship !== undefined ||
+      flowState.readyToApply.find((i) => i.key === 'visaSponsorship')?.value
+    ) {
       importantAnswers.push({
         label: 'Visa Sponsorship',
-        value: answers.visaSponsorship !== undefined
-          ? (answers.visaSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed')
-          : flowState.readyToApply.find(i => i.key === 'visaSponsorship')?.value,
+        value:
+          answers.visaSponsorship !== undefined
+            ? answers.visaSponsorship
+              ? 'Sponsorship Required'
+              : 'No Sponsorship Needed'
+            : flowState.readyToApply.find((i) => i.key === 'visaSponsorship')?.value,
       });
     }
-    if (answers.noticePeriod || flowState.readyToApply.find(i => i.key === 'noticePeriod')?.value) {
+    if (
+      answers.noticePeriod ||
+      flowState.readyToApply.find((i) => i.key === 'noticePeriod')?.value
+    ) {
       importantAnswers.push({
         label: 'Notice Period',
-        value: answers.noticePeriod ? formatNoticePeriodLabel(normalizeNoticePeriod(answers.noticePeriod)) || answers.noticePeriod : flowState.readyToApply.find(i => i.key === 'noticePeriod')?.value,
+        value: answers.noticePeriod
+          ? formatNoticePeriodLabel(normalizeNoticePeriod(answers.noticePeriod)) ||
+            answers.noticePeriod
+          : flowState.readyToApply.find((i) => i.key === 'noticePeriod')?.value,
       });
     }
-    if (answers.availability || flowState.readyToApply.find(i => i.key === 'availability')?.value) {
+    if (
+      answers.availability ||
+      flowState.readyToApply.find((i) => i.key === 'availability')?.value
+    ) {
       importantAnswers.push({
         label: 'Earliest Start Date',
-        value: answers.availability || flowState.readyToApply.find(i => i.key === 'availability')?.value,
+        value:
+          answers.availability ||
+          flowState.readyToApply.find((i) => i.key === 'availability')?.value,
       });
     }
 
@@ -612,7 +675,8 @@ export class JobApplicationFlowService {
         location: cand.profileMetadata?.userCustom?.location || '—',
       },
       resume: {
-        title: resume.filename || `${cand.displayName || 'Candidate'} - ${application.jobTitle}.pdf`,
+        title:
+          resume.filename || `${cand.displayName || 'Candidate'} - ${application.jobTitle}.pdf`,
         filename: resume.filename || 'tailored-resume.pdf',
         viewUrl: `/api/applications/${application.id}/artifacts/resume/view`,
         downloadUrl: `/api/applications/${application.id}/artifacts/resume/download`,
@@ -668,15 +732,23 @@ export class JobApplicationFlowService {
       // Best-effort fallback
     }
 
-    const flowState = this.buildApplicationFlowState({ candidate: cand, candidateProfile, application });
+    const flowState = this.buildApplicationFlowState({
+      candidate: cand,
+      candidateProfile,
+      application,
+    });
 
     if (flowState.needsAttention.length > 0) {
-      const issueSummary = flowState.needsAttention.map(i => i.label).join(', ');
-      throw new ValidationError(`Cannot submit application with unresolved readiness issues: ${issueSummary}`);
+      const issueSummary = flowState.needsAttention.map((i) => i.label).join(', ');
+      throw new ValidationError(
+        `Cannot submit application with unresolved readiness issues: ${issueSummary}`
+      );
     }
 
     if (!declarations.accuracyConfirmed) {
-      throw new ValidationError('You must confirm that all information provided is accurate and true before submitting.');
+      throw new ValidationError(
+        'You must confirm that all information provided is accurate and true before submitting.'
+      );
     }
 
     const appliedDate = new Date();
@@ -720,13 +792,17 @@ export class JobApplicationFlowService {
    */
   getAiAssistanceForQuestion({ question = '', _candidateProfile = null }) {
     const q = String(question).toLowerCase();
-    const isSensitive = /visa|sponsorship|work authorization|legal authorization|citizenship|felony|criminal|race|gender|disability|veteran|ethnicity|religion/i.test(q);
+    const isSensitive =
+      /visa|sponsorship|work authorization|legal authorization|citizenship|felony|criminal|race|gender|disability|veteran|ethnicity|religion/i.test(
+        q
+      );
 
     if (isSensitive) {
       return {
         isSensitive: true,
         autoAnswerBlocked: true,
-        guidance: 'AI cannot automatically answer legal eligibility or sensitive questions. Please review your official status and select your answer manually.',
+        guidance:
+          'AI cannot automatically answer legal eligibility or sensitive questions. Please review your official status and select your answer manually.',
         suggestedAnswer: null,
         requiresUserConfirmation: true,
       };
@@ -737,7 +813,8 @@ export class JobApplicationFlowService {
       isSensitive: false,
       autoAnswerBlocked: false,
       guidance: 'Here is an answer suggestion based on your verified engineering experience:',
-      suggestedAnswer: 'I have demonstrated relevant experience through verified repository architecture and production implementations.',
+      suggestedAnswer:
+        'I have demonstrated relevant experience through verified repository architecture and production implementations.',
       requiresUserConfirmation: true,
     };
   }

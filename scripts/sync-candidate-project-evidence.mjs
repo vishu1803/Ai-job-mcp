@@ -19,7 +19,17 @@ const ENRICHED_PROJECTS = {
       'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations, ensuring high concurrency and application availability.',
       'Reduced average manual code review time across multiple repositories by automating code evaluation, resulting in improved developer velocity and code quality standards.',
     ],
-    technologies: ['Python', 'FastAPI', 'Flask', 'PostgreSQL', 'OpenAI API', 'Next.js', 'Docker', 'Redis', 'Git'],
+    technologies: [
+      'Python',
+      'FastAPI',
+      'Flask',
+      'PostgreSQL',
+      'OpenAI API',
+      'Next.js',
+      'Docker',
+      'Redis',
+      'Git',
+    ],
   },
   // 2. Collaborative Task Manager
   '389d1357-156a-4296-a1bb-603140897bc3': {
@@ -28,7 +38,17 @@ const ENRICHED_PROJECTS = {
       'Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.',
       'Improved team productivity and coordination overhead by providing a responsive interface with real-time updates and an optimized database structure.',
     ],
-    technologies: ['TypeScript', 'Node.js', 'PostgreSQL', 'Express.js', 'Prisma ORM', 'Next.js', 'Socket.io', 'Tailwind CSS', 'Zod'],
+    technologies: [
+      'TypeScript',
+      'Node.js',
+      'PostgreSQL',
+      'Express.js',
+      'Prisma ORM',
+      'Next.js',
+      'Socket.io',
+      'Tailwind CSS',
+      'Zod',
+    ],
   },
   // 3. Product Data Explorer
   '95a13c93-a198-4473-bf64-5b8a50cbd3b9': {
@@ -37,7 +57,16 @@ const ENRICHED_PROJECTS = {
       'Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.',
       'Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.',
     ],
-    technologies: ['TypeScript', 'NestJS', 'PostgreSQL', 'TypeORM', 'Redis', 'Next.js', 'Tailwind CSS', 'Docker'],
+    technologies: [
+      'TypeScript',
+      'NestJS',
+      'PostgreSQL',
+      'TypeORM',
+      'Redis',
+      'Next.js',
+      'Tailwind CSS',
+      'Docker',
+    ],
   },
 };
 
@@ -67,7 +96,9 @@ async function syncProjects() {
       [JSON.stringify(updatedMeta), projectId, CANDIDATE_ID, TENANT_ID]
     );
 
-    console.log(`✓ Enriched project '${existing.rows[0].name}' (${projectId}) with ${data.bullets.length} authentic bullets.`);
+    console.log(
+      `✓ Enriched project '${existing.rows[0].name}' (${projectId}) with ${data.bullets.length} authentic bullets.`
+    );
   }
 
   // Also verify/update candidate profile_metadata.resumeData.projects if present

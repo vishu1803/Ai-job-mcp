@@ -17,12 +17,12 @@ import { WORKFLOW_STATES } from './workflow-state-machine.js';
 export { UNKNOWN_FINGERPRINT };
 
 export const TRANSITION_ACTIONS = Object.freeze({
-  RETAIN_AND_ENRICH: 'RETAIN_AND_ENRICH',             // Same job identity: enrich metadata/description, retain workflow state
+  RETAIN_AND_ENRICH: 'RETAIN_AND_ENRICH', // Same job identity: enrich metadata/description, retain workflow state
   PRESERVE_ACTIVE_SESSION: 'PRESERVE_ACTIVE_SESSION', // Passive signal / non-job / transport timeout: preserve active job & DOM
-  QUEUE_PENDING_JOB: 'QUEUE_PENDING_JOB',             // Different job detected while active workflow exists: queue as pending
-  BIND_NEW_JOB: 'BIND_NEW_JOB',                       // First valid job bound to an IDLE workflow
-  SWITCH_JOB: 'SWITCH_JOB',                           // Explicit switch to a new target job
-  EXPLICIT_CLEAR: 'EXPLICIT_CLEAR',                   // Explicit user rescan/reset on non-job or unanalyzed reload
+  QUEUE_PENDING_JOB: 'QUEUE_PENDING_JOB', // Different job detected while active workflow exists: queue as pending
+  BIND_NEW_JOB: 'BIND_NEW_JOB', // First valid job bound to an IDLE workflow
+  SWITCH_JOB: 'SWITCH_JOB', // Explicit switch to a new target job
+  EXPLICIT_CLEAR: 'EXPLICIT_CLEAR', // Explicit user rescan/reset on non-job or unanalyzed reload
 });
 
 export const SIGNAL_TYPES = Object.freeze({
@@ -44,24 +44,32 @@ export const SIGNAL_TYPES = Object.freeze({
 export class CanonicalJobIdentity {
   constructor(job = {}) {
     this.canonicalJobId = job.canonicalJobId || null;
-    this.provider = (job.provider && String(job.provider).toUpperCase() !== 'NONE') ? String(job.provider).toUpperCase() : null;
+    this.provider =
+      job.provider && String(job.provider).toUpperCase() !== 'NONE'
+        ? String(job.provider).toUpperCase()
+        : null;
     this.externalJobId = job.externalJobId ? String(job.externalJobId) : null;
     this.title = (job.title || job.jobTitle || '').trim();
-    this.company = (job.company && job.company !== 'Company') ? String(job.company).trim() : '';
+    this.company = job.company && job.company !== 'Company' ? String(job.company).trim() : '';
     this.url = job.sourceUrl || job.url || '';
-    this.normalizedUrl = normalizeJobPostingUrl(this.url || job.normalizedJobUrl || job.normalizedUrl);
+    this.normalizedUrl = normalizeJobPostingUrl(
+      this.url || job.normalizedJobUrl || job.normalizedUrl
+    );
     this.location = job.location || '';
     this.workplace = job.workplace || '';
     this.employmentType = job.employmentType || '';
 
-    this.fingerprint = job.fingerprint || job.jobFingerprint || deriveJobFingerprint({
-      canonicalJobId: this.canonicalJobId,
-      provider: this.provider,
-      externalJobId: this.externalJobId,
-      title: this.title,
-      company: this.company,
-      url: this.normalizedUrl,
-    });
+    this.fingerprint =
+      job.fingerprint ||
+      job.jobFingerprint ||
+      deriveJobFingerprint({
+        canonicalJobId: this.canonicalJobId,
+        provider: this.provider,
+        externalJobId: this.externalJobId,
+        title: this.title,
+        company: this.company,
+        url: this.normalizedUrl,
+      });
   }
 
   isValid() {
@@ -171,17 +179,13 @@ export class JobIdentityAuthority {
     const hasActiveJob = Boolean(activeIdentity && activeIdentity.isValid());
 
     const hasAnalysis = Boolean(
-      cachedState?.fitAnalysis ||
-      stateMachineState === WORKFLOW_STATES.ANALYSIS_READY
+      cachedState?.fitAnalysis || stateMachineState === WORKFLOW_STATES.ANALYSIS_READY
     );
     const hasHandoff = Boolean(
-      cachedState?.handoffData ||
-      stateMachineState === WORKFLOW_STATES.APPLICATION_READY
+      cachedState?.handoffData || stateMachineState === WORKFLOW_STATES.APPLICATION_READY
     );
     const isWorkflowLocked = Boolean(
-      isLocked ||
-      cachedState?.lockState === 'LOCKED' ||
-      cachedState?.isLocked === true
+      isLocked || cachedState?.lockState === 'LOCKED' || cachedState?.isLocked === true
     );
 
     // =========================================================================
@@ -232,7 +236,8 @@ export class JobIdentityAuthority {
         if (responseIdentity.isValid() && !activeIdentity.isSameAs(responseIdentity)) {
           return {
             action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-            reason: 'Analyze complete rejected: response job identity does not match active canonical identity',
+            reason:
+              'Analyze complete rejected: response job identity does not match active canonical identity',
             activeJob,
             canonicalIdentity: activeIdentity,
             targetWorkflowState: stateMachineState,
@@ -248,16 +253,27 @@ export class JobIdentityAuthority {
 
       // Enrich safe non-identity fields if provided
       if (detectedJob) {
-        if (detectedJob.description && (!mergedJob.description || mergedJob.description.length < 50)) {
+        if (
+          detectedJob.description &&
+          (!mergedJob.description || mergedJob.description.length < 50)
+        ) {
           mergedJob.description = detectedJob.description;
         }
         if (detectedJob.rawText && !mergedJob.rawText) {
           mergedJob.rawText = detectedJob.rawText;
         }
-        if (Array.isArray(detectedJob.requirements) && detectedJob.requirements.length > 0 && (!mergedJob.requirements || mergedJob.requirements.length === 0)) {
+        if (
+          Array.isArray(detectedJob.requirements) &&
+          detectedJob.requirements.length > 0 &&
+          (!mergedJob.requirements || mergedJob.requirements.length === 0)
+        ) {
           mergedJob.requirements = detectedJob.requirements;
         }
-        if (Array.isArray(detectedJob.responsibilities) && detectedJob.responsibilities.length > 0 && (!mergedJob.responsibilities || mergedJob.responsibilities.length === 0)) {
+        if (
+          Array.isArray(detectedJob.responsibilities) &&
+          detectedJob.responsibilities.length > 0 &&
+          (!mergedJob.responsibilities || mergedJob.responsibilities.length === 0)
+        ) {
           mergedJob.responsibilities = detectedJob.responsibilities;
         }
         if (detectedJob.location && !mergedJob.location) {
@@ -325,7 +341,8 @@ export class JobIdentityAuthority {
       if (targetIdentity.isValid() && !activeIdentity.isSameAs(targetIdentity)) {
         return {
           action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-          reason: 'Handoff preparation rejected: target job identity does not match active canonical identity',
+          reason:
+            'Handoff preparation rejected: target job identity does not match active canonical identity',
           activeJob,
           canonicalIdentity: activeIdentity,
           targetWorkflowState: stateMachineState,
@@ -383,7 +400,8 @@ export class JobIdentityAuthority {
       if (!incomingFingerprint || activeIdentity.fingerprint !== incomingFingerprint) {
         return {
           action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-          reason: 'Hydration rejected: supplied fingerprint does not match active canonical job fingerprint exactly',
+          reason:
+            'Hydration rejected: supplied fingerprint does not match active canonical job fingerprint exactly',
           activeJob,
           targetWorkflowState: stateMachineState,
           targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
@@ -396,7 +414,8 @@ export class JobIdentityAuthority {
         rawText: detectedJob?.rawText || activeJob.rawText,
         requirements: detectedJob?.requirements || activeJob.requirements,
         responsibilities: detectedJob?.responsibilities || activeJob.responsibilities,
-        analysisReady: detectedJob?.analysisReady === true || (detectedJob?.description?.length >= 50),
+        analysisReady:
+          detectedJob?.analysisReady === true || detectedJob?.description?.length >= 50,
         isReady: true,
         title: activeIdentity.title,
         company: activeIdentity.company || activeJob.company,
@@ -518,7 +537,8 @@ export class JobIdentityAuthority {
       }
       return {
         action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-        reason: 'Workflow is locked by prepared handoff kit: explicit rescan cannot discard session',
+        reason:
+          'Workflow is locked by prepared handoff kit: explicit rescan cannot discard session',
         activeJob,
         targetWorkflowState: stateMachineState,
         targetLockState: 'LOCKED',
@@ -531,7 +551,8 @@ export class JobIdentityAuthority {
         // High-investment workflow active: NEVER evict active session on passive signals!
         return {
           action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-          reason: 'Passive background detection must never evict an analyzed or locked active session',
+          reason:
+            'Passive background detection must never evict an analyzed or locked active session',
           activeJob,
           canonicalIdentity: activeIdentity,
           targetWorkflowState: stateMachineState,

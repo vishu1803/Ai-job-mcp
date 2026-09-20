@@ -31,7 +31,10 @@ import {
 } from '../../src/services/structured-resume.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 import { MasterResumeStructureService } from '../../src/services/master-resume-structure.service.js';
-import { ResumeContentOptimizer, OPTIMIZER_MOVE_TYPES } from '../../src/services/resume-content-optimizer.service.js';
+import {
+  ResumeContentOptimizer,
+  OPTIMIZER_MOVE_TYPES,
+} from '../../src/services/resume-content-optimizer.service.js';
 import { CandidateArtifactContentService } from '../../src/services/candidate-artifact-content.service.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import { handleGenerateTailoredResume } from '../../src/mcp/tools/career-artifact-tools.js';
@@ -80,7 +83,8 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       tenantId: mcpContext.tenantId,
       skills: profileView.skills || [],
       projects: profileView.projects || [],
-      experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
+      experience:
+        profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
       education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
       dsa: profileView.dsa,
       resumeSections: profileView.resumeSections,
@@ -89,7 +93,9 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
     const contentService = new CandidateArtifactContentService({ database: db });
     const getRankings = (job) => {
       const canonicalJob = normalizeJobInput(job);
-      const ranked = contentService.rankProjectsForJob(candidateProfile, canonicalJob, { maxProjects: 2 });
+      const ranked = contentService.rankProjectsForJob(candidateProfile, canonicalJob, {
+        maxProjects: 2,
+      });
       return ranked.selectedProjects || (Array.isArray(ranked) ? ranked : []);
     };
 
@@ -118,7 +124,10 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
   // =========================================================================
   describe('CONTRACT 1 & 2: Skill-Lock Invariant & Skill Corroboration', () => {
     it('1. verifies every rendered skill ∈ verified candidate skills (finalSkillIds ⊆ verifiedCandidateSkillIds)', () => {
-      const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normalize = (s) =>
+        String(s || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
       const verifiedSkillNames = new Set(
         candidateProfile.skills.map((s) => normalize(s.displayName || s.name || s.slug))
       );
@@ -148,8 +157,9 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       // Candidate's projects include 'Audience Query System' which uses 'Rust' and 'Raft'.
       // However, neither 'Rust' nor 'Raft' is in candidateProfile.skills.
       // Even when target job explicitly requires 'Rust' and 'Raft', they must NOT appear in Technical Skills.
-      const systemsRenderedSkills = snapSystems.structuredResume.skills.categories
-        .flatMap((c) => c.skills.map((s) => s.name.toLowerCase()));
+      const systemsRenderedSkills = snapSystems.structuredResume.skills.categories.flatMap((c) =>
+        c.skills.map((s) => s.name.toLowerCase())
+      );
 
       assert.strictEqual(
         systemsRenderedSkills.includes('rust'),
@@ -308,7 +318,10 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
 
       // Skill mutation
       const mutatedSkills = JSON.parse(JSON.stringify(baseline));
-      mutatedSkills.skills.categories[0].skills.push({ name: 'FabricatedSkill', slug: 'fabricated' });
+      mutatedSkills.skills.categories[0].skills.push({
+        name: 'FabricatedSkill',
+        slug: 'fabricated',
+      });
       assert.throws(
         () => assertSemanticEquivalence(baseline, mutatedSkills),
         /Optimizer semantic violation.*technical skills selection/
@@ -477,7 +490,10 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
 
       // Backend prioritizes REST APIs; Frontend prioritizes frontend asset loading
       assert.match(snapBackend.structuredResume.experience[0].bullets[0], /RESTful APIs/i);
-      assert.match(snapFrontend.structuredResume.experience[0].bullets[0], /frontend asset loading|page load time/i);
+      assert.match(
+        snapFrontend.structuredResume.experience[0].bullets[0],
+        /frontend asset loading|page load time/i
+      );
     });
 
     it('12. preserves authentic DSA URL and bullets without hardcoded counts or ratings', () => {
@@ -514,7 +530,10 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
   // =========================================================================
   describe('CONTRACT 14 & 15: MCP and Extension Parity & No Legacy Path', () => {
     it('14. guarantees MCP and Extension converge on identical canonical structured resume selection', async () => {
-      const workflowService = new JobApplicationWorkflowService({ database: db, aiProvider: false });
+      const workflowService = new JobApplicationWorkflowService({
+        database: db,
+        aiProvider: false,
+      });
 
       // Run canonical workflow
       const prep = await workflowService.prepareJobApplication({
@@ -542,14 +561,22 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       // Selected project IDs parity
       const workflowProjNames = structuredFromWorkflow.projects.map((p) => p.name);
       const mcpProjNames = mcpResult.resume.projects.map((p) => p.name);
-      assert.deepStrictEqual(mcpProjNames, workflowProjNames, 'MCP and Extension must select identical projects');
+      assert.deepStrictEqual(
+        mcpProjNames,
+        workflowProjNames,
+        'MCP and Extension must select identical projects'
+      );
 
       // Selected skills parity
       const workflowSkills = structuredFromWorkflow.skills.categories.flatMap((c) =>
         c.skills.map((s) => s.name)
       );
       const mcpSkills = mcpResult.resume.skills.flatMap((c) => c.skills.map((s) => s.skillName));
-      assert.deepStrictEqual(mcpSkills, workflowSkills, 'MCP and Extension must select identical skills');
+      assert.deepStrictEqual(
+        mcpSkills,
+        workflowSkills,
+        'MCP and Extension must select identical skills'
+      );
 
       // Summary parity
       assert.strictEqual(
@@ -561,14 +588,19 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       // Semantic fingerprint parity
       const workflowFingerprint = computeResumeSemanticFingerprint(structuredFromWorkflow);
       const mcpFingerprint = computeResumeSemanticFingerprint(mcpResult);
-      assert.strictEqual(mcpFingerprint, workflowFingerprint, 'MCP and Extension must have identical semantic fingerprint');
+      assert.strictEqual(
+        mcpFingerprint,
+        workflowFingerprint,
+        'MCP and Extension must have identical semantic fingerprint'
+      );
     });
 
     it('15. verifies no legacy semantic path (e.g. ResumeTailoringService) is reachable', async () => {
       // ResumeTailoringService was replaced by JobApplicationWorkflowService + StructuredResumeService
       let legacyUsed = false;
       try {
-        const { ResumeTailoringService } = await import('../../src/services/resume-tailoring.service.js');
+        const { ResumeTailoringService } =
+          await import('../../src/services/resume-tailoring.service.js');
         if (ResumeTailoringService) legacyUsed = true;
       } catch {
         legacyUsed = false;
@@ -621,7 +653,9 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
         const idxSummary = result.texContent.indexOf('section{Professional Summary}');
         const idxSkills = result.texContent.indexOf('\\atssection{Technical Skills}');
         const idxProjects = result.texContent.indexOf('\\atssection{Technical Projects}');
-        const idxDsa = result.texContent.indexOf('\\atssection{Problem Solving \\& Algorithmic Practice}');
+        const idxDsa = result.texContent.indexOf(
+          '\\atssection{Problem Solving \\& Algorithmic Practice}'
+        );
         const idxExp = result.texContent.indexOf('\\atssection{Professional Experience}');
         const idxEdu = result.texContent.indexOf('\\atssection{Education}');
 

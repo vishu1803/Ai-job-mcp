@@ -46,9 +46,12 @@ export function isJobPostingObject(obj) {
  */
 export function extractJobPostingJsonLd(doc) {
   if (!doc) return null;
-  const scripts = typeof doc.querySelectorAll === 'function'
-    ? Array.from(doc.querySelectorAll('script[type="application/ld+json"]') || [])
-    : (typeof doc.querySelector === 'function' ? [doc.querySelector('script[type="application/ld+json"]')].filter(Boolean) : []);
+  const scripts =
+    typeof doc.querySelectorAll === 'function'
+      ? Array.from(doc.querySelectorAll('script[type="application/ld+json"]') || [])
+      : typeof doc.querySelector === 'function'
+        ? [doc.querySelector('script[type="application/ld+json"]')].filter(Boolean)
+        : [];
 
   for (const script of scripts) {
     try {

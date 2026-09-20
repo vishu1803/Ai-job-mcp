@@ -72,10 +72,42 @@ export function classifyRoleFocus(text) {
   const t = String(text || '').toLowerCase();
   if (!t) return 'general';
   const has = (...tokens) => tokens.some((k) => t.includes(k));
-  const aiMl = has('machine learning', 'ml engineer', 'deep learning', 'nlp', 'computer vision', 'ai engineer', 'mlops', 'data scientist');
-  const data = has('data engineer', 'analytics engineer', 'bi engineer', 'data platform', 'database engineer');
-  const backend = has('backend', 'back-end', 'server-side', 'systems engineer', 'infrastructure', 'distributed systems', 'platform engineer', 'api engineer');
-  const frontend = has('frontend', 'front-end', 'client-side', 'ui engineer', 'web engineer', 'react', 'ui/ux engineer');
+  const aiMl = has(
+    'machine learning',
+    'ml engineer',
+    'deep learning',
+    'nlp',
+    'computer vision',
+    'ai engineer',
+    'mlops',
+    'data scientist'
+  );
+  const data = has(
+    'data engineer',
+    'analytics engineer',
+    'bi engineer',
+    'data platform',
+    'database engineer'
+  );
+  const backend = has(
+    'backend',
+    'back-end',
+    'server-side',
+    'systems engineer',
+    'infrastructure',
+    'distributed systems',
+    'platform engineer',
+    'api engineer'
+  );
+  const frontend = has(
+    'frontend',
+    'front-end',
+    'client-side',
+    'ui engineer',
+    'web engineer',
+    'react',
+    'ui/ux engineer'
+  );
   const fullstack = has('full-stack', 'fullstack', 'full stack');
   if (fullstack && !backend && !frontend) return 'fullstack';
   if (aiMl) return 'ai-ml';
@@ -104,7 +136,10 @@ const OPPOSING_FOCUS = Object.freeze({
 function extractFocusTokens(text) {
   const found = new Set();
   if (!text) return found;
-  const segments = String(text).split(/[,/&|]| and | full-stack | fullstack /i).map((s) => s.trim()).filter(Boolean);
+  const segments = String(text)
+    .split(/[,/&|]| and | full-stack | fullstack /i)
+    .map((s) => s.trim())
+    .filter(Boolean);
   for (const seg of segments) {
     const focus = classifyRoleFocus(seg);
     if (focus !== 'general') found.add(focus);
@@ -168,7 +203,9 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
   const authoritativeProjectCount =
     doc.debugTrace?.authoritativeEligibleProjectCount ??
     doc.metadata?.authoritativeEligibleProjectCount ??
-    (doc.debugTrace?.selectedProjectIds?.length ?? doc.metadata?.selectedProjectIds?.length ?? 0);
+    doc.debugTrace?.selectedProjectIds?.length ??
+    doc.metadata?.selectedProjectIds?.length ??
+    0;
   const removalRecords =
     doc.debugTrace?.projectRemovalRecords || doc.metadata?.projectRemovalRecords || [];
 
@@ -201,7 +238,8 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
       severity: GATE_SEVERITY.FAIL,
       remediable: true,
       suggestion: 'OMIT_SECTION',
-      message: 'Optional problem-solving section is present but carries no substantive candidate-owned evidence; omit it instead of rendering boilerplate.',
+      message:
+        'Optional problem-solving section is present but carries no substantive candidate-owned evidence; omit it instead of rendering boilerplate.',
     });
   }
 
@@ -238,9 +276,10 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
 
   // ── Check 4: Sparse content with unused page capacity ──
   const utilization = Number(pageBudget?.utilizationRatio);
-  const hasEvidenceBackedContent = projects.some((p) =>
-    (Array.isArray(p.evidenceRefs) && p.evidenceRefs.length > 0) ||
-    (Array.isArray(p.bullets) && p.bullets.length > 0)
+  const hasEvidenceBackedContent = projects.some(
+    (p) =>
+      (Array.isArray(p.evidenceRefs) && p.evidenceRefs.length > 0) ||
+      (Array.isArray(p.bullets) && p.bullets.length > 0)
   );
   if (
     Number.isFinite(utilization) &&
@@ -267,7 +306,10 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
       const key = skillKey(display);
       if (!key) continue;
       if (seenSkills.has(key)) {
-        duplicates.push({ skill: display, categories: [seenSkills.get(key), cat.categoryName || cat.name || ''] });
+        duplicates.push({
+          skill: display,
+          categories: [seenSkills.get(key), cat.categoryName || cat.name || ''],
+        });
       } else {
         seenSkills.set(key, cat.categoryName || cat.name || '');
       }
@@ -295,7 +337,8 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
   for (const e of experience) {
     for (const b of Array.isArray(e.bullets) ? e.bullets : []) {
       const t = (typeof b === 'string' ? b : b?.text || '').trim();
-      if (t && t.length < MIN_BULLET_LENGTH) lowInfoBullets.push({ section: 'experience', text: t });
+      if (t && t.length < MIN_BULLET_LENGTH)
+        lowInfoBullets.push({ section: 'experience', text: t });
     }
   }
   if (lowInfoBullets.length > 0) {
@@ -311,8 +354,16 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
   // ── Check 7: Semantic leakage (Req B & C) ──
   const allProse = [
     summaryText,
-    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
-    ...experience.flatMap((e) => (Array.isArray(e.bullets) ? e.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
+    ...projects.flatMap((p) =>
+      (Array.isArray(p.bullets) ? p.bullets : []).map((b) =>
+        typeof b === 'string' ? b : b?.text || ''
+      )
+    ),
+    ...experience.flatMap((e) =>
+      (Array.isArray(e.bullets) ? e.bullets : []).map((b) =>
+        typeof b === 'string' ? b : b?.text || ''
+      )
+    ),
   ].filter(Boolean);
 
   const leakedPhrases = [];
@@ -322,11 +373,19 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
     // lowercase filename (file-naming convention), not a CamelCase technology
     // token. The filename clause is case-sensitive on purpose: source files are
     // conventionally lowercase, while technology names are CamelCase.
-    const filePathLeak = /(?:^|\s)(?:src\/|components\/|controllers\/|routes\/)[\w.-]+/i.test(text) ||
-      /(?:^|\s)\S*(?:src|lib|app|components|controllers|routes|services|utils|models)\/\S+/i.test(text) ||
+    const filePathLeak =
+      /(?:^|\s)(?:src\/|components\/|controllers\/|routes\/)[\w.-]+/i.test(text) ||
+      /(?:^|\s)\S*(?:src|lib|app|components|controllers|routes|services|utils|models)\/\S+/i.test(
+        text
+      ) ||
       /(?:^|\s)(?:dockerfile|makefile|package\.json)(?:\s|$|[,;])/i.test(text) ||
-      /(?:^|\s)[a-z][a-z0-9_.-]*\.(?:js|ts|jsx|tsx|py|go|rs|json|yaml|yml|sql|html|css)(?:\s|$|[,;])/.test(text);
-    const templateLeak = /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(text);
+      /(?:^|\s)[a-z][a-z0-9_.-]*\.(?:js|ts|jsx|tsx|py|go|rs|json|yaml|yml|sql|html|css)(?:\s|$|[,;])/.test(
+        text
+      );
+    const templateLeak =
+      /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(
+        text
+      );
     if (filePathLeak || templateLeak) {
       leakedPhrases.push(text);
     }
@@ -346,8 +405,16 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
   // (pairwise token overlap >= 0.55). Cross-section so a project bullet can
   // never duplicate an experience bullet either.
   const allBulletTexts = [
-    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || '').trim()).filter(Boolean)),
-    ...experience.flatMap((e) => (Array.isArray(e.bullets) ? e.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || '').trim()).filter(Boolean)),
+    ...projects.flatMap((p) =>
+      (Array.isArray(p.bullets) ? p.bullets : [])
+        .map((b) => (typeof b === 'string' ? b : b?.text || '').trim())
+        .filter(Boolean)
+    ),
+    ...experience.flatMap((e) =>
+      (Array.isArray(e.bullets) ? e.bullets : [])
+        .map((b) => (typeof b === 'string' ? b : b?.text || '').trim())
+        .filter(Boolean)
+    ),
   ];
   const redundantPairs = [];
   for (let i = 0; i < allBulletTexts.length; i++) {
@@ -368,25 +435,28 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
   }
 
   // ── Check 7.6: Unsupported numeric metric claims (P16-009) ──────────────
-  const METRIC_RX = /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers)|\$\s?\d)/i;
-  const CONTEXT_RX = /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset)\b/i;
+  const METRIC_RX =
+    /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers)|\$\s?\d)/i;
+  const CONTEXT_RX =
+    /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset)\b/i;
   const bulletsWithRefs = new Set(
     projects.flatMap((p) =>
       (Array.isArray(p.bullets) ? p.bullets : [])
-        .filter((b) => typeof b === 'object' && b && Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0)
+        .filter(
+          (b) =>
+            typeof b === 'object' && b && Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0
+        )
         .map((b) => (typeof b === 'string' ? b : b.text || ''))
     )
   );
   const unsupportedMetrics = [
-    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
+    ...projects.flatMap((p) =>
+      (Array.isArray(p.bullets) ? p.bullets : []).map((b) =>
+        typeof b === 'string' ? b : b?.text || ''
+      )
+    ),
     summaryText,
-  ].filter(
-    (t) =>
-      t &&
-      METRIC_RX.test(t) &&
-      !bulletsWithRefs.has(t) &&
-      !CONTEXT_RX.test(t)
-  );
+  ].filter((t) => t && METRIC_RX.test(t) && !bulletsWithRefs.has(t) && !CONTEXT_RX.test(t));
   if (unsupportedMetrics.length > 0) {
     findings.push({
       code: GATE_FINDING_CODES.UNSUPPORTED_METRIC_CLAIM,
@@ -407,9 +477,15 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
     findings,
     metrics: {
       projectCount: projects.length,
-      projectBulletTotal: projects.reduce((n, p) => n + (Array.isArray(p.bullets) ? p.bullets.length : 0), 0),
+      projectBulletTotal: projects.reduce(
+        (n, p) => n + (Array.isArray(p.bullets) ? p.bullets.length : 0),
+        0
+      ),
       experienceCount: experience.length,
-      experienceBulletTotal: experience.reduce((n, e) => n + (Array.isArray(e.bullets) ? e.bullets.length : 0), 0),
+      experienceBulletTotal: experience.reduce(
+        (n, e) => n + (Array.isArray(e.bullets) ? e.bullets.length : 0),
+        0
+      ),
       pageUtilization: Number.isFinite(utilization) ? utilization : null,
       roleFocus,
     },

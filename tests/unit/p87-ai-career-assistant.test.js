@@ -268,7 +268,10 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
       },
       (err) => {
         assert.ok(err instanceof ValidationError);
-        assert.match(err.message, /Cannot modify canonical profile data without explicit user confirmation/);
+        assert.match(
+          err.message,
+          /Cannot modify canonical profile data without explicit user confirmation/
+        );
         return true;
       }
     );
@@ -302,8 +305,14 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
       candidateProfile: mockCandidate,
     });
 
-    assert.match(response.content, /strictly prohibited from submitting job applications automatically/);
-    assert.match(response.content, /review your complete application package and confirm your legal declarations/);
+    assert.match(
+      response.content,
+      /strictly prohibited from submitting job applications automatically/
+    );
+    assert.match(
+      response.content,
+      /review your complete application package and confirm your legal declarations/
+    );
     assert.equal(response.proposals.length, 0);
   });
 
@@ -333,7 +342,10 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
     });
 
     assert.equal(response.state, 'AI_FAILURE');
-    assert.match(response.content, /(?:The AI assistant|Career Copilot) is temporarily unavailable/);
+    assert.match(
+      response.content,
+      /(?:The AI assistant|Career Copilot) is temporarily unavailable/
+    );
     assert.match(response.content, /The core portal remains fully functional/);
     assert.ok(response.navigationSuggestions.length > 0);
   });

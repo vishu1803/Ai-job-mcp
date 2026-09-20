@@ -23,10 +23,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p65-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9345;
 const FIXTURE_PORT = 3205;
 
@@ -179,18 +181,23 @@ async function run() {
     } else if (parsed.pathname === '/jobs/view/4211001122') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(LINKEDIN_JOB_A_HTML);
-    } else if (parsed.pathname === '/jobs/search' || parsed.searchParams.get('currentJobId') === '987654321') {
+    } else if (
+      parsed.pathname === '/jobs/search' ||
+      parsed.searchParams.get('currentJobId') === '987654321'
+    ) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(LINKEDIN_JOB_B_HTML);
     } else if (parsed.pathname === '/api/extension/analyze-job') {
       analyzeCallCount++;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        fitScore: 88,
-        matchLevel: 'STRONG',
-        recommendedProjects: [{ id: 'p1', name: 'High Throughput Consensus Engine' }],
-        analysisSnapshotId: 'snap-p65-001',
-      }));
+      res.end(
+        JSON.stringify({
+          fitScore: 88,
+          matchLevel: 'STRONG',
+          recommendedProjects: [{ id: 'p1', name: 'High Throughput Consensus Engine' }],
+          analysisSnapshotId: 'snap-p65-001',
+        })
+      );
     } else {
       res.writeHead(404);
       res.end('Not Found');
@@ -201,8 +208,14 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // Fetch target user & candidate from database
-  const [targetUser] = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
-  const [targetCandidate] = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const [targetUser] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const [targetCandidate] = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
 
   // Create real server session
   const realSession = await createSession(db, {
@@ -212,7 +225,9 @@ async function run() {
     ipAddress: '127.0.0.1',
   });
   console.log(`[DB] Target User: ${targetUser.email} (ID: ${targetUser.id})`);
-  console.log(`[DB] Target Candidate: ${targetCandidate?.fullName || 'Vishwanath Nishad'} (ID: ${targetCandidate?.id})`);
+  console.log(
+    `[DB] Target Candidate: ${targetCandidate?.fullName || 'Vishwanath Nishad'} (ID: ${targetCandidate?.id})`
+  );
   console.log(`[DB] Created Real Server Session: ${realSession.sessionId}`);
 
   // Launch Chrome
@@ -254,7 +269,9 @@ async function run() {
     try {
       const targetsRes = await browserCdp.send('Target.getTargets');
       const swTarget = targetsRes.targetInfos.find(
-        (t) => (t.type === 'service_worker' || t.url?.includes('chrome-extension://')) && t.url?.includes('service-worker.js')
+        (t) =>
+          (t.type === 'service_worker' || t.url?.includes('chrome-extension://')) &&
+          t.url?.includes('service-worker.js')
       );
       if (swTarget) {
         const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
@@ -302,11 +319,15 @@ async function run() {
     console.log('\n--- STEP 1: Authenticate & Verify Canonical User Identity ---');
     const tabA = await openTab(`http://127.0.0.1:${FIXTURE_PORT}/jobs/view/4211001122`);
 
-    sidebarTabA = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${tabA.targetId}`);
+    sidebarTabA = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${tabA.targetId}`
+    );
 
     // Wait for sidebar controller to initialize
     for (let i = 0; i < 30; i++) {
-      const isReady = await sidebarTabA.evaluate(`Boolean(window.__sidebarController)`).catch(() => false);
+      const isReady = await sidebarTabA
+        .evaluate(`Boolean(window.__sidebarController)`)
+        .catch(() => false);
       if (isReady) break;
       await sleep(200);
     }
@@ -326,14 +347,18 @@ async function run() {
       httpOnly: true,
     });
 
-    const debugAuth = await sidebarTabA.evaluate(`window.__sidebarController.backendClient.getAuthStatus()`);
+    const debugAuth = await sidebarTabA.evaluate(
+      `window.__sidebarController.backendClient.getAuthStatus()`
+    );
     console.log(`   [Debug getAuthStatus]:`, JSON.stringify(debugAuth));
 
     await sidebarTabA.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(500);
 
     const isAuth = await sidebarTabA.evaluate(`window.__sidebarController.isAuthenticated`);
-    const displayedEmail = await sidebarTabA.evaluate(`document.getElementById('userEmail').textContent`);
+    const displayedEmail = await sidebarTabA.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
 
     console.log(`   [Check] Authenticated: ${isAuth}`);
     console.log(`   [Check] Displayed Email: "${displayedEmail}"`);
@@ -364,23 +389,32 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: 'http://127.0.0.1:${FIXTURE_PORT}/jobs/view/4211001122',
       provider: 'LINKEDIN',
-      description: 'Apex Scale is seeking a Staff Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
+      description:
+        'Apex Scale is seeking a Staff Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
       portalMetadata: {
         portalName: 'LinkedIn Jobs',
         confidence: 'HIGH',
       },
     };
 
-    await sidebarTabA.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`);
+    await sidebarTabA.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
-    const activeJobTitleA = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
-    const activeJobCompanyA = await sidebarTabA.evaluate(`document.getElementById('jobCompany').textContent`);
+    const activeJobTitleA = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const activeJobCompanyA = await sidebarTabA.evaluate(
+      `document.getElementById('jobCompany').textContent`
+    );
     const analyzeCallsAfterDetection = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Active Job Title: "${activeJobTitleA}"`);
     console.log(`   [Check] Active Job Company: "${activeJobCompanyA}"`);
-    console.log(`   [Check] Server /api/extension/analyze-job calls: ${analyzeCallsAfterDetection}`);
+    console.log(
+      `   [Check] Server /api/extension/analyze-job calls: ${analyzeCallsAfterDetection}`
+    );
 
     if (activeJobTitleA !== 'Staff Backend Architect') {
       throw new Error(`Expected "Staff Backend Architect", got "${activeJobTitleA}"`);
@@ -394,7 +428,9 @@ async function run() {
     // STEP 3: Tab Switch to Tab B (LinkedIn Job B) Reconciles Real Page
     // -------------------------------------------------------------
     console.log('\n--- STEP 3: Tab Switch to Tab B Reconciles Real Page ---');
-    const tabB = await openTab(`http://127.0.0.1:${FIXTURE_PORT}/jobs/search?currentJobId=987654321`);
+    const tabB = await openTab(
+      `http://127.0.0.1:${FIXTURE_PORT}/jobs/search?currentJobId=987654321`
+    );
 
     // Simulate Tab Switch event
     await sidebarTabA.evaluate(`
@@ -428,11 +464,17 @@ async function run() {
       },
     };
 
-    await sidebarTabA.evaluate(`window.__sidebarController._reconcileDetectedJob(${JSON.stringify(jobBData)})`);
+    await sidebarTabA.evaluate(
+      `window.__sidebarController._reconcileDetectedJob(${JSON.stringify(jobBData)})`
+    );
     await sleep(500);
 
-    const activeJobTitleB = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
-    const activeJobCompanyB = await sidebarTabA.evaluate(`document.getElementById('jobCompany').textContent`);
+    const activeJobTitleB = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const activeJobCompanyB = await sidebarTabA.evaluate(
+      `document.getElementById('jobCompany').textContent`
+    );
     const analyzeCallsAfterSwitch = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Tab B Active Job Title: "${activeJobTitleB}"`);
@@ -445,7 +487,9 @@ async function run() {
     if (analyzeCallsAfterSwitch !== 0) {
       throw new Error(`Tab switch must make 0 analyze calls, got ${analyzeCallsAfterSwitch}`);
     }
-    console.log('   >>> INVARIANT VERIFIED: Tab switch reconciled target tab with ZERO server calls <<<');
+    console.log(
+      '   >>> INVARIANT VERIFIED: Tab switch reconciled target tab with ZERO server calls <<<'
+    );
 
     // -------------------------------------------------------------
     // STEP 4: Page Reload on Tab B (TAB_UPDATED) Reconciles Real Page
@@ -467,19 +511,25 @@ async function run() {
     `);
     await sleep(500);
 
-    const reloadedTitleB = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const reloadedTitleB = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     const analyzeCallsAfterReload = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Reloaded Tab B Job Title: "${reloadedTitleB}"`);
     console.log(`   [Check] Server analyze calls after reload: ${analyzeCallsAfterReload}`);
 
     if (reloadedTitleB !== 'Principal Systems Engineer') {
-      throw new Error(`Expected "Principal Systems Engineer" after reload, got "${reloadedTitleB}"`);
+      throw new Error(
+        `Expected "Principal Systems Engineer" after reload, got "${reloadedTitleB}"`
+      );
     }
     if (analyzeCallsAfterReload !== 0) {
       throw new Error(`Page reload must make 0 analyze calls, got ${analyzeCallsAfterReload}`);
     }
-    console.log('   >>> INVARIANT VERIFIED: Page reload reconciled real page with ZERO server calls <<<');
+    console.log(
+      '   >>> INVARIANT VERIFIED: Page reload reconciled real page with ZERO server calls <<<'
+    );
 
     // -------------------------------------------------------------
     // STEP 5: Manual Rescan is Deterministic
@@ -514,7 +564,9 @@ async function run() {
     await sleep(1000);
 
     const analyzeCallsAfterAnalyze = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
-    const matchScore = await sidebarTabA.evaluate(`document.getElementById('overallScore')?.textContent || '88'`);
+    const matchScore = await sidebarTabA.evaluate(
+      `document.getElementById('overallScore')?.textContent || '88'`
+    );
 
     console.log(`   [Check] Overall Match Score Rendered: "${matchScore}"`);
     console.log(`   [Check] Server analyze calls after double-click: ${analyzeCallsAfterAnalyze}`);
@@ -537,16 +589,24 @@ async function run() {
     `);
     await sleep(500);
 
-    await sidebarTabA.evaluate(`window.__sidebarController._reconcileDetectedJob(${JSON.stringify(jobAData)})`);
+    await sidebarTabA.evaluate(
+      `window.__sidebarController._reconcileDetectedJob(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
-    const restoredTitleA = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const restoredTitleA = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Check] Restored Tab A Job Title: "${restoredTitleA}"`);
 
     if (restoredTitleA !== 'Staff Backend Architect') {
-      throw new Error(`Expected Tab A to restore "Staff Backend Architect", got "${restoredTitleA}"`);
+      throw new Error(
+        `Expected Tab A to restore "Staff Backend Architect", got "${restoredTitleA}"`
+      );
     }
-    console.log('   >>> INVARIANT VERIFIED: Tab switch back restored Tab A without contamination <<<');
+    console.log(
+      '   >>> INVARIANT VERIFIED: Tab switch back restored Tab A without contamination <<<'
+    );
 
     // -------------------------------------------------------------
     // STEP 8: Rescan on Non-Job Page (ChatGPT) Clears Job State
@@ -563,7 +623,9 @@ async function run() {
     `);
     await sleep(500);
 
-    const emptyTitle = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const emptyTitle = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     const analyzeCallsFinal = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Non-job page active job title: "${emptyTitle}"`);

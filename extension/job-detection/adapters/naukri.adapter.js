@@ -60,9 +60,8 @@ export class NaukriAdapter {
    * @returns {object|null}
    */
   static extractInitialState(doc) {
-    const scripts = typeof doc.querySelectorAll === 'function'
-      ? doc.querySelectorAll('script')
-      : [];
+    const scripts =
+      typeof doc.querySelectorAll === 'function' ? doc.querySelectorAll('script') : [];
     for (const script of scripts) {
       const text = typeof script.textContent === 'string' ? script.textContent : '';
       if (!text.includes('window.INITIAL_STATE')) continue;
@@ -145,10 +144,8 @@ export class NaukriAdapter {
       const job = NaukriAdapter.findJobDetail(hydration);
       if (job) {
         const title = job.title || job.jobTitle || job.jobTitleFromJD || '';
-        const company =
-          job.companyName || job.company?.name || job.company || '';
-        const descriptionRaw =
-          job.jobDescription || job.description || job.jdBody || '';
+        const company = job.companyName || job.company?.name || job.company || '';
+        const descriptionRaw = job.jobDescription || job.description || job.jdBody || '';
         const description = NaukriAdapter.stripHtml(
           typeof descriptionRaw === 'string' ? descriptionRaw : JSON.stringify(descriptionRaw)
         );
@@ -175,9 +172,11 @@ export class NaukriAdapter {
         }
 
         let workplace = 'UNKNOWN';
-        if (combined.includes('remote') || combined.includes('work from home')) workplace = 'REMOTE';
+        if (combined.includes('remote') || combined.includes('work from home'))
+          workplace = 'REMOTE';
         else if (combined.includes('hybrid')) workplace = 'HYBRID';
-        else if (location && !location.toLowerCase().includes('not specified')) workplace = 'ON_SITE';
+        else if (location && !location.toLowerCase().includes('not specified'))
+          workplace = 'ON_SITE';
 
         return {
           sourceUrl: url,
@@ -197,8 +196,7 @@ export class NaukriAdapter {
     }
 
     // 3. OpenGraph / DOM fallback (server-rendered meta is present on detail pages)
-    const metaContent = (selector) =>
-      doc.querySelector(selector)?.content?.trim() || '';
+    const metaContent = (selector) => doc.querySelector(selector)?.content?.trim() || '';
 
     const title =
       metaContent('meta[property="og:title"]') ||
@@ -211,7 +209,10 @@ export class NaukriAdapter {
     let ogCompany = '';
     let ogLocation = '';
     if (title.includes(' - ')) {
-      const parts = title.split(' - ').map((p) => p.trim()).filter(Boolean);
+      const parts = title
+        .split(' - ')
+        .map((p) => p.trim())
+        .filter(Boolean);
       if (parts.length >= 2) {
         cleanTitle = parts[0];
         ogCompany = parts[1];

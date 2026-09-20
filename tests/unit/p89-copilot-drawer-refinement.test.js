@@ -28,8 +28,14 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
       const html = renderCopilotDrawer({ pageContext: 'dashboard' });
       assert.match(html, /width:\s*400px;/);
       assert.match(html, /max-width:\s*90vw;/);
-      assert.match(html, /@media\s*\(max-width:\s*900px\)\s*\{\s*\.copilot-drawer\s*\{\s*width:\s*360px;/);
-      assert.match(html, /@media\s*\(max-width:\s*600px\)\s*\{\s*\.copilot-drawer\s*\{\s*top:\s*auto;/);
+      assert.match(
+        html,
+        /@media\s*\(max-width:\s*900px\)\s*\{\s*\.copilot-drawer\s*\{\s*width:\s*360px;/
+      );
+      assert.match(
+        html,
+        /@media\s*\(max-width:\s*600px\)\s*\{\s*\.copilot-drawer\s*\{\s*top:\s*auto;/
+      );
     });
 
     it('completely removes backdrop blur and uses subtle 25% dimming', () => {
@@ -75,7 +81,11 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
 
       // Verify 4 contextual actions rendered in container
       const chipMatches = html.match(/class="copilot-chip"/g) || [];
-      assert.strictEqual(chipMatches.length, 4, 'Initial state must render 4 contextual actions for dashboard');
+      assert.strictEqual(
+        chipMatches.length,
+        4,
+        'Initial state must render 4 contextual actions for dashboard'
+      );
     });
 
     it('hides intro section when messages already exist in thread', () => {
@@ -93,7 +103,10 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
   describe('4. Professional Bottom Composer & Keyboard Usability', () => {
     it('renders textarea with Enter to submit and Shift+Enter for newline', () => {
       const html = renderCopilotDrawer({ pageContext: 'dashboard' });
-      assert.match(html, /<textarea[^>]*id="copilot-input"[^>]*placeholder="Ask Career Copilot\.\.\."/);
+      assert.match(
+        html,
+        /<textarea[^>]*id="copilot-input"[^>]*placeholder="Ask Career Copilot\.\.\."/
+      );
       assert.match(html, /Enter to send &bull; Shift\+Enter for newline/);
       assert.match(html, /Grounded in verified profile/);
       assert.match(html, /id="copilot-submit-btn"/);
@@ -138,7 +151,9 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
           { displayName: 'carrer-agent' },
         ],
         candidateSkills: [{ name: 'Node.js' }, { name: 'PostgreSQL' }],
-        applications: [{ jobTitle: 'Senior Backend Engineer', companyName: 'Stripe', status: 'DRAFT' }],
+        applications: [
+          { jobTitle: 'Senior Backend Engineer', companyName: 'Stripe', status: 'DRAFT' },
+        ],
         resumes: [{ fileName: 'base-resume.pdf', status: 'PARSED' }],
       });
 
@@ -181,7 +196,10 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
         candidateId: 'c-1',
       });
 
-      assert.match(res.content, /AI is strictly prohibited from submitting job applications automatically/);
+      assert.match(
+        res.content,
+        /AI is strictly prohibited from submitting job applications automatically/
+      );
       assert.strictEqual(res.proposals.length, 0);
     });
   });

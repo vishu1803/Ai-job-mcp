@@ -34,13 +34,13 @@ import { countDistinctCanonicalFacts } from './candidate-artifact-content.servic
  */
 export const ATS_DOCUMENT_CONSTRAINTS = Object.freeze({
   // Page geometry (letter paper)
-  pageWidthPt: 614,         // 8.5in at 72dpi
-  pageHeightPt: 794,        // 11in at 72dpi
-  marginPt: 39.6,            // 0.55in margins (P16-006: matching geometry package)
+  pageWidthPt: 614, // 8.5in at 72dpi
+  pageHeightPt: 794, // 11in at 72dpi
+  marginPt: 39.6, // 0.55in margins (P16-006: matching geometry package)
 
   // Typography
   baseFontSizePt: 10,
-  minFontSizePt: 9,         // Never go below for readability
+  minFontSizePt: 9, // Never go below for readability
   maxFontSizePt: 12,
   lineHeightMultiplier: 1.2, // Standard TeX baselineskip ratio
 
@@ -53,8 +53,12 @@ export const ATS_DOCUMENT_CONSTRAINTS = Object.freeze({
   conventionalHeadings: true,
 
   // Derived
-  get usableWidthPt() { return this.pageWidthPt - (2 * this.marginPt); },
-  get usableHeightPt() { return this.pageHeightPt - (2 * this.marginPt); },
+  get usableWidthPt() {
+    return this.pageWidthPt - 2 * this.marginPt;
+  },
+  get usableHeightPt() {
+    return this.pageHeightPt - 2 * this.marginPt;
+  },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,15 +70,15 @@ export const ATS_DOCUMENT_CONSTRAINTS = Object.freeze({
  * The layout engine adjusts these adaptively but always preserves their hierarchy.
  */
 export const SPACING_RELATIONSHIPS = Object.freeze({
-  HEADER_TO_SECTION: 'HEADER_TO_SECTION',             // Document header → first section
-  SECTION_TO_SECTION: 'SECTION_TO_SECTION',           // Between major sections (Summary → Skills → Projects...)
-  HEADING_TO_CONTENT: 'HEADING_TO_CONTENT',           // Section heading rule → first content line
-  ENTRY_TO_ENTRY: 'ENTRY_TO_ENTRY',                   // Between entries within a section (Project 1 → Project 2)
-  PROJECT_TITLE_TO_TECH: 'PROJECT_TITLE_TO_TECH',     // Project title line → technologies line
+  HEADER_TO_SECTION: 'HEADER_TO_SECTION', // Document header → first section
+  SECTION_TO_SECTION: 'SECTION_TO_SECTION', // Between major sections (Summary → Skills → Projects...)
+  HEADING_TO_CONTENT: 'HEADING_TO_CONTENT', // Section heading rule → first content line
+  ENTRY_TO_ENTRY: 'ENTRY_TO_ENTRY', // Between entries within a section (Project 1 → Project 2)
+  PROJECT_TITLE_TO_TECH: 'PROJECT_TITLE_TO_TECH', // Project title line → technologies line
   PROJECT_TECH_TO_BULLETS: 'PROJECT_TECH_TO_BULLETS', // Technologies line → bullet list
-  ROLE_TO_METADATA: 'ROLE_TO_METADATA',               // Role/degree → location/institution
-  METADATA_TO_BULLETS: 'METADATA_TO_BULLETS',         // Location/subtitle → bullet list
-  BULLET_TO_BULLET: 'BULLET_TO_BULLET',               // Between consecutive bullets
+  ROLE_TO_METADATA: 'ROLE_TO_METADATA', // Role/degree → location/institution
+  METADATA_TO_BULLETS: 'METADATA_TO_BULLETS', // Location/subtitle → bullet list
+  BULLET_TO_BULLET: 'BULLET_TO_BULLET', // Between consecutive bullets
   // Backward-compatibility aliases:
   SECTION_TO_CONTENT: 'SECTION_TO_CONTENT',
   TITLE_TO_TECHNOLOGY: 'TITLE_TO_TECHNOLOGY',
@@ -112,10 +116,10 @@ export const BASE_SPACING_TOKENS = Object.freeze({
  * These are internal layout classifications, NOT ATS or employer-facing scores.
  */
 export const DENSITY_CLASSIFICATION = Object.freeze({
-  TOO_SPARSE: 'TOO_SPARSE',   // Content utilization < 65% for 1-page target
-  BALANCED: 'BALANCED',       // Content utilization 65-92%
-  DENSE: 'DENSE',             // Content utilization 92-100% (fits, but tight)
-  OVERFULL: 'OVERFULL',       // Content exceeds available page budget
+  TOO_SPARSE: 'TOO_SPARSE', // Content utilization < 65% for 1-page target
+  BALANCED: 'BALANCED', // Content utilization 65-92%
+  DENSE: 'DENSE', // Content utilization 92-100% (fits, but tight)
+  OVERFULL: 'OVERFULL', // Content exceeds available page budget
 });
 
 /**
@@ -175,7 +179,9 @@ export class ResumeLayoutEngine {
 
     // -- Header --
     const linkCount = structuredResume
-      ? (Array.isArray(structuredResume.candidateIdentity?.links) ? structuredResume.candidateIdentity.links.length : 0)
+      ? Array.isArray(structuredResume.candidateIdentity?.links)
+        ? structuredResume.candidateIdentity.links.length
+        : 0
       : this._countProfileLinks(actualPkg, profile);
     const hasHeadline = structuredResume
       ? Boolean(structuredResume.candidateIdentity?.headline)
@@ -184,13 +190,12 @@ export class ResumeLayoutEngine {
 
     // -- Summary --
     const summaryText = structuredResume
-      ? (structuredResume.summary?.text || '')
+      ? structuredResume.summary?.text || ''
       : this._extractSummaryText(actualPkg, profile);
     const summaryCharCount = summaryText ? summaryText.length : 0;
     const summaryWordCount = summaryText ? summaryText.split(/\s+/).length : 0;
-    const summaryLines = summaryWordCount > 0
-      ? Math.max(1, Math.ceil(summaryCharCount / 85)) + 1
-      : 0;
+    const summaryLines =
+      summaryWordCount > 0 ? Math.max(1, Math.ceil(summaryCharCount / 85)) + 1 : 0;
 
     // ── Skills ──
     let skillCategoryCount = 0;
@@ -203,7 +208,7 @@ export class ResumeLayoutEngine {
         const catName = cat.categoryName || cat.name || cat.category || '';
         const items = Array.isArray(cat.skills) ? cat.skills : [];
         const names = items
-          .map(s => (typeof s === 'string' ? s : s.displayName || s.name || s.slug))
+          .map((s) => (typeof s === 'string' ? s : s.displayName || s.name || s.slug))
           .filter(Boolean);
         if (names.length > 0) {
           const lineStr = `${catName}: ${names.join(', ')}`;
@@ -213,7 +218,7 @@ export class ResumeLayoutEngine {
     } else {
       const categorizedSkills = resume.categorizedSkills || actualPkg.categorizedSkills || {};
       skillCategoryCount = Object.keys(categorizedSkills).filter(
-        k => Array.isArray(categorizedSkills[k]) && categorizedSkills[k].length > 0
+        (k) => Array.isArray(categorizedSkills[k]) && categorizedSkills[k].length > 0
       ).length;
       totalSkillLines = skillCategoryCount;
       for (const [catName, list] of Object.entries(categorizedSkills)) {
@@ -227,18 +232,28 @@ export class ResumeLayoutEngine {
 
     // ── Projects ──
     const selectedProjects = structuredResume
-      ? (Array.isArray(structuredResume.projects) ? structuredResume.projects : [])
-      : (resume.selectedProjects || actualPkg.selectedProjects || []);
-    const projectComponents = selectedProjects.map(p => {
-      const rawBullets = Array.isArray(p.bullets) ? p.bullets : (Array.isArray(p.highlights) ? p.highlights : []);
-      const bulletStrings = rawBullets.map(b => typeof b === 'string' ? b : (b?.text || '')).filter(Boolean);
-      const bulletLengths = bulletStrings.map(b => b.length);
+      ? Array.isArray(structuredResume.projects)
+        ? structuredResume.projects
+        : []
+      : resume.selectedProjects || actualPkg.selectedProjects || [];
+    const projectComponents = selectedProjects.map((p) => {
+      const rawBullets = Array.isArray(p.bullets)
+        ? p.bullets
+        : Array.isArray(p.highlights)
+          ? p.highlights
+          : [];
+      const bulletStrings = rawBullets
+        .map((b) => (typeof b === 'string' ? b : b?.text || ''))
+        .filter(Boolean);
+      const bulletLengths = bulletStrings.map((b) => b.length);
       const bulletCount = Math.min(bulletStrings.length, 3);
       const rawTechs = Array.isArray(p.technologies) ? p.technologies : [];
       const techString = rawTechs.join(', ');
       const techCount = rawTechs.length;
       const techLines = techString.length > 0 ? Math.max(1, Math.ceil(techString.length / 85)) : 0;
-      const bulletLines = bulletLengths.slice(0, 3).reduce((sum, len) => sum + Math.max(1, Math.ceil(len / 85)), 0) || (bulletCount * 1.5);
+      const bulletLines =
+        bulletLengths.slice(0, 3).reduce((sum, len) => sum + Math.max(1, Math.ceil(len / 85)), 0) ||
+        bulletCount * 1.5;
       const estimatedLines = 1 + techLines + bulletLines;
       return {
         type: COMPONENT_TYPE.PROJECT,
@@ -257,31 +272,45 @@ export class ResumeLayoutEngine {
     if (structuredResume) {
       hasDSA = Boolean(structuredResume.dsa?.hasSection);
     } else if (Array.isArray(selectedSections) && selectedSections.length > 0) {
-      hasDSA = selectedSections.some(s =>
-        ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(String(s).toUpperCase())
+      hasDSA = selectedSections.some((s) =>
+        ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(
+          String(s).toUpperCase()
+        )
       );
     } else if (resume.markdownContent) {
       hasDSA = /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(resume.markdownContent);
     }
-    const dsaComponent = hasDSA ? {
-      type: COMPONENT_TYPE.OPTIONAL_DSA,
-      estimatedLines: 5,
-      bulletCount: 2,
-      hasContent: true,
-    } : null;
+    const dsaComponent = hasDSA
+      ? {
+          type: COMPONENT_TYPE.OPTIONAL_DSA,
+          estimatedLines: 5,
+          bulletCount: 2,
+          hasContent: true,
+        }
+      : null;
 
     // ── Experience ──
     const experienceRecords = structuredResume
-      ? (Array.isArray(structuredResume.experience) ? structuredResume.experience : [])
+      ? Array.isArray(structuredResume.experience)
+        ? structuredResume.experience
+        : []
       : this._resolveExperience(profile);
-    const experienceComponents = experienceRecords.map(exp => {
+    const experienceComponents = experienceRecords.map((exp) => {
       const rawBullets = Array.isArray(exp.bullets || exp.highlights)
-        ? (Array.isArray(exp.bullets) ? exp.bullets : exp.highlights)
-        : (typeof (exp.description || exp.bullets) === 'string' ? exp.description.split('\n') : []);
-      const bulletStrings = rawBullets.map(b => typeof b === 'string' ? b : (b?.text || '')).filter(Boolean);
-      const bulletLengths = bulletStrings.map(b => b.length);
+        ? Array.isArray(exp.bullets)
+          ? exp.bullets
+          : exp.highlights
+        : typeof (exp.description || exp.bullets) === 'string'
+          ? exp.description.split('\n')
+          : [];
+      const bulletStrings = rawBullets
+        .map((b) => (typeof b === 'string' ? b : b?.text || ''))
+        .filter(Boolean);
+      const bulletLengths = bulletStrings.map((b) => b.length);
       const bulletCount = Math.max(bulletStrings.length, 1);
-      const bulletLines = bulletLengths.reduce((sum, len) => sum + Math.max(1, Math.ceil(len / 85)), 0) || (bulletCount * 1.5);
+      const bulletLines =
+        bulletLengths.reduce((sum, len) => sum + Math.max(1, Math.ceil(len / 85)), 0) ||
+        bulletCount * 1.5;
       const estimatedLines = 2 + bulletLines;
       return {
         type: COMPONENT_TYPE.EXPERIENCE_ENTRY,
@@ -294,9 +323,11 @@ export class ResumeLayoutEngine {
 
     // ── Education ──
     const educationRecords = structuredResume
-      ? (Array.isArray(structuredResume.education) ? structuredResume.education : [])
+      ? Array.isArray(structuredResume.education)
+        ? structuredResume.education
+        : []
       : this._resolveEducation(profile);
-    const educationComponents = educationRecords.map(edu => {
+    const educationComponents = educationRecords.map((edu) => {
       const hasCoursework = Array.isArray(edu.coursework) && edu.coursework.length > 0;
       const estimatedLines = 2 + (hasCoursework ? 1 : 0);
       return {
@@ -309,15 +340,19 @@ export class ResumeLayoutEngine {
 
     // ── Certifications ──
     const certRecords = structuredResume
-      ? (Array.isArray(structuredResume.certifications) ? structuredResume.certifications : [])
+      ? Array.isArray(structuredResume.certifications)
+        ? structuredResume.certifications
+        : []
       : this._resolveCertifications(profile, resume);
-    const hasCertifications = certRecords.length > 0 && (
-      structuredResume
+    const hasCertifications =
+      certRecords.length > 0 &&
+      (structuredResume
         ? true
-        : (Array.isArray(selectedSections) && selectedSections.length > 0)
-          ? selectedSections.some(s => ['CERTIFICATIONS', 'CERTIFICATION'].includes(String(s).toUpperCase()))
-          : /## (?:Certifications|Certificates)/i.test(resume.markdownContent || '')
-    );
+        : Array.isArray(selectedSections) && selectedSections.length > 0
+          ? selectedSections.some((s) =>
+              ['CERTIFICATIONS', 'CERTIFICATION'].includes(String(s).toUpperCase())
+            )
+          : /## (?:Certifications|Certificates)/i.test(resume.markdownContent || ''));
 
     // ── Assemble Model ──
     const model = {
@@ -346,36 +381,41 @@ export class ResumeLayoutEngine {
         type: COMPONENT_TYPE.PROJECTS,
         components: projectComponents,
         count: projectComponents.length,
-        estimatedLines: projectComponents.length > 0
-          ? 1 + projectComponents.reduce((sum, p) => sum + p.estimatedLines, 0)
-          : 0,
+        estimatedLines:
+          projectComponents.length > 0
+            ? 1 + projectComponents.reduce((sum, p) => sum + p.estimatedLines, 0)
+            : 0,
         hasContent: projectComponents.length > 0,
       },
       optionalSections: {
         dsa: dsaComponent,
-        certifications: hasCertifications ? {
-          type: COMPONENT_TYPE.OPTIONAL_CERTIFICATIONS,
-          estimatedLines: 1 + certRecords.length,
-          count: certRecords.length,
-          hasContent: true,
-        } : null,
+        certifications: hasCertifications
+          ? {
+              type: COMPONENT_TYPE.OPTIONAL_CERTIFICATIONS,
+              estimatedLines: 1 + certRecords.length,
+              count: certRecords.length,
+              hasContent: true,
+            }
+          : null,
       },
       experience: {
         type: COMPONENT_TYPE.EXPERIENCE,
         components: experienceComponents,
         count: experienceComponents.length,
-        estimatedLines: experienceComponents.length > 0
-          ? 1 + experienceComponents.reduce((sum, e) => sum + e.estimatedLines, 0)
-          : 0,
+        estimatedLines:
+          experienceComponents.length > 0
+            ? 1 + experienceComponents.reduce((sum, e) => sum + e.estimatedLines, 0)
+            : 0,
         hasContent: experienceComponents.length > 0,
       },
       education: {
         type: COMPONENT_TYPE.EDUCATION,
         components: educationComponents,
         count: educationComponents.length,
-        estimatedLines: educationComponents.length > 0
-          ? 1 + educationComponents.reduce((sum, e) => sum + e.estimatedLines, 0)
-          : 0,
+        estimatedLines:
+          educationComponents.length > 0
+            ? 1 + educationComponents.reduce((sum, e) => sum + e.estimatedLines, 0)
+            : 0,
         hasContent: educationComponents.length > 0,
       },
     };
@@ -457,7 +497,7 @@ export class ResumeLayoutEngine {
 
     // 1. Header Block Height
     // Name (24pt font + baseline ~6pt) + headline (~13pt) + contact details (~13pt each) + header-body gap (~6pt)
-    const headerHeightPt = 24 + (headerLines * 13) + 6;
+    const headerHeightPt = 24 + headerLines * 13 + 6;
 
     // 2. Section Headings Overhead
     // Each section heading: \atsSectionGap (~10pt) + Heading text (~14pt) + \hrule (1.5pt) + \atsHeadingGap (~3.5pt) = ~29pt
@@ -467,7 +507,7 @@ export class ResumeLayoutEngine {
     // 3. Summary Content Height
     let summaryHeightPt = 0;
     if (model.summary?.hasContent) {
-      const summaryChars = model.summary.charCount || (model.summary.wordCount * 6) || 200;
+      const summaryChars = model.summary.charCount || model.summary.wordCount * 6 || 200;
       const lines = Math.max(1, Math.ceil(summaryChars / 85));
       summaryHeightPt = lines * lineHeightPt;
     }
@@ -484,16 +524,17 @@ export class ResumeLayoutEngine {
     if (model.projects?.hasContent && Array.isArray(model.projects.components)) {
       for (const p of model.projects.components) {
         let pH = 14; // Title & action links line
-        const techChars = p.techStringLength || (p.techCount * 12);
+        const techChars = p.techStringLength || p.techCount * 12;
         const techLines = techChars > 0 ? Math.max(1, Math.ceil(techChars / 85)) : 0;
-        pH += (techLines * 12) + 2; // Technology line(s) + head gap
+        pH += techLines * 12 + 2; // Technology line(s) + head gap
         pH += 6; // itemize baseline glue overhead
-        const bullets = (p.bulletLengths && p.bulletLengths.length > 0)
-          ? p.bulletLengths
-          : Array(p.bulletCount || 2).fill(120);
+        const bullets =
+          p.bulletLengths && p.bulletLengths.length > 0
+            ? p.bulletLengths
+            : Array(p.bulletCount || 2).fill(120);
         for (const bLen of bullets) {
           const bLines = Math.max(1, Math.ceil(bLen / 85));
-          pH += (bLines * lineHeightPt) + 1; // line height + bulletSep
+          pH += bLines * lineHeightPt + 1; // line height + bulletSep
         }
         pH += 4.5; // entry gap
         projectsHeightPt += pH;
@@ -512,12 +553,13 @@ export class ResumeLayoutEngine {
     if (model.experience?.hasContent && Array.isArray(model.experience.components)) {
       for (const exp of model.experience.components) {
         let expH = 14 + 12 + 6; // Title & dates + location + itemize glue
-        const bullets = (exp.bulletLengths && exp.bulletLengths.length > 0)
-          ? exp.bulletLengths
-          : Array(exp.bulletCount || 2).fill(120);
+        const bullets =
+          exp.bulletLengths && exp.bulletLengths.length > 0
+            ? exp.bulletLengths
+            : Array(exp.bulletCount || 2).fill(120);
         for (const bLen of bullets) {
           const bLines = Math.max(1, Math.ceil(bLen / 85));
-          expH += (bLines * lineHeightPt) + 1;
+          expH += bLines * lineHeightPt + 1;
         }
         expH += 4.5; // entry gap
         experienceHeightPt += expH;
@@ -537,7 +579,7 @@ export class ResumeLayoutEngine {
     let certsHeightPt = 0;
     if (model.optionalSections?.certifications?.hasContent) {
       const count = model.optionalSections.certifications.count || 1;
-      certsHeightPt = (count * 13) + 4;
+      certsHeightPt = count * 13 + 4;
     }
 
     // 10. Conservative TeX Safety Margin
@@ -586,8 +628,7 @@ export class ResumeLayoutEngine {
 
     // Senior candidate indicators: multiple jobs, substantial content
     const isSeniorContent =
-      experienceCount >= 3 ||
-      (experienceCount >= 2 && projectCount >= 3 && educationCount >= 2);
+      experienceCount >= 3 || (experienceCount >= 2 && projectCount >= 3 && educationCount >= 2);
 
     // Content would significantly overflow one page
     const wouldOverflow = budget.utilizationRatio > 1.3;
@@ -631,7 +672,8 @@ export class ResumeLayoutEngine {
    * @returns {object} LayoutProfile with adapted spacing values
    */
   calculateAdaptiveSpacing(model, budget, pageStrategy, overrides = {}) {
-    const density = overrides.density || this.classifyDensity(budget.utilizationRatio, pageStrategy);
+    const density =
+      overrides.density || this.classifyDensity(budget.utilizationRatio, pageStrategy);
     const base = { ...BASE_SPACING_TOKENS };
     const adapted = { ...base };
     let scaleFactor = 1.0;
@@ -649,8 +691,14 @@ export class ResumeLayoutEngine {
           adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] += Math.min(extraPerSection * 0.6, 3.0);
           adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] += Math.min(extraPerSection * 0.4, 2.0);
           adapted[SPACING_RELATIONSHIPS.HEADER_TO_SECTION] += Math.min(extraPerSection * 0.6, 3.0);
-          adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] += Math.min(extraPerSection * 0.15, 0.8);
-          adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] += Math.min(extraPerSection * 0.25, 1.2);
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] += Math.min(
+            extraPerSection * 0.15,
+            0.8
+          );
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] += Math.min(
+            extraPerSection * 0.25,
+            1.2
+          );
           adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] += Math.min(extraPerSection * 0.18, 1.0);
         }
         break;
@@ -662,10 +710,22 @@ export class ResumeLayoutEngine {
 
       case DENSITY_CLASSIFICATION.DENSE: {
         scaleFactor = 0.85;
-        adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] = Math.max(6.5, base[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] = Math.max(3.5, base[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] = Math.max(2.5, base[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] = Math.max(0.8, base[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] * scaleFactor);
+        adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] = Math.max(
+          6.5,
+          base[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] = Math.max(
+          3.5,
+          base[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] = Math.max(
+          2.5,
+          base[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] = Math.max(
+          0.8,
+          base[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] * scaleFactor
+        );
         adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] = 1.2;
         adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] = 2.0;
         adapted[SPACING_RELATIONSHIPS.ROLE_TO_METADATA] = 1.2;
@@ -676,10 +736,22 @@ export class ResumeLayoutEngine {
 
       case DENSITY_CLASSIFICATION.OVERFULL: {
         scaleFactor = 0.68;
-        adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] = Math.max(5.0, base[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] = Math.max(2.5, base[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] = Math.max(1.8, base[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] * scaleFactor);
-        adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] = Math.max(0.5, base[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] * 0.5);
+        adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] = Math.max(
+          5.0,
+          base[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] = Math.max(
+          2.5,
+          base[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] = Math.max(
+          1.8,
+          base[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] * scaleFactor
+        );
+        adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] = Math.max(
+          0.5,
+          base[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] * 0.5
+        );
         adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] = 1.0;
         adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] = 1.5;
         adapted[SPACING_RELATIONSHIPS.ROLE_TO_METADATA] = 1.0;
@@ -692,9 +764,8 @@ export class ResumeLayoutEngine {
     // INVARIANT: Enforce spacing hierarchy regardless of adaptation
     this._enforceSpacingHierarchy(adapted);
 
-    const maxBulletsPerProject = overrides.maxBulletsPerProject !== undefined
-      ? overrides.maxBulletsPerProject
-      : 3;
+    const maxBulletsPerProject =
+      overrides.maxBulletsPerProject !== undefined ? overrides.maxBulletsPerProject : 3;
 
     return {
       spacing: adapted,
@@ -735,7 +806,14 @@ export class ResumeLayoutEngine {
    * @param {number} [params.iteration=1] Current calibration iteration (max 2-3)
    * @returns {object} Calibrated LayoutProfile
    */
-  calibrateLayoutFromMeasurement({ model, budget, currentLayout, actualPageCount, targetPageCount = 1, iteration = 1 }) {
+  calibrateLayoutFromMeasurement({
+    model,
+    budget,
+    currentLayout,
+    actualPageCount,
+    targetPageCount = 1,
+    iteration = 1,
+  }) {
     if (actualPageCount <= targetPageCount || iteration >= 3) {
       return currentLayout.layoutProfile;
     }
@@ -767,7 +845,8 @@ export class ResumeLayoutEngine {
     const model = this.buildSemanticModel({ applicationPackage, candidateProfile });
     const budget = this.calculatePageBudget(model);
     const pageStrategy = this.determinePageStrategy(model, budget);
-    const density = overrides.density || this.classifyDensity(budget.utilizationRatio, pageStrategy);
+    const density =
+      overrides.density || this.classifyDensity(budget.utilizationRatio, pageStrategy);
     const layoutProfile = this.calculateAdaptiveSpacing(model, budget, pageStrategy, overrides);
 
     return {
@@ -821,15 +900,22 @@ export class ResumeLayoutEngine {
    */
   _countProfileLinks(pkg, profile) {
     let count = 0;
-    const links = Array.isArray(profile?.portfolioLinks) && profile.portfolioLinks.length > 0
-      ? profile.portfolioLinks
-      : (Array.isArray(pkg?.portfolioLinks) ? pkg.portfolioLinks : []);
+    const links =
+      Array.isArray(profile?.portfolioLinks) && profile.portfolioLinks.length > 0
+        ? profile.portfolioLinks
+        : Array.isArray(pkg?.portfolioLinks)
+          ? pkg.portfolioLinks
+          : [];
 
-    if (links.some(l => /linkedin/i.test(l.label || l.platform || l.url || ''))) count++;
-    if (profile?.githubUsername || profile?.candidate?.githubUsername ||
-        links.some(l => /github/i.test(l.label || l.platform || l.url || ''))) count++;
-    if (links.some(l => /portfolio/i.test(l.label || l.platform || l.url || ''))) count++;
-    if (links.some(l => /leetcode/i.test(l.label || l.platform || l.url || ''))) count++;
+    if (links.some((l) => /linkedin/i.test(l.label || l.platform || l.url || ''))) count++;
+    if (
+      profile?.githubUsername ||
+      profile?.candidate?.githubUsername ||
+      links.some((l) => /github/i.test(l.label || l.platform || l.url || ''))
+    )
+      count++;
+    if (links.some((l) => /portfolio/i.test(l.label || l.platform || l.url || ''))) count++;
+    if (links.some((l) => /leetcode/i.test(l.label || l.platform || l.url || ''))) count++;
     return count;
   }
 
@@ -842,11 +928,13 @@ export class ResumeLayoutEngine {
       /## Professional Summary\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
     );
     if (mdMatch?.[1]?.trim()) return mdMatch[1].trim();
-    return profile?.summary ||
+    return (
+      profile?.summary ||
       profile?.candidate?.summary ||
       profile?.candidate?.profileMetadata?.userCustom?.summary ||
       profile?.profileMetadata?.userCustom?.summary ||
-      '';
+      ''
+    );
   }
 
   /**
@@ -854,11 +942,13 @@ export class ResumeLayoutEngine {
    * @private
    */
   _resolveExperience(profile) {
-    return profile?.experience ||
+    return (
+      profile?.experience ||
       profile?.profileMetadata?.experience ||
       profile?.candidate?.profileMetadata?.userCustom?.experience ||
       profile?.candidate?.profileMetadata?.experience ||
-      [];
+      []
+    );
   }
 
   /**
@@ -866,11 +956,13 @@ export class ResumeLayoutEngine {
    * @private
    */
   _resolveEducation(profile) {
-    return profile?.education ||
+    return (
+      profile?.education ||
       profile?.profileMetadata?.education ||
       profile?.candidate?.profileMetadata?.userCustom?.education ||
       profile?.candidate?.profileMetadata?.education ||
-      [];
+      []
+    );
   }
 
   /**
@@ -878,7 +970,8 @@ export class ResumeLayoutEngine {
    * @private
    */
   _resolveCertifications(profile, resume) {
-    const certs = profile?.certifications ||
+    const certs =
+      profile?.certifications ||
       profile?.profileMetadata?.userCustom?.certifications ||
       profile?.candidate?.profileMetadata?.userCustom?.certifications ||
       [];
@@ -889,8 +982,9 @@ export class ResumeLayoutEngine {
       /## Certifications\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
     );
     if (mdMatch) {
-      return mdMatch[1].split('\n')
-        .map(l => l.trim().replace(/^[-*]\s*/, ''))
+      return mdMatch[1]
+        .split('\n')
+        .map((l) => l.trim().replace(/^[-*]\s*/, ''))
         .filter(Boolean);
     }
     return [];
@@ -970,11 +1064,15 @@ export function generateReferenceQualityContentReport({
   const factUtilizationRatio = targetFactCount > 0 ? factsRendered / targetFactCount : 1.0;
 
   if (targetFactCount > 0 && factsRendered < Math.min(targetFactCount, 2 * projects.length)) {
-    findings.push(`Available candidate project facts were underutilized: rendered ${factsRendered} of ${targetFactCount} available`);
+    findings.push(
+      `Available candidate project facts were underutilized: rendered ${factsRendered} of ${targetFactCount} available`
+    );
   }
 
   if (summarySentenceCount > 0 && summarySentenceCount < 2) {
-    findings.push(`Summary sentence count (${summarySentenceCount}) is below standard 2-3 sentences`);
+    findings.push(
+      `Summary sentence count (${summarySentenceCount}) is below standard 2-3 sentences`
+    );
   }
 
   if (skillsCategoryCount < 3) {

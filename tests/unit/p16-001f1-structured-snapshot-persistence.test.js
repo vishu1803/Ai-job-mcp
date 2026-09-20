@@ -29,12 +29,8 @@ import {
   JobApplicationWorkflowService,
   computeApplicationPackageHash,
 } from '../../src/services/job-application-workflow.service.js';
-import {
-  buildStructuredResumeSnapshot,
-} from '../../src/services/structured-resume.service.js';
-import {
-  ApplicationPackageSchema,
-} from '../../src/domain/job/job-workflow.schemas.js';
+import { buildStructuredResumeSnapshot } from '../../src/services/structured-resume.service.js';
+import { ApplicationPackageSchema } from '../../src/domain/job/job-workflow.schemas.js';
 import { ValidationError } from '../../src/errors/index.js';
 
 /**
@@ -68,11 +64,45 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     headline: 'Senior Backend Engineer',
     careerStatus: 'EXPERIENCED',
     skills: [
-      { name: 'Node.js', slug: 'node-js', category: 'Backend & APIs', provenanceStatus: 'VERIFIED', evidenceId: '11111111-0000-0000-0000-000000000001', confidenceScore: 0.95 },
-      { name: 'PostgreSQL', slug: 'postgresql', category: 'Databases & ORMs', provenanceStatus: 'VERIFIED', evidenceId: '11111111-0000-0000-0000-000000000002', confidenceScore: 0.9 },
-      { name: 'TypeScript', slug: 'typescript', category: 'Languages', provenanceStatus: 'VERIFIED', evidenceId: '11111111-0000-0000-0000-000000000003', confidenceScore: 0.92 },
-      { name: 'Docker', slug: 'docker', category: 'Cloud, DevOps & Systems', provenanceStatus: 'VERIFIED', evidenceId: '11111111-0000-0000-0000-000000000004', confidenceScore: 0.88 },
-      { name: 'Redis', slug: 'redis', category: 'Databases & ORMs', provenanceStatus: 'CLAIMED', confidenceScore: 0.7 },
+      {
+        name: 'Node.js',
+        slug: 'node-js',
+        category: 'Backend & APIs',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: '11111111-0000-0000-0000-000000000001',
+        confidenceScore: 0.95,
+      },
+      {
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'Databases & ORMs',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: '11111111-0000-0000-0000-000000000002',
+        confidenceScore: 0.9,
+      },
+      {
+        name: 'TypeScript',
+        slug: 'typescript',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: '11111111-0000-0000-0000-000000000003',
+        confidenceScore: 0.92,
+      },
+      {
+        name: 'Docker',
+        slug: 'docker',
+        category: 'Cloud, DevOps & Systems',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: '11111111-0000-0000-0000-000000000004',
+        confidenceScore: 0.88,
+      },
+      {
+        name: 'Redis',
+        slug: 'redis',
+        category: 'Databases & ORMs',
+        provenanceStatus: 'CLAIMED',
+        confidenceScore: 0.7,
+      },
     ],
     projects: [
       {
@@ -80,7 +110,9 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
         name: 'Distributed Cache Service',
         repositoryUrl: 'https://github.com/jordanm/dist-cache',
         technologies: ['Node.js', 'Redis', 'TypeScript'],
-        bullets: ['Engineered high-throughput in-memory cache replica with asynchronous event loops.'],
+        bullets: [
+          'Engineered high-throughput in-memory cache replica with asynchronous event loops.',
+        ],
         relevanceScore: 88,
         rank: 1,
       },
@@ -134,7 +166,9 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     problemSolving: {
       hasSection: true,
       profileUrl: 'https://leetcode.com/jordanm',
-      bullets: ['Solved algorithmic challenges covering dynamic programming, graph traversal, and binary search.'],
+      bullets: [
+        'Solved algorithmic challenges covering dynamic programming, graph traversal, and binary search.',
+      ],
       provenanceStatus: 'CLAIMED',
     },
     portfolioLinks: [
@@ -151,7 +185,8 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     location: 'Remote',
     source: 'GREENHOUSE',
     applicationUrl: 'https://boards.greenhouse.io/acme/jobs/101',
-    description: 'We are hiring a Backend Software Engineer proficient in Node.js, PostgreSQL, and TypeScript.',
+    description:
+      'We are hiring a Backend Software Engineer proficient in Node.js, PostgreSQL, and TypeScript.',
     requirements: ['Node.js', 'PostgreSQL', 'TypeScript', 'Docker'],
     skills: ['Node.js', 'PostgreSQL', 'TypeScript'],
     retrievedAt: new Date().toISOString(),
@@ -199,7 +234,10 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
   /**
    * Builds a mocked JobApplicationWorkflowService that returns sample candidate data and documents.
    */
-  function createMockWorkflowService({ candidateData = sampleCandidateData, dbCandidate = null } = {}) {
+  function createMockWorkflowService({
+    candidateData = sampleCandidateData,
+    dbCandidate = null,
+  } = {}) {
     const mockDb = {
       select: () => ({
         from: () => ({
@@ -241,8 +279,22 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
           contentHash: 'hash-res-001',
           fitScore: 91,
           selectedProjects: candidateData.projects,
-          sections: ['HEADER', 'PROFESSIONAL_SUMMARY', 'TECHNICAL_SKILLS', 'TECHNICAL_PROJECTS', 'EXPERIENCE', 'EDUCATION'],
-          selectedSections: ['HEADER', 'PROFESSIONAL_SUMMARY', 'TECHNICAL_SKILLS', 'TECHNICAL_PROJECTS', 'EXPERIENCE', 'EDUCATION'],
+          sections: [
+            'HEADER',
+            'PROFESSIONAL_SUMMARY',
+            'TECHNICAL_SKILLS',
+            'TECHNICAL_PROJECTS',
+            'EXPERIENCE',
+            'EDUCATION',
+          ],
+          selectedSections: [
+            'HEADER',
+            'PROFESSIONAL_SUMMARY',
+            'TECHNICAL_SKILLS',
+            'TECHNICAL_PROJECTS',
+            'EXPERIENCE',
+            'EDUCATION',
+          ],
           sectionSnapshots: {},
         },
         coverLetter: {
@@ -290,7 +342,10 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       jobPosting: sampleJob,
     });
 
-    assert.ok(pkg.tailoredResume.structuredResume, 'tailoredResume.structuredResume must be defined');
+    assert.ok(
+      pkg.tailoredResume.structuredResume,
+      'tailoredResume.structuredResume must be defined'
+    );
     assert.strictEqual(pkg.tailoredResume.structuredResume.schemaVersion, '2.0.0');
     assert.ok(pkg.structuredResume, 'top-level structuredResume must be defined');
   });
@@ -327,7 +382,10 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     assert.ok(receipt, 'evidenceValidationReceipt must be present');
     assert.strictEqual(receipt.overallStatus, 'PASS', 'Receipt status must be PASS');
     assert.strictEqual(receipt.violations.length, 0, 'Violations array must be empty');
-    assert.ok(receipt.summary.totalClaimsAudited > 0, 'Total claims audited must be greater than 0');
+    assert.ok(
+      receipt.summary.totalClaimsAudited > 0,
+      'Total claims audited must be greater than 0'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -350,8 +408,14 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       },
     });
 
-    assert.strictEqual(pkg.tailoredResume.structuredResume.targetRole, expected.structuredResume.targetRole);
-    assert.deepStrictEqual(pkg.tailoredResume.structuredResume.sectionOrder, expected.structuredResume.sectionOrder);
+    assert.strictEqual(
+      pkg.tailoredResume.structuredResume.targetRole,
+      expected.structuredResume.targetRole
+    );
+    assert.deepStrictEqual(
+      pkg.tailoredResume.structuredResume.sectionOrder,
+      expected.structuredResume.sectionOrder
+    );
     assert.strictEqual(
       pkg.tailoredResume.structuredResume.candidateIdentity.displayName,
       expected.structuredResume.candidateIdentity.displayName
@@ -360,7 +424,10 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       pkg.tailoredResume.structuredResume.candidateIdentity.email,
       expected.structuredResume.candidateIdentity.email
     );
-    assert.strictEqual(pkg.tailoredResume.structuredResume.projects.length, expected.structuredResume.projects.length);
+    assert.strictEqual(
+      pkg.tailoredResume.structuredResume.projects.length,
+      expected.structuredResume.projects.length
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -376,12 +443,20 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
 
     const projects = pkg.tailoredResume.structuredResume.projects;
     assert.ok(projects.length >= 2, 'Must have at least 2 projects');
-    assert.strictEqual(projects[0].projectId, 'proj-dist-cache', 'Top analyzer ranked project must be first');
-    assert.strictEqual(projects[1].projectId, 'proj-db-migrator', 'Second analyzer ranked project must be second');
-    assert.deepStrictEqual(
-      pkg.tailoredResume.tailoringPlan.selectedProjectIds,
-      ['proj-dist-cache', 'proj-db-migrator']
+    assert.strictEqual(
+      projects[0].projectId,
+      'proj-dist-cache',
+      'Top analyzer ranked project must be first'
     );
+    assert.strictEqual(
+      projects[1].projectId,
+      'proj-db-migrator',
+      'Second analyzer ranked project must be second'
+    );
+    assert.deepStrictEqual(pkg.tailoredResume.tailoringPlan.selectedProjectIds, [
+      'proj-dist-cache',
+      'proj-db-migrator',
+    ]);
   });
 
   // ---------------------------------------------------------------------------
@@ -399,7 +474,9 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     assert.ok(categories.length > 0, 'Must have categorized skills');
     const selectedSkills = pkg.tailoredResume.tailoringPlan.selectedSkills;
     assert.ok(selectedSkills.length > 0, 'Tailoring plan must record selected skills');
-    assert.ok(selectedSkills.some((s) => s.name === 'Node.js' && s.provenanceStatus === 'VERIFIED'));
+    assert.ok(
+      selectedSkills.some((s) => s.name === 'Node.js' && s.provenanceStatus === 'VERIFIED')
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -609,7 +686,10 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       },
       (err) => {
         assert.ok(err instanceof ValidationError);
-        assert.ok(err.message.includes('Forbidden synthetic placeholder') || err.message.includes('integrity'));
+        assert.ok(
+          err.message.includes('Forbidden synthetic placeholder') ||
+            err.message.includes('integrity')
+        );
         return true;
       }
     );
@@ -686,7 +766,15 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     const hashWith = computeApplicationPackageHash(pkgWithStructured);
     const hashWithout = computeApplicationPackageHash(pkgWithoutStructured);
 
-    assert.strictEqual(hashWith, hashWithout, 'Hash must be identical with or without structured snapshot');
-    assert.strictEqual(pkgWithStructured.packageHash, hashWith, 'Persisted packageHash must match computed canonical hash');
+    assert.strictEqual(
+      hashWith,
+      hashWithout,
+      'Hash must be identical with or without structured snapshot'
+    );
+    assert.strictEqual(
+      pkgWithStructured.packageHash,
+      hashWith,
+      'Persisted packageHash must match computed canonical hash'
+    );
   });
 });

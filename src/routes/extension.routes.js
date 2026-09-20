@@ -19,11 +19,7 @@
 
 import { eq, and, notInArray } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import {
-  candidates,
-  jobApplications,
-  projects,
-} from '../db/schema.js';
+import { candidates, jobApplications, projects } from '../db/schema.js';
 import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
 import { config } from '../config/env.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
@@ -45,7 +41,10 @@ import {
   isSubmittedApplication,
   INACTIVE_APPLICATION_STATUSES,
 } from '../domain/career/application-status.constants.js';
-import { buildExtensionAllowedOrigins, isAllowedExtensionOrigin } from '../security/cors-allowlist.js';
+import {
+  buildExtensionAllowedOrigins,
+  isAllowedExtensionOrigin,
+} from '../security/cors-allowlist.js';
 import { CandidateProfileService } from '../services/candidate-profile.service.js';
 import { ExtensionAssistantService } from '../services/extension-assistant.service.js';
 
@@ -68,8 +67,7 @@ export function serializeRequirementMatchesForExtension(fitAnalysis) {
     : [];
 
   const toDisplay = (m) => ({
-    requirement:
-      m.normalizedRequirement || m.originalRequirement || m.extractedValue || '',
+    requirement: m.normalizedRequirement || m.originalRequirement || m.extractedValue || '',
     status: m.matchStatus || 'UNKNOWN',
     category: m.category || 'SKILL',
     explanation: m.explanation || '',
@@ -88,9 +86,7 @@ export function serializeRequirementMatchesForExtension(fitAnalysis) {
   }
 
   // Hard blockers: critical-priority gaps reported by the matcher, when present.
-  const hardBlockers = Array.isArray(fitAnalysis?.hardBlockers)
-    ? fitAnalysis.hardBlockers
-    : [];
+  const hardBlockers = Array.isArray(fitAnalysis?.hardBlockers) ? fitAnalysis.hardBlockers : [];
 
   return { matches, partialMatches, missingRequirements, hardBlockers };
 }
@@ -138,11 +134,14 @@ export function normalizeRecommendedProjectsForExtension({
     return candidateProjects.slice(0, 3).map((cp, idx) => {
       const rawName = cp.displayName || cp.name || 'Project';
       const cleanName = rawName.replace(/^[a-zA-Z0-9_-]+\//, '');
-      const tech = Array.isArray(cp.technologies) && cp.technologies.length > 0
-        ? cp.technologies
-        : (Array.isArray(cp.metadata?.technologies)
-          ? cp.metadata.technologies
-          : (Array.isArray(cp.metadata?.skills) ? cp.metadata.skills : []));
+      const tech =
+        Array.isArray(cp.technologies) && cp.technologies.length > 0
+          ? cp.technologies
+          : Array.isArray(cp.metadata?.technologies)
+            ? cp.metadata.technologies
+            : Array.isArray(cp.metadata?.skills)
+              ? cp.metadata.skills
+              : [];
 
       return {
         projectId: cp.id,
@@ -167,27 +166,29 @@ export function normalizeRecommendedProjectsForExtension({
       candidateProjectsMap.get(cleanName.toLowerCase());
 
     const cpTech = matchedCp
-      ? (Array.isArray(matchedCp.technologies) && matchedCp.technologies.length > 0
-          ? matchedCp.technologies
-          : (Array.isArray(matchedCp.metadata?.technologies)
-            ? matchedCp.metadata.technologies
-            : (Array.isArray(matchedCp.metadata?.skills) ? matchedCp.metadata.skills : [])))
+      ? Array.isArray(matchedCp.technologies) && matchedCp.technologies.length > 0
+        ? matchedCp.technologies
+        : Array.isArray(matchedCp.metadata?.technologies)
+          ? matchedCp.metadata.technologies
+          : Array.isArray(matchedCp.metadata?.skills)
+            ? matchedCp.metadata.skills
+            : []
       : [];
 
-    const tech = cpTech.length > 0
-      ? cpTech
-      : (Array.isArray(p.technologies) && p.technologies.length > 0)
-        ? p.technologies
-        : (Array.isArray(p.primarySignals) && p.primarySignals.length > 0)
-          ? p.primarySignals
-          : (Array.isArray(p.matchedArchitecturalDimensions) && p.matchedArchitecturalDimensions.length > 0)
-            ? p.matchedArchitecturalDimensions
-            : [];
+    const tech =
+      cpTech.length > 0
+        ? cpTech
+        : Array.isArray(p.technologies) && p.technologies.length > 0
+          ? p.technologies
+          : Array.isArray(p.primarySignals) && p.primarySignals.length > 0
+            ? p.primarySignals
+            : Array.isArray(p.matchedArchitecturalDimensions) &&
+                p.matchedArchitecturalDimensions.length > 0
+              ? p.matchedArchitecturalDimensions
+              : [];
 
     const score = Number(p.relevanceScore ?? p.score ?? 50);
-    const band =
-      p.relevanceBand ||
-      (score >= 70 ? 'HIGH' : score >= 45 ? 'MEDIUM' : 'LOW');
+    const band = p.relevanceBand || (score >= 70 ? 'HIGH' : score >= 45 ? 'MEDIUM' : 'LOW');
 
     const matchedRequirements = Array.isArray(p.matchedRequirements)
       ? p.matchedRequirements
@@ -302,7 +303,8 @@ export default async function extensionRoutes(app, opts = {}) {
   // success / low-fit / failure outcomes deterministically).
   const analyzeJobFit = opts.careerReadToolsOverride?.handleAnalyzeJobFit || handleAnalyzeJobFit;
   const recommendProjects =
-    opts.careerArtifactToolsOverride?.handleRecommendPortfolioProjects || handleRecommendPortfolioProjects;
+    opts.careerArtifactToolsOverride?.handleRecommendPortfolioProjects ||
+    handleRecommendPortfolioProjects;
   const candidateProfileService =
     opts.candidateProfileService || new CandidateProfileService(database);
   const extensionAssistantService =
@@ -422,7 +424,10 @@ export default async function extensionRoutes(app, opts = {}) {
 
     let jobDescriptionText = (job.description || job.rawText || '').trim();
     if (Array.isArray(job.requirements) && job.requirements.length > 0) {
-      const reqText = job.requirements.filter(Boolean).map((r) => `- ${r}`).join('\n');
+      const reqText = job.requirements
+        .filter(Boolean)
+        .map((r) => `- ${r}`)
+        .join('\n');
       if (reqText && !jobDescriptionText.includes(job.requirements[0])) {
         jobDescriptionText = `${jobDescriptionText}\n\nRequirements:\n${reqText}`.trim();
       }
@@ -540,7 +545,9 @@ export default async function extensionRoutes(app, opts = {}) {
                   jobTitle: effectiveTitle,
                   artifactType: 'cover-letter',
                 }),
-              ready: Boolean(existingKit.coverLetter?.storageKey || existingKit.coverLetter?.contentHash),
+              ready: Boolean(
+                existingKit.coverLetter?.storageKey || existingKit.coverLetter?.contentHash
+              ),
               downloadUrl: `/api/applications/${match.id}/artifacts/cover-letter/download?packageHash=${pkgHash}`,
               viewUrl: `/api/applications/${match.id}/artifacts/cover-letter/view`,
             },
@@ -590,7 +597,10 @@ export default async function extensionRoutes(app, opts = {}) {
       });
       fitAnalysis = fitResult?.structuredData || fitResult;
     } catch (err) {
-      req.log.warn({ error: err.message }, 'handleAnalyzeJobFit failed — returning explicit analysis failure');
+      req.log.warn(
+        { error: err.message },
+        'handleAnalyzeJobFit failed — returning explicit analysis failure'
+      );
       analysisError = {
         code: 'ANALYSIS_UNAVAILABLE',
         message: 'Job fit analysis is temporarily unavailable. Please try again shortly.',
@@ -618,7 +628,10 @@ export default async function extensionRoutes(app, opts = {}) {
         complementarityScore: pData?.complementarityScore ?? null,
       };
     } catch (err) {
-      req.log.warn({ error: err.message }, 'handleRecommendPortfolioProjects failed — returning empty recommendations');
+      req.log.warn(
+        { error: err.message },
+        'handleRecommendPortfolioProjects failed — returning empty recommendations'
+      );
       portfolioRecommendations = {
         featuredProjects: [],
         omittedProjects: [],
@@ -663,11 +676,9 @@ export default async function extensionRoutes(app, opts = {}) {
     // Resolve authoritative score & metrics (Zero-defaulting: score is null when data is insufficient)
     const rawAtsScore =
       fitAnalysis?.overallFit?.atsScore ?? fitAnalysis?.atsScore ?? fitAnalysis?.score;
-    const resolvedScore =
-      typeof rawAtsScore === 'number' ? Math.round(rawAtsScore) : null;
+    const resolvedScore = typeof rawAtsScore === 'number' ? Math.round(rawAtsScore) : null;
     const isInsufficientData =
-      resolvedScore === null ||
-      fitAnalysis?.overallFit?.analysisStatus === 'INSUFFICIENT_DATA';
+      resolvedScore === null || fitAnalysis?.overallFit?.analysisStatus === 'INSUFFICIENT_DATA';
 
     const resolvedGrade = isInsufficientData
       ? 'INSUFFICIENT_DATA'
@@ -722,9 +733,11 @@ export default async function extensionRoutes(app, opts = {}) {
 
     try {
       const projectRankings =
-        (Array.isArray(fitAnalysis?.topRelevantProjects) && fitAnalysis.topRelevantProjects.length > 0)
+        Array.isArray(fitAnalysis?.topRelevantProjects) &&
+        fitAnalysis.topRelevantProjects.length > 0
           ? fitAnalysis.topRelevantProjects
-          : (Array.isArray(portfolioRecommendations?.featuredProjects) && portfolioRecommendations.featuredProjects.length > 0)
+          : Array.isArray(portfolioRecommendations?.featuredProjects) &&
+              portfolioRecommendations.featuredProjects.length > 0
             ? portfolioRecommendations.featuredProjects.map((p, idx) => ({
                 projectId: p.projectId || p.id,
                 projectName: p.projectName || p.name || p.title,
@@ -735,7 +748,8 @@ export default async function extensionRoutes(app, opts = {}) {
             : [];
 
       const topRelevantProjects =
-        (Array.isArray(portfolioRecommendations?.featuredProjects) && portfolioRecommendations.featuredProjects.length > 0)
+        Array.isArray(portfolioRecommendations?.featuredProjects) &&
+        portfolioRecommendations.featuredProjects.length > 0
           ? portfolioRecommendations.featuredProjects
           : projectRankings;
 
@@ -780,14 +794,12 @@ export default async function extensionRoutes(app, opts = {}) {
       candidateProjects = await database
         .select()
         .from(projects)
-        .where(
-          and(
-            eq(projects.tenantId, tenant.id),
-            eq(projects.candidateId, candidate.id)
-          )
-        );
+        .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)));
     } catch (projErr) {
-      req.log.warn({ error: projErr.message }, 'Failed to fetch candidate projects for recommendation enrichment');
+      req.log.warn(
+        { error: projErr.message },
+        'Failed to fetch candidate projects for recommendation enrichment'
+      );
     }
 
     const recommendedProjects = normalizeRecommendedProjectsForExtension({
@@ -844,9 +856,11 @@ export default async function extensionRoutes(app, opts = {}) {
       recommendedProjects,
       portfolioRecommendations: {
         ...(portfolioRecommendations || {}),
-        featuredProjects: (Array.isArray(portfolioRecommendations?.featuredProjects) && portfolioRecommendations.featuredProjects.length > 0)
-          ? portfolioRecommendations.featuredProjects
-          : recommendedProjects,
+        featuredProjects:
+          Array.isArray(portfolioRecommendations?.featuredProjects) &&
+          portfolioRecommendations.featuredProjects.length > 0
+            ? portfolioRecommendations.featuredProjects
+            : recommendedProjects,
       },
       candidateProfile: {
         id: candidate.id,
@@ -948,7 +962,9 @@ export default async function extensionRoutes(app, opts = {}) {
         ) {
           return reply.code(validationErr.statusCode || 403).send({
             error: validationErr.name || 'Error',
-            code: validationErr.code || (validationErr.statusCode === 409 ? 'ANALYSIS_JOB_MISMATCH' : 'ACCESS_DENIED'),
+            code:
+              validationErr.code ||
+              (validationErr.statusCode === 409 ? 'ANALYSIS_JOB_MISMATCH' : 'ACCESS_DENIED'),
             message: validationErr.message,
           });
         }
@@ -961,12 +977,7 @@ export default async function extensionRoutes(app, opts = {}) {
       const [appRow] = await database
         .select()
         .from(jobApplications)
-        .where(
-          and(
-            eq(jobApplications.id, applicationId),
-            eq(jobApplications.tenantId, tenant.id)
-          )
-        )
+        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenant.id)))
         .limit(1);
 
       if (appRow && isSubmittedApplication(appRow)) {
@@ -1021,7 +1032,9 @@ export default async function extensionRoutes(app, opts = {}) {
       title,
       description: (job.description || job.rawText || '').trim(),
       location: job.location || 'Remote',
-      workplaceType: ['REMOTE', 'HYBRID', 'ON_SITE'].includes(String(job.workplace || '').toUpperCase())
+      workplaceType: ['REMOTE', 'HYBRID', 'ON_SITE'].includes(
+        String(job.workplace || '').toUpperCase()
+      )
         ? String(job.workplace).toUpperCase()
         : 'REMOTE',
       employmentType: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'].includes(
@@ -1051,7 +1064,8 @@ export default async function extensionRoutes(app, opts = {}) {
       const appId = preparedResult.applicationId;
       const packageHash = preparedResult.packageHash;
       const resumeArt = preparedResult.tailoredResume?.artifact || preparedResult.resumeArtifact;
-      const coverLetterArt = preparedResult.coverLetter?.artifact || preparedResult.coverLetterArtifact;
+      const coverLetterArt =
+        preparedResult.coverLetter?.artifact || preparedResult.coverLetterArtifact;
 
       // Extract recommended projects from prepared package / snapshot for client continuity (P57)
       let candidateProjects = [];
@@ -1059,17 +1073,13 @@ export default async function extensionRoutes(app, opts = {}) {
         candidateProjects = await database
           .select()
           .from(projects)
-          .where(
-            and(
-              eq(projects.tenantId, tenant.id),
-              eq(projects.candidateId, candidate.id)
-            )
-          );
+          .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)));
       } catch {
         // Non-critical fallback
       }
 
-      const pkgProjects = preparedResult.portfolioLinks ||
+      const pkgProjects =
+        preparedResult.portfolioLinks ||
         preparedResult.structuredResume?.projects ||
         authoritativeJobFit?.projectRankings ||
         authoritativeJobFit?.topRelevantProjects ||
@@ -1158,7 +1168,8 @@ export default async function extensionRoutes(app, opts = {}) {
         return reply.code(409).send({
           error: 'Conflict',
           code: err.code || 'APPLICATION_ALREADY_SUBMITTED',
-          message: err.message || 'This application has already been submitted and cannot be modified.',
+          message:
+            err.message || 'This application has already been submitted and cannot be modified.',
         });
       }
       req.log.error({ error: err.message }, 'Failed to prepare job application handoff kit');
@@ -1201,9 +1212,15 @@ export default async function extensionRoutes(app, opts = {}) {
       let appPackage = req.body?.applicationPackage;
       if (!appPackage) {
         const pkgResult = packageHash
-          ? await trackingService.getApplicationPackageByVersion(mcpContext, applicationId, packageHash)
+          ? await trackingService.getApplicationPackageByVersion(
+              mcpContext,
+              applicationId,
+              packageHash
+            )
           : null;
-        const packageRow = pkgResult?.package || (await trackingService.getCurrentApplicationPackage(mcpContext, applicationId));
+        const packageRow =
+          pkgResult?.package ||
+          (await trackingService.getCurrentApplicationPackage(mcpContext, applicationId));
         if (!packageRow || !packageRow.packagePayload) {
           return reply.code(404).send({
             error: 'Not Found',
@@ -1279,9 +1296,15 @@ export default async function extensionRoutes(app, opts = {}) {
       let appPackage = req.body?.applicationPackage;
       if (!appPackage) {
         const pkgResult = packageHash
-          ? await trackingService.getApplicationPackageByVersion(mcpContext, applicationId, packageHash)
+          ? await trackingService.getApplicationPackageByVersion(
+              mcpContext,
+              applicationId,
+              packageHash
+            )
           : null;
-        const packageRow = pkgResult?.package || (await trackingService.getCurrentApplicationPackage(mcpContext, applicationId));
+        const packageRow =
+          pkgResult?.package ||
+          (await trackingService.getCurrentApplicationPackage(mcpContext, applicationId));
         if (!packageRow || !packageRow.packagePayload) {
           return reply.code(404).send({
             error: 'Not Found',

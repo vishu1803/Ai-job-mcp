@@ -60,12 +60,18 @@ test('P90 Invariant 1: Exactly one Profile Save button and one profile form in H
 
   // Verify the single save button has data-testid="saveProfileBtn" and form="careerProfileForm"
   assert.ok(html.includes('data-testid="saveProfileBtn"'), 'Single save button must have testid');
-  assert.ok(html.includes('form="careerProfileForm"'), 'Save button must link to careerProfileForm');
+  assert.ok(
+    html.includes('form="careerProfileForm"'),
+    'Save button must link to careerProfileForm'
+  );
 
   // Verify no duplicate save button in stickySaveBar
   const stickyBarMatch = html.match(/id="stickySaveBar"[^>]*>([\s\S]*?)<\/div>/i);
   assert.ok(stickyBarMatch, 'Sticky save bar element must be present');
-  assert.ok(!stickyBarMatch[1].includes('<button'), 'Sticky save bar must not contain any duplicate button');
+  assert.ok(
+    !stickyBarMatch[1].includes('<button'),
+    'Sticky save bar must not contain any duplicate button'
+  );
 });
 
 test('P90 Invariant 2: Profile visual stability — fixed dimensions on avatar, zero layout shift', () => {
@@ -75,7 +81,10 @@ test('P90 Invariant 2: Profile visual stability — fixed dimensions on avatar, 
   });
 
   // Avatar container must have explicit layout containment and fixed width/height
-  assert.ok(html.includes('width:56px; height:56px;'), 'Avatar must have explicit 56x56 dimensions');
+  assert.ok(
+    html.includes('width:56px; height:56px;'),
+    'Avatar must have explicit 56x56 dimensions'
+  );
   assert.ok(html.includes('contain:layout size;'), 'Avatar must enforce layout size containment');
   assert.ok(html.includes('avatar-badge'), 'Avatar must use deterministic badge styling');
 });
@@ -162,12 +171,9 @@ test('P90 Invariant 4: Candidate Profile Six-Domain Round-Trip with URL Persiste
 
   const service = new CandidateProfileService(mockDatabase);
   const context = { tenantId: mockTenantId, role: 'OWNER' };
-  const result = await service.updateUserProfileSections(
-    context,
-    mockCandidateId,
-    rawInput,
-    { minimalResponse: true }
-  );
+  const result = await service.updateUserProfileSections(context, mockCandidateId, rawInput, {
+    minimalResponse: true,
+  });
 
   assert.ok(result, 'Result should be returned');
   assert.ok(updatedCandidatePayload, 'Candidate payload should be updated');
@@ -214,7 +220,12 @@ test('P90 Invariant 5: Sources Workspace (/sources) renders Active Resume + GitH
       account: 'alice-dist',
       selectedRepoCount: 3,
       repositories: [
-        { id: 'repo-1', name: 'raft-consensus-rs', displayName: 'raft-consensus-rs', isPrivate: false },
+        {
+          id: 'repo-1',
+          name: 'raft-consensus-rs',
+          displayName: 'raft-consensus-rs',
+          isPrivate: false,
+        },
         { id: 'repo-2', name: 'kv-store-go', displayName: 'kv-store-go', isPrivate: true },
       ],
     },
@@ -225,7 +236,10 @@ test('P90 Invariant 5: Sources Workspace (/sources) renders Active Resume + GitH
   assert.ok(html.includes('ACTIVE'), 'Must show active resume status');
   assert.ok(html.includes('/resumes/res-001/download'), 'Must provide View/Download link');
   assert.ok(html.includes('Replace Resume'), 'Must provide Replace Resume trigger');
-  assert.ok(html.includes('Version History (1 previous)'), 'Must offer progressive disclosure version history');
+  assert.ok(
+    html.includes('Version History (1 previous)'),
+    'Must offer progressive disclosure version history'
+  );
   assert.ok(html.includes('alice_resume_old.pdf'), 'Must list previous versions');
 
   // Verify GitHub Card
@@ -276,7 +290,10 @@ test('P90 Invariant 6: Dashboard Recommendation Integrity — Zero Fake Jobs, Ho
 
   assert.ok(populatedHtml.includes('RealCorp Technologies'), 'Must render real company name');
   assert.ok(populatedHtml.includes('87% Match'), 'Must render calculated match score');
-  assert.ok(!populatedHtml.includes('No matching jobs yet'), 'Must not show empty state when jobs exist');
+  assert.ok(
+    !populatedHtml.includes('No matching jobs yet'),
+    'Must not show empty state when jobs exist'
+  );
 });
 
 test('P90 Invariant 7: Applications UI — No Engineering Badges, Human-Readable Stages', () => {
@@ -302,7 +319,10 @@ test('P90 Invariant 7: Applications UI — No Engineering Badges, Human-Readable
   assert.ok(!html.includes('MCP SYNCHRONIZED'), 'Must not contain MCP SYNCHRONIZED badge');
 
   // Must have human-readable badges
-  assert.ok(html.includes('>Interview<') || html.includes('>INTERVIEW<'), 'Must show Interview stage');
+  assert.ok(
+    html.includes('>Interview<') || html.includes('>INTERVIEW<'),
+    'Must show Interview stage'
+  );
   assert.ok(html.includes('>Draft<') || html.includes('>SAVED<'), 'Must show Draft/Saved stage');
 });
 
@@ -322,15 +342,30 @@ test('P90 Invariant 8: Canonical Navigation — 5 Areas, Sources Replaces Resume
   assert.ok(loggedInNav.includes('href="/sources"'), 'Must have Sources link');
 
   // Primary desktop nav must not link to /resumes
-  const desktopNavSection = loggedInNav.slice(loggedInNav.indexOf('<ul class="nav-links">'), loggedInNav.indexOf('</ul>'));
-  assert.ok(!desktopNavSection.includes('href="/resumes"'), 'Desktop nav must link to /sources, not /resumes');
+  const desktopNavSection = loggedInNav.slice(
+    loggedInNav.indexOf('<ul class="nav-links">'),
+    loggedInNav.indexOf('</ul>')
+  );
+  assert.ok(
+    !desktopNavSection.includes('href="/resumes"'),
+    'Desktop nav must link to /sources, not /resumes'
+  );
   assert.ok(desktopNavSection.includes('href="/sources"'), 'Desktop nav must link to /sources');
 
   // No standalone AI page in primary navigation
-  assert.ok(!desktopNavSection.includes('href="/assistant"'), 'Nav must not contain standalone /assistant');
+  assert.ok(
+    !desktopNavSection.includes('href="/assistant"'),
+    'Nav must not contain standalone /assistant'
+  );
   assert.ok(!desktopNavSection.includes('href="/ai"'), 'Nav must not contain standalone /ai');
-  assert.ok(!desktopNavSection.includes('href="/copilot"'), 'Nav must not contain standalone /copilot');
+  assert.ok(
+    !desktopNavSection.includes('href="/copilot"'),
+    'Nav must not contain standalone /copilot'
+  );
 
   // Integrated drawer button present
-  assert.ok(loggedInNav.includes('id="copilotOpenBtn"'), 'Integrated Copilot drawer trigger must exist');
+  assert.ok(
+    loggedInNav.includes('id="copilotOpenBtn"'),
+    'Integrated Copilot drawer trigger must exist'
+  );
 });

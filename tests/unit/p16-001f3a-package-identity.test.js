@@ -23,9 +23,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {
-  computeApplicationPackageHash,
-} from '../../src/services/job-application-workflow.service.js';
+import { computeApplicationPackageHash } from '../../src/services/job-application-workflow.service.js';
 import {
   ApplicationPackageSchema,
   RESUME_GENERATION_CONTRACT_VERSION,
@@ -58,7 +56,8 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     },
     tailoredResume: {
       title: 'Tailored Resume - Cloudflare',
-      markdownContent: '# Jordan Miller\n\nFull Stack Engineer with deep Node.js and distributed systems experience.',
+      markdownContent:
+        '# Jordan Miller\n\nFull Stack Engineer with deep Node.js and distributed systems experience.',
       contentHash: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
       fitScore: 92,
     },
@@ -108,7 +107,10 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       generationContractVersion: 'LEGACY',
       structuredResumeSchemaVersion: null,
     };
-    const expectedHash = crypto.createHash('sha256').update(JSON.stringify(expectedCanonical), 'utf8').digest('hex');
+    const expectedHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(expectedCanonical), 'utf8')
+      .digest('hex');
     assert.strictEqual(hash, expectedHash);
   });
 
@@ -144,7 +146,10 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       generationContractVersion: 'P16-001F',
       structuredResumeSchemaVersion: '2.0.0',
     };
-    const expectedHash = crypto.createHash('sha256').update(JSON.stringify(expectedCanonical), 'utf8').digest('hex');
+    const expectedHash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(expectedCanonical), 'utf8')
+      .digest('hex');
     assert.strictEqual(hash, expectedHash);
   });
 
@@ -168,7 +173,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const legacyHash = computeApplicationPackageHash(legacyPkg);
     const structuredHash = computeApplicationPackageHash(structuredPkg);
 
-    assert.notStrictEqual(legacyHash, structuredHash, 'Structured package must produce a distinct hash from legacy package');
+    assert.notStrictEqual(
+      legacyHash,
+      structuredHash,
+      'Structured package must produce a distinct hash from legacy package'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -191,14 +200,20 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       structuredResumeSchemaVersion: '2.0.0',
       structuredResume: {
         schemaVersion: '2.0.0',
-        projects: [{ name: 'Project A', bullets: ['Built telemetry API with Prometheus exporter'] }],
+        projects: [
+          { name: 'Project A', bullets: ['Built telemetry API with Prometheus exporter'] },
+        ],
       },
     };
 
     const hash1 = computeApplicationPackageHash(pkg1);
     const hash2 = computeApplicationPackageHash(pkg2);
 
-    assert.strictEqual(hash1, hash2, 'Package hash must be contract-bound and invariant to internal structuredResume object edits when markdown is unchanged');
+    assert.strictEqual(
+      hash1,
+      hash2,
+      'Package hash must be contract-bound and invariant to internal structuredResume object edits when markdown is unchanged'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -220,7 +235,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const hash1 = computeApplicationPackageHash(pkg1);
     const hash2 = computeApplicationPackageHash(pkg2);
 
-    assert.notStrictEqual(hash1, hash2, 'Package hash must change when generationContractVersion changes');
+    assert.notStrictEqual(
+      hash1,
+      hash2,
+      'Package hash must change when generationContractVersion changes'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -242,7 +261,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const hash1 = computeApplicationPackageHash(pkg1);
     const hash2 = computeApplicationPackageHash(pkg2);
 
-    assert.notStrictEqual(hash1, hash2, 'Package hash must change when structuredResumeSchemaVersion changes');
+    assert.notStrictEqual(
+      hash1,
+      hash2,
+      'Package hash must change when structuredResumeSchemaVersion changes'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -272,7 +295,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const hashDefaulted = computeApplicationPackageHash(pkgWithoutSchemaVer);
     const hashExplicit = computeApplicationPackageHash(pkgWithExplicitSchemaVer);
 
-    assert.strictEqual(hashDefaulted, hashExplicit, 'Missing schema version on structured contract must default safely to 2.0.0');
+    assert.strictEqual(
+      hashDefaulted,
+      hashExplicit,
+      'Missing schema version on structured contract must default safely to 2.0.0'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -293,7 +320,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const hashOmitted = computeApplicationPackageHash(legacyPkgOmitted);
     const hashExplicit = computeApplicationPackageHash(legacyPkgExplicitNull);
 
-    assert.strictEqual(hashOmitted, hashExplicit, 'Unspecified legacy package must hash with schemaVersion null');
+    assert.strictEqual(
+      hashOmitted,
+      hashExplicit,
+      'Unspecified legacy package must hash with schemaVersion null'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -353,7 +384,8 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
                 },
                 // For maxVer query
                 then: (resolve) => {
-                  const maxVer = packages.length > 0 ? Math.max(...packages.map((p) => p.version)) : 0;
+                  const maxVer =
+                    packages.length > 0 ? Math.max(...packages.map((p) => p.version)) : 0;
                   return resolve([{ maxVer }]);
                 },
               }),
@@ -382,7 +414,12 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
               where: (_condition) => ({
                 returning: () => {
                   // Promoted package
-                  const idx = packages.findIndex((p) => p.packageHash === fields.packageHash || p.lifecycleState === 'CURRENT' || p.version);
+                  const idx = packages.findIndex(
+                    (p) =>
+                      p.packageHash === fields.packageHash ||
+                      p.lifecycleState === 'CURRENT' ||
+                      p.version
+                  );
                   if (idx !== -1) {
                     packages[idx] = { ...packages[idx], ...fields };
                     return [packages[idx]];
@@ -392,7 +429,9 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
                 then: (resolve) => {
                   if (fields.lifecycleState === 'ARCHIVED') {
                     // Archive all packages except the latest CURRENT one
-                    const currentPkg = [...packages].reverse().find((p) => p.lifecycleState === 'CURRENT');
+                    const currentPkg = [...packages]
+                      .reverse()
+                      .find((p) => p.lifecycleState === 'CURRENT');
                     for (const p of packages) {
                       if (p !== currentPkg) {
                         p.lifecycleState = 'ARCHIVED';
@@ -461,10 +500,18 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     await service.recordApplicationPackage(context, applicationId, legacyPkg);
 
     // Second record with identical packageHash
-    const secondRecorded = await service.recordApplicationPackage(context, applicationId, legacyPkg);
+    const secondRecorded = await service.recordApplicationPackage(
+      context,
+      applicationId,
+      legacyPkg
+    );
 
     assert.strictEqual(secondRecorded.version, 1, 'Must remain version 1');
-    assert.strictEqual(secondRecorded.isReused, true, 'Subsequent identical package must be marked isReused: true');
+    assert.strictEqual(
+      secondRecorded.isReused,
+      true,
+      'Subsequent identical package must be marked isReused: true'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -503,9 +550,17 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       }),
     };
 
-    const structuredRecorded = await service.recordApplicationPackage(context, applicationId, structuredPkg);
+    const structuredRecorded = await service.recordApplicationPackage(
+      context,
+      applicationId,
+      structuredPkg
+    );
 
-    assert.strictEqual(structuredRecorded.version, 2, 'Structured package must increment to version 2');
+    assert.strictEqual(
+      structuredRecorded.version,
+      2,
+      'Structured package must increment to version 2'
+    );
     assert.strictEqual(structuredRecorded.isReused, false, 'New structured version is not reused');
     assert.strictEqual(structuredRecorded.lifecycleState, 'CURRENT');
     assert.strictEqual(packages[0].lifecycleState, 'ARCHIVED', 'Legacy v1 must be archived');
@@ -537,7 +592,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     // Second record: identical structured package
     const second = await service.recordApplicationPackage(context, applicationId, structuredPkg);
     assert.strictEqual(second.version, first.version);
-    assert.strictEqual(second.isReused, true, 'Identical structured preparation must be idempotent/reused');
+    assert.strictEqual(
+      second.isReused,
+      true,
+      'Identical structured preparation must be idempotent/reused'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -614,7 +673,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       applicationId,
     });
 
-    assert.strictEqual(compileCalled, false, 'Latex compilation must NOT be called when legacy kit matches');
+    assert.strictEqual(
+      compileCalled,
+      false,
+      'Latex compilation must NOT be called when legacy kit matches'
+    );
     assert.strictEqual(kit.packageHash, legacyHash);
     assert.strictEqual(kit.generationContractVersion, 'LEGACY');
   });
@@ -672,8 +735,12 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
         getProfile: async () => ({ displayName: 'Jordan Miller' }),
       },
       latexGenerator: {
-        generateTailoredResumeLatex: () => ({ texContent: '\\documentclass{article}\nJordan Miller\n' }),
-        generateTailoredCoverLetterLatex: () => ({ texContent: '\\documentclass{article}\nJordan Miller\n' }),
+        generateTailoredResumeLatex: () => ({
+          texContent: '\\documentclass{article}\nJordan Miller\n',
+        }),
+        generateTailoredCoverLetterLatex: () => ({
+          texContent: '\\documentclass{article}\nJordan Miller\n',
+        }),
       },
       latexCompiler: {
         compileLatexToPdf: async () => {
@@ -682,7 +749,13 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
         },
       },
       qaValidator: {
-        validatePdf: async () => ({ passed: true, score: 95, findings: [], breakdown: {}, metrics: {} }),
+        validatePdf: async () => ({
+          passed: true,
+          score: 95,
+          findings: [],
+          breakdown: {},
+          metrics: {},
+        }),
         validateResumePdf: async () => ({ passed: true, score: 95, findings: [] }),
         validateCoverLetterPdf: async () => ({ passed: true, score: 95, findings: [] }),
       },
@@ -711,8 +784,15 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       applicationId,
     });
 
-    assert.ok(compileCalled >= 1, 'Latex compilation must be triggered because legacy kit contract does not match structured contract');
-    assert.strictEqual(kit.generationContractVersion, 'P16-001F', 'Generated kit must carry structured contract version');
+    assert.ok(
+      compileCalled >= 1,
+      'Latex compilation must be triggered because legacy kit contract does not match structured contract'
+    );
+    assert.strictEqual(
+      kit.generationContractVersion,
+      'P16-001F',
+      'Generated kit must carry structured contract version'
+    );
     assert.strictEqual(kit.structuredResumeSchemaVersion, '2.0.0');
   });
 
@@ -791,7 +871,11 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       applicationId,
     });
 
-    assert.strictEqual(compileCalled, false, 'Structured kit must be reused without compilation for identical package');
+    assert.strictEqual(
+      compileCalled,
+      false,
+      'Structured kit must be reused without compilation for identical package'
+    );
     assert.strictEqual(kit.packageHash, structuredHash);
     assert.strictEqual(kit.generationContractVersion, 'P16-001F');
   });

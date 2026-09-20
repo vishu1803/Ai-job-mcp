@@ -69,10 +69,10 @@ export class AiCareerAssistantService {
   constructor(dependencies = {}) {
     this.candidateProfileService =
       dependencies.candidateProfileService || new CandidateProfileService(dependencies.database);
-    this.readinessService =
-      dependencies.readinessService || new ApplicationReadinessService();
+    this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
     this.aiProvider = dependencies.aiProvider !== undefined ? dependencies.aiProvider : null;
-    this.logger = dependencies.logger || defaultLogger.child({ module: 'AiCareerAssistantService' });
+    this.logger =
+      dependencies.logger || defaultLogger.child({ module: 'AiCareerAssistantService' });
     this.database = dependencies.database;
     this.pendingProposals = new Map();
   }
@@ -175,11 +175,12 @@ export class AiCareerAssistantService {
    */
   _parseStructuredResponse(rawText, userText, fallbackContext = {}) {
     const { readinessData, profile, connectedRepositories = [] } = fallbackContext;
-    const score = typeof readinessData?.overallScore === 'number'
-      ? readinessData.overallScore
-      : typeof readinessData?.score === 'number'
-        ? readinessData.score
-        : null;
+    const score =
+      typeof readinessData?.overallScore === 'number'
+        ? readinessData.overallScore
+        : typeof readinessData?.score === 'number'
+          ? readinessData.score
+          : null;
     const missingItems = readinessData?.missingItems || [];
 
     let parsed = null;
@@ -232,18 +233,22 @@ export class AiCareerAssistantService {
 
     // Safe normalization attempt if partial object
     if (parsed && typeof parsed === 'object') {
-      const summaryText = typeof parsed.summary === 'string'
-        ? this._sanitizeNoRoutes(parsed.summary).slice(0, 350)
-        : (typeof parsed.answer === 'string' || typeof parsed.message === 'string')
-          ? this._sanitizeNoRoutes(parsed.answer || parsed.message).slice(0, 350)
-          : null;
+      const summaryText =
+        typeof parsed.summary === 'string'
+          ? this._sanitizeNoRoutes(parsed.summary).slice(0, 350)
+          : typeof parsed.answer === 'string' || typeof parsed.message === 'string'
+            ? this._sanitizeNoRoutes(parsed.answer || parsed.message).slice(0, 350)
+            : null;
 
       if (summaryText) {
         const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
         const validFindings = rawFindings.slice(0, 5).map((f) => ({
           severity: ['critical', 'warning', 'info'].includes(f.severity) ? f.severity : 'info',
           title: this._sanitizeNoRoutes(String(f.title || 'Note')).slice(0, 120),
-          description: this._sanitizeNoRoutes(String(f.description || f.detail || '')).slice(0, 300),
+          description: this._sanitizeNoRoutes(String(f.description || f.detail || '')).slice(
+            0,
+            300
+          ),
         }));
 
         const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
@@ -264,7 +269,10 @@ export class AiCareerAssistantService {
         return {
           summary: summaryText,
           findings: validFindings,
-          actions: validActions.length > 0 ? validActions : [{ id: 'complete_profile', label: 'Complete profile', primary: true }],
+          actions:
+            validActions.length > 0
+              ? validActions
+              : [{ id: 'complete_profile', label: 'Complete profile', primary: true }],
         };
       }
     }
@@ -274,12 +282,12 @@ export class AiCareerAssistantService {
       const isAssessed = typeof score === 'number';
       return {
         summary: isAssessed
-          ? (missingItems.length > 0
+          ? missingItems.length > 0
             ? `Your profile is at ${score}% application readiness with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`)
-          : (missingItems.length > 0
+            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`
+          : missingItems.length > 0
             ? `Application readiness has not been assessed yet; ${missingItems.length} screening item${missingItems.length > 1 ? 's need' : ' needs'} attention.`
-            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`),
+            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`,
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'warning',
           title: m.label || 'Screening Item',
@@ -310,7 +318,8 @@ export class AiCareerAssistantService {
 
     const isAssessed = typeof score === 'number';
     return {
-      summary: 'Career Copilot evaluated your request against your verified profile and workspace context.',
+      summary:
+        'Career Copilot evaluated your request against your verified profile and workspace context.',
       findings: [
         {
           severity: 'info',
@@ -335,7 +344,9 @@ export class AiCareerAssistantService {
    * @returns {{ field: string, label: string, explanation: string, atsImpact: string, navigationAnchor: string }}
    */
   explainProfileField(fieldKey) {
-    const rawKey = String(fieldKey || '').toLowerCase().trim();
+    const rawKey = String(fieldKey || '')
+      .toLowerCase()
+      .trim();
     let key = rawKey.replace(/\s+/g, '');
 
     if (rawKey.includes('notice') || rawKey.includes('availability')) {
@@ -346,9 +357,17 @@ export class AiCareerAssistantService {
       key = 'targetroles';
     } else if (rawKey.includes('sponsor')) {
       key = 'visasponsorshiprequired';
-    } else if (rawKey.includes('work auth') || rawKey.includes('authorization') || rawKey.includes('citizenship')) {
+    } else if (
+      rawKey.includes('work auth') ||
+      rawKey.includes('authorization') ||
+      rawKey.includes('citizenship')
+    ) {
       key = 'workauthorization';
-    } else if (rawKey.includes('remote') || rawKey.includes('hybrid') || rawKey.includes('work mode')) {
+    } else if (
+      rawKey.includes('remote') ||
+      rawKey.includes('hybrid') ||
+      rawKey.includes('work mode')
+    ) {
       key = 'remotepreference';
     } else if (rawKey.includes('skill')) {
       key = 'skills';
@@ -481,7 +500,8 @@ export class AiCareerAssistantService {
         : `Your profile has ${missingItems.length} item(s) needing attention before applications can be prepared with maximum readiness: ${missingItems.map((m) => m.label).join(', ')}.`;
 
     const readyItems = items.filter((item) => item.status === 'READY');
-    const computedScore = items.length > 0 ? Math.round((readyItems.length / items.length) * 100) : 0;
+    const computedScore =
+      items.length > 0 ? Math.round((readyItems.length / items.length) * 100) : 0;
 
     return {
       missingCount: missingItems.length,
@@ -520,7 +540,9 @@ export class AiCareerAssistantService {
     );
 
     const computedScore =
-      evaluation.items.length > 0 ? Math.round((readyItems.length / evaluation.items.length) * 100) : 0;
+      evaluation.items.length > 0
+        ? Math.round((readyItems.length / evaluation.items.length) * 100)
+        : 0;
 
     return {
       authoritative: true,
@@ -560,7 +582,9 @@ export class AiCareerAssistantService {
       [];
 
     const verifiedSkillNames = new Set(
-      verifiedSkillsList.map((s) => (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase())
+      verifiedSkillsList.map((s) =>
+        (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase()
+      )
     );
 
     const verifiedMatches = [];
@@ -617,13 +641,15 @@ export class AiCareerAssistantService {
    * @param {object} [params.resumeFacts]
    * @returns {Array<object>} Detected conflicts with resolution options
    */
-  identifyProfileConflicts({ candidateProfile = {}, applicationAnswers = {}, _resumeFacts = null }) {
+  identifyProfileConflicts({
+    candidateProfile = {},
+    applicationAnswers = {},
+    _resumeFacts = null,
+  }) {
     const conflicts = [];
 
     const prefs =
-      candidateProfile.jobPreferences ||
-      candidateProfile.profileMetadata?.careerPreferences ||
-      {};
+      candidateProfile.jobPreferences || candidateProfile.profileMetadata?.careerPreferences || {};
     const userCustom = candidateProfile.profileMetadata?.userCustom || {};
 
     // 1. Notice Period Conflict
@@ -650,17 +676,21 @@ export class AiCareerAssistantService {
     }
 
     // 2. Work Authorization Conflict
-    const profileWorkAuth =
-      prefs.workAuthorization || userCustom.workAuthorization;
+    const profileWorkAuth = prefs.workAuthorization || userCustom.workAuthorization;
     const appWorkAuth =
       applicationAnswers.workAuthorization ||
       applicationAnswers['work_authorization'] ||
       applicationAnswers.citizenship;
 
     if (profileWorkAuth && appWorkAuth) {
-      const pVal = Array.isArray(profileWorkAuth) ? profileWorkAuth.join(', ') : String(profileWorkAuth);
+      const pVal = Array.isArray(profileWorkAuth)
+        ? profileWorkAuth.join(', ')
+        : String(profileWorkAuth);
       const aVal = String(appWorkAuth);
-      if (pVal.toLowerCase() !== aVal.toLowerCase() && !pVal.toLowerCase().includes(aVal.toLowerCase())) {
+      if (
+        pVal.toLowerCase() !== aVal.toLowerCase() &&
+        !pVal.toLowerCase().includes(aVal.toLowerCase())
+      ) {
         conflicts.push({
           field: 'workAuthorization',
           fieldLabel: 'Work Authorization',
@@ -705,11 +735,7 @@ export class AiCareerAssistantService {
    * @param {string} [params.requestedSkill] Skill requested to be checked or added
    * @returns {object} Suggestions with evidence sources
    */
-  suggestProfileImprovements({
-    candidateProfile = {},
-    factInventory = [],
-    requestedSkill = null,
-  }) {
+  suggestProfileImprovements({ candidateProfile = {}, factInventory = [], requestedSkill = null }) {
     if (requestedSkill) {
       const normRequested = String(requestedSkill).toLowerCase().trim();
       const verifiedFacts = (Array.isArray(factInventory) ? factInventory : []).filter(
@@ -833,13 +859,13 @@ export class AiCareerAssistantService {
     const profile = candidateProfile || {};
 
     const existingPrefs =
-      profile.jobPreferences ||
-      profile.profileMetadata?.careerPreferences ||
-      {};
+      profile.jobPreferences || profile.profileMetadata?.careerPreferences || {};
 
     // 1. Role Parsing
     const roleMatch =
-      text.match(/(?:looking for|target role|seeking|want)\s+(?:a\s+)?([a-zA-Z\s]+?)(?:jobs?|roles?|positions?|with|and|at|in|\.|$)/i) ||
+      text.match(
+        /(?:looking for|target role|seeking|want)\s+(?:a\s+)?([a-zA-Z\s]+?)(?:jobs?|roles?|positions?|with|and|at|in|\.|$)/i
+      ) ||
       text.match(/(?:backend|frontend|fullstack|full-stack|devops|data engineer|cloud engineer)/i);
 
     if (roleMatch) {
@@ -848,7 +874,8 @@ export class AiCareerAssistantService {
       role = role.replace(/\b(?:remote|options|jobs?|roles?|positions?)\b/gi, '').trim();
       if (role.toLowerCase() === 'backend') role = 'Backend Engineer';
       if (role.toLowerCase() === 'frontend') role = 'Frontend Engineer';
-      if (role.toLowerCase() === 'fullstack' || role.toLowerCase() === 'full-stack') role = 'Full-Stack Engineer';
+      if (role.toLowerCase() === 'fullstack' || role.toLowerCase() === 'full-stack')
+        role = 'Full-Stack Engineer';
       if (role.toLowerCase() === 'devops') role = 'DevOps Engineer';
 
       if (role.length > 2) {
@@ -1067,7 +1094,8 @@ export class AiCareerAssistantService {
         let displayVal = p.proposedValue;
         if (p.field === 'salaryFloor') {
           displayVal =
-            p.proposedValue >= 100000 && proposals.some((pr) => pr.field === 'salaryCurrency' && pr.proposedValue === 'INR')
+            p.proposedValue >= 100000 &&
+            proposals.some((pr) => pr.field === 'salaryCurrency' && pr.proposedValue === 'INR')
               ? `₹${(p.proposedValue / 100000).toFixed(0)} LPA`
               : `$${p.proposedValue.toLocaleString()}`;
         } else if (p.field === 'remotePreference') {
@@ -1081,7 +1109,7 @@ export class AiCareerAssistantService {
           lines.push(`${p.fieldLabel}: ${displayVal}`);
         }
       }
-      lines.push('\nI won\'t change your profile until you confirm.');
+      lines.push("\nI won't change your profile until you confirm.");
       previewMessage = lines.join('\n');
     }
 
@@ -1306,7 +1334,8 @@ export class AiCareerAssistantService {
             {
               severity: 'critical',
               title: 'Automated Submission Blocked',
-              description: 'External job submission requires explicit candidate review and submission.',
+              description:
+                'External job submission requires explicit candidate review and submission.',
             },
           ],
           actions: [{ id: 'review_applications', label: 'Review applications' }],
@@ -1337,7 +1366,8 @@ export class AiCareerAssistantService {
         role: 'assistant',
         content: proposalResult.previewMessage,
         structuredResponse: {
-          summary: 'I prepared suggested profile updates based on your request. Please confirm before they take effect.',
+          summary:
+            'I prepared suggested profile updates based on your request. Please confirm before they take effect.',
           findings: proposalResult.proposals.slice(0, 5).map((p) => ({
             severity: 'info',
             title: p.fieldLabel || p.field,
@@ -1370,7 +1400,8 @@ export class AiCareerAssistantService {
 
       if (conflicts.length > 0) {
         const conflictLines = conflicts.map(
-          (c) => `• ${c.fieldLabel}: Profile states "${c.profileValue}", but application states "${c.applicationValue}".`
+          (c) =>
+            `• ${c.fieldLabel}: Profile states "${c.profileValue}", but application states "${c.applicationValue}".`
         );
         return {
           id: crypto.randomUUID(),
@@ -1409,7 +1440,8 @@ export class AiCareerAssistantService {
           role: 'assistant',
           content: 'No conflicts detected between your canonical profile and application answers.',
           structuredResponse: {
-            summary: 'No conflicts detected between your canonical profile and application answers.',
+            summary:
+              'No conflicts detected between your canonical profile and application answers.',
             findings: [],
             actions: [{ id: 'check_readiness', label: 'Check readiness' }],
           },
@@ -1424,7 +1456,9 @@ export class AiCareerAssistantService {
     }
 
     // 5. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
-    const explainMatch = !/readiness|blocking|ready/i.test(userText) && userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
+    const explainMatch =
+      !/readiness|blocking|ready/i.test(userText) &&
+      userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
     if (explainMatch) {
       const targetTerm = explainMatch[1].replace(/field|my|\?|\./g, '').trim();
       const explanation = this.explainProfileField(targetTerm);
@@ -1474,7 +1508,8 @@ export class AiCareerAssistantService {
               {
                 severity: 'warning',
                 title: 'Wording Review Notice',
-                description: 'We cannot rewrite statements containing unsubstantiated claims or missing evidence.',
+                description:
+                  'We cannot rewrite statements containing unsubstantiated claims or missing evidence.',
               },
             ],
             actions: [{ id: 'review_resume', label: 'Review resume' }],
@@ -1501,7 +1536,10 @@ export class AiCareerAssistantService {
               description: this._sanitizeNoRoutes(wordingResult.message).slice(0, 300),
             },
           ],
-          actions: [{ id: 'review_resume', label: 'Review resume' }, { id: 'tailor_resume', label: 'Tailor resume' }],
+          actions: [
+            { id: 'review_resume', label: 'Review resume' },
+            { id: 'tailor_resume', label: 'Tailor resume' },
+          ],
         },
         timestamp: new Date().toISOString(),
         citations: [
@@ -1526,15 +1564,18 @@ export class AiCareerAssistantService {
     const provider = this._getProvider();
     if (provider) {
       try {
-        const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
+        const missingInfo = readinessData?.missingItems
+          ? readinessData
+          : this.identifyMissingInformation({ candidateProfile: profile });
         const missingItems = missingInfo.missingItems || [];
-        const readinessScore = typeof readinessData?.overallScore === 'number'
-          ? readinessData.overallScore
-          : typeof readinessData?.score === 'number'
-            ? readinessData.score
-            : typeof missingInfo?.readinessScore === 'number'
-              ? missingInfo.readinessScore
-              : null;
+        const readinessScore =
+          typeof readinessData?.overallScore === 'number'
+            ? readinessData.overallScore
+            : typeof readinessData?.score === 'number'
+              ? readinessData.score
+              : typeof missingInfo?.readinessScore === 'number'
+                ? missingInfo.readinessScore
+                : null;
 
         const contextSummary = [
           `Active Page Context: ${validPageContext}`,
@@ -1546,8 +1587,15 @@ export class AiCareerAssistantService {
           `Preferred Locations: ${(profile?.preferredLocations || []).join(', ') || 'Not specified'}`,
           `Work Authorization: ${profile?.workAuthorization || 'Not specified'}`,
           `Visa Sponsorship: ${profile?.visaSponsorshipRequired === true ? 'Required' : profile?.visaSponsorshipRequired === false ? 'Not required' : 'Not set'}`,
-          `Verified Skills: ${(candidateSkills.length > 0 ? candidateSkills.map((s) => s.name) : (profile?.skills || [])).slice(0, 15).join(', ') || 'None'}`,
-          `Connected GitHub Repositories: ${connectedRepositories.length > 0 ? connectedRepositories.map((r) => r.displayName || r.url).slice(0, 10).join(', ') : 'None provided'}`,
+          `Verified Skills: ${(candidateSkills.length > 0 ? candidateSkills.map((s) => s.name) : profile?.skills || []).slice(0, 15).join(', ') || 'None'}`,
+          `Connected GitHub Repositories: ${
+            connectedRepositories.length > 0
+              ? connectedRepositories
+                  .map((r) => r.displayName || r.url)
+                  .slice(0, 10)
+                  .join(', ')
+              : 'None provided'
+          }`,
           `Tracked Applications: ${applications.length > 0 ? applications.map((a) => `${a.jobTitle} at ${a.companyName} (${a.status})`).join(', ') : 'None provided'}`,
           `Resumes: ${resumes.length > 0 ? resumes.map((r) => `${r.fileName} (${r.status})`).join(', ') : 'None provided'}`,
         ].join('\n');
@@ -1618,7 +1666,10 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
           state: 'SUCCESS',
         };
       } catch (err) {
-        this.logger.warn({ err }, 'AI provider error during career assistant conversation; falling back gracefully');
+        this.logger.warn(
+          { err },
+          'AI provider error during career assistant conversation; falling back gracefully'
+        );
         return {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -1630,7 +1681,8 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
               {
                 severity: 'warning',
                 title: 'Service Temporarily Unavailable',
-                description: 'The assistant could not be reached right now. Your workspace remains fully functional.',
+                description:
+                  'The assistant could not be reached right now. Your workspace remains fully functional.',
               },
             ],
             actions: [{ id: 'complete_profile', label: 'Review profile' }],
@@ -1648,26 +1700,33 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
 
     // 9. Deterministic Fallbacks when AI Provider is not configured or offline
     // Check for missing information / readiness intent
-    if (/missing|readiness|ready to apply|what do i need|check (?:my )?application readiness|what(?:'s| is) blocking me/i.test(userText)) {
-      const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
-      const score = typeof readinessData?.overallScore === 'number'
-        ? readinessData.overallScore
-        : typeof readinessData?.score === 'number'
-          ? readinessData.score
-          : typeof missingInfo?.readinessScore === 'number'
-            ? missingInfo.readinessScore
-            : null;
+    if (
+      /missing|readiness|ready to apply|what do i need|check (?:my )?application readiness|what(?:'s| is) blocking me/i.test(
+        userText
+      )
+    ) {
+      const missingInfo = readinessData?.missingItems
+        ? readinessData
+        : this.identifyMissingInformation({ candidateProfile: profile });
+      const score =
+        typeof readinessData?.overallScore === 'number'
+          ? readinessData.overallScore
+          : typeof readinessData?.score === 'number'
+            ? readinessData.score
+            : typeof missingInfo?.readinessScore === 'number'
+              ? missingInfo.readinessScore
+              : null;
       const missingItems = missingInfo?.missingItems || [];
       const isAssessed = typeof score === 'number';
 
       const structured = {
         summary: isAssessed
-          ? (missingItems.length > 0
+          ? missingItems.length > 0
             ? `Your profile is at ${score}% application readiness, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`)
-          : (missingItems.length > 0
+            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`
+          : missingItems.length > 0
             ? `Application readiness has not been evaluated yet, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`),
+            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`,
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'warning',
           title: m.label,
@@ -1704,13 +1763,16 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
 
     // Check for profile improvement intent
     if (/improve (?:my )?profile|profile improvement|what should i do next/i.test(userText)) {
-      const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
+      const missingInfo = readinessData?.missingItems
+        ? readinessData
+        : this.identifyMissingInformation({ candidateProfile: profile });
       const missingItems = missingInfo?.missingItems || [];
 
       const structured = {
-        summary: missingItems.length > 0
-          ? `Your profile is missing ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} that may affect match quality.`
-          : `Your profile is complete with all required screening fields, corroborated by ${connectedRepositories.length} connected repositor${connectedRepositories.length === 1 ? 'y' : 'ies'}.`,
+        summary:
+          missingItems.length > 0
+            ? `Your profile is missing ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} that may affect match quality.`
+            : `Your profile is complete with all required screening fields, corroborated by ${connectedRepositories.length} connected repositor${connectedRepositories.length === 1 ? 'y' : 'ies'}.`,
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'info',
           title: m.label,
@@ -1757,7 +1819,8 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
           {
             severity: 'info',
             title: 'Core Workspace Available',
-            description: 'You can update your profile, review readiness, and manage applications directly.',
+            description:
+              'You can update your profile, review readiness, and manage applications directly.',
           },
         ],
         actions: [{ id: 'complete_profile', label: 'Review profile' }],

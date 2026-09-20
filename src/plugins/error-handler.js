@@ -6,7 +6,10 @@
  */
 
 import { AppError } from '../errors/index.js';
-import { sanitizeUserFacingError, sanitizeErrorMessage } from '../services/user-facing-error.sanitizer.js';
+import {
+  sanitizeUserFacingError,
+  sanitizeErrorMessage,
+} from '../services/user-facing-error.sanitizer.js';
 import { renderErrorPage } from '../views/error.page.js';
 import { UserFacingStateEnum } from '../domain/ui/user-facing-states.js';
 
@@ -156,4 +159,3 @@ export function notFoundHandler(request, reply) {
     },
   });
 }
-

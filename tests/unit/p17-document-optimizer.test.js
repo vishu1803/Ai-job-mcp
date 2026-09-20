@@ -81,10 +81,7 @@ describe('P17: Document-Level Content-Utilization Optimizer', () => {
         {
           projectId: 'proj-1',
           name: 'Project One',
-          bullets: [
-            { text: 'Bullet one.' },
-            { text: 'Bullet two.' },
-          ],
+          bullets: [{ text: 'Bullet one.' }, { text: 'Bullet two.' }],
         },
       ],
     };

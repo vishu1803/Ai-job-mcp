@@ -55,7 +55,10 @@ export class InstahyreAdapter {
     let cleanTitle = title;
     let ogCompany = '';
     if (title.includes(' - ')) {
-      const parts = title.split(' - ').map((p) => p.trim()).filter(Boolean);
+      const parts = title
+        .split(' - ')
+        .map((p) => p.trim())
+        .filter(Boolean);
       if (parts.length >= 2) {
         cleanTitle = parts[0];
         ogCompany = parts[1];
@@ -69,13 +72,10 @@ export class InstahyreAdapter {
       'Company';
 
     const locationEl =
-      doc.querySelector('[class*="location"]') ||
-      doc.querySelector('.job-location');
+      doc.querySelector('[class*="location"]') || doc.querySelector('.job-location');
     const location = locationEl ? locationEl.textContent.trim() : 'Not specified';
 
-    const descEl =
-      doc.querySelector('[class*="job-description"]') ||
-      doc.querySelector('main');
+    const descEl = doc.querySelector('[class*="job-description"]') || doc.querySelector('main');
     const description = descEl
       ? descEl.textContent.trim()
       : metaContent('meta[property="og:description"]') ||

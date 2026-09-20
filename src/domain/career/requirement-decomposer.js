@@ -36,20 +36,85 @@ const BOILERPLATE_PREFIXES = [
  * Known multi-word technical concepts to preserve before tokenization.
  */
 const MULTI_WORD_TECH_PHRASES = [
-  { pattern: /\bactive\s+directory\b/i, slug: 'active-directory', name: 'Active Directory', category: 'TOOL' },
-  { pattern: /\bsecurity\s+architecture\b/i, slug: 'security-architecture', name: 'Security Architecture', category: 'ARCHITECTURE' },
-  { pattern: /\baccess\s+control\s+models?\b/i, slug: 'access-control', name: 'Access Control', category: 'CONCEPT' },
-  { pattern: /\brole[- ]based\s+access\s+control\b/i, slug: 'rbac', name: 'Role-Based Access Control', category: 'CONCEPT' },
-  { pattern: /\bdistributed\s+systems?\b/i, slug: 'distributed-systems', name: 'Distributed Systems', category: 'ARCHITECTURE' },
-  { pattern: /\bevent[- ]driven\s+architecture\b/i, slug: 'event-driven-architecture', name: 'Event-Driven Architecture', category: 'ARCHITECTURE' },
-  { pattern: /\bmicroservices?\s+architecture\b/i, slug: 'microservices', name: 'Microservices', category: 'ARCHITECTURE' },
-  { pattern: /\brest(?:ful)?\s+apis?\b/i, slug: 'rest-api', name: 'REST API', category: 'ARCHITECTURE' },
+  {
+    pattern: /\bactive\s+directory\b/i,
+    slug: 'active-directory',
+    name: 'Active Directory',
+    category: 'TOOL',
+  },
+  {
+    pattern: /\bsecurity\s+architecture\b/i,
+    slug: 'security-architecture',
+    name: 'Security Architecture',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\baccess\s+control\s+models?\b/i,
+    slug: 'access-control',
+    name: 'Access Control',
+    category: 'CONCEPT',
+  },
+  {
+    pattern: /\brole[- ]based\s+access\s+control\b/i,
+    slug: 'rbac',
+    name: 'Role-Based Access Control',
+    category: 'CONCEPT',
+  },
+  {
+    pattern: /\bdistributed\s+systems?\b/i,
+    slug: 'distributed-systems',
+    name: 'Distributed Systems',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\bevent[- ]driven\s+architecture\b/i,
+    slug: 'event-driven-architecture',
+    name: 'Event-Driven Architecture',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\bmicroservices?\s+architecture\b/i,
+    slug: 'microservices',
+    name: 'Microservices',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\brest(?:ful)?\s+apis?\b/i,
+    slug: 'rest-api',
+    name: 'REST API',
+    category: 'ARCHITECTURE',
+  },
   { pattern: /\bgraphql\s+apis?\b/i, slug: 'graphql', name: 'GraphQL', category: 'ARCHITECTURE' },
-  { pattern: /\binfrastructure\s+as\s+code\b/i, slug: 'infrastructure-as-code', name: 'Infrastructure as Code', category: 'ARCHITECTURE' },
-  { pattern: /\bcontainer\s+orchestration\b/i, slug: 'container-orchestration', name: 'Container Orchestration', category: 'ARCHITECTURE' },
-  { pattern: /\bcontinuous\s+integration\b/i, slug: 'ci-cd', name: 'CI/CD', category: 'CLOUD_DEVOPS' },
-  { pattern: /\bserver[- ]side\s+rendering\b/i, slug: 'server-side-rendering', name: 'Server-Side Rendering', category: 'ARCHITECTURE' },
-  { pattern: /\bopen\s*telemetry\b/i, slug: 'opentelemetry', name: 'OpenTelemetry', category: 'TOOL' },
+  {
+    pattern: /\binfrastructure\s+as\s+code\b/i,
+    slug: 'infrastructure-as-code',
+    name: 'Infrastructure as Code',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\bcontainer\s+orchestration\b/i,
+    slug: 'container-orchestration',
+    name: 'Container Orchestration',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\bcontinuous\s+integration\b/i,
+    slug: 'ci-cd',
+    name: 'CI/CD',
+    category: 'CLOUD_DEVOPS',
+  },
+  {
+    pattern: /\bserver[- ]side\s+rendering\b/i,
+    slug: 'server-side-rendering',
+    name: 'Server-Side Rendering',
+    category: 'ARCHITECTURE',
+  },
+  {
+    pattern: /\bopen\s*telemetry\b/i,
+    slug: 'opentelemetry',
+    name: 'OpenTelemetry',
+    category: 'TOOL',
+  },
 ];
 
 /**
@@ -78,18 +143,16 @@ export class RequirementDecomposer {
    * @returns {Array<object>} Decomposed atomic requirement objects.
    */
   static decompose(rawInput, options = {}) {
-    const {
-      tenantId = null,
-      jobDescriptionId = null,
-      defaultImportance = 'REQUIRED',
-    } = options;
+    const { tenantId = null, jobDescriptionId = null, defaultImportance = 'REQUIRED' } = options;
 
     if (!rawInput) return [];
 
     let rawLines = [];
     if (Array.isArray(rawInput)) {
       rawLines = rawInput
-        .map((r) => (typeof r === 'string' ? r : r?.description || r?.rawSnippet || r?.extractedValue || ''))
+        .map((r) =>
+          typeof r === 'string' ? r : r?.description || r?.rawSnippet || r?.extractedValue || ''
+        )
         .filter(Boolean);
     } else if (typeof rawInput === 'string') {
       rawLines = rawInput
@@ -102,9 +165,7 @@ export class RequirementDecomposer {
     const seenRequirementSignatures = new Set();
 
     for (const rawLine of rawLines) {
-      const cleanLine = rawLine
-        .replace(/^[-*•>]\s*|^\d+\.\s*/, '')
-        .trim();
+      const cleanLine = rawLine.replace(/^[-*•>]\s*|^\d+\.\s*/, '').trim();
       if (!cleanLine || cleanLine.length < 3) continue;
 
       const importance = RequirementDecomposer.classifyImportance(cleanLine, defaultImportance);
@@ -158,7 +219,10 @@ export class RequirementDecomposer {
 
           // Extract any explicit technologies mentioned in the experience clause (e.g. "in Node.js, Go, or Java")
           if (targetDomain) {
-            const domainSkills = RequirementDecomposer.extractAtomicSkillsFromClause(targetDomain, cleanLine);
+            const domainSkills = RequirementDecomposer.extractAtomicSkillsFromClause(
+              targetDomain,
+              cleanLine
+            );
             for (const skill of domainSkills) {
               const skillSig = `SKILL:${skill.slug}`;
               if (!seenRequirementSignatures.has(skillSig)) {
@@ -294,7 +358,8 @@ export class RequirementDecomposer {
       }
 
       // 6. Technical Skill / Architecture / Protocol Requirement (Decompose Compound Clauses)
-      const extractedAtomicSkills = RequirementDecomposer.extractAtomicSkillsFromSentence(cleanLine);
+      const extractedAtomicSkills =
+        RequirementDecomposer.extractAtomicSkillsFromSentence(cleanLine);
 
       if (extractedAtomicSkills.length > 0) {
         for (const skill of extractedAtomicSkills) {
@@ -327,7 +392,8 @@ export class RequirementDecomposer {
         // Fallback for general unparsed technical sentences (e.g. "Practical experience developing and improving applications")
         const stripped = RequirementDecomposer.stripBoilerplate(cleanLine);
         const norm = SkillTaxonomyEngine.normalizeSkill(stripped);
-        const slug = norm?.canonicalSlug && norm.canonicalSlug !== 'unknown-tool' ? norm.canonicalSlug : null;
+        const slug =
+          norm?.canonicalSlug && norm.canonicalSlug !== 'unknown-tool' ? norm.canonicalSlug : null;
         const name = norm?.canonicalName || stripped;
 
         const genericSig = `GENERIC:${cleanLine.slice(0, 40).toLowerCase()}`;
@@ -496,7 +562,10 @@ export class RequirementDecomposer {
       seenSlugs.add('c-sharp');
       matches.push({ slug: 'c-sharp', name: 'C#', category: 'LANGUAGE' });
     }
-    if (/\b(?:golang|go\s+programming|go\s+developer|in\s+go)\b/i.test(line) && !seenSlugs.has('go')) {
+    if (
+      /\b(?:golang|go\s+programming|go\s+developer|in\s+go)\b/i.test(line) &&
+      !seenSlugs.has('go')
+    ) {
       seenSlugs.add('go');
       matches.push({ slug: 'go', name: 'Go', category: 'LANGUAGE' });
     }
@@ -544,10 +613,16 @@ export class RequirementDecomposer {
     if (/\b(?:bonus|plus|optional|a\s+plus\s+if\s+you\s+have|nice\s+to\s+have)\b/i.test(lower)) {
       return 'OPTIONAL';
     }
-    if (/\b(?:preferred|desired|advantageous|ideal\s+candidate\s+has|good\s+to\s+have)\b/i.test(lower)) {
+    if (
+      /\b(?:preferred|desired|advantageous|ideal\s+candidate\s+has|good\s+to\s+have)\b/i.test(lower)
+    ) {
       return 'PREFERRED';
     }
-    if (/\b(?:must\s+have|must\s+possess|required|essential|minimum|mandatory|proven\s+track\s+record)\b/i.test(lower)) {
+    if (
+      /\b(?:must\s+have|must\s+possess|required|essential|minimum|mandatory|proven\s+track\s+record)\b/i.test(
+        lower
+      )
+    ) {
       return 'REQUIRED';
     }
     return defaultImportance;
@@ -577,7 +652,9 @@ export class RequirementDecomposer {
       degreeLevel = 'DOCTORATE';
     } else if (/\b(?:master'?s?|m\.?s\.?|m\.?tech|m\.?sc)\b/i.test(lower)) {
       degreeLevel = 'MASTER';
-    } else if (/\b(?:bachelor'?s?|b\.?s\.?|b\.?tech|b\.?sc|b\.?e\.?|undergraduate)\b/i.test(lower)) {
+    } else if (
+      /\b(?:bachelor'?s?|b\.?s\.?|b\.?tech|b\.?sc|b\.?e\.?|undergraduate)\b/i.test(lower)
+    ) {
       degreeLevel = 'BACHELOR';
     } else if (/\b(?:associate'?s?)\b/i.test(lower)) {
       degreeLevel = 'ASSOCIATE';
@@ -611,7 +688,11 @@ export class RequirementDecomposer {
     const lower = line.toLowerCase();
 
     if (/\b(?:remote\s*(?:-|in)?\s*(?:us|united\s+states|usa))\b/i.test(lower)) {
-      return { workplaceType: 'REMOTE', region: 'UNITED_STATES', display: 'Remote - United States' };
+      return {
+        workplaceType: 'REMOTE',
+        region: 'UNITED_STATES',
+        display: 'Remote - United States',
+      };
     }
     if (/\b(?:remote\s*(?:-|in)?\s*(?:india))\b/i.test(lower)) {
       return { workplaceType: 'REMOTE', region: 'INDIA', display: 'Remote - India' };
@@ -640,7 +721,11 @@ export class RequirementDecomposer {
    */
   static extractEligibilityCriteria(line) {
     const lower = line.toLowerCase();
-    if (/\b(?:us\s+work\s+authorization|authorized\s+to\s+work\s+in\s+the\s+(?:us|united\s+states))\b/i.test(lower)) {
+    if (
+      /\b(?:us\s+work\s+authorization|authorized\s+to\s+work\s+in\s+the\s+(?:us|united\s+states))\b/i.test(
+        lower
+      )
+    ) {
       return { type: 'US_WORK_AUTHORIZATION', display: 'US Work Authorization' };
     }
     if (/\b(?:visa\s+sponsorship(?:\s+is\s+not\s+available|\s+not\s+offered)?)\b/i.test(lower)) {

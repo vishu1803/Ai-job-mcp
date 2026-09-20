@@ -51,7 +51,8 @@ function createMockDocument({
       return [];
     },
     body: {
-      textContent: 'Body text content that should NEVER be used for LinkedIn description extraction',
+      textContent:
+        'Body text content that should NEVER be used for LinkedIn description extraction',
     },
   };
 }
@@ -76,12 +77,17 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
       assert.equal(extracted.title, 'Software Engineer');
       assert.equal(extracted.company, 'Appinventiv');
       assert.equal(extracted.isReady, true, 'Job identity is recognized and detected');
-      assert.equal(extracted.analysisReady, false, 'Analysis must be NOT ready when description < 50');
+      assert.equal(
+        extracted.analysisReady,
+        false,
+        'Analysis must be NOT ready when description < 50'
+      );
     });
 
     it('Job detected with valid title, company, and description >= 50 has isReady=true and analysisReady=true', () => {
       const adapter = new LinkedInAdapter();
-      const substantiveDesc = 'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.';
+      const substantiveDesc =
+        'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.';
       const mockDoc = createMockDocument({
         title: 'Software Engineer at Appinventiv — India | LinkedIn Jobs',
         url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
@@ -103,7 +109,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
     });
 
     it('JobPageDetector propagates analysisReady flag correctly', () => {
-      const substantiveDesc = 'General Motors is seeking a Senior Go Engineer to architect high-performance distributed microservices on Kubernetes.';
+      const substantiveDesc =
+        'General Motors is seeking a Senior Go Engineer to architect high-performance distributed microservices on Kubernetes.';
       const docWithDesc = createMockDocument({
         title: 'Senior Software Engineer – Go (Golang) | General Motors | LinkedIn',
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
@@ -115,7 +122,10 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
         },
       });
 
-      const detected = JobPageDetector.detect(docWithDesc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const detected = JobPageDetector.detect(
+        docWithDesc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(detected.isConfident, true);
       assert.equal(detected.isReady, true);
       assert.equal(detected.analysisReady, true);
@@ -125,9 +135,16 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
         selectors: {},
       });
-      const detectedNoDesc = JobPageDetector.detect(docWithoutDesc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const detectedNoDesc = JobPageDetector.detect(
+        docWithoutDesc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(detectedNoDesc.isReady, true);
-      assert.equal(detectedNoDesc.analysisReady, false, 'analysisReady must be false when description missing');
+      assert.equal(
+        detectedNoDesc.analysisReady,
+        false,
+        'analysisReady must be false when description missing'
+      );
     });
 
     it('JobDetectionEngine evaluate outputs analysisReady: false when description is under 50', () => {
@@ -137,7 +154,10 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
         selectors: {},
       });
 
-      const result = JobDetectionEngine.evaluate(doc, 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430');
+      const result = JobDetectionEngine.evaluate(
+        doc,
+        'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430'
+      );
       assert.equal(result.detected, true, 'Job detected');
       assert.equal(result.ready, true, 'Detection ready');
       assert.equal(result.analysisReady, false, 'Analysis ready must be false');
@@ -167,7 +187,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
     });
 
     it('Extracts description from .show-more-less-html__markup without using document.body', () => {
-      const containerText = 'Appinventiv is hiring a Software Engineer to develop high-performance mobile and web solutions with microservices.';
+      const containerText =
+        'Appinventiv is hiring a Software Engineer to develop high-performance mobile and web solutions with microservices.';
       const doc = createMockDocument({
         title: 'Software Engineer at Appinventiv | LinkedIn',
         url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
@@ -184,7 +205,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
     });
 
     it('Extracts description from #job-details active container', () => {
-      const containerText = 'General Motors requires an experienced Software Engineer to build connected vehicle APIs and services.';
+      const containerText =
+        'General Motors requires an experienced Software Engineer to build connected vehicle APIs and services.';
       const doc = createMockDocument({
         title: 'Senior Software Engineer | General Motors | LinkedIn',
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
@@ -224,7 +246,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
       const job = {
         title: 'Software Engineer',
         company: 'Appinventiv',
-        description: 'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.',
+        description:
+          'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.',
         analysisReady: true,
       };
 
@@ -264,7 +287,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
       const fullJob = {
         title: 'Software Engineer',
         company: 'Appinventiv',
-        description: 'Appinventiv is hiring a Software Engineer to develop high-performance mobile and web solutions with Node.js and microservices.',
+        description:
+          'Appinventiv is hiring a Software Engineer to develop high-performance mobile and web solutions with Node.js and microservices.',
       };
 
       const resultFull = simulatedRunAnalyzeJob(fullJob);
@@ -289,7 +313,8 @@ describe('P70: LinkedIn Description Readiness & Analyze Contract', () => {
         company: 'Appinventiv',
         sourceUrl: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
         externalJobId: '4464770430',
-        description: 'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.',
+        description:
+          'The ideal candidate will be responsible for developing high-quality applications and scalable backend APIs using Node.js and TypeScript.',
         analysisReady: true,
       };
 

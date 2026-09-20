@@ -123,7 +123,9 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
         skills: mockSkills,
         applications: mockApplications,
         recommendedJobs: mockRecommendedJobs,
-        activeProposals: [{ id: 'prop-1', field: 'headline', proposedValue: 'Lead Systems Architect' }],
+        activeProposals: [
+          { id: 'prop-1', field: 'headline', proposedValue: 'Lead Systems Architect' },
+        ],
       });
 
       // Candidate Greeting & Identity
@@ -201,7 +203,11 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
 
       // Duplicate Copilot drawer container inside dashboard page body is eliminated (rendered by layout)
       const asideCount = (html.match(/id="copilot-drawer"/g) || []).length;
-      assert.strictEqual(asideCount, 1, 'Only exactly 1 copilot-drawer instance in rendered document');
+      assert.strictEqual(
+        asideCount,
+        1,
+        'Only exactly 1 copilot-drawer instance in rendered document'
+      );
     });
   });
 

@@ -141,71 +141,75 @@ export const ApplicationDocumentArtifactSchema = z
   })
   .passthrough();
 
-export const ApplicationPackageSchema = z.object({
-  candidateId: z.string().uuid(),
-  candidateName: z.string(),
-  candidateEmail: z.string().email(),
-  candidatePhone: z.string().optional(),
-  targetJob: NormalizedJobPostingSchema,
-  tailoredResume: z.object({
-    documentId: z.string().optional(),
-    title: z.string(),
-    markdownContent: z.string(),
-    contentHash: z.string(),
-    fitScore: z.number().min(0).max(100),
-    selectedProjects: z.array(z.any()).optional(),
+export const ApplicationPackageSchema = z
+  .object({
+    candidateId: z.string().uuid(),
+    candidateName: z.string(),
+    candidateEmail: z.string().email(),
+    candidatePhone: z.string().optional(),
+    targetJob: NormalizedJobPostingSchema,
+    tailoredResume: z.object({
+      documentId: z.string().optional(),
+      title: z.string(),
+      markdownContent: z.string(),
+      contentHash: z.string(),
+      fitScore: z.number().min(0).max(100),
+      selectedProjects: z.array(z.any()).optional(),
+      selectedSections: z.array(z.string()).optional(),
+      sectionSnapshots: z.record(z.string(), z.any()).optional(),
+      artifact: ApplicationDocumentArtifactSchema.optional(),
+      structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
+      tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
+      evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
+      generationContractVersion: z.string().optional(),
+      structuredResumeSchemaVersion: z.string().nullable().optional(),
+    }),
+    coverLetter: z.object({
+      documentId: z.string().optional(),
+      title: z.string(),
+      markdownContent: z.string(),
+      contentHash: z.string(),
+      artifact: ApplicationDocumentArtifactSchema.optional(),
+    }),
+    verifiedSkills: z.array(ApplicationSkillItemSchema),
+    claimedSkills: z.array(ApplicationSkillItemSchema),
+    portfolioLinks: z.array(
+      z.object({
+        projectName: z.string(),
+        repositoryUrl: z.string().url().optional(),
+        highlights: z.array(z.string()),
+      })
+    ),
     selectedSections: z.array(z.string()).optional(),
     sectionSnapshots: z.record(z.string(), z.any()).optional(),
-    artifact: ApplicationDocumentArtifactSchema.optional(),
+    answers: z.record(z.string(), z.any()).default({}),
+    packageHash: z.string(), // SHA-256 of canonical JSON package
+    preparedAt: z.string(),
+    // Application linkage populated by prepare_job_application persistence
+    // (P14-005BA). Optional so packages prepared without persistence (or echoed
+    // back through validate/submit) remain valid.
+    applicationId: z.string().uuid().optional(),
+    jobId: z.string().optional(),
+    packageVersion: z.number().int().positive().optional(),
+    packageStatus: z.string().optional(),
+    artifactStatus: z.string().optional(),
+    lifecycleAction: z.enum(['CREATED', 'REUSED', 'UPDATED']).optional(),
+    resumeQuality: z.record(z.unknown()).optional(),
+    layoutDiagnostics: z.record(z.unknown()).optional(),
+    documentsStatus: z
+      .enum(['DOCUMENTS_READY', 'DOCUMENTS_BLOCKED', 'DOCUMENTS_PENDING'])
+      .optional(),
+    artifactsReady: z.boolean().optional(),
+    artifactFailureReason: z.string().optional(),
+    jobFitAnalysis: z.record(z.unknown()).optional(),
+    atsFitSnapshot: z.record(z.unknown()).optional(),
     structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
     tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
     evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
     generationContractVersion: z.string().optional(),
     structuredResumeSchemaVersion: z.string().nullable().optional(),
-  }),
-  coverLetter: z.object({
-    documentId: z.string().optional(),
-    title: z.string(),
-    markdownContent: z.string(),
-    contentHash: z.string(),
-    artifact: ApplicationDocumentArtifactSchema.optional(),
-  }),
-  verifiedSkills: z.array(ApplicationSkillItemSchema),
-  claimedSkills: z.array(ApplicationSkillItemSchema),
-  portfolioLinks: z.array(
-    z.object({
-      projectName: z.string(),
-      repositoryUrl: z.string().url().optional(),
-      highlights: z.array(z.string()),
-    })
-  ),
-  selectedSections: z.array(z.string()).optional(),
-  sectionSnapshots: z.record(z.string(), z.any()).optional(),
-  answers: z.record(z.string(), z.any()).default({}),
-  packageHash: z.string(), // SHA-256 of canonical JSON package
-  preparedAt: z.string(),
-  // Application linkage populated by prepare_job_application persistence
-  // (P14-005BA). Optional so packages prepared without persistence (or echoed
-  // back through validate/submit) remain valid.
-  applicationId: z.string().uuid().optional(),
-  jobId: z.string().optional(),
-  packageVersion: z.number().int().positive().optional(),
-  packageStatus: z.string().optional(),
-  artifactStatus: z.string().optional(),
-  lifecycleAction: z.enum(['CREATED', 'REUSED', 'UPDATED']).optional(),
-  resumeQuality: z.record(z.unknown()).optional(),
-  layoutDiagnostics: z.record(z.unknown()).optional(),
-  documentsStatus: z.enum(['DOCUMENTS_READY', 'DOCUMENTS_BLOCKED', 'DOCUMENTS_PENDING']).optional(),
-  artifactsReady: z.boolean().optional(),
-  artifactFailureReason: z.string().optional(),
-  jobFitAnalysis: z.record(z.unknown()).optional(),
-  atsFitSnapshot: z.record(z.unknown()).optional(),
-  structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
-  tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
-  evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
-  generationContractVersion: z.string().optional(),
-  structuredResumeSchemaVersion: z.string().nullable().optional(),
-}).passthrough();
+  })
+  .passthrough();
 
 // -----------------------------------------------------------------------------
 // 3. Application Validation Schemas

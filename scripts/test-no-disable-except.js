@@ -6,14 +6,18 @@ const profileDir = 'C:\\Users\\VISHW\\AppData\\Local\\Temp\\chrome-test-profile-
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const port = 9333;
 
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'about:blank'
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'about:blank',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -35,7 +39,7 @@ async function run() {
   await sleep(2500);
   const v = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
   const ws = new WebSocket(v.webSocketDebuggerUrl);
-  await new Promise(r => ws.addEventListener('open', r));
+  await new Promise((r) => ws.addEventListener('open', r));
   const t = await cdpSend(ws, 'Target.getTargets');
   console.log('Targets WITHOUT disable-extensions-except:');
   for (const item of t.targetInfos) {
@@ -44,7 +48,7 @@ async function run() {
   p.kill('SIGKILL');
 }
 
-run().catch(e => {
+run().catch((e) => {
   console.error(e);
   p.kill('SIGKILL');
 });

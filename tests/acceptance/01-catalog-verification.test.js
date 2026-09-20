@@ -7,11 +7,28 @@ import { SkillTaxonomyEngine } from '../../src/domain/career/skill-taxonomy.js';
 
 describe('1. Skill Catalog Verification', () => {
   const TARGET_SKILLS = [
-    'aws', 'gcp', 'azure', 'kubernetes', 'docker', 'terraform',
-    'redis', 'nginx', 'reverse-proxy', 'load-balancing',
-    'kafka', 'rabbitmq', 'opentelemetry', 'prometheus', 'grafana',
-    'ai-assisted-development', 'github-copilot', 'cursor', 'claude-code',
-    'rag', 'ai-agents', 'mcp',
+    'aws',
+    'gcp',
+    'azure',
+    'kubernetes',
+    'docker',
+    'terraform',
+    'redis',
+    'nginx',
+    'reverse-proxy',
+    'load-balancing',
+    'kafka',
+    'rabbitmq',
+    'opentelemetry',
+    'prometheus',
+    'grafana',
+    'ai-assisted-development',
+    'github-copilot',
+    'cursor',
+    'claude-code',
+    'rag',
+    'ai-agents',
+    'mcp',
   ];
 
   let catalogEntries = [];
@@ -30,8 +47,8 @@ describe('1. Skill Catalog Verification', () => {
   });
 
   it('all 22 target skills exist in catalog', () => {
-    const slugs = new Set(catalogEntries.map(e => e.slug));
-    const missing = TARGET_SKILLS.filter(s => !slugs.has(s));
+    const slugs = new Set(catalogEntries.map((e) => e.slug));
+    const missing = TARGET_SKILLS.filter((s) => !slugs.has(s));
     if (missing.length > 0) {
       console.log('  ❌ Missing:', missing);
     }
@@ -40,7 +57,14 @@ describe('1. Skill Catalog Verification', () => {
   });
 
   it('aliases resolve via SkillTaxonomyEngine', () => {
-    const aliases = ['Amazon Web Services', 'Google Cloud Platform', 'k8s', 'redis', 'docker', 'kubernetes'];
+    const aliases = [
+      'Amazon Web Services',
+      'Google Cloud Platform',
+      'k8s',
+      'redis',
+      'docker',
+      'kubernetes',
+    ];
     for (const alias of aliases) {
       const result = SkillTaxonomyEngine.normalizeSkill(alias);
       assert.ok(result.isKnown, `Alias '${alias}' should resolve to known skill`);
@@ -49,14 +73,14 @@ describe('1. Skill Catalog Verification', () => {
   });
 
   it('no duplicate canonical slugs', () => {
-    const slugs = catalogEntries.map(e => e.slug);
+    const slugs = catalogEntries.map((e) => e.slug);
     const unique = new Set(slugs);
     assert.strictEqual(slugs.length, unique.size, 'Duplicate slugs found');
     console.log('  ✅ No duplicate slugs');
   });
 
   it('categories are populated', () => {
-    const categories = new Set(catalogEntries.map(e => e.category));
+    const categories = new Set(catalogEntries.map((e) => e.category));
     console.log(`  ✅ Categories: ${[...categories].join(', ')}`);
     assert.ok(categories.size >= 10, `Expected >=10 categories, got ${categories.size}`);
   });

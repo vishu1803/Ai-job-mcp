@@ -35,12 +35,7 @@ import {
  * @returns {object} Mutable benchmark object in DRAFT state
  */
 export function createBenchmarkDataset(params) {
-  const {
-    benchmarkId,
-    datasetVersion,
-    datasetRole = 'CALIBRATION',
-    samples = [],
-  } = params;
+  const { benchmarkId, datasetVersion, datasetRole = 'CALIBRATION', samples = [] } = params;
 
   DatasetRoleEnum.parse(datasetRole);
 
@@ -89,7 +84,9 @@ export function freezeBenchmarkDataset(benchmark) {
  */
 export function addSampleToBenchmark(benchmark, sample) {
   if (benchmark.state !== 'DRAFT') {
-    throw new Error(`Cannot add samples to a benchmark in state "${benchmark.state}". Must be in DRAFT.`);
+    throw new Error(
+      `Cannot add samples to a benchmark in state "${benchmark.state}". Must be in DRAFT.`
+    );
   }
 
   // Contamination check: Contaminated fixtures cannot enter a blind holdout!
@@ -119,9 +116,10 @@ export function calculateAdvancedMultiModelStatistics(evaluations) {
   const mean = Math.round((scores.reduce((a, b) => a + b, 0) / n) * 100) / 100;
 
   const sorted = [...scores].sort((a, b) => a - b);
-  const median = n % 2 !== 0
-    ? sorted[Math.floor(n / 2)]
-    : Math.round(((sorted[n / 2 - 1] + sorted[n / 2]) / 2) * 100) / 100;
+  const median =
+    n % 2 !== 0
+      ? sorted[Math.floor(n / 2)]
+      : Math.round(((sorted[n / 2 - 1] + sorted[n / 2]) / 2) * 100) / 100;
 
   const min = sorted[0];
   const max = sorted[sorted.length - 1];
@@ -129,7 +127,8 @@ export function calculateAdvancedMultiModelStatistics(evaluations) {
 
   const variance = scores.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / n;
   const standardDeviation = Math.round(Math.sqrt(variance) * 100) / 100;
-  const coefficientOfVariation = mean > 0 ? Math.round((standardDeviation / mean) * 100) / 100 : null;
+  const coefficientOfVariation =
+    mean > 0 ? Math.round((standardDeviation / mean) * 100) / 100 : null;
 
   // Pairwise differences
   const pairwiseDifferences = {};
@@ -199,14 +198,17 @@ export function buildBenchmarkGovernanceReport(params) {
 
   // 1. Blindness verification
   const isolationCheck = verifyBlindIsolation(blindPayload);
-  const blindnessStatus = isolationCheck.isIsolated ? 'VERIFIED_ISOLATED' : 'CONTAMINATED_OR_LEAKED';
+  const blindnessStatus = isolationCheck.isIsolated
+    ? 'VERIFIED_ISOLATED'
+    : 'CONTAMINATED_OR_LEAKED';
 
   // 2. Score Sovereignty & Weight Immutability Verification
-  const isEngineScoreImmutable = (
+  const isEngineScoreImmutable =
     engineReport.scoreVersion === 'p82.0' &&
-    (!scoringConfig || Object.isFrozen(scoringConfig.weights))
-  );
-  const productionScoreImmutabilityStatus = isEngineScoreImmutable ? 'VERIFIED_IMMUTABLE' : 'MUTATED';
+    (!scoringConfig || Object.isFrozen(scoringConfig.weights));
+  const productionScoreImmutabilityStatus = isEngineScoreImmutable
+    ? 'VERIFIED_IMMUTABLE'
+    : 'MUTATED';
 
   // 3. Evaluator reliability
   const allExternal = provenanceRecords.every((p) => p.evaluatorType === 'LLM_EXTERNAL');
@@ -229,11 +231,15 @@ export function buildBenchmarkGovernanceReport(params) {
     const hasNosqlCritique = rawList.some((r) => /nosql.*redis|redis.*nosql/i.test(r));
     if (!hasNosqlCritique) {
       if (ev.evaluator.provider === 'claude') {
-        rawList.push('Redis does not satisfy the NoSQL requirement; candidate has a gap in primary NoSQL databases.');
+        rawList.push(
+          'Redis does not satisfy the NoSQL requirement; candidate has a gap in primary NoSQL databases.'
+        );
       } else if (ev.evaluator.provider === 'gemini') {
         rawList.push('Candidate demonstrates NoSQL experience via Redis caching clusters.');
       } else if (ev.evaluator.provider === 'grok') {
-        rawList.push('Redis is related to NoSQL concepts but is not equivalent to document databases.');
+        rawList.push(
+          'Redis is related to NoSQL concepts but is not equivalent to document databases.'
+        );
       }
     }
 
@@ -288,8 +294,10 @@ export function buildBenchmarkGovernanceReport(params) {
   });
 
   const enginePublishableScore = engineReport.publishableScore;
-  const externalMedianDelta = Math.round((enginePublishableScore - overallStatistics.external_model_median) * 100) / 100;
-  const externalMeanDelta = Math.round((enginePublishableScore - overallStatistics.external_model_mean) * 100) / 100;
+  const externalMedianDelta =
+    Math.round((enginePublishableScore - overallStatistics.external_model_median) * 100) / 100;
+  const externalMeanDelta =
+    Math.round((enginePublishableScore - overallStatistics.external_model_mean) * 100) / 100;
   const divergenceAlert = Math.abs(externalMedianDelta) > 15;
 
   const evaluatorReliability = {
@@ -306,7 +314,8 @@ export function buildBenchmarkGovernanceReport(params) {
     implementationPass: true,
     calibrationEvidence: 'INSUFFICIENT_FOR_REAL_WORLD_MARKET_CLAIM',
     humanValidation: 'NOT_ESTABLISHED',
-    summary: 'IMPLEMENTATION COMPLETE / CALIBRATION EVIDENCE INSUFFICIENT FOR REAL-WORLD RECRUITER / ATS MARKET CLAIM',
+    summary:
+      'IMPLEMENTATION COMPLETE / CALIBRATION EVIDENCE INSUFFICIENT FOR REAL-WORLD RECRUITER / ATS MARKET CLAIM',
   };
 
   const limitations = [

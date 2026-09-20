@@ -8,7 +8,11 @@
  * Zod internals, HTTP codes, class names, or raw system exceptions to end users.
  */
 
-import { UserFacingStateEnum, RecoveryActionType, USER_FACING_STATE_DEFAULTS } from '../domain/ui/user-facing-states.js';
+import {
+  UserFacingStateEnum,
+  RecoveryActionType,
+  USER_FACING_STATE_DEFAULTS,
+} from '../domain/ui/user-facing-states.js';
 import {
   ValidationError,
   AuthenticationError,
@@ -83,7 +87,11 @@ const FIELD_LABEL_MAP = {
 export function formatFieldLabel(field) {
   if (!field) return 'Field';
   // Strip array indices or path prefixes: e.g. "metadata.answers.noticePeriod" -> "noticePeriod"
-  const cleanField = field.replace(/\[\d+\]/g, '').split('.').pop() || field;
+  const cleanField =
+    field
+      .replace(/\[\d+\]/g, '')
+      .split('.')
+      .pop() || field;
   if (FIELD_LABEL_MAP[cleanField]) {
     return FIELD_LABEL_MAP[cleanField];
   }
@@ -109,7 +117,11 @@ export function humanizeValidationMessage(field, rawMsg = '') {
     return `Please check the ${label.toLowerCase()} format.`;
   }
 
-  if (msgLower.includes('required') || msgLower.includes('missing') || msgLower.includes('expected string, received undefined')) {
+  if (
+    msgLower.includes('required') ||
+    msgLower.includes('missing') ||
+    msgLower.includes('expected string, received undefined')
+  ) {
     return `${label} is required.`;
   }
   if (msgLower.includes('email') || msgLower.includes('invalid email')) {
@@ -121,7 +133,11 @@ export function humanizeValidationMessage(field, rawMsg = '') {
   if (msgLower.includes('notice period')) {
     return `Please select your notice period so employers know your availability.`;
   }
-  if (msgLower.includes('positive') || msgLower.includes('negative') || msgLower.includes('greater than')) {
+  if (
+    msgLower.includes('positive') ||
+    msgLower.includes('negative') ||
+    msgLower.includes('greater than')
+  ) {
     return `${label} must be a positive number.`;
   }
   if (msgLower.includes('too short') || msgLower.includes('minimum')) {
@@ -232,7 +248,8 @@ export function sanitizeUserFacingError(error, context = {}) {
       state: UserFacingStateEnum.NETWORK_FAILURE,
       statusCode: 503,
       title: "We couldn't connect to the server",
-      message: 'Please check your internet connection. We will automatically try again when you are back online.',
+      message:
+        'Please check your internet connection. We will automatically try again when you are back online.',
       supportId: requestId,
       recoveryAction: {
         type: RecoveryActionType.RETRY,
@@ -258,7 +275,8 @@ export function sanitizeUserFacingError(error, context = {}) {
 
     if (Array.isArray(rawDetails)) {
       for (const item of rawDetails) {
-        const fieldName = item.field || item.path?.[0] || item.instancePath || item.params?.missingProperty || '';
+        const fieldName =
+          item.field || item.path?.[0] || item.instancePath || item.params?.missingProperty || '';
         const rawMessage = item.message || '';
         fieldErrors.push({
           field: fieldName.replace(/^\//, '').replace(/\./g, '_'),
@@ -271,7 +289,10 @@ export function sanitizeUserFacingError(error, context = {}) {
         fieldErrors.push({
           field: k,
           label: formatFieldLabel(k),
-          message: humanizeValidationMessage(k, typeof v === 'string' ? v : String(v?.message || 'Check this field')),
+          message: humanizeValidationMessage(
+            k,
+            typeof v === 'string' ? v : String(v?.message || 'Check this field')
+          ),
         });
       }
     }
@@ -309,12 +330,17 @@ export function sanitizeUserFacingError(error, context = {}) {
   }
 
   // 4. Authentication Error (401)
-  if (error instanceof AuthenticationError || error?.statusCode === 401 || error?.code === 'AUTHENTICATION_REQUIRED') {
+  if (
+    error instanceof AuthenticationError ||
+    error?.statusCode === 401 ||
+    error?.code === 'AUTHENTICATION_REQUIRED'
+  ) {
     return {
       state: UserFacingStateEnum.AUTHENTICATION_ERROR,
       statusCode: 401,
       title: 'Session expired',
-      message: 'Your session has timed out or you are not signed in. Please sign in to securely continue your work.',
+      message:
+        'Your session has timed out or you are not signed in. Please sign in to securely continue your work.',
       supportId: requestId,
       recoveryAction: {
         type: RecoveryActionType.SIGN_IN,
@@ -328,12 +354,17 @@ export function sanitizeUserFacingError(error, context = {}) {
   }
 
   // 5. Authorization Error (403)
-  if (error instanceof AuthorizationError || error?.statusCode === 403 || error?.code === 'FORBIDDEN') {
+  if (
+    error instanceof AuthorizationError ||
+    error?.statusCode === 403 ||
+    error?.code === 'FORBIDDEN'
+  ) {
     return {
       state: UserFacingStateEnum.AUTHORIZATION_ERROR,
       statusCode: 403,
       title: 'Access restricted',
-      message: "You don't have permission to view this resource or perform this action with your current role.",
+      message:
+        "You don't have permission to view this resource or perform this action with your current role.",
       supportId: requestId,
       recoveryAction: {
         type: RecoveryActionType.GO_BACK,
@@ -371,7 +402,8 @@ export function sanitizeUserFacingError(error, context = {}) {
       state: UserFacingStateEnum.CONFLICT,
       statusCode: 409,
       title: 'Update conflict detected',
-      message: 'The information on your screen was modified in another session. Please review your updates.',
+      message:
+        'The information on your screen was modified in another session. Please review your updates.',
       supportId: requestId,
       recoveryAction: {
         type: RecoveryActionType.RETRY,
@@ -384,12 +416,17 @@ export function sanitizeUserFacingError(error, context = {}) {
   }
 
   // 8. Rate Limit / Transient Retryable Failure (429)
-  if (error instanceof RateLimitError || error?.statusCode === 429 || error?.code === 'RATE_LIMITED') {
+  if (
+    error instanceof RateLimitError ||
+    error?.statusCode === 429 ||
+    error?.code === 'RATE_LIMITED'
+  ) {
     return {
       state: UserFacingStateEnum.RETRYABLE_FAILURE,
       statusCode: 429,
       title: 'Too many requests',
-      message: 'You have performed several actions in a short time. Please pause for a moment and try again.',
+      message:
+        'You have performed several actions in a short time. Please pause for a moment and try again.',
       supportId: requestId,
       recoveryAction: {
         type: RecoveryActionType.RETRY,

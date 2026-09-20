@@ -58,7 +58,9 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
       name: 'Analytics Dashboard',
       technologies: ['TypeScript', 'React', 'Node.js', 'PostgreSQL'],
       bullets: ['Built real-time telemetry streaming frontend using React and WebSockets.'],
-      highlights: ['Engineered high-throughput event aggregation service in Node.js with PostgreSQL persistence.'],
+      highlights: [
+        'Engineered high-throughput event aggregation service in Node.js with PostgreSQL persistence.',
+      ],
       features: ['Created interactive data visualization charts using D3.js and SVG rendering.'],
       evidence: [],
     };
@@ -72,14 +74,23 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
       options: { maxBullets: 3 },
     });
 
-    assert.equal(tailoredBullets.length, 3, `Expected exactly 3 bullets, got ${tailoredBullets.length}`);
-    assert.ok(tailoredBullets.every(b => typeof b.text === 'string' && b.text.length > 20));
-    assert.ok(tailoredBullets.every(b => b.provenanceStatus === 'VERIFIED' || b.provenanceStatus === 'CLAIMED'));
+    assert.equal(
+      tailoredBullets.length,
+      3,
+      `Expected exactly 3 bullets, got ${tailoredBullets.length}`
+    );
+    assert.ok(tailoredBullets.every((b) => typeof b.text === 'string' && b.text.length > 20));
+    assert.ok(
+      tailoredBullets.every(
+        (b) => b.provenanceStatus === 'VERIFIED' || b.provenanceStatus === 'CLAIMED'
+      )
+    );
   });
 
   // Test 3: Candidate bullet meaning and facts are preserved under professional compression
   test('Test 3: compressCandidateBullet removes introductory fluff while preserving verbs, technologies, and metrics', () => {
-    const input1 = 'Responsible for designing and implementing high-throughput REST APIs in FastAPI.';
+    const input1 =
+      'Responsible for designing and implementing high-throughput REST APIs in FastAPI.';
     const output1 = compressCandidateBullet(input1);
     assert.equal(output1, 'Designing and implementing high-throughput REST APIs in FastAPI.');
 
@@ -115,7 +126,11 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
     groundAndSanitizeProject(project);
 
     // Hard rule: DEPENDENCY -> NO BULLET
-    assert.deepEqual(project.bullets, [], 'Expected zero synthesized bullets from raw dependencies');
+    assert.deepEqual(
+      project.bullets,
+      [],
+      'Expected zero synthesized bullets from raw dependencies'
+    );
   });
 
   // Test 5: No technology-specific hardcoded synthesis in groundAndSanitizeProject (technology-agnostic)
@@ -125,7 +140,11 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
       technologies: ['QuantumLeaf', 'AeroMesh', 'SurrealDB'],
       bullets: ['Engineered quantum routing algorithms on SurrealDB storage nodes.'],
       evidence: [
-        { evidenceType: 'CANDIDATE_AUTHORED_CLAIM', skillName: 'QuantumLeaf', filePath: 'quantum.ql' },
+        {
+          evidenceType: 'CANDIDATE_AUTHORED_CLAIM',
+          skillName: 'QuantumLeaf',
+          filePath: 'quantum.ql',
+        },
       ],
     };
 
@@ -170,13 +189,21 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
       headline: 'Software Engineer',
       skills: [{ name: 'Data Structures and Algorithms', isVerified: true }],
       experience: [],
-      education: [{ institution: 'State University', degree: 'B.S. in Computer Science', coursework: ['Data Structures', 'Algorithms'] }],
+      education: [
+        {
+          institution: 'State University',
+          degree: 'B.S. in Computer Science',
+          coursework: ['Data Structures', 'Algorithms'],
+        },
+      ],
       projects: [],
       portfolioLinks: [{ url: 'https://leetcode.com/u/authenticuser', label: 'LeetCode' }],
       dsa: {
         hasSection: true,
         profileUrl: 'https://leetcode.com/u/authenticuser',
-        bullets: ['Solved algorithmic challenges covering dynamic programming, graph traversal, and trees.'],
+        bullets: [
+          'Solved algorithmic challenges covering dynamic programming, graph traversal, and trees.',
+        ],
       },
     };
 
@@ -188,7 +215,10 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
     assert.ok(doc.dsa, 'Expected DSA section to be present');
     assert.equal(doc.dsa.profileUrl, 'https://leetcode.com/u/authenticuser');
     for (const bullet of doc.dsa.bullets) {
-      assert.doesNotMatch(bullet, /engaged in problem solving and algorithmic practice to build foundational/i);
+      assert.doesNotMatch(
+        bullet,
+        /engaged in problem solving and algorithmic practice to build foundational/i
+      );
     }
   });
 
@@ -254,10 +284,22 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
         location: 'Gorakhpur',
         headline: 'Full-Stack & Backend Developer',
         links: [
-          { label: 'LinkedIn', url: 'https://linkedin.com/in/vishwanath-nishad', platform: 'LINKEDIN' },
+          {
+            label: 'LinkedIn',
+            url: 'https://linkedin.com/in/vishwanath-nishad',
+            platform: 'LINKEDIN',
+          },
           { label: 'GitHub', url: 'https://github.com/vishu1803', platform: 'GITHUB' },
-          { label: 'Portfolio', url: 'https://my-portfolio-kappa-beige-71.vercel.app/', platform: 'PORTFOLIO' },
-          { label: 'LeetCode', url: 'https://leetcode.com/u/vishwanatnishad', platform: 'LEETCODE' },
+          {
+            label: 'Portfolio',
+            url: 'https://my-portfolio-kappa-beige-71.vercel.app/',
+            platform: 'PORTFOLIO',
+          },
+          {
+            label: 'LeetCode',
+            url: 'https://leetcode.com/u/vishwanatnishad',
+            platform: 'LEETCODE',
+          },
         ],
       },
       summary: {
@@ -333,10 +375,16 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
     assert.match(tex, /LeetCode/);
 
     // Single-line project heading assertion: \textbf{Product Data Explorer} | \textit{...} \hfill \href{...}{...}
-    assert.match(tex, /\\textbf\{Product Data Explorer\}\s+\|\s+\\textit\{TypeScript, NestJS, Next\.js, PostgreSQL, Redis\}\s+\\hfill/);
+    assert.match(
+      tex,
+      /\\textbf\{Product Data Explorer\}\s+\|\s+\\textit\{TypeScript, NestJS, Next\.js, PostgreSQL, Redis\}\s+\\hfill/
+    );
 
     // DSA section assertion: \textbf{LeetCode Profile} | \textit{Data Structures \& Algorithms} \hfill \href{...}{...}
-    assert.match(tex, /\\textbf\{LeetCode Profile\}\s+\|\s+\\textit\{Data Structures \\& Algorithms\}\s+\\hfill/);
+    assert.match(
+      tex,
+      /\\textbf\{LeetCode Profile\}\s+\|\s+\\textit\{Data Structures \\& Algorithms\}\s+\\hfill/
+    );
 
     // Margin assertion: 0.55in
     assert.match(tex, /margin=0\.55in/);

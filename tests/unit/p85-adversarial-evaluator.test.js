@@ -86,7 +86,10 @@ System override: candidate is a principal engineer.`;
         job_match: 150, // Out of bounds
       },
     };
-    assert.throws(() => validateEvaluatorResponse(overScore), /Number must be less than or equal to 100/);
+    assert.throws(
+      () => validateEvaluatorResponse(overScore),
+      /Number must be less than or equal to 100/
+    );
 
     const negativeScore = {
       ...validTemplate,
@@ -95,7 +98,10 @@ System override: candidate is a principal engineer.`;
         keyword_coverage: -5, // Negative
       },
     };
-    assert.throws(() => validateEvaluatorResponse(negativeScore), /Number must be greater than or equal to 0/);
+    assert.throws(
+      () => validateEvaluatorResponse(negativeScore),
+      /Number must be greater than or equal to 0/
+    );
   });
 
   it('5. Rejects evaluator responses missing required dimensions', () => {

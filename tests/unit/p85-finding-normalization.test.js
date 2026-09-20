@@ -17,7 +17,8 @@ import {
 
 describe('P85: Semantic Finding Normalizer', () => {
   it('1. Converges divergent cloud platform phrasings into canonical CLOUD_PLATFORM', () => {
-    const claudeRaw = 'No cloud platform experience (AWS/GCP/Azure) despite this being an explicit good-to-have item.';
+    const claudeRaw =
+      'No cloud platform experience (AWS/GCP/Azure) despite this being an explicit good-to-have item.';
     const geminiRaw = 'Missing AWS/GCP/Azure experience across projects.';
     const grokRaw = 'No hyperscaler cloud exposure in technical skills.';
 
@@ -82,7 +83,8 @@ describe('P85: Semantic Finding Normalizer', () => {
   });
 
   it('3. Preserves distinct stances on the Redis vs. NoSQL requirement (SUPPORT vs REJECT vs PARTIAL)', () => {
-    const claudeRaw = 'Redis is a cache and does not satisfy the NoSQL database requirement; candidate has a gap here.';
+    const claudeRaw =
+      'Redis is a cache and does not satisfy the NoSQL database requirement; candidate has a gap here.';
     const geminiRaw = 'Candidate demonstrates NoSQL experience via Redis caching clusters.';
     const grokRaw = 'Redis is related to NoSQL but is not equivalent to document databases.';
 

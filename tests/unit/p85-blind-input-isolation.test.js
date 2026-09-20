@@ -40,7 +40,7 @@ describe('P85: Blind Input Isolation Service', () => {
     scoreVersion: 'p82.0',
     expectedScore: 91,
     threshold: 70,
-    weights: { jobMatch: 0.40, atsParseability: 0.20 },
+    weights: { jobMatch: 0.4, atsParseability: 0.2 },
     p82Score: 91,
     p83Score: 88,
     p84Score: 78,
@@ -100,7 +100,11 @@ describe('P85: Blind Input Isolation Service', () => {
     // Also assert directly on forbidden words
     const forbiddenTokens = ['productionscore', 'p82', 'p83', 'p84', 'goldlabels', 'threshold'];
     for (const token of forbiddenTokens) {
-      assert.equal(serialized.toLowerCase().includes(token), false, `Token "${token}" leaked into serialized payload!`);
+      assert.equal(
+        serialized.toLowerCase().includes(token),
+        false,
+        `Token "${token}" leaked into serialized payload!`
+      );
     }
   });
 
@@ -120,7 +124,11 @@ describe('P85: Blind Input Isolation Service', () => {
     const payload2 = buildBlindEvaluatorPayload(mutatedState);
     const hash2 = computeSha256(JSON.stringify(payload2));
 
-    assert.equal(hash1, hash2, 'Changing internal forbidden scores must NOT alter blind evaluator payload digest!');
+    assert.equal(
+      hash1,
+      hash2,
+      'Changing internal forbidden scores must NOT alter blind evaluator payload digest!'
+    );
   });
 
   it('4. Computes canonical input hashes for candidate resume, JD, PDF, and extracted text', () => {

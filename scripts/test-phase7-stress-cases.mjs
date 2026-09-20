@@ -15,17 +15,51 @@ const stressCases = [
       displayName: 'Alex Morgan',
       email: 'alex.morgan@test.com',
       headline: 'Software Engineer',
-      skills: [{ name: 'Python', provenanceStatus: 'VERIFIED' }, { name: 'JavaScript', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'Python', provenanceStatus: 'VERIFIED' },
+        { name: 'JavaScript', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [],
       projects: [
-        { id: 'p1', name: 'Micro-Service A', technologies: ['Go'], bullets: ['Built lightweight telemetry HTTP endpoint.'] },
-        { id: 'p2', name: 'Micro-Service B', technologies: ['Rust'], bullets: ['Built asynchronous event dispatcher.'] },
-        { id: 'p3', name: 'Micro-Service C', technologies: ['Node.js'], bullets: ['Built real-time websocket gateway.'] },
-        { id: 'p4', name: 'Micro-Service D', technologies: ['Python'], bullets: ['Built automated batch data pipeline.'] },
+        {
+          id: 'p1',
+          name: 'Micro-Service A',
+          technologies: ['Go'],
+          bullets: ['Built lightweight telemetry HTTP endpoint.'],
+        },
+        {
+          id: 'p2',
+          name: 'Micro-Service B',
+          technologies: ['Rust'],
+          bullets: ['Built asynchronous event dispatcher.'],
+        },
+        {
+          id: 'p3',
+          name: 'Micro-Service C',
+          technologies: ['Node.js'],
+          bullets: ['Built real-time websocket gateway.'],
+        },
+        {
+          id: 'p4',
+          name: 'Micro-Service D',
+          technologies: ['Python'],
+          bullets: ['Built automated batch data pipeline.'],
+        },
       ],
-      education: [{ institution: 'State University', degree: 'B.S. in Computer Science', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'State University',
+          degree: 'B.S. in Computer Science',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'Software Engineer', company: 'Tech Corp', description: 'Go, Rust, Node.js, Python microservices' },
+    job: {
+      title: 'Software Engineer',
+      company: 'Tech Corp',
+      description: 'Go, Rust, Node.js, Python microservices',
+    },
   },
 
   // 2. Fresher + 2 very long projects
@@ -35,7 +69,11 @@ const stressCases = [
       displayName: 'Jordan Lee',
       email: 'jordan.lee@test.com',
       headline: 'Software Engineer',
-      skills: [{ name: 'C++', provenanceStatus: 'VERIFIED' }, { name: 'Rust', provenanceStatus: 'VERIFIED' }, { name: 'Linux', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'C++', provenanceStatus: 'VERIFIED' },
+        { name: 'Rust', provenanceStatus: 'VERIFIED' },
+        { name: 'Linux', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [],
       projects: [
         {
@@ -45,8 +83,8 @@ const stressCases = [
           bullets: [
             'Engineered a highly resilient distributed consensus coordinator implementing Raft leader election and atomic log replication across cluster nodes.',
             'Architected asynchronous zero-copy network streaming pipelines leveraging tokio and custom framing protocols to minimize memory overhead.',
-            'Implemented automated chaos testing suites with network partition simulation and crash-recovery verification protocols.'
-          ]
+            'Implemented automated chaos testing suites with network partition simulation and crash-recovery verification protocols.',
+          ],
         },
         {
           id: 'p2',
@@ -55,13 +93,24 @@ const stressCases = [
           bullets: [
             'Designed concurrent lock-free adjacency list data structures supporting million-edge graph traversal operations with sub-millisecond latency.',
             'Parallelized breadth-first search and PageRank ranking kernels using OpenMP multi-threading and vectorized memory alignments.',
-            'Constructed continuous benchmarking harnesses comparing memory cache hit rates across varying graph density distributions.'
-          ]
+            'Constructed continuous benchmarking harnesses comparing memory cache hit rates across varying graph density distributions.',
+          ],
         },
       ],
-      education: [{ institution: 'Polytechnic Institute', degree: 'B.S. in Computer Engineering', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'Polytechnic Institute',
+          degree: 'B.S. in Computer Engineering',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'Systems Engineer', company: 'Scale Corp', description: 'High performance systems, Rust, C++' },
+    job: {
+      title: 'Systems Engineer',
+      company: 'Scale Corp',
+      description: 'High performance systems, Rust, C++',
+    },
   },
 
   // 3. One experience + several projects
@@ -71,7 +120,11 @@ const stressCases = [
       displayName: 'Taylor Smith',
       email: 'taylor.smith@test.com',
       headline: 'Full-Stack Developer',
-      skills: [{ name: 'TypeScript', provenanceStatus: 'VERIFIED' }, { name: 'React', provenanceStatus: 'VERIFIED' }, { name: 'Node.js', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'TypeScript', provenanceStatus: 'VERIFIED' },
+        { name: 'React', provenanceStatus: 'VERIFIED' },
+        { name: 'Node.js', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [
         {
           title: 'Software Developer Intern',
@@ -81,18 +134,44 @@ const stressCases = [
           bullets: [
             'Engineered customer onboarding workflows using TypeScript and React.',
             'Optimized RESTful backend endpoints in Node.js, reducing response latency by 35%.',
-            'Implemented automated CI/CD pipeline tests in GitHub Actions.'
-          ]
-        }
+            'Implemented automated CI/CD pipeline tests in GitHub Actions.',
+          ],
+        },
       ],
       projects: [
-        { id: 'p1', name: 'Collaborative Editor', technologies: ['TypeScript', 'React', 'WebSockets'], bullets: ['Built collaborative document editor with operational transformation.'] },
-        { id: 'p2', name: 'Cloud Storage Gateway', technologies: ['Go', 'S3', 'Docker'], bullets: ['Architected multipart file upload proxy with checksum validation.'] },
-        { id: 'p3', name: 'Metrics Visualizer', technologies: ['React', 'D3.js'], bullets: ['Developed interactive timeseries dashboard for cloud infrastructure.'] },
+        {
+          id: 'p1',
+          name: 'Collaborative Editor',
+          technologies: ['TypeScript', 'React', 'WebSockets'],
+          bullets: ['Built collaborative document editor with operational transformation.'],
+        },
+        {
+          id: 'p2',
+          name: 'Cloud Storage Gateway',
+          technologies: ['Go', 'S3', 'Docker'],
+          bullets: ['Architected multipart file upload proxy with checksum validation.'],
+        },
+        {
+          id: 'p3',
+          name: 'Metrics Visualizer',
+          technologies: ['React', 'D3.js'],
+          bullets: ['Developed interactive timeseries dashboard for cloud infrastructure.'],
+        },
       ],
-      education: [{ institution: 'Tech University', degree: 'B.S. in Software Engineering', startDate: '2021', endDate: '2025' }],
+      education: [
+        {
+          institution: 'Tech University',
+          degree: 'B.S. in Software Engineering',
+          startDate: '2021',
+          endDate: '2025',
+        },
+      ],
     },
-    job: { title: 'Full Stack Engineer', company: 'Cloud Apps', description: 'Full stack development with TypeScript, React, and Node.js' },
+    job: {
+      title: 'Full Stack Engineer',
+      company: 'Cloud Apps',
+      description: 'Full stack development with TypeScript, React, and Node.js',
+    },
   },
 
   // 4. Multiple experience entries (heavy experience)
@@ -102,7 +181,12 @@ const stressCases = [
       displayName: 'Samira Khan',
       email: 'samira.khan@test.com',
       headline: 'Senior Backend Engineer',
-      skills: [{ name: 'Java', provenanceStatus: 'VERIFIED' }, { name: 'Spring Boot', provenanceStatus: 'VERIFIED' }, { name: 'PostgreSQL', provenanceStatus: 'VERIFIED' }, { name: 'Kafka', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'Java', provenanceStatus: 'VERIFIED' },
+        { name: 'Spring Boot', provenanceStatus: 'VERIFIED' },
+        { name: 'PostgreSQL', provenanceStatus: 'VERIFIED' },
+        { name: 'Kafka', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [
         {
           title: 'Senior Software Engineer',
@@ -113,8 +197,8 @@ const stressCases = [
           bullets: [
             'Led migration of core settlement pipeline to event-driven Kafka architecture, processing over 10M events daily.',
             'Designed idempotent payment ledger APIs with distributed transaction isolation in PostgreSQL.',
-            'Mentored junior engineers and instituted rigorous pull request review standards.'
-          ]
+            'Mentored junior engineers and instituted rigorous pull request review standards.',
+          ],
         },
         {
           title: 'Backend Engineer',
@@ -123,17 +207,40 @@ const stressCases = [
           endDate: '2021-12',
           bullets: [
             'Engineered microservices using Spring Boot and Hibernate handling inventory catalog synchronization.',
-            'Decreased database query latency by tuning indexing and introducing Redis read caches.'
-          ]
-        }
+            'Decreased database query latency by tuning indexing and introducing Redis read caches.',
+          ],
+        },
       ],
       projects: [
-        { id: 'p1', name: 'Distributed Lock Manager', technologies: ['Java', 'Redis'], bullets: ['Implemented Redlock consensus algorithm for distributed resource arbitration.'] },
-        { id: 'p2', name: 'API Rate Limiting Proxy', technologies: ['Go', 'Docker'], bullets: ['Constructed token bucket rate limiter with sliding window enforcement.'] },
+        {
+          id: 'p1',
+          name: 'Distributed Lock Manager',
+          technologies: ['Java', 'Redis'],
+          bullets: [
+            'Implemented Redlock consensus algorithm for distributed resource arbitration.',
+          ],
+        },
+        {
+          id: 'p2',
+          name: 'API Rate Limiting Proxy',
+          technologies: ['Go', 'Docker'],
+          bullets: ['Constructed token bucket rate limiter with sliding window enforcement.'],
+        },
       ],
-      education: [{ institution: 'Metropolitan University', degree: 'B.S. in Computer Science', startDate: '2015', endDate: '2019' }],
+      education: [
+        {
+          institution: 'Metropolitan University',
+          degree: 'B.S. in Computer Science',
+          startDate: '2015',
+          endDate: '2019',
+        },
+      ],
     },
-    job: { title: 'Senior Backend Engineer', company: 'Global Payments', description: 'Distributed systems, Java, Spring Boot, Kafka, PostgreSQL' },
+    job: {
+      title: 'Senior Backend Engineer',
+      company: 'Global Payments',
+      description: 'Distributed systems, Java, Spring Boot, Kafka, PostgreSQL',
+    },
   },
 
   // 5. Long summary
@@ -143,24 +250,55 @@ const stressCases = [
       displayName: 'Carlos Rodriguez',
       email: 'carlos.rodriguez@test.com',
       headline: 'Platform & Infrastructure Engineer',
-      summary: 'Platform Engineer with extensive hands-on experience designing cloud infrastructure and automated deployment pipelines. Built resilient Kubernetes clusters and service mesh architectures with Istio and Envoy. Committed to infrastructure as code, deterministic deployment repeatability, and zero-downtime rolling release strategies across multi-region environments.',
-      skills: [{ name: 'Kubernetes', provenanceStatus: 'VERIFIED' }, { name: 'Terraform', provenanceStatus: 'VERIFIED' }, { name: 'Go', provenanceStatus: 'VERIFIED' }],
+      summary:
+        'Platform Engineer with extensive hands-on experience designing cloud infrastructure and automated deployment pipelines. Built resilient Kubernetes clusters and service mesh architectures with Istio and Envoy. Committed to infrastructure as code, deterministic deployment repeatability, and zero-downtime rolling release strategies across multi-region environments.',
+      skills: [
+        { name: 'Kubernetes', provenanceStatus: 'VERIFIED' },
+        { name: 'Terraform', provenanceStatus: 'VERIFIED' },
+        { name: 'Go', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [
         {
           title: 'DevOps Intern',
           company: 'Cloud Scale Inc.',
           startDate: '2024-01',
           endDate: '2024-06',
-          bullets: ['Automated Terraform module deployments across AWS environments.', 'Configured Prometheus monitoring and Grafana alerts for microservice pods.']
-        }
+          bullets: [
+            'Automated Terraform module deployments across AWS environments.',
+            'Configured Prometheus monitoring and Grafana alerts for microservice pods.',
+          ],
+        },
       ],
       projects: [
-        { id: 'p1', name: 'Infrastructure Orchestrator', technologies: ['Go', 'Kubernetes'], bullets: ['Built custom Kubernetes operator for stateful application management.'] },
-        { id: 'p2', name: 'GitOps Pipeline Controller', technologies: ['Terraform', 'GitHub Actions'], bullets: ['Engineered automated drift detection and declarative infrastructure reconciliation.'] }
+        {
+          id: 'p1',
+          name: 'Infrastructure Orchestrator',
+          technologies: ['Go', 'Kubernetes'],
+          bullets: ['Built custom Kubernetes operator for stateful application management.'],
+        },
+        {
+          id: 'p2',
+          name: 'GitOps Pipeline Controller',
+          technologies: ['Terraform', 'GitHub Actions'],
+          bullets: [
+            'Engineered automated drift detection and declarative infrastructure reconciliation.',
+          ],
+        },
       ],
-      education: [{ institution: 'State University', degree: 'B.S. in Computer Science', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'State University',
+          degree: 'B.S. in Computer Science',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'DevOps Engineer', company: 'Platform Solutions', description: 'Kubernetes, Terraform, AWS, Go' },
+    job: {
+      title: 'DevOps Engineer',
+      company: 'Platform Solutions',
+      description: 'Kubernetes, Terraform, AWS, Go',
+    },
   },
 
   // 6. Many skills
@@ -193,16 +331,40 @@ const stressCases = [
           startDate: '2023-08',
           endDate: 'Present',
           isCurrent: true,
-          bullets: ['Built full-stack React and NestJS web applications.', 'Implemented PostgreSQL data models and Prisma migrations.']
-        }
+          bullets: [
+            'Built full-stack React and NestJS web applications.',
+            'Implemented PostgreSQL data models and Prisma migrations.',
+          ],
+        },
       ],
       projects: [
-        { id: 'p1', name: 'Task Flow Engine', technologies: ['TypeScript', 'React', 'NestJS', 'PostgreSQL'], bullets: ['Architected workflow engine with real-time state synchronization.'] },
-        { id: 'p2', name: 'Telemetry Hub', technologies: ['Python', 'FastAPI', 'Redis', 'Docker'], bullets: ['Constructed telemetry ingestion pipeline handling metric aggregates.'] }
+        {
+          id: 'p1',
+          name: 'Task Flow Engine',
+          technologies: ['TypeScript', 'React', 'NestJS', 'PostgreSQL'],
+          bullets: ['Architected workflow engine with real-time state synchronization.'],
+        },
+        {
+          id: 'p2',
+          name: 'Telemetry Hub',
+          technologies: ['Python', 'FastAPI', 'Redis', 'Docker'],
+          bullets: ['Constructed telemetry ingestion pipeline handling metric aggregates.'],
+        },
       ],
-      education: [{ institution: 'National University', degree: 'B.S. in Computer Science', startDate: '2019', endDate: '2023' }],
+      education: [
+        {
+          institution: 'National University',
+          degree: 'B.S. in Computer Science',
+          startDate: '2019',
+          endDate: '2023',
+        },
+      ],
     },
-    job: { title: 'Full Stack Engineer', company: 'Startup Co', description: 'Full stack TypeScript, React, Next.js, Node.js, PostgreSQL' },
+    job: {
+      title: 'Full Stack Engineer',
+      company: 'Startup Co',
+      description: 'Full stack TypeScript, React, Next.js, Node.js, PostgreSQL',
+    },
   },
 
   // 7. Long project names
@@ -212,31 +374,52 @@ const stressCases = [
       displayName: 'Marcus Aurelius',
       email: 'marcus.aurelius@test.com',
       headline: 'Distributed Systems Architect',
-      skills: [{ name: 'C++', provenanceStatus: 'VERIFIED' }, { name: 'Rust', provenanceStatus: 'VERIFIED' }, { name: 'Distributed Systems', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'C++', provenanceStatus: 'VERIFIED' },
+        { name: 'Rust', provenanceStatus: 'VERIFIED' },
+        { name: 'Distributed Systems', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [],
       projects: [
         {
           id: 'p1',
           name: 'Next-Generation Ultra-High Throughput Distributed Consensus & Transactional Engine',
           technologies: ['C++', 'Raft', 'RDMA'],
-          bullets: ['Engineered microsecond-latency consensus engine across kernel-bypass network fabrics.']
+          bullets: [
+            'Engineered microsecond-latency consensus engine across kernel-bypass network fabrics.',
+          ],
         },
         {
           id: 'p2',
           name: 'Asynchronous Fault-Tolerant Multi-Tenant Memory-Mapped Stream Processing Coordinator',
           technologies: ['Rust', 'Zero-Copy', 'Linux'],
-          bullets: ['Designed persistent circular ring buffers for continuous high-rate event telemetry.']
+          bullets: [
+            'Designed persistent circular ring buffers for continuous high-rate event telemetry.',
+          ],
         },
         {
           id: 'p3',
           name: 'Declarative Cloud-Native Container Orchestration & Dynamic Scheduling Controller',
           technologies: ['Go', 'Kubernetes API'],
-          bullets: ['Constructed custom scheduling algorithm optimizing server node hardware utilization.']
-        }
+          bullets: [
+            'Constructed custom scheduling algorithm optimizing server node hardware utilization.',
+          ],
+        },
       ],
-      education: [{ institution: 'Imperial College', degree: 'B.S. in Computer Systems', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'Imperial College',
+          degree: 'B.S. in Computer Systems',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'Distributed Systems Engineer', company: 'HyperScale', description: 'Distributed consensus, C++, Rust' },
+    job: {
+      title: 'Distributed Systems Engineer',
+      company: 'HyperScale',
+      description: 'Distributed consensus, C++, Rust',
+    },
   },
 
   // 8. Long technology stacks
@@ -246,33 +429,67 @@ const stressCases = [
       displayName: 'Priya Sharma',
       email: 'priya.sharma@test.com',
       headline: 'Backend Platform Engineer',
-      skills: [{ name: 'Java', provenanceStatus: 'VERIFIED' }, { name: 'Spring Boot', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'Java', provenanceStatus: 'VERIFIED' },
+        { name: 'Spring Boot', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [
         {
           title: 'Backend Intern',
           company: 'Tech Enterprise',
           startDate: '2024-01',
           endDate: '2024-06',
-          bullets: ['Developed microservice endpoints with Spring Boot.', 'Maintained unit test coverage with JUnit and Mockito.']
-        }
+          bullets: [
+            'Developed microservice endpoints with Spring Boot.',
+            'Maintained unit test coverage with JUnit and Mockito.',
+          ],
+        },
       ],
       projects: [
         {
           id: 'p1',
           name: 'Enterprise Commerce Gateway',
-          technologies: ['Java 21', 'Spring Boot 3', 'PostgreSQL 16', 'Apache Kafka', 'Redis Cluster', 'Docker Compose'],
-          bullets: ['Implemented distributed order processing service with asynchronous payment reconciliation.']
+          technologies: [
+            'Java 21',
+            'Spring Boot 3',
+            'PostgreSQL 16',
+            'Apache Kafka',
+            'Redis Cluster',
+            'Docker Compose',
+          ],
+          bullets: [
+            'Implemented distributed order processing service with asynchronous payment reconciliation.',
+          ],
         },
         {
           id: 'p2',
           name: 'Analytics Pipeline System',
-          technologies: ['Python 3.12', 'FastAPI Framework', 'ClickHouse Database', 'Apache Arrow', 'Kubernetes Clusters'],
-          bullets: ['Constructed real-time analytical event aggregator processing streaming transactions.']
-        }
+          technologies: [
+            'Python 3.12',
+            'FastAPI Framework',
+            'ClickHouse Database',
+            'Apache Arrow',
+            'Kubernetes Clusters',
+          ],
+          bullets: [
+            'Constructed real-time analytical event aggregator processing streaming transactions.',
+          ],
+        },
       ],
-      education: [{ institution: 'Indian Institute of Technology', degree: 'B.Tech in Computer Science', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'Indian Institute of Technology',
+          degree: 'B.Tech in Computer Science',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'Backend Engineer', company: 'Enterprise Platforms', description: 'Java, Spring Boot, Kafka, PostgreSQL, Redis' },
+    job: {
+      title: 'Backend Engineer',
+      company: 'Enterprise Platforms',
+      description: 'Java, Spring Boot, Kafka, PostgreSQL, Redis',
+    },
   },
 
   // 9. Unicode candidate and project names
@@ -282,7 +499,10 @@ const stressCases = [
       displayName: 'René François Côté',
       email: 'rene.cote@test.com',
       headline: 'Ingénieur Logiciel & Backend',
-      skills: [{ name: 'Python', provenanceStatus: 'VERIFIED' }, { name: 'Go', provenanceStatus: 'VERIFIED' }],
+      skills: [
+        { name: 'Python', provenanceStatus: 'VERIFIED' },
+        { name: 'Go', provenanceStatus: 'VERIFIED' },
+      ],
       experience: [
         {
           title: 'Développeur Logiciel Stagiaire',
@@ -290,26 +510,44 @@ const stressCases = [
           location: 'Montréal, QC',
           startDate: '2024-01',
           endDate: '2024-05',
-          bullets: ['Développement d’APIs REST haute performance en Go.', 'Optimisation des requêtes PostgreSQL pour le traitement des données massives.']
-        }
+          bullets: [
+            'Développement d’APIs REST haute performance en Go.',
+            'Optimisation des requêtes PostgreSQL pour le traitement des données massives.',
+          ],
+        },
       ],
       projects: [
         {
           id: 'p1',
           name: 'Plateforme Décentralisée d’Échange de Données',
           technologies: ['Go', 'PostgreSQL', 'Docker'],
-          bullets: ['Conception et mise en œuvre d’un système distribué résistant aux pannes réseau.']
+          bullets: [
+            'Conception et mise en œuvre d’un système distribué résistant aux pannes réseau.',
+          ],
         },
         {
           id: 'p2',
           name: 'Générateur de Rapports Électroniques Automatisés',
           technologies: ['Python', 'FastAPI'],
-          bullets: ['Automatisation complète de l’ingestion et de l’analyse de données financières.']
-        }
+          bullets: [
+            'Automatisation complète de l’ingestion et de l’analyse de données financières.',
+          ],
+        },
       ],
-      education: [{ institution: 'Université de Montréal', degree: 'Baccalauréat en Informatique', startDate: '2020', endDate: '2024' }],
+      education: [
+        {
+          institution: 'Université de Montréal',
+          degree: 'Baccalauréat en Informatique',
+          startDate: '2020',
+          endDate: '2024',
+        },
+      ],
     },
-    job: { title: 'Software Engineer', company: 'Global Solutions', description: 'Go, Python, PostgreSQL, REST APIs' },
+    job: {
+      title: 'Software Engineer',
+      company: 'Global Solutions',
+      description: 'Go, Python, PostgreSQL, REST APIs',
+    },
   },
 ];
 
@@ -330,7 +568,7 @@ for (const sc of stressCases) {
     packageHash: 'stress-pkg',
     structuredResume: doc,
     tailoringPlan: doc.tailoringPlan,
-    tailoredResume: { structuredResume: doc, contentHash: 'stress-hash' }
+    tailoredResume: { structuredResume: doc, contentHash: 'stress-hash' },
   };
 
   const latexResult = generator.generateTailoredResumeLatex({

@@ -58,10 +58,12 @@ import * as schema from '../src/db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p60-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
 const CDP_PORT = 9335;
 const FIXTURE_PORT = 3099;
 
@@ -256,11 +258,17 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // 2. Query target real user and candidate
-  const users = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const users = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   const targetUser = users[0];
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
 
-  const candidates = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const candidates = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const targetCandidate = candidates[0];
   if (!targetCandidate) throw new Error('Target candidate not found');
 
@@ -321,7 +329,9 @@ async function run() {
   let extensionId = null;
   for (let i = 0; i < 20; i++) {
     const targetsRes = await browserCdp.send('Target.getTargets');
-    const swTarget = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+    const swTarget = targetsRes.targetInfos.find(
+      (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+    );
     if (swTarget) {
       const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
       if (m) extensionId = m[1];
@@ -363,7 +373,9 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEP 1 & 2: Sign in & Verify Canonical Authenticated Email ---');
     const simulatedTabId = 4001;
-    sidebarTab = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`);
+    sidebarTab = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`
+    );
     await sleep(1000);
 
     // Set real session cookie
@@ -380,8 +392,12 @@ async function run() {
     await sleep(500);
 
     const isAuth = await sidebarTab.evaluate(`window.__sidebarController.isAuthenticated`);
-    const displayedName = await sidebarTab.evaluate(`document.getElementById('userName').textContent`);
-    const displayedEmail = await sidebarTab.evaluate(`document.getElementById('userEmail').textContent`);
+    const displayedName = await sidebarTab.evaluate(
+      `document.getElementById('userName').textContent`
+    );
+    const displayedEmail = await sidebarTab.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
 
     console.log(`   [Check] Authenticated: ${isAuth}`);
     console.log(`   [Check] Displayed Name: "${displayedName}"`);
@@ -389,9 +405,13 @@ async function run() {
 
     if (!isAuth) throw new Error('Failed to authenticate in sidebar');
     if (displayedEmail !== targetUser.email) {
-      throw new Error(`Canonical email violation! Expected "${targetUser.email}", got "${displayedEmail}"`);
+      throw new Error(
+        `Canonical email violation! Expected "${targetUser.email}", got "${displayedEmail}"`
+      );
     }
-    console.log('   >>> STEP 1 & 2 VERIFIED: Real canonical identity displayed without mock leakage <<<');
+    console.log(
+      '   >>> STEP 1 & 2 VERIFIED: Real canonical identity displayed without mock leakage <<<'
+    );
     await sidebarTab.captureScreenshot('p60-01-canonical-identity.png');
 
     // -------------------------------------------------------------
@@ -409,18 +429,28 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: `http://127.0.0.1:${FIXTURE_PORT}/job-a`,
       provider: 'LINKEDIN',
-      description: 'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems.',
+      description:
+        'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems.',
       portalMetadata: {
         portalName: 'LinkedIn',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
-    await sidebarTab.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`);
+    await sidebarTab.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
-    const detectedTitleA = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
+    const detectedTitleA = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Check] Detected Job A Title: "${detectedTitleA}"`);
     if (!detectedTitleA.includes('Senior Backend Engineer')) {
       throw new Error('Failed to detect Job A in sidebar');
@@ -439,7 +469,9 @@ async function run() {
       await sleep(1000);
     }
 
-    const stateAfterAnalysis = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+    const stateAfterAnalysis = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
     const scoreVal = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
     console.log(`   [Check] Workflow state: ${stateAfterAnalysis}, Match Score: ${scoreVal}`);
     if (stateAfterAnalysis !== 'ANALYSIS_READY') {
@@ -459,22 +491,36 @@ async function run() {
       await sleep(1000);
     }
 
-    const stateAfterHandoff = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+    const stateAfterHandoff = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
     const isLocked = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const lockState = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.lockState`);
+    const lockState = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.lockState`
+    );
     const appAId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const isLockBannerVisible = await sidebarTab.evaluate(`!document.getElementById('workflowLockBanner').classList.contains('hidden')`);
-    const isLockBadgeVisible = await sidebarTab.evaluate(`!document.getElementById('workflowLockedBadge').classList.contains('hidden')`);
-    const isReanalyzeDisabled = await sidebarTab.evaluate(`document.getElementById('reanalyzeBtn').disabled`);
+    const isLockBannerVisible = await sidebarTab.evaluate(
+      `!document.getElementById('workflowLockBanner').classList.contains('hidden')`
+    );
+    const isLockBadgeVisible = await sidebarTab.evaluate(
+      `!document.getElementById('workflowLockedBadge').classList.contains('hidden')`
+    );
+    const isReanalyzeDisabled = await sidebarTab.evaluate(
+      `document.getElementById('reanalyzeBtn').disabled`
+    );
 
     console.log(`   [Check] Workflow State: ${stateAfterHandoff}`);
     console.log(`   [Check] Lock State: ${lockState}, isLocked: ${isLocked}`);
     console.log(`   [Check] Application A ID: ${appAId}`);
-    console.log(`   [Check] Lock Banner Visible: ${isLockBannerVisible}, Lock Badge Visible: ${isLockBadgeVisible}`);
+    console.log(
+      `   [Check] Lock Banner Visible: ${isLockBannerVisible}, Lock Badge Visible: ${isLockBadgeVisible}`
+    );
     console.log(`   [Check] Re-detect Button Disabled: ${isReanalyzeDisabled}`);
 
-    if (stateAfterHandoff !== 'APPLICATION_READY') throw new Error(`Expected APPLICATION_READY, got ${stateAfterHandoff}`);
-    if (!isLocked || lockState !== 'LOCKED') throw new Error(`Workflow lock invariant violated! Expected LOCKED`);
+    if (stateAfterHandoff !== 'APPLICATION_READY')
+      throw new Error(`Expected APPLICATION_READY, got ${stateAfterHandoff}`);
+    if (!isLocked || lockState !== 'LOCKED')
+      throw new Error(`Workflow lock invariant violated! Expected LOCKED`);
     if (!isLockBannerVisible || !isLockBadgeVisible || !isReanalyzeDisabled) {
       throw new Error('Lock UI elements not properly rendered');
     }
@@ -489,13 +535,17 @@ async function run() {
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.id, appAId));
     if (appsInDb.length === 0) throw new Error(`Application ${appAId} not found in PostgreSQL!`);
-    console.log(`   [DB] Application A confirmed in DB: ${appsInDb[0].id} (Status: ${appsInDb[0].status})`);
-    
+    console.log(
+      `   [DB] Application A confirmed in DB: ${appsInDb[0].id} (Status: ${appsInDb[0].status})`
+    );
+
     const appsAfterFirstHandoff = await db
       .select()
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCandidate.id));
-    console.log(`   [DB] Total candidate applications in DB after handoff: ${appsAfterFirstHandoff.length}`);
+    console.log(
+      `   [DB] Total candidate applications in DB after handoff: ${appsAfterFirstHandoff.length}`
+    );
     console.log('   >>> STEP 9 VERIFIED: Application A exists in database infrastructure <<<');
 
     // -------------------------------------------------------------
@@ -528,16 +578,28 @@ async function run() {
     `);
     await sleep(500);
 
-    const jobTitleWhileLocked = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const appIdWhileLocked = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const currentScoreWhileLocked = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
+    const jobTitleWhileLocked = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const appIdWhileLocked = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const currentScoreWhileLocked = await sidebarTab.evaluate(
+      `document.getElementById('scoreValue').textContent`
+    );
 
     console.log(`   [Check] Displayed Job Title: "${jobTitleWhileLocked}" (Expected Job A)`);
-    console.log(`   [Check] Displayed App ID: "${appIdWhileLocked}" (Expected Application A: "${appAId}")`);
-    console.log(`   [Check] Displayed Score: "${currentScoreWhileLocked}" (Expected Job A Score: "${scoreVal}")`);
+    console.log(
+      `   [Check] Displayed App ID: "${appIdWhileLocked}" (Expected Application A: "${appAId}")`
+    );
+    console.log(
+      `   [Check] Displayed Score: "${currentScoreWhileLocked}" (Expected Job A Score: "${scoreVal}")`
+    );
 
     if (!jobTitleWhileLocked.includes('Senior Backend Engineer')) {
-      throw new Error(`Workflow lock failure! Job was overwritten by navigation to Job B: ${jobTitleWhileLocked}`);
+      throw new Error(
+        `Workflow lock failure! Job was overwritten by navigation to Job B: ${jobTitleWhileLocked}`
+      );
     }
     if (appIdWhileLocked !== appAId) {
       throw new Error(`Workflow lock failure! App ID was replaced: ${appIdWhileLocked}`);
@@ -549,10 +611,14 @@ async function run() {
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCandidate.id));
     if (appsAfterNav.length !== appsAfterFirstHandoff.length) {
-      throw new Error(`Unexpected duplicate application created during navigation! Expected ${appsAfterFirstHandoff.length}, got ${appsAfterNav.length}`);
+      throw new Error(
+        `Unexpected duplicate application created during navigation! Expected ${appsAfterFirstHandoff.length}, got ${appsAfterNav.length}`
+      );
     }
 
-    console.log('   >>> STEP 10-14 VERIFIED: Navigation while locked strictly preserved Job A and Application A <<<');
+    console.log(
+      '   >>> STEP 10-14 VERIFIED: Navigation while locked strictly preserved Job A and Application A <<<'
+    );
     await sidebarTab.captureScreenshot('p60-04-navigation-while-locked.png');
 
     // -------------------------------------------------------------
@@ -577,13 +643,23 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._hydrateFromStore()`);
     await sleep(500);
 
-    const rehydratedState = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const rehydratedIsLocked = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const rehydratedAppId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const rehydratedJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
+    const rehydratedState = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const rehydratedIsLocked = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
+    const rehydratedAppId = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const rehydratedJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
 
     console.log(`   [Check] Rehydrated State: ${rehydratedState}, isLocked: ${rehydratedIsLocked}`);
-    console.log(`   [Check] Rehydrated App ID: "${rehydratedAppId}", Job Title: "${rehydratedJobTitle}"`);
+    console.log(
+      `   [Check] Rehydrated App ID: "${rehydratedAppId}", Job Title: "${rehydratedJobTitle}"`
+    );
 
     if (rehydratedState !== 'APPLICATION_READY' || !rehydratedIsLocked) {
       throw new Error('Durable lock recovery failed upon reopening sidebar');
@@ -606,8 +682,12 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._hydrateFromStore()`);
     await sleep(500);
 
-    const reloadedIsLocked = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const reloadedState = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+    const reloadedIsLocked = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
+    const reloadedState = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
     if (!reloadedIsLocked || reloadedState !== 'APPLICATION_READY') {
       throw new Error('Page reload failed to preserve locked workflow');
     }
@@ -620,12 +700,22 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._handleSessionExpired()`);
     await sleep(500);
 
-    const isUnauthAfterExpiry = await sidebarTab.evaluate(`!window.__sidebarController.isAuthenticated`);
-    const appAfterExpiry = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const jobAfterExpiry = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const lockAfterExpiry = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
+    const isUnauthAfterExpiry = await sidebarTab.evaluate(
+      `!window.__sidebarController.isAuthenticated`
+    );
+    const appAfterExpiry = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const jobAfterExpiry = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const lockAfterExpiry = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
 
-    console.log(`   [Check] Unauthenticated: ${isUnauthAfterExpiry}, App ID: "${appAfterExpiry}", Job: "${jobAfterExpiry}", isLocked: ${lockAfterExpiry}`);
+    console.log(
+      `   [Check] Unauthenticated: ${isUnauthAfterExpiry}, App ID: "${appAfterExpiry}", Job: "${jobAfterExpiry}", isLocked: ${lockAfterExpiry}`
+    );
     if (!isUnauthAfterExpiry || appAfterExpiry !== appAId || !lockAfterExpiry) {
       throw new Error('Session expiry corrupted locked workflow! Invariant violated.');
     }
@@ -645,15 +735,29 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(500);
 
-    const emailAfterReauth = await sidebarTab.evaluate(`document.getElementById('userEmail').textContent`);
-    const stateAfterReauth = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const lockAfterReauth = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
+    const emailAfterReauth = await sidebarTab.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
+    const stateAfterReauth = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const lockAfterReauth = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
 
-    console.log(`   [Check] Email after reauth: "${emailAfterReauth}", State: ${stateAfterReauth}, isLocked: ${lockAfterReauth}`);
-    if (emailAfterReauth !== targetUser.email || stateAfterReauth !== 'APPLICATION_READY' || !lockAfterReauth) {
+    console.log(
+      `   [Check] Email after reauth: "${emailAfterReauth}", State: ${stateAfterReauth}, isLocked: ${lockAfterReauth}`
+    );
+    if (
+      emailAfterReauth !== targetUser.email ||
+      stateAfterReauth !== 'APPLICATION_READY' ||
+      !lockAfterReauth
+    ) {
       throw new Error('Re-authentication failed to restore canonical identity and locked state');
     }
-    console.log('   >>> STEP 21 & 22 VERIFIED: Re-authentication restored canonical identity and lock <<<');
+    console.log(
+      '   >>> STEP 21 & 22 VERIFIED: Re-authentication restored canonical identity and lock <<<'
+    );
 
     // -------------------------------------------------------------
     // STEP 23 & 24: Click Reset Workflow -> Extension Becomes IDLE
@@ -662,15 +766,27 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController.resetWorkflow()`);
     await sleep(500);
 
-    const stateAfterReset = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const isLockedAfterReset = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const isLockBannerHidden = await sidebarTab.evaluate(`document.getElementById('workflowLockBanner').classList.contains('hidden')`);
-    const isLockBadgeHidden = await sidebarTab.evaluate(`document.getElementById('workflowLockedBadge').classList.contains('hidden')`);
-    const isReanalyzeActiveAfterReset = await sidebarTab.evaluate(`!document.getElementById('reanalyzeBtn').disabled`);
+    const stateAfterReset = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const isLockedAfterReset = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
+    const isLockBannerHidden = await sidebarTab.evaluate(
+      `document.getElementById('workflowLockBanner').classList.contains('hidden')`
+    );
+    const isLockBadgeHidden = await sidebarTab.evaluate(
+      `document.getElementById('workflowLockedBadge').classList.contains('hidden')`
+    );
+    const isReanalyzeActiveAfterReset = await sidebarTab.evaluate(
+      `!document.getElementById('reanalyzeBtn').disabled`
+    );
 
     console.log(`   [Check] State after reset: ${stateAfterReset} (Expected: IDLE)`);
     console.log(`   [Check] isLocked after reset: ${isLockedAfterReset} (Expected: false)`);
-    console.log(`   [Check] Lock Banner Hidden: ${isLockBannerHidden}, Lock Badge Hidden: ${isLockBadgeHidden}`);
+    console.log(
+      `   [Check] Lock Banner Hidden: ${isLockBannerHidden}, Lock Badge Hidden: ${isLockBadgeHidden}`
+    );
     console.log(`   [Check] Re-detect enabled: ${isReanalyzeActiveAfterReset}`);
 
     if (stateAfterReset !== 'IDLE' || isLockedAfterReset !== false || !isLockBannerHidden) {
@@ -682,7 +798,9 @@ async function run() {
     // -------------------------------------------------------------
     // STEP 25, 26, 27, 28: Application A & Data Remains in Database
     // -------------------------------------------------------------
-    console.log('\n--- STEP 25-28: Verify Application A, Resume, Cover Letter, Handoff Data Intact in DB ---');
+    console.log(
+      '\n--- STEP 25-28: Verify Application A, Resume, Cover Letter, Handoff Data Intact in DB ---'
+    );
     const appsInDbAfterReset = await db
       .select()
       .from(schema.jobApplications)
@@ -703,12 +821,16 @@ async function run() {
       .select()
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCandidate.id));
-    console.log(`   [DB] Total candidate applications in DB after Reset: ${allAppsAfterReset.length}`);
+    console.log(
+      `   [DB] Total candidate applications in DB after Reset: ${allAppsAfterReset.length}`
+    );
     if (allAppsAfterReset.length !== appsAfterFirstHandoff.length) {
       throw new Error('Application count changed after reset! Data destruction detected.');
     }
 
-    console.log('   >>> STEP 25-28 VERIFIED: Reset Workflow did NOT delete Application A, resume, cover letter, or handoff kit <<<');
+    console.log(
+      '   >>> STEP 25-28 VERIFIED: Reset Workflow did NOT delete Application A, resume, cover letter, or handoff kit <<<'
+    );
     await sidebarTab.captureScreenshot('p60-07-old-app-available-after-reset.png');
 
     // -------------------------------------------------------------
@@ -720,9 +842,15 @@ async function run() {
     `);
     await sleep(500);
 
-    const detectedTitleB = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const stateWithJobB = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const appIdForJobB = await sidebarTab.evaluate(`window.__sidebarController.cachedState.applicationId`);
+    const detectedTitleB = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const stateWithJobB = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const appIdForJobB = await sidebarTab.evaluate(
+      `window.__sidebarController.cachedState.applicationId`
+    );
 
     console.log(`   [Check] Detected Title: "${detectedTitleB}" (Expected: Job B)`);
     console.log(`   [Check] State: ${stateWithJobB} (Expected: JOB_DETECTED)`);
@@ -749,7 +877,9 @@ async function run() {
     }
 
     const stateJobB = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const scoreJobB = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
+    const scoreJobB = await sidebarTab.evaluate(
+      `document.getElementById('scoreValue').textContent`
+    );
     console.log(`   [Check] Job B Workflow State: ${stateJobB}, Match Score: ${scoreJobB}`);
     if (stateJobB !== 'ANALYSIS_READY') {
       throw new Error(`Job B failed to reach ANALYSIS_READY: ${stateJobB}`);
@@ -764,7 +894,9 @@ async function run() {
       throw new Error('Application A was mutated by new Job B workflow!');
     }
 
-    console.log('   >>> STEP 31-33 VERIFIED: Job B analyzed independently, Application A completely untouched <<<');
+    console.log(
+      '   >>> STEP 31-33 VERIFIED: Job B analyzed independently, Application A completely untouched <<<'
+    );
     await sidebarTab.captureScreenshot('p60-08-new-workflow-after-reset.png');
 
     console.log('\n================================================================');

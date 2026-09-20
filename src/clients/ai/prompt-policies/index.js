@@ -140,4 +140,3 @@ export const defaultPromptPolicyRegistry = new PromptPolicyRegistry();
 export function getPromptPolicy(taskType) {
   return defaultPromptPolicyRegistry.getPolicy(taskType);
 }
-

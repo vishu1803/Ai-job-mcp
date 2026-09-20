@@ -13,7 +13,10 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStructuredResumeDocument, validateStructuredResumeIntegrity } from '../../src/services/structured-resume.service.js';
+import {
+  buildStructuredResumeDocument,
+  validateStructuredResumeIntegrity,
+} from '../../src/services/structured-resume.service.js';
 import { assessPreRenderQuality } from '../../src/services/resume-content-quality-gate.service.js';
 
 describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () => {
@@ -35,10 +38,34 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
     headline: 'Full-Stack Engineer',
     summary: 'Building scalable web applications with modern JavaScript frameworks.',
     skills: [
-      { id: 'sk-1', name: 'TypeScript', slug: 'typescript', category: 'Languages', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-2', name: 'React', slug: 'react', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-3', name: 'Node.js', slug: 'node-js', category: 'Frameworks & Libraries', provenanceStatus: 'VERIFIED' },
-      { id: 'sk-4', name: 'PostgreSQL', slug: 'postgresql', category: 'Databases', provenanceStatus: 'VERIFIED' },
+      {
+        id: 'sk-1',
+        name: 'TypeScript',
+        slug: 'typescript',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-2',
+        name: 'React',
+        slug: 'react',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-3',
+        name: 'Node.js',
+        slug: 'node-js',
+        category: 'Frameworks & Libraries',
+        provenanceStatus: 'VERIFIED',
+      },
+      {
+        id: 'sk-4',
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'Databases',
+        provenanceStatus: 'VERIFIED',
+      },
     ],
     experience: [
       {
@@ -62,11 +89,16 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   };
 
   const BULLET_TEMPLATES = [
-    (name) => `Architected high-throughput message streaming pipeline for ${name} using distributed queue workers.`,
-    (name) => `Engineered responsive user interface and dashboard views for ${name} with client state caching.`,
-    (name) => `Automated continuous integration and container deployment pipelines for ${name} with regression checks.`,
-    (name) => `Optimized database query performance and index structures for ${name}, reducing p95 query latency.`,
-    (name) => `Implemented authentication and role-based access control policies for ${name} ensuring tenant isolation.`,
+    (name) =>
+      `Architected high-throughput message streaming pipeline for ${name} using distributed queue workers.`,
+    (name) =>
+      `Engineered responsive user interface and dashboard views for ${name} with client state caching.`,
+    (name) =>
+      `Automated continuous integration and container deployment pipelines for ${name} with regression checks.`,
+    (name) =>
+      `Optimized database query performance and index structures for ${name}, reducing p95 query latency.`,
+    (name) =>
+      `Implemented authentication and role-based access control policies for ${name} ensuring tenant isolation.`,
   ];
 
   /** Creates a project with a specified number of bullets. */
@@ -92,7 +124,11 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
     };
   }
 
-  const projAlpha = makeProject(projAlphaId, 'Alpha Service', 4, ['TypeScript', 'Node.js', 'PostgreSQL']);
+  const projAlpha = makeProject(projAlphaId, 'Alpha Service', 4, [
+    'TypeScript',
+    'Node.js',
+    'PostgreSQL',
+  ]);
   const projBeta = makeProject(projBetaId, 'Beta Dashboard', 3, ['TypeScript', 'React']);
   const projGamma = makeProject(projGammaId, 'Gamma Analytics', 2, ['TypeScript', 'Node.js']); // Only 2 bullets — should fail
   const projDelta = makeProject(projDeltaId, 'Delta Platform', 1, ['React']); // Only 1 bullet — should fail
@@ -109,10 +145,38 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
 
   // Authoritative rankings: Alpha (rank 1), Beta (rank 2), Gamma (rank 3), Delta (rank 4)
   const authoritativeRankings = [
-    { projectId: projAlphaId, projectName: 'Alpha Service', relevanceScore: 85, status: 'SELECTED', matchedRequirementIds: ['r1', 'r2'], contributingSkills: ['typescript', 'node-js'] },
-    { projectId: projBetaId, projectName: 'Beta Dashboard', relevanceScore: 70, status: 'SELECTED', matchedRequirementIds: ['r1', 'r3'], contributingSkills: ['typescript', 'react'] },
-    { projectId: projGammaId, projectName: 'Gamma Analytics', relevanceScore: 55, status: 'SELECTED', matchedRequirementIds: ['r1'], contributingSkills: ['typescript'] },
-    { projectId: projDeltaId, projectName: 'Delta Platform', relevanceScore: 30, status: 'SELECTED', matchedRequirementIds: ['r3'], contributingSkills: ['react'] },
+    {
+      projectId: projAlphaId,
+      projectName: 'Alpha Service',
+      relevanceScore: 85,
+      status: 'SELECTED',
+      matchedRequirementIds: ['r1', 'r2'],
+      contributingSkills: ['typescript', 'node-js'],
+    },
+    {
+      projectId: projBetaId,
+      projectName: 'Beta Dashboard',
+      relevanceScore: 70,
+      status: 'SELECTED',
+      matchedRequirementIds: ['r1', 'r3'],
+      contributingSkills: ['typescript', 'react'],
+    },
+    {
+      projectId: projGammaId,
+      projectName: 'Gamma Analytics',
+      relevanceScore: 55,
+      status: 'SELECTED',
+      matchedRequirementIds: ['r1'],
+      contributingSkills: ['typescript'],
+    },
+    {
+      projectId: projDeltaId,
+      projectName: 'Delta Platform',
+      relevanceScore: 30,
+      status: 'SELECTED',
+      matchedRequirementIds: ['r3'],
+      contributingSkills: ['react'],
+    },
   ];
 
   // ── Test 1: selectedProjectIds exactly equal top N eligible IDs ──
@@ -163,9 +227,30 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   it('drops a project with insufficient bullets without backfilling from rankings', () => {
     // Provide rankings where rank 1 has only 2 bullets (Gamma) and rank 2 has 3 (Beta)
     const thinRankings = [
-      { projectId: projGammaId, projectName: 'Gamma Analytics', relevanceScore: 90, status: 'SELECTED', matchedRequirementIds: ['r1', 'r2'], contributingSkills: ['typescript'] },
-      { projectId: projBetaId, projectName: 'Beta Dashboard', relevanceScore: 70, status: 'SELECTED', matchedRequirementIds: ['r1'], contributingSkills: ['typescript', 'react'] },
-      { projectId: projAlphaId, projectName: 'Alpha Service', relevanceScore: 60, status: 'SELECTED', matchedRequirementIds: ['r1'], contributingSkills: ['typescript'] },
+      {
+        projectId: projGammaId,
+        projectName: 'Gamma Analytics',
+        relevanceScore: 90,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1', 'r2'],
+        contributingSkills: ['typescript'],
+      },
+      {
+        projectId: projBetaId,
+        projectName: 'Beta Dashboard',
+        relevanceScore: 70,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1'],
+        contributingSkills: ['typescript', 'react'],
+      },
+      {
+        projectId: projAlphaId,
+        projectName: 'Alpha Service',
+        relevanceScore: 60,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1'],
+        contributingSkills: ['typescript'],
+      },
     ];
 
     const profile = { ...baseProfile, projects: allProjects };
@@ -186,10 +271,7 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
       !renderedIds.includes(projGammaId),
       'Gamma (2 bullets) must be dropped — insufficient bullets'
     );
-    assert.ok(
-      renderedIds.includes(projBetaId),
-      'Beta (3 bullets) should render'
-    );
+    assert.ok(renderedIds.includes(projBetaId), 'Beta (3 bullets) should render');
 
     // Check removal records
     const debugTrace = result.debugTrace || result._debugTrace || {};
@@ -208,7 +290,14 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   it('excludes projects with exactly 2 authentic bullets from rendering', () => {
     // Only provide Gamma (2 bullets) as the sole ranking
     const onlyGamma = [
-      { projectId: projGammaId, projectName: 'Gamma Analytics', relevanceScore: 90, status: 'SELECTED', matchedRequirementIds: ['r1'], contributingSkills: ['typescript'] },
+      {
+        projectId: projGammaId,
+        projectName: 'Gamma Analytics',
+        relevanceScore: 90,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1'],
+        contributingSkills: ['typescript'],
+      },
     ];
 
     const profile = { ...baseProfile, projects: allProjects };
@@ -231,7 +320,14 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   // ── Test 5: 3-bullet pass ──
   it('renders a project with exactly 3 authentic bullets', () => {
     const onlyBeta = [
-      { projectId: projBetaId, projectName: 'Beta Dashboard', relevanceScore: 80, status: 'SELECTED', matchedRequirementIds: ['r1', 'r3'], contributingSkills: ['typescript', 'react'] },
+      {
+        projectId: projBetaId,
+        projectName: 'Beta Dashboard',
+        relevanceScore: 80,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1', 'r3'],
+        contributingSkills: ['typescript', 'react'],
+      },
     ];
 
     const profile = { ...baseProfile, projects: allProjects };
@@ -244,10 +340,7 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
     });
 
     const renderedProjects = result.projects || [];
-    assert.ok(
-      renderedProjects.length >= 1,
-      'Beta Dashboard (3 bullets) should render'
-    );
+    assert.ok(renderedProjects.length >= 1, 'Beta Dashboard (3 bullets) should render');
     const beta = renderedProjects.find((p) => p.projectId === projBetaId);
     assert.ok(beta, 'Beta Dashboard must be in rendered projects');
     assert.ok(beta.bullets.length >= 3, 'Beta must have ≥3 rendered bullets');
@@ -272,11 +365,13 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
     };
 
     const result = assessPreRenderQuality({ structuredResume });
-    assert.strictEqual(result.passed, false, 'Quality gate must fail when a project has <3 bullets');
-
-    const tooFewFinding = result.findings.find(
-      (f) => f.code === 'TOO_FEW_PROJECT_BULLETS'
+    assert.strictEqual(
+      result.passed,
+      false,
+      'Quality gate must fail when a project has <3 bullets'
     );
+
+    const tooFewFinding = result.findings.find((f) => f.code === 'TOO_FEW_PROJECT_BULLETS');
     assert.ok(tooFewFinding, 'Must have a TOO_FEW_PROJECT_BULLETS finding');
     assert.strictEqual(tooFewFinding.severity, 'FAIL', 'Finding severity must be FAIL');
   });
@@ -285,7 +380,14 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   it('never fabricates synthetic bullets to reach 3 — drops the project instead', () => {
     // Provide Delta (1 bullet) as ranking
     const onlyDelta = [
-      { projectId: projDeltaId, projectName: 'Delta Platform', relevanceScore: 80, status: 'SELECTED', matchedRequirementIds: ['r3'], contributingSkills: ['react'] },
+      {
+        projectId: projDeltaId,
+        projectName: 'Delta Platform',
+        relevanceScore: 80,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r3'],
+        contributingSkills: ['react'],
+      },
     ];
 
     const profile = { ...baseProfile, projects: allProjects };
@@ -310,7 +412,14 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
   // ── Test 8: Projects with 4+ bullets render with all bullets preserved ──
   it('renders projects with 4+ bullets without truncation to 3', () => {
     const onlyAlpha = [
-      { projectId: projAlphaId, projectName: 'Alpha Service', relevanceScore: 90, status: 'SELECTED', matchedRequirementIds: ['r1', 'r2'], contributingSkills: ['typescript', 'node-js'] },
+      {
+        projectId: projAlphaId,
+        projectName: 'Alpha Service',
+        relevanceScore: 90,
+        status: 'SELECTED',
+        matchedRequirementIds: ['r1', 'r2'],
+        contributingSkills: ['typescript', 'node-js'],
+      },
     ];
 
     const profile = { ...baseProfile, projects: allProjects };
@@ -350,8 +459,14 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
     };
 
     const receipt = validateStructuredResumeIntegrity(doc);
-    assert.strictEqual(receipt.overallStatus, 'FAIL', 'Validator must report FAIL when project has <3 bullets');
-    const bulletViolation = receipt.violations.find((v) => v.section === 'PROJECTS' && v.field === 'bullets');
+    assert.strictEqual(
+      receipt.overallStatus,
+      'FAIL',
+      'Validator must report FAIL when project has <3 bullets'
+    );
+    const bulletViolation = receipt.violations.find(
+      (v) => v.section === 'PROJECTS' && v.field === 'bullets'
+    );
     assert.ok(bulletViolation, 'Must record a violation for projects.bullets');
     assert.match(bulletViolation.message, /minimum required is 3/);
   });

@@ -39,7 +39,10 @@ import { SecretScrubber } from '../../extractors/github/security/secret-scrubber
 import { defaultMcpRateLimiter } from '../../security/mcp-rate-limiter.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
-import { buildCanonicalJobRequirements, normalizeJobInput } from '../../services/job-normalization.service.js';
+import {
+  buildCanonicalJobRequirements,
+  normalizeJobInput,
+} from '../../services/job-normalization.service.js';
 import {
   RecommendPortfolioProjectsInputSchema,
   RecommendPortfolioProjectsOutputSchema,
@@ -156,7 +159,10 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
 
   const rawReqs = Array.isArray(jobPosting?.requirements)
     ? jobPosting.requirements.filter(
-        (r) => !r || typeof r === 'string' || (r.category !== 'EXPERIENCE' && r.class !== 'RESPONSIBILITY')
+        (r) =>
+          !r ||
+          typeof r === 'string' ||
+          (r.category !== 'EXPERIENCE' && r.class !== 'RESPONSIBILITY')
       )
     : [];
 
@@ -368,8 +374,12 @@ export async function resolveJobDescription(context, args, dbClient, deps = {}) 
       skills:
         Array.isArray(args.skills) && args.skills.length > 0
           ? args.skills
-          : canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
-      responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
+          : canonical.normalizedRequirements
+              .filter((r) => r.class === 'TECHNOLOGY')
+              .map((r) => r.text),
+      responsibilities: canonical.normalizedRequirements
+        .filter((r) => r.class === 'RESPONSIBILITY')
+        .map((r) => r.text),
       ...canonical,
     };
   }
@@ -454,7 +464,8 @@ export async function resolveJobDescription(context, args, dbClient, deps = {}) 
       title: resolvedTitle,
       company: resolvedCompany,
       description: textToParse,
-      requirements: discoveryJob && Array.isArray(discoveryJob.requirements) ? discoveryJob.requirements : [],
+      requirements:
+        discoveryJob && Array.isArray(discoveryJob.requirements) ? discoveryJob.requirements : [],
     });
 
     return {
@@ -469,8 +480,12 @@ export async function resolveJobDescription(context, args, dbClient, deps = {}) 
         context.tenantId,
         args.jobId
       ),
-      skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
-      responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
+      skills: canonical.normalizedRequirements
+        .filter((r) => r.class === 'TECHNOLOGY')
+        .map((r) => r.text),
+      responsibilities: canonical.normalizedRequirements
+        .filter((r) => r.class === 'RESPONSIBILITY')
+        .map((r) => r.text),
       ...canonical,
     };
   }
@@ -881,24 +896,35 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
   }
   const receipt = prepared.tailoredResume.evidenceValidationReceipt || {};
   const projectBullets = (structured.projects || []).flatMap((project) => project.bullets || []);
-  const experienceBullets = (structured.experience || []).flatMap((experience) => experience.bullets || []);
+  const experienceBullets = (structured.experience || []).flatMap(
+    (experience) => experience.bullets || []
+  );
   const output = {
     resumeId: structured.documentId,
     candidateId,
     jobTitle: structured.targetRole,
     presentationMode: args.presentationMode,
     templateId: args.templateId,
-    presentationAudit: { status: 'PASS', preservedAttributes: {}, modifiedAttributes: {}, warnings: [] },
+    presentationAudit: {
+      status: 'PASS',
+      preservedAttributes: {},
+      modifiedAttributes: {},
+      warnings: [],
+    },
     integrityReport: {
       overallStatus: receipt.overallStatus === 'PASS' ? 'PASS' : 'PARTIAL',
       verifiedAssertionsCount: receipt.verifiedClaimsCount || 0,
       inferredAssertionsCount: receipt.inferredClaimsCount || 0,
       claimedAssertionsCount: receipt.userProvidedClaimsCount || 0,
-      evidenceItemsCitedCount: projectBullets.reduce((sum, bullet) => sum + (bullet.evidenceRefs?.length || 0), 0),
+      evidenceItemsCitedCount: projectBullets.reduce(
+        (sum, bullet) => sum + (bullet.evidenceRefs?.length || 0),
+        0
+      ),
     },
     auditReport: {
       status: receipt.overallStatus === 'PASS' ? 'PASS' : 'WARN',
-      totalClaimsChecked: receipt.totalClaimsAudited || projectBullets.length + experienceBullets.length,
+      totalClaimsChecked:
+        receipt.totalClaimsAudited || projectBullets.length + experienceBullets.length,
       verifiedClaimsCount: receipt.verifiedClaimsCount || 0,
       warningsCount: receipt.violations?.length || 0,
     },
@@ -956,7 +982,8 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],
-              composedFromFactIds: bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
+              composedFromFactIds:
+                bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
               claimLabel: bullet.claimLabel || null,
             };
           }),
@@ -986,7 +1013,8 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],
-              composedFromFactIds: bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
+              composedFromFactIds:
+                bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
               claimLabel: bullet.claimLabel || null,
             };
           }),

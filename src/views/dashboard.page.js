@@ -152,7 +152,8 @@ export function renderDashboardPage({
     priorityActions.push({
       id: 'evaluate-radar',
       title: 'Discover Matching Roles',
-      description: 'Run Job Fit Radar to match your verified technical skills against real market job descriptions.',
+      description:
+        'Run Job Fit Radar to match your verified technical skills against real market job descriptions.',
       icon: 'radar',
       ctaLabel: 'Launch Job Radar',
       ctaHref: '/apps/radar',
@@ -215,7 +216,10 @@ export function renderDashboardPage({
                   </span>
                   ${projects
                     .slice(0, 3)
-                    .map((p) => `<a href="/projects/${escapeHtml(p.id)}" style="color:var(--text-muted); text-decoration:none; background:rgba(255,255,255,0.04); padding:2px 8px; border-radius:4px; border:1px solid var(--border-subtle); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(p.name)}</a>`)
+                    .map(
+                      (p) =>
+                        `<a href="/projects/${escapeHtml(p.id)}" style="color:var(--text-muted); text-decoration:none; background:rgba(255,255,255,0.04); padding:2px 8px; border-radius:4px; border:1px solid var(--border-subtle); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(p.name)}</a>`
+                    )
                     .join('')}
                   ${projects.length > 3 ? `<span style="font-size:0.75rem; color:var(--text-dim);">+${projects.length - 3} more</span>` : ''}
                 </div>
@@ -425,7 +429,8 @@ export function renderDashboardPage({
             <div style="padding:32px 24px;">
               ${renderEmptyState({
                 title: 'No Applications Tracked Yet',
-                message: 'You have not submitted or saved any applications. Evaluate a role in Job Radar to prepare your first tailored submission package.',
+                message:
+                  'You have not submitted or saved any applications. Evaluate a role in Job Radar to prepare your first tailored submission package.',
                 actionLabel: 'Discover Matching Jobs',
                 actionHref: '/apps/radar',
                 icon: 'applications',

@@ -26,12 +26,8 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  deriveSectionOrdering,
-} from '../../src/services/resume-content-strategy.service.js';
-import {
-  buildStructuredResumeDocument,
-} from '../../src/services/structured-resume.service.js';
+import { deriveSectionOrdering } from '../../src/services/resume-content-strategy.service.js';
+import { buildStructuredResumeDocument } from '../../src/services/structured-resume.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 import { LatexCompilerService } from '../../src/services/latex-compiler.service.js';
 import { PdfGeometryAnalyzer } from '../../src/services/pdf-geometry-analyzer.service.js';
@@ -116,8 +112,18 @@ const candidateWithoutDsa = (() => {
 
 /** Authoritative ranking as produced by the analysis snapshot (PDE #1). */
 const authoritativeRankings = [
-  { projectId: PDE_ID, projectName: 'Product Data Explorer', relevanceScore: 53.31, relevanceRank: 1 },
-  { projectId: CTM_ID, projectName: 'Collaborative Task Manager', relevanceScore: 44.11, relevanceRank: 2 },
+  {
+    projectId: PDE_ID,
+    projectName: 'Product Data Explorer',
+    relevanceScore: 53.31,
+    relevanceRank: 1,
+  },
+  {
+    projectId: CTM_ID,
+    projectName: 'Collaborative Task Manager',
+    relevanceScore: 44.11,
+    relevanceRank: 2,
+  },
 ];
 
 const jobPosting = {
@@ -215,14 +221,22 @@ describe('P16-001F-4: DSA Restoration + One-Page Layout Quality', () => {
       expectedSectionOrder: doc.sectionOrder,
     });
 
-    assert.equal(report.success, true, `geometry analysis must succeed: ${report.failureReason || ''}`);
+    assert.equal(
+      report.success,
+      true,
+      `geometry analysis must succeed: ${report.failureReason || ''}`
+    );
     const sectionTypes = (report.sections || []).map((s) => s.type);
     assert.ok(
       sectionTypes.includes('DSA'),
       `DSA section must be detected in the compiled PDF (detected: ${sectionTypes.join(',')})`
     );
     assert.equal(report.dsaVerification?.status, 'PASS', 'DSA dual-check must PASS');
-    assert.equal(report.pageCount ?? report.layoutDiagnostics?.pageCount, 1, 'must remain one page');
+    assert.equal(
+      report.pageCount ?? report.layoutDiagnostics?.pageCount,
+      1,
+      'must remain one page'
+    );
   });
 
   it('Test D: dynamic project selection remains unchanged (authoritative rank order)', () => {
@@ -259,13 +273,19 @@ describe('P16-001F-4: DSA Restoration + One-Page Layout Quality', () => {
       candidateProfile: candidateWithoutDsa,
       jobPosting,
     });
-    assert.ok(!sectionOrder.includes('DSA'), 'DSA must not be in sectionOrder without candidate DSA');
+    assert.ok(
+      !sectionOrder.includes('DSA'),
+      'DSA must not be in sectionOrder without candidate DSA'
+    );
 
     const doc = buildDoc(candidateWithoutDsa);
     const { texContent } = renderTex(doc);
 
     assert.doesNotMatch(texContent, /\\atssection\{Problem Solving/i);
-    assert.ok(!doc.dsa?.hasSection, 'structuredResume.dsa must be null/empty without candidate DSA');
+    assert.ok(
+      !doc.dsa?.hasSection,
+      'structuredResume.dsa must be null/empty without candidate DSA'
+    );
   });
 
   it('Test H: renderer safety net renders snapshot DSA even when sectionOrder omits it', () => {
@@ -295,74 +315,139 @@ describe('P16-001F-4: DSA Restoration + One-Page Layout Quality', () => {
     const projIdx = sectionOrder.indexOf('PROJECTS');
     const dsaIdx = sectionOrder.indexOf('DSA');
     const eduIdx = sectionOrder.indexOf('EDUCATION');
-    assert.ok(projIdx < dsaIdx && dsaIdx < eduIdx, 'DSA must sit after PROJECTS and before EDUCATION');
+    assert.ok(
+      projIdx < dsaIdx && dsaIdx < eduIdx,
+      'DSA must sit after PROJECTS and before EDUCATION'
+    );
   });
 
   it('Test J: TOO_SPARSE expansion is bounded and preserves the spacing hierarchy', () => {
-    return import('../../src/services/resume-layout-engine.service.js').then(({ ResumeLayoutEngine }) => {
-      const engine = new ResumeLayoutEngine();
+    return import('../../src/services/resume-layout-engine.service.js').then(
+      ({ ResumeLayoutEngine }) => {
+        const engine = new ResumeLayoutEngine();
 
-      // Craft a sparse model: minimal content, generous remaining budget
-      const sparseModel = {
-        header: { type: 'HEADER', estimatedLines: 2, hasContent: true, linkCount: 2, hasHeadline: true },
-        summary: { type: 'SUMMARY', estimatedLines: 2, hasContent: true, charCount: 150, wordCount: 25 },
-        skills: { type: 'SKILLS', hasContent: true, totalLines: 2, categoryCount: 2 },
-        projects: { type: 'PROJECTS', hasContent: true, count: 1, components: [{ bulletCount: 1, bulletLengths: [80], techCount: 3, techStringLength: 30 }] },
-        optionalSections: { dsa: null, certifications: null },
-        experience: { hasContent: false, count: 0, components: [] },
-        education: { type: 'EDUCATION', hasContent: true, count: 1, components: [{ hasCoursework: false }] },
-      };
-      const budget = engine.calculatePageBudget(sparseModel);
-      const layout = engine.calculateAdaptiveSpacing(
-        sparseModel,
-        budget,
-        'ONE_PAGE_TARGET',
-        { density: DENSITY_CLASSIFICATION.TOO_SPARSE }
-      );
-      const spacing = layout.spacing ?? layout;
-      const S = SPACING_RELATIONSHIPS;
-      const base = BASE_SPACING_TOKENS;
+        // Craft a sparse model: minimal content, generous remaining budget
+        const sparseModel = {
+          header: {
+            type: 'HEADER',
+            estimatedLines: 2,
+            hasContent: true,
+            linkCount: 2,
+            hasHeadline: true,
+          },
+          summary: {
+            type: 'SUMMARY',
+            estimatedLines: 2,
+            hasContent: true,
+            charCount: 150,
+            wordCount: 25,
+          },
+          skills: { type: 'SKILLS', hasContent: true, totalLines: 2, categoryCount: 2 },
+          projects: {
+            type: 'PROJECTS',
+            hasContent: true,
+            count: 1,
+            components: [
+              { bulletCount: 1, bulletLengths: [80], techCount: 3, techStringLength: 30 },
+            ],
+          },
+          optionalSections: { dsa: null, certifications: null },
+          experience: { hasContent: false, count: 0, components: [] },
+          education: {
+            type: 'EDUCATION',
+            hasContent: true,
+            count: 1,
+            components: [{ hasCoursework: false }],
+          },
+        };
+        const budget = engine.calculatePageBudget(sparseModel);
+        const layout = engine.calculateAdaptiveSpacing(sparseModel, budget, 'ONE_PAGE_TARGET', {
+          density: DENSITY_CLASSIFICATION.TOO_SPARSE,
+        });
+        const spacing = layout.spacing ?? layout;
+        const S = SPACING_RELATIONSHIPS;
+        const base = BASE_SPACING_TOKENS;
 
-      // Bounded expansion checks
-      assert.ok(
-        spacing[S.SECTION_TO_SECTION] <= base[S.SECTION_TO_SECTION] + 6.5,
-        'section gap expansion must stay bounded'
-      );
-      assert.ok(spacing[S.ENTRY_TO_ENTRY] < spacing[S.SECTION_TO_SECTION], 'entry gap < section gap');
-      assert.ok(spacing[S.HEADING_TO_CONTENT] < spacing[S.ENTRY_TO_ENTRY], 'heading gap < entry gap');
-      assert.ok(spacing[S.BULLET_TO_BULLET] < spacing[S.HEADING_TO_CONTENT], 'bullet gap < heading gap');
-    });
+        // Bounded expansion checks
+        assert.ok(
+          spacing[S.SECTION_TO_SECTION] <= base[S.SECTION_TO_SECTION] + 6.5,
+          'section gap expansion must stay bounded'
+        );
+        assert.ok(
+          spacing[S.ENTRY_TO_ENTRY] < spacing[S.SECTION_TO_SECTION],
+          'entry gap < section gap'
+        );
+        assert.ok(
+          spacing[S.HEADING_TO_CONTENT] < spacing[S.ENTRY_TO_ENTRY],
+          'heading gap < entry gap'
+        );
+        assert.ok(
+          spacing[S.BULLET_TO_BULLET] < spacing[S.HEADING_TO_CONTENT],
+          'bullet gap < heading gap'
+        );
+      }
+    );
   });
 
   it('Test K: BALANCED density keeps base spacing (no over-expansion regression)', () => {
-    return import('../../src/services/resume-layout-engine.service.js').then(({ ResumeLayoutEngine }) => {
-      const engine = new ResumeLayoutEngine();
-      const model = {
-        header: { type: 'HEADER', estimatedLines: 2, hasContent: true, linkCount: 2, hasHeadline: true },
-        summary: { type: 'SUMMARY', estimatedLines: 3, hasContent: true, charCount: 260, wordCount: 45 },
-        skills: { type: 'SKILLS', hasContent: true, totalLines: 4, categoryCount: 4 },
-        projects: { type: 'PROJECTS', hasContent: true, count: 2, components: [
-          { bulletCount: 3, bulletLengths: [110, 120, 100], techCount: 5, techStringLength: 60 },
-          { bulletCount: 2, bulletLengths: [90, 95], techCount: 3, techStringLength: 35 },
-        ] },
-        optionalSections: { dsa: { hasContent: true, estimatedLines: 5 }, certifications: null },
-        experience: { type: 'EXPERIENCE', hasContent: true, count: 1, components: [{ bulletCount: 2, bulletLengths: [120, 130] }] },
-        education: { type: 'EDUCATION', hasContent: true, count: 1, components: [{ hasCoursework: true }] },
-      };
-      const budget = engine.calculatePageBudget(model);
-      const layout = engine.calculateAdaptiveSpacing(model, budget, 'ONE_PAGE_TARGET', {
-        density: DENSITY_CLASSIFICATION.BALANCED,
-      });
-      const spacing = layout.spacing ?? layout;
+    return import('../../src/services/resume-layout-engine.service.js').then(
+      ({ ResumeLayoutEngine }) => {
+        const engine = new ResumeLayoutEngine();
+        const model = {
+          header: {
+            type: 'HEADER',
+            estimatedLines: 2,
+            hasContent: true,
+            linkCount: 2,
+            hasHeadline: true,
+          },
+          summary: {
+            type: 'SUMMARY',
+            estimatedLines: 3,
+            hasContent: true,
+            charCount: 260,
+            wordCount: 45,
+          },
+          skills: { type: 'SKILLS', hasContent: true, totalLines: 4, categoryCount: 4 },
+          projects: {
+            type: 'PROJECTS',
+            hasContent: true,
+            count: 2,
+            components: [
+              {
+                bulletCount: 3,
+                bulletLengths: [110, 120, 100],
+                techCount: 5,
+                techStringLength: 60,
+              },
+              { bulletCount: 2, bulletLengths: [90, 95], techCount: 3, techStringLength: 35 },
+            ],
+          },
+          optionalSections: { dsa: { hasContent: true, estimatedLines: 5 }, certifications: null },
+          experience: {
+            type: 'EXPERIENCE',
+            hasContent: true,
+            count: 1,
+            components: [{ bulletCount: 2, bulletLengths: [120, 130] }],
+          },
+          education: {
+            type: 'EDUCATION',
+            hasContent: true,
+            count: 1,
+            components: [{ hasCoursework: true }],
+          },
+        };
+        const budget = engine.calculatePageBudget(model);
+        const layout = engine.calculateAdaptiveSpacing(model, budget, 'ONE_PAGE_TARGET', {
+          density: DENSITY_CLASSIFICATION.BALANCED,
+        });
+        const spacing = layout.spacing ?? layout;
 
-      for (const [key, value] of Object.entries(BASE_SPACING_TOKENS)) {
-        assert.equal(
-          spacing[key],
-          value,
-          `BALANCED must keep base spacing token ${key}`
-        );
+        for (const [key, value] of Object.entries(BASE_SPACING_TOKENS)) {
+          assert.equal(spacing[key], value, `BALANCED must keep base spacing token ${key}`);
+        }
       }
-    });
+    );
   });
 
   it('Test L: source candidate data is not mutated by the ordering/build/render pipeline', () => {

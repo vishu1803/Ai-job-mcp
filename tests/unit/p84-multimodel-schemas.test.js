@@ -206,7 +206,9 @@ describe('P84: Multi-Model Evaluation Schemas & Calibration Engine', () => {
     assert.equal(nestFinding.consensus, 'CONSENSUS');
     assert.equal(nestFinding.actionableForOptimizer, true);
 
-    const metricFinding = findings.find((f) => f.finding === 'METRIC_40_PERCENT_INSUFFICIENT_EVIDENCE');
+    const metricFinding = findings.find(
+      (f) => f.finding === 'METRIC_40_PERCENT_INSUFFICIENT_EVIDENCE'
+    );
     assert.ok(metricFinding);
     assert.equal(metricFinding.agreementRate, 1.0);
     assert.equal(metricFinding.consensus, 'CONSENSUS');
@@ -247,7 +249,12 @@ describe('P84: Multi-Model Evaluation Schemas & Calibration Engine', () => {
       summary: { text: 'Full stack engineer with Node.js and NestJS.' },
       skills: { categories: [{ categoryName: 'Backend', skills: ['Node.js', 'Express.js'] }] },
       projects: [{ name: 'Collaborative Task Manager', technologies: ['Node.js', 'Express.js'] }],
-      experience: [{ title: 'Intern', bullets: ['Optimized database queries, resulting in a 40% reduction in page load time.'] }],
+      experience: [
+        {
+          title: 'Intern',
+          bullets: ['Optimized database queries, resulting in a 40% reduction in page load time.'],
+        },
+      ],
     };
 
     const mockCandidateProfile = {

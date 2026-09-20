@@ -61,8 +61,16 @@ export const ATS_PARSEABILITY_CHECKS = Object.freeze([
   { id: 'PROJECT_COUNT_MATCH', label: 'Project count matches package', weight: 5 },
   { id: 'EXPERIENCE_COUNT_MATCH', label: 'Experience count matches package', weight: 3 },
   { id: 'EDUCATION_COUNT_MATCH', label: 'Education count matches package', weight: 3 },
-  { id: 'HYPERLINKS_VALID', label: 'Hyperlinks valid (no malformed or placeholder URLs)', weight: 4 },
-  { id: 'SINGLE_COLUMN_LAYOUT', label: 'Single-column layout (no layout tables/columns)', weight: 4 },
+  {
+    id: 'HYPERLINKS_VALID',
+    label: 'Hyperlinks valid (no malformed or placeholder URLs)',
+    weight: 4,
+  },
+  {
+    id: 'SINGLE_COLUMN_LAYOUT',
+    label: 'Single-column layout (no layout tables/columns)',
+    weight: 4,
+  },
   { id: 'STANDARD_BULLETS', label: 'Conventional bullet points', weight: 2 },
 ]);
 
@@ -116,11 +124,17 @@ function normalizeExtractedText(text) {
  * @returns {boolean}
  */
 function textContains(haystack, needle) {
-  const n = String(needle || '').toLowerCase().trim();
+  const n = String(needle || '')
+    .toLowerCase()
+    .trim();
   if (!n) return false;
   // Canonical form: all non-alphanumerics become spaces so hyphenated slugs
   // ("Product-Data-Explorer") match rendered titles ("Product Data Explorer").
-  const canon = (s) => s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const canon = (s) =>
+    s
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   const canonHay = canon(haystack);
   const canonNeedle = canon(n);
   // Strict contiguous phrase match — never bag-of-tokens across disconnected text regions
@@ -177,9 +191,10 @@ function detectSections(lines) {
  * @returns {boolean}
  */
 function isSectionOrderValid(order, expectedOrder = null) {
-  const reference = Array.isArray(expectedOrder) && expectedOrder.length > 0
-    ? expectedOrder.map((s) => String(s).toUpperCase()).filter((s) => s !== 'HEADER')
-    : EXPECTED_SECTION_ORDER;
+  const reference =
+    Array.isArray(expectedOrder) && expectedOrder.length > 0
+      ? expectedOrder.map((s) => String(s).toUpperCase()).filter((s) => s !== 'HEADER')
+      : EXPECTED_SECTION_ORDER;
   // DSA/Problem Solving and Certifications are optional interleaves and may
   // appear anywhere after SKILLS without breaking canonical ordering.
   const relevant = order.filter((s) => s !== 'DSA' && s !== 'CERTIFICATIONS');
@@ -394,10 +409,7 @@ export class ResumeQualityAssessmentService {
       )
     );
 
-    const structuredResume =
-      pkg.structuredResume ||
-      pkg.tailoredResume?.structuredResume ||
-      null;
+    const structuredResume = pkg.structuredResume || pkg.tailoredResume?.structuredResume || null;
 
     // 2. Identity checks
     const candidateName =
@@ -410,7 +422,9 @@ export class ResumeQualityAssessmentService {
       buildCheck(
         'CANDIDATE_NAME_PRESENT',
         nameOk,
-        nameOk ? `Name "${candidateName}" found in extracted text` : 'Candidate name not found in extracted text'
+        nameOk
+          ? `Name "${candidateName}" found in extracted text`
+          : 'Candidate name not found in extracted text'
       )
     );
 
@@ -435,9 +449,10 @@ export class ResumeQualityAssessmentService {
       candidateProfile?.candidatePhone ||
       '';
     const phoneDigits = String(phone).replace(/\D/g, '');
-    const phoneOk = phoneDigits.length >= 7 && phoneDigits.split('').some((d) => d !== '0')
-      ? lowerText.replace(/\D/g, '').includes(phoneDigits)
-      : false;
+    const phoneOk =
+      phoneDigits.length >= 7 && phoneDigits.split('').some((d) => d !== '0')
+        ? lowerText.replace(/\D/g, '').includes(phoneDigits)
+        : false;
     checks.push(
       buildCheck(
         'CONTACT_PHONE_PRESENT',
@@ -474,21 +489,27 @@ export class ResumeQualityAssessmentService {
       buildCheck(
         'SECTION_SUMMARY',
         has('SUMMARY'),
-        has('SUMMARY') ? 'Professional Summary heading detected' : 'Professional Summary heading not detected'
+        has('SUMMARY')
+          ? 'Professional Summary heading detected'
+          : 'Professional Summary heading not detected'
       )
     );
     checks.push(
       buildCheck(
         'SECTION_SKILLS',
         has('SKILLS'),
-        has('SKILLS') ? 'Technical Skills heading detected' : 'Technical Skills heading not detected'
+        has('SKILLS')
+          ? 'Technical Skills heading detected'
+          : 'Technical Skills heading not detected'
       )
     );
     checks.push(
       buildCheck(
         'SECTION_PROJECTS',
         has('PROJECTS'),
-        has('PROJECTS') ? 'Technical Projects heading detected' : 'Technical Projects heading not detected'
+        has('PROJECTS')
+          ? 'Technical Projects heading detected'
+          : 'Technical Projects heading not detected'
       )
     );
     // Experience: a rendered Professional Experience section OR an explicit
@@ -557,12 +578,10 @@ export class ResumeQualityAssessmentService {
       pkg.selectedProjects ||
       [];
     const _projectHeadingCount = (lowerText.match(/\bprojects?\b/g) || []).length; // not used for counting; headings only
-    const renderedProjectNames = selectedProjects.map(
-      (p) => String(p.name || p.projectName || p.title || '')
+    const renderedProjectNames = selectedProjects.map((p) =>
+      String(p.name || p.projectName || p.title || '')
     );
-    const projectsInText = renderedProjectNames.filter(
-      (n) => n && textContains(lowerText, n)
-    );
+    const projectsInText = renderedProjectNames.filter((n) => n && textContains(lowerText, n));
     const projectCountOk =
       selectedProjects.length === 0 ||
       (projectsInText.length === selectedProjects.length && has('PROJECTS'));
@@ -582,7 +601,8 @@ export class ResumeQualityAssessmentService {
     const experienceInText = experienceNames.filter((n) => n && textContains(lowerText, n));
     const experienceCountOk =
       experienceRecords.length === 0 ||
-      (experienceInText.length === experienceRecords.length && (experienceRendered || experienceOmitted));
+      (experienceInText.length === experienceRecords.length &&
+        (experienceRendered || experienceOmitted));
     checks.push(
       buildCheck(
         'EXPERIENCE_COUNT_MATCH',
@@ -593,13 +613,12 @@ export class ResumeQualityAssessmentService {
       )
     );
 
-    const educationNames = educationRecords.map((e) =>
-      String(e.institution || e.degree || '')
-    );
+    const educationNames = educationRecords.map((e) => String(e.institution || e.degree || ''));
     const educationInText = educationNames.filter((n) => n && textContains(lowerText, n));
     const educationCountOk =
       educationRecords.length === 0 ||
-      (educationInText.length === educationRecords.length && (educationRendered || educationOmitted));
+      (educationInText.length === educationRecords.length &&
+        (educationRendered || educationOmitted));
     checks.push(
       buildCheck(
         'EDUCATION_COUNT_MATCH',
@@ -748,7 +767,10 @@ export class ResumeQualityAssessmentService {
     for (const p of selectedProjects) {
       const techs = Array.isArray(p.technologies) ? p.technologies : [];
       const hasEvidence = Boolean(
-        p.repositoryUrl || p.evidenceCount > 0 || p.provenanceStatus === 'CORROBORATED' || p.provenanceStatus === 'VERIFIED'
+        p.repositoryUrl ||
+        p.evidenceCount > 0 ||
+        p.provenanceStatus === 'CORROBORATED' ||
+        p.provenanceStatus === 'VERIFIED'
       );
       for (const t of techs) {
         const key = skillToken(t);
@@ -765,11 +787,19 @@ export class ResumeQualityAssessmentService {
 
       if (verifiedTokens.has(req.token)) {
         statuses.push(verifiedTokens.get(req.token));
-        evidence.push({ source: 'SKILL_EVIDENCE', provenance: verifiedTokens.get(req.token), detail: `Stored verified skill: ${req.label}` });
+        evidence.push({
+          source: 'SKILL_EVIDENCE',
+          provenance: verifiedTokens.get(req.token),
+          detail: `Stored verified skill: ${req.label}`,
+        });
       }
       if (claimedTokens.has(req.token)) {
         statuses.push(claimedTokens.get(req.token));
-        evidence.push({ source: 'SKILL_CLAIM', provenance: 'CLAIMED', detail: `Candidate-claimed skill: ${req.label}` });
+        evidence.push({
+          source: 'SKILL_CLAIM',
+          provenance: 'CLAIMED',
+          detail: `Candidate-claimed skill: ${req.label}`,
+        });
       }
       if (projectTechTokens.has(req.token)) {
         statuses.push(projectTechTokens.get(req.token));
@@ -800,8 +830,7 @@ export class ResumeQualityAssessmentService {
       totalWeight += weight;
       earnedWeight += weight * (STATUS_CREDIT[r.status] ?? 0);
     }
-    const score =
-      totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
+    const score = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
 
     const summary = {
       total: requirements.length,
@@ -831,7 +860,12 @@ export class ResumeQualityAssessmentService {
    * @param {number} [params.tailoredResumeFitScore] Legacy package fitScore fallback
    * @returns {object} resumeQuality payload for the handoff kit
    */
-  buildResumeQuality({ atsParseability, evidenceCoverage, jobFit = null, tailoredResumeFitScore = null }) {
+  buildResumeQuality({
+    atsParseability,
+    evidenceCoverage,
+    jobFit = null,
+    tailoredResumeFitScore = null,
+  }) {
     const jobMatchScore =
       jobFit && typeof jobFit.overallFit?.atsScore === 'number'
         ? jobFit.overallFit.atsScore
@@ -963,32 +997,34 @@ export function generateUnifiedQualityReport({
   const atsParseabilityScore =
     typeof atsParseabilityReport.atsParseabilityScore === 'number'
       ? atsParseabilityReport.atsParseabilityScore
-      : (typeof atsParseabilityReport.score === 'number' ? atsParseabilityReport.score : 0);
+      : typeof atsParseabilityReport.score === 'number'
+        ? atsParseabilityReport.score
+        : 0;
   const atsConfidence =
-    typeof atsParseabilityReport.confidence === 'number'
-      ? atsParseabilityReport.confidence
-      : 0.85;
+    typeof atsParseabilityReport.confidence === 'number' ? atsParseabilityReport.confidence : 0.85;
 
   // Dimension 2: Job Match (AtsFitScoreService)
   const jobMatchScore =
     typeof jobMatchReport.jobMatchScore === 'number'
       ? jobMatchReport.jobMatchScore
-      : (typeof jobMatchReport.overallScore === 'number'
-          ? jobMatchReport.overallScore
-          : (typeof jobMatchReport.score === 'number' ? jobMatchReport.score : 0));
+      : typeof jobMatchReport.overallScore === 'number'
+        ? jobMatchReport.overallScore
+        : typeof jobMatchReport.score === 'number'
+          ? jobMatchReport.score
+          : 0;
   const jobMatchConfidence =
-    typeof jobMatchReport.confidence === 'number'
-      ? jobMatchReport.confidence
-      : 0.90;
+    typeof jobMatchReport.confidence === 'number' ? jobMatchReport.confidence : 0.9;
 
   // Dimension 3: Keyword Coverage (ResumeKeywordCoverageService)
   // RULE 21: Keyword Coverage is NOT double-counted in the headline score!
   const keywordCoverageScore =
     typeof keywordCoverageReport.overallCoveragePercent === 'number'
       ? keywordCoverageReport.overallCoveragePercent
-      : (typeof keywordCoverageReport.overallCoverage === 'number'
-          ? keywordCoverageReport.overallCoverage
-          : (typeof keywordCoverageReport.score === 'number' ? keywordCoverageReport.score : 0));
+      : typeof keywordCoverageReport.overallCoverage === 'number'
+        ? keywordCoverageReport.overallCoverage
+        : typeof keywordCoverageReport.score === 'number'
+          ? keywordCoverageReport.score
+          : 0;
 
   const keywordFindings = [];
   if (
@@ -1015,9 +1051,7 @@ export function generateUnifiedQualityReport({
           ? contentQualityReport.score
           : 0;
   const contentQualityConfidence =
-    typeof contentQualityReport.confidence === 'number'
-      ? contentQualityReport.confidence
-      : 0.90;
+    typeof contentQualityReport.confidence === 'number' ? contentQualityReport.confidence : 0.9;
 
   // Dimension 5: Evidence Integrity Safety Gate (Rule 24 - Fail Closed)
   let validationPassed = false;
@@ -1048,7 +1082,10 @@ export function generateUnifiedQualityReport({
   const publicationStatus = validationPassed ? 'APPROVED' : 'BLOCKED_BY_INTEGRITY_GATE';
   const publicationBlockReason = validationPassed
     ? null
-    : `${gateViolations.length} unsupported or ungrounded claim(s) detected: ${gateViolations.map((v) => v.code || v.type).slice(0, 2).join(', ')}`;
+    : `${gateViolations.length} unsupported or ungrounded claim(s) detected: ${gateViolations
+        .map((v) => v.code || v.type)
+        .slice(0, 2)
+        .join(', ')}`;
 
   const evidenceIntegrityGate = {
     passed: validationPassed,
@@ -1064,8 +1101,8 @@ export function generateUnifiedQualityReport({
   // Defaults to p82.0 (0.30 ATS Parseability + 0.40 Job Match + 0.30 Content Quality)
   const rawHeadlineScore = Math.round(
     atsParseabilityScore * weights.atsParseability +
-    jobMatchScore * weights.jobMatch +
-    contentQualityScore * weights.contentQuality
+      jobMatchScore * weights.jobMatch +
+      contentQualityScore * weights.contentQuality
   );
 
   const atsOptimizationScore = rawHeadlineScore;
@@ -1076,14 +1113,20 @@ export function generateUnifiedQualityReport({
   const publishableScore = validationPassed ? atsOptimizationScore : 0;
   const finalHeadlineScore = publishableScore;
   const overallStatus = validationPassed
-    ? (finalHeadlineScore >= policy.thresholds.qualificationCutoff ? 'OPTIMIZED' : 'NEEDS_WORK')
+    ? finalHeadlineScore >= policy.thresholds.qualificationCutoff
+      ? 'OPTIMIZED'
+      : 'NEEDS_WORK'
     : 'REJECTED_BY_INTEGRITY_GATE';
 
   // Multi-Factor Inspectable Confidence (Weakness 1)
-  const aggPdfExtraction = atsParseabilityReport.confidenceFactors?.pdfExtractionQuality ?? (keywordCoverageReport.confidenceFactors?.pdfExtractionQuality || 0.95);
-  const aggReqExtraction = keywordCoverageReport.confidenceFactors?.requirementExtractionQuality || 0.90;
-  const aggTaxonomy = keywordCoverageReport.confidenceFactors?.taxonomyResolution || 0.90;
-  const aggEvidence = keywordCoverageReport.confidenceFactors?.evidenceCoverage ?? (validationPassed ? 0.95 : 0.60);
+  const aggPdfExtraction =
+    atsParseabilityReport.confidenceFactors?.pdfExtractionQuality ??
+    (keywordCoverageReport.confidenceFactors?.pdfExtractionQuality || 0.95);
+  const aggReqExtraction =
+    keywordCoverageReport.confidenceFactors?.requirementExtractionQuality || 0.9;
+  const aggTaxonomy = keywordCoverageReport.confidenceFactors?.taxonomyResolution || 0.9;
+  const aggEvidence =
+    keywordCoverageReport.confidenceFactors?.evidenceCoverage ?? (validationPassed ? 0.95 : 0.6);
 
   const confidenceFactors = {
     pdfExtractionQuality: aggPdfExtraction,
@@ -1092,12 +1135,14 @@ export function generateUnifiedQualityReport({
     evidenceCoverage: aggEvidence,
   };
 
-  const aggregateConfidence = Math.round(
-    (policy.confidenceWeights.pdfExtraction * aggPdfExtraction +
-     policy.confidenceWeights.reqExtraction * aggReqExtraction +
-     policy.confidenceWeights.taxonomyResolution * aggTaxonomy +
-     policy.confidenceWeights.evidenceCoverage * aggEvidence) * 100
-  ) / 100;
+  const aggregateConfidence =
+    Math.round(
+      (policy.confidenceWeights.pdfExtraction * aggPdfExtraction +
+        policy.confidenceWeights.reqExtraction * aggReqExtraction +
+        policy.confidenceWeights.taxonomyResolution * aggTaxonomy +
+        policy.confidenceWeights.evidenceCoverage * aggEvidence) *
+        100
+    ) / 100;
 
   // Build Traceability Records (Weakness 11: ResumeEvaluationEvidence)
   const evidenceTraceability = (keywordCoverageReport.termBreakdown || []).map((term, idx) => ({
@@ -1105,14 +1150,20 @@ export function generateUnifiedQualityReport({
     requirement: term.term,
     requirementType: 'TECHNICAL_SKILL',
     importance: term.importance || 'REQUIRED',
-    candidateAuthorization: term.candidateAuthorization || (term.matchType === 'UNSUPPORTED_CANDIDATE' ? 'EVIDENCE_MISSING' : 'AUTHORIZED'),
+    candidateAuthorization:
+      term.candidateAuthorization ||
+      (term.matchType === 'UNSUPPORTED_CANDIDATE' ? 'EVIDENCE_MISSING' : 'AUTHORIZED'),
     structuredPresence: Boolean(term.intendedPresence ?? term.occurrences > 0),
     artifactPresence: Boolean(term.artifactPresence ?? term.occurrences > 0),
     isRendered: Boolean(term.isRendered ?? true),
     polarity: term.polarity || 'POSITIVE',
     matchType: term.matchType,
     satisfiesRequirement: Boolean(term.satisfiesRequirement),
-    scoreContribution: term.satisfiesRequirement ? (term.importance === 'REQUIRED' ? 2.0 : 1.0) : 0.0,
+    scoreContribution: term.satisfiesRequirement
+      ? term.importance === 'REQUIRED'
+        ? 2.0
+        : 1.0
+      : 0.0,
     maxPossibleScore: term.importance === 'REQUIRED' ? 2.0 : 1.0,
     evidenceIds: [],
     confidence: aggregateConfidence,
@@ -1186,7 +1237,7 @@ export function generateUnifiedQualityReport({
         score: atsParseabilityScore,
         confidence: atsConfidence,
         confidenceFactors: atsParseabilityReport.confidenceFactors || null,
-        passed: atsParseabilityReport.passed ?? (atsParseabilityScore >= 75),
+        passed: atsParseabilityReport.passed ?? atsParseabilityScore >= 75,
         findings: atsParseabilityReport.findings || [],
         weightInHeadline: weights.atsParseability,
       },

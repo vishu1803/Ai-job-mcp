@@ -23,7 +23,8 @@ export const PROD_BACKEND_URL = 'https://aicareershub.tech';
 /** Loopback origins are only ever valid outside production. */
 const LOOPBACK_HTTP_PATTERN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
-const PRIVATE_HOST_PATTERN = /^(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[::1\])/i;
+const PRIVATE_HOST_PATTERN =
+  /^(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[::1\])/i;
 
 /**
  * Resolves whether an origin string is a loopback URL.

@@ -89,7 +89,12 @@ async function main() {
   console.log(`  displayName: ${before.candidate.display_name}`);
   console.log(`  headline:    ${before.candidate.headline}`);
   console.log(`  summary:     ${before.candidate.summary}`);
-  console.log(`  declared skills: ${before.counts.cs_declared} (${before.skills.filter(s => s.source === 'CANDIDATE_DECLARED').map(s => s.slug).join(', ')})`);
+  console.log(
+    `  declared skills: ${before.counts.cs_declared} (${before.skills
+      .filter((s) => s.source === 'CANDIDATE_DECLARED')
+      .map((s) => s.slug)
+      .join(', ')})`
+  );
 
   if (before.counts.cs_declared > 0) {
     console.log('\nRemoving E2E-residue declared skills...');
@@ -145,9 +150,11 @@ async function main() {
   process.exit(ok ? 0 : 2);
 }
 
-main().catch(async (e) => {
-  console.error('Restore failed:', e);
-  process.exitCode = 1;
-}).finally(async () => {
-  await pool.end();
-});
+main()
+  .catch(async (e) => {
+    console.error('Restore failed:', e);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await pool.end();
+  });

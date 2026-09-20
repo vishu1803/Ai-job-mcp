@@ -11,11 +11,13 @@ import { sql } from 'drizzle-orm';
 // DECISIVE: check the v8 package's tailoringPlan.selectedProjectIds vs structured projects' projectId,
 // then check buildStructuredResumeSnapshot's 'source' — is documentContent.candidateData.projects REALLY
 // what entered? Print the v8 package markdown PDE section to compare with PDF:
-const pkg = (await db.execute(sql`
+const pkg = (
+  await db.execute(sql`
   SELECT package_payload->'tailoredResume'->>'markdownContent' AS md,
          package_payload->'structuredResume'->'projects'->0 AS p0,
          package_payload->'structuredResume'->'projects'->1 AS p1
-  FROM application_packages ORDER BY created_at DESC LIMIT 1`)).rows[0];
+  FROM application_packages ORDER BY created_at DESC LIMIT 1`)
+).rows[0];
 console.log('=== markdown PDE section ===');
 const m = pkg.md.match(/###?\s*\*?\*?Product Data Explorer[\s\S]{0,900}/);
 console.log(m ? m[0].slice(0, 800) : 'not found');

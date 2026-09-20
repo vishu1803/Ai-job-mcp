@@ -85,19 +85,11 @@ function createFixture({
     institution: `University ${String.fromCharCode(65 + i)}`,
     startDate: '2018',
     endDate: '2022',
-    coursework: hasCoursework
-      ? ['Data Structures', 'Algorithms', 'Operating Systems']
-      : [],
+    coursework: hasCoursework ? ['Data Structures', 'Algorithms', 'Operating Systems'] : [],
   }));
 
   const categorizedSkills = {};
-  const skillCategoryNames = [
-    'Languages',
-    'Frameworks',
-    'Databases',
-    'Tools',
-    'Cloud',
-  ];
+  const skillCategoryNames = ['Languages', 'Frameworks', 'Databases', 'Tools', 'Cloud'];
   for (let i = 0; i < skillCategories; i++) {
     categorizedSkills[skillCategoryNames[i] || `Category ${i}`] = [
       `Skill${i * 3 + 1}`,
@@ -107,10 +99,12 @@ function createFixture({
   }
 
   const portfolioLinks = [];
-  if (linkCount >= 1) portfolioLinks.push({ label: 'LinkedIn', url: 'https://linkedin.com/in/testuser' });
+  if (linkCount >= 1)
+    portfolioLinks.push({ label: 'LinkedIn', url: 'https://linkedin.com/in/testuser' });
   if (linkCount >= 2) portfolioLinks.push({ label: 'GitHub', url: 'https://github.com/testuser' });
   if (linkCount >= 3) portfolioLinks.push({ label: 'Portfolio', url: 'https://testuser.dev' });
-  if (linkCount >= 4) portfolioLinks.push({ label: 'LeetCode', url: 'https://leetcode.com/testuser' });
+  if (linkCount >= 4)
+    portfolioLinks.push({ label: 'LeetCode', url: 'https://leetcode.com/testuser' });
 
   return {
     applicationPackage: {
@@ -145,14 +139,34 @@ function createFixture({
 const CASE_A = createFixture({ projectCount: 2, hasDSA: true, linkCount: 4 });
 const CASE_B = createFixture({ projectCount: 3, hasDSA: false });
 const CASE_C = createFixture({ projectCount: 1, hasDSA: false, experienceCount: 0, linkCount: 1 });
-const CASE_D = createFixture({ projectCount: 2, hasDSA: false, experienceCount: 3, educationCount: 2 });
+const CASE_D = createFixture({
+  projectCount: 2,
+  hasDSA: false,
+  experienceCount: 3,
+  educationCount: 2,
+});
 const CASE_E = createFixture({ projectCount: 0, hasDSA: false, experienceCount: 2 });
 const CASE_F = createFixture({ projectCount: 2, hasDSA: false, skillCategories: 4 });
 const CASE_G = createFixture({ projectCount: 3, hasDSA: false, longTechStrings: true });
 const CASE_H = createFixture({ projectCount: 2, hasDSA: false, longSummary: true });
-const CASE_I = createFixture({ projectCount: 2, hasDSA: false, educationCount: 3, hasCoursework: true });
+const CASE_I = createFixture({
+  projectCount: 2,
+  hasDSA: false,
+  educationCount: 3,
+  hasCoursework: true,
+});
 
-const ALL_CASES = { A: CASE_A, B: CASE_B, C: CASE_C, D: CASE_D, E: CASE_E, F: CASE_F, G: CASE_G, H: CASE_H, I: CASE_I };
+const ALL_CASES = {
+  A: CASE_A,
+  B: CASE_B,
+  C: CASE_C,
+  D: CASE_D,
+  E: CASE_E,
+  F: CASE_F,
+  G: CASE_G,
+  H: CASE_H,
+  I: CASE_I,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -422,11 +436,7 @@ describe('ResumeLayoutEngine — P14-026', () => {
     it('compresses spacing even more for OVERFULL content', () => {
       const model = engine.buildSemanticModel(CASE_D);
       const budget = { ...engine.calculatePageBudget(model), utilizationRatio: 1.2 };
-      const layout = engine.calculateAdaptiveSpacing(
-        model,
-        budget,
-        PAGE_STRATEGY.ONE_PAGE_TARGET
-      );
+      const layout = engine.calculateAdaptiveSpacing(model, budget, PAGE_STRATEGY.ONE_PAGE_TARGET);
 
       const denseLayout = engine.calculateAdaptiveSpacing(
         model,

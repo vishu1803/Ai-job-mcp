@@ -128,7 +128,20 @@ export function formatNormalizedDateRange(startDate, endDate) {
     if (/present/i.test(d)) return 'Present';
     const ym = d.match(/^(\d{4})-(\d{2})$/);
     if (ym) {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       const mIdx = parseInt(ym[2], 10) - 1;
       if (mIdx >= 0 && mIdx < 12) {
         return `${months[mIdx]} ${ym[1]}`;
@@ -265,7 +278,11 @@ export class LatexDocumentGenerator {
    * @param {object} [params.layoutOverrides] Optional layout overrides for calibration
    * @returns {{ texContent: string, candidateName: string, candidateEmail: string, targetRole: string, targetCompany: string }}
    */
-  generateTailoredResumeLatex({ applicationPackage, candidateProfile = null, layoutOverrides = {} }) {
+  generateTailoredResumeLatex({
+    applicationPackage,
+    candidateProfile = null,
+    layoutOverrides = {},
+  }) {
     if (!applicationPackage) {
       throw new ValidationError('applicationPackage is required to generate resume LaTeX');
     }
@@ -321,8 +338,7 @@ export class LatexDocumentGenerator {
     const identity = structuredResume.candidateIdentity || {};
     const candidateName =
       identity.displayName || identity.fullName || applicationPackage.candidateName || null;
-    const candidateEmail =
-      identity.email || applicationPackage.candidateEmail || null;
+    const candidateEmail = identity.email || applicationPackage.candidateEmail || null;
 
     if (!candidateName) {
       throw new ValidationError(
@@ -396,9 +412,10 @@ export class LatexDocumentGenerator {
         );
       }
     }
-    const skillsLatexSection = formattedSkillLines.length > 0
-      ? `\\atssection{Technical Skills}\n${formattedSkillLines.join('\\\\\n')}\\par`
-      : '';
+    const skillsLatexSection =
+      formattedSkillLines.length > 0
+        ? `\\atssection{Technical Skills}\n${formattedSkillLines.join('\\\\\n')}\\par`
+        : '';
 
     // 4. Projects: exact stored ranking and authentic bullets (P16-006 high-density formatting)
     const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
@@ -406,7 +423,9 @@ export class LatexDocumentGenerator {
     let projectsLatexSection = '';
     if (projects.length > 0) {
       const projectEntries = projects.map((p, index) => {
-        const pName = escapeLatex(p.displayName || (p.name ? formatProjectDisplayName(p.name) : 'Project'));
+        const pName = escapeLatex(
+          p.displayName || (p.name ? formatProjectDisplayName(p.name) : 'Project')
+        );
         const repoUrl = p.repositoryUrl || null;
         const liveUrl = p.liveUrl || null;
 
@@ -455,9 +474,10 @@ export class LatexDocumentGenerator {
         : [];
       const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
       const dsaTitle = dsa.title || 'LeetCode Profile';
-      const dsaSubtitle = typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
-        ? dsa.subtitle.trim()
-        : 'Data Structures & Algorithms';
+      const dsaSubtitle =
+        typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
+          ? dsa.subtitle.trim()
+          : 'Data Structures & Algorithms';
 
       let headerRight = '';
       if (dsaUrl) {
@@ -646,7 +666,9 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
     // experience-first reading order; project-first remains for profiles where
     // experience is absent. Decision is based on document content, never identity.
     const hasRealExperience =
-      experienceLatexSection && typeof experienceLatexSection === 'string' && experienceLatexSection.trim().length > 0;
+      experienceLatexSection &&
+      typeof experienceLatexSection === 'string' &&
+      experienceLatexSection.trim().length > 0;
     const rawOrder = Array.isArray(structuredResume.sectionOrder)
       ? structuredResume.sectionOrder
       : hasRealExperience
@@ -682,13 +704,16 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
     const addedCanonical = new Set();
 
     for (const secKey of authoritativeOrder) {
-      const canonicalKey = (
-        secKey === 'TECHNICAL_SKILLS' ? 'SKILLS' :
-        secKey === 'TECHNICAL_PROJECTS' ? 'PROJECTS' :
-        secKey === 'PROBLEM_SOLVING' || secKey === 'ALGORITHMIC_PRACTICE' ? 'DSA' :
-        secKey === 'PROFESSIONAL_EXPERIENCE' ? 'EXPERIENCE' :
-        secKey
-      );
+      const canonicalKey =
+        secKey === 'TECHNICAL_SKILLS'
+          ? 'SKILLS'
+          : secKey === 'TECHNICAL_PROJECTS'
+            ? 'PROJECTS'
+            : secKey === 'PROBLEM_SOLVING' || secKey === 'ALGORITHMIC_PRACTICE'
+              ? 'DSA'
+              : secKey === 'PROFESSIONAL_EXPERIENCE'
+                ? 'EXPERIENCE'
+                : secKey;
       if (addedCanonical.has(canonicalKey)) continue;
 
       let block = sectionBlocks[secKey];
@@ -719,7 +744,10 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
     const missingRenderedProjects = renderedProjectNames.filter(
       (name) => !tex.includes(escapeLatex(name))
     );
-    if (projects.length > 0 && (!tex.includes('Technical Projects') || missingRenderedProjects.length > 0)) {
+    if (
+      projects.length > 0 &&
+      (!tex.includes('Technical Projects') || missingRenderedProjects.length > 0)
+    ) {
       throw new ValidationError(
         `Structured project/render parity failed: ${missingRenderedProjects.join(', ') || 'Technical Projects section missing'}`
       );

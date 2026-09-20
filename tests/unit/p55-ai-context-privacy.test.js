@@ -36,9 +36,7 @@ import {
   defaultResumeClaimValidationService,
 } from '../../src/services/resume-claim-validation.service.js';
 
-import {
-  AiResumeContentGeneratorService,
-} from '../../src/services/ai-resume-content-generator.service.js';
+import { AiResumeContentGeneratorService } from '../../src/services/ai-resume-content-generator.service.js';
 
 import { pool } from '../../src/db/index.js';
 
@@ -78,7 +76,8 @@ const SYNTHETIC_CANDIDATE = {
 const SAMPLE_JOB = {
   id: 'job-sec-001',
   title: 'Senior Python Backend Engineer',
-  description: 'We are seeking a backend engineer experienced in Python, FastAPI, and PostgreSQL to build scalable data pipelines.',
+  description:
+    'We are seeking a backend engineer experienced in Python, FastAPI, and PostgreSQL to build scalable data pipelines.',
   requirements: [
     '5+ years with Python and FastAPI',
     'Experience with PostgreSQL and Redis',
@@ -87,7 +86,6 @@ const SAMPLE_JOB = {
 };
 
 describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
-
   describe('1-6. Strict AI Privacy Boundary in buildResumeAiContext', () => {
     it('1. AI context contains no candidate name', () => {
       const { context } = buildResumeAiContext({
@@ -101,7 +99,10 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       const serialized = JSON.stringify(context).toLowerCase();
       assert.ok(!serialized.includes('alexandria'), 'Must not contain first name Alexandria');
       assert.ok(!serialized.includes('montgomery'), 'Must not contain last name Montgomery');
-      assert.ok(!serialized.includes('alexandriamontgomery'), 'Must not contain username alexandriamontgomery');
+      assert.ok(
+        !serialized.includes('alexandriamontgomery'),
+        'Must not contain username alexandriamontgomery'
+      );
     });
 
     it('2. AI context contains no email', () => {
@@ -114,7 +115,10 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       });
 
       const serialized = JSON.stringify(context).toLowerCase();
-      assert.ok(!serialized.includes('alexandria.montgomery@syntheticdomain.org'), 'Must not contain candidate email');
+      assert.ok(
+        !serialized.includes('alexandria.montgomery@syntheticdomain.org'),
+        'Must not contain candidate email'
+      );
       assert.ok(!serialized.includes('syntheticdomain.org'), 'Must not contain email domain');
     });
 
@@ -155,8 +159,14 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       });
 
       const serialized = JSON.stringify(context).toLowerCase();
-      assert.ok(!serialized.includes('alexandriamontgomery.tech'), 'Must not contain portfolio URL');
-      assert.ok(!serialized.includes('linkedin.com/in/alexandria'), 'Must not contain LinkedIn URL');
+      assert.ok(
+        !serialized.includes('alexandriamontgomery.tech'),
+        'Must not contain portfolio URL'
+      );
+      assert.ok(
+        !serialized.includes('linkedin.com/in/alexandria'),
+        'Must not contain LinkedIn URL'
+      );
       assert.ok(!serialized.includes('github.com/alexandria'), 'Must not contain GitHub URL');
     });
 
@@ -170,11 +180,26 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       });
 
       const serialized = JSON.stringify(context).toLowerCase();
-      assert.ok(!serialized.includes('a1b2c3d4-e5f6-7890-abcd-ef1234567890'), 'Must not contain candidate ID');
-      assert.ok(!serialized.includes('t1t2t3t4-e5f6-7890-abcd-ef1234567890'), 'Must not contain tenant ID');
-      assert.ok(!serialized.includes('u1u2u3u4-e5f6-7890-abcd-ef1234567890'), 'Must not contain user ID');
-      assert.ok(!serialized.includes('ap1ap2ap-e5f6-7890-abcd-ef1234567890'), 'Must not contain application ID');
-      assert.ok(!serialized.includes('p1p2p3p4-e5f6-7890-abcd-ef1234567890'), 'Must not contain project database UUID');
+      assert.ok(
+        !serialized.includes('a1b2c3d4-e5f6-7890-abcd-ef1234567890'),
+        'Must not contain candidate ID'
+      );
+      assert.ok(
+        !serialized.includes('t1t2t3t4-e5f6-7890-abcd-ef1234567890'),
+        'Must not contain tenant ID'
+      );
+      assert.ok(
+        !serialized.includes('u1u2u3u4-e5f6-7890-abcd-ef1234567890'),
+        'Must not contain user ID'
+      );
+      assert.ok(
+        !serialized.includes('ap1ap2ap-e5f6-7890-abcd-ef1234567890'),
+        'Must not contain application ID'
+      );
+      assert.ok(
+        !serialized.includes('p1p2p3p4-e5f6-7890-abcd-ef1234567890'),
+        'Must not contain project database UUID'
+      );
     });
   });
 
@@ -189,14 +214,8 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       });
 
       assert.ok(summaryResult.text, 'Summary text must be generated');
-      assert.ok(
-        !summaryResult.text.includes('Alexandria'),
-        'Summary must NOT mention Alexandria'
-      );
-      assert.ok(
-        !summaryResult.text.includes('Montgomery'),
-        'Summary must NOT mention Montgomery'
-      );
+      assert.ok(!summaryResult.text.includes('Alexandria'), 'Summary must NOT mention Alexandria');
+      assert.ok(!summaryResult.text.includes('Montgomery'), 'Summary must NOT mention Montgomery');
       assert.ok(
         !/^Alexandria Montgomery is/i.test(summaryResult.text),
         'Summary must not start with candidate name'
@@ -205,7 +224,8 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
 
     it('8. Privacy validator rejects generated PII (name, email, phone, location, IDs)', () => {
       // Test A: Clean text passes
-      const cleanText = 'Backend engineer specializing in high-concurrency Python microservices and distributed queuing systems.';
+      const cleanText =
+        'Backend engineer specializing in high-concurrency Python microservices and distributed queuing systems.';
       const cleanCheck = validateAiPrivacy({
         text: cleanText,
         candidateProfile: SYNTHETIC_CANDIDATE,
@@ -241,7 +261,8 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       assert.ok(phoneCheck.violations.some((v) => v.code === 'PII_PHONE_DETECTED'));
 
       // Test E: Location detected
-      const dirtyLocationText = 'Located in Metropolis with extensive distributed systems experience.';
+      const dirtyLocationText =
+        'Located in Metropolis with extensive distributed systems experience.';
       const locCheck = validateAiPrivacy({
         text: dirtyLocationText,
         candidateProfile: SYNTHETIC_CANDIDATE,
@@ -256,7 +277,11 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
         candidateProfile: SYNTHETIC_CANDIDATE,
       });
       assert.equal(idCheck.valid, false, 'Must reject text containing internal ID');
-      assert.ok(idCheck.violations.some((v) => v.code === 'PII_INTERNAL_ID_DETECTED' || v.code === 'PII_UUID_DETECTED'));
+      assert.ok(
+        idCheck.violations.some(
+          (v) => v.code === 'PII_INTERNAL_ID_DETECTED' || v.code === 'PII_UUID_DETECTED'
+        )
+      );
     });
   });
 
@@ -276,10 +301,20 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       });
 
       assert.equal(context.taskType, 'RESUME_ACCOMPLISHMENT_SYNTHESIS');
-      assert.equal(context.projectName, 'distributed-task-orchestrator', 'Project name must be stripped of repo owner');
-      assert.ok(!context.projectName.includes('alexandriamontgomery/'), 'Project name must not include owner username');
+      assert.equal(
+        context.projectName,
+        'distributed-task-orchestrator',
+        'Project name must be stripped of repo owner'
+      );
+      assert.ok(
+        !context.projectName.includes('alexandriamontgomery/'),
+        'Project name must not include owner username'
+      );
       assert.equal(context.facts.length, 3, 'Must contain exactly project facts');
-      assert.ok(!context.skills, 'Must not send unrelated candidate skills array in project bullet context');
+      assert.ok(
+        !context.skills,
+        'Must not send unrelated candidate skills array in project bullet context'
+      );
     });
   });
 
@@ -467,13 +502,34 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
 
       const serializedContext = JSON.stringify(context).toLowerCase();
       assert.ok(!serializedContext.includes('zaphod'), 'Sanitized context must NOT contain Zaphod');
-      assert.ok(!serializedContext.includes('beeblebrox'), 'Sanitized context must NOT contain Beeblebrox');
-      assert.ok(!serializedContext.includes('zaphod@betelgeuse.galaxy'), 'Sanitized context must NOT contain email');
-      assert.ok(!serializedContext.includes('9998887777'), 'Sanitized context must NOT contain phone digits');
-      assert.ok(!serializedContext.includes('betelgeuse'), 'Sanitized context must NOT contain location');
-      assert.ok(!serializedContext.includes('zaphod-president'), 'Sanitized context must NOT contain github username');
-      assert.ok(!serializedContext.includes('president-galaxy.space'), 'Sanitized context must NOT contain portfolio url');
-      assert.ok(!serializedContext.includes('99999999-8888-7777-6666-555555555555'), 'Sanitized context must NOT contain ID');
+      assert.ok(
+        !serializedContext.includes('beeblebrox'),
+        'Sanitized context must NOT contain Beeblebrox'
+      );
+      assert.ok(
+        !serializedContext.includes('zaphod@betelgeuse.galaxy'),
+        'Sanitized context must NOT contain email'
+      );
+      assert.ok(
+        !serializedContext.includes('9998887777'),
+        'Sanitized context must NOT contain phone digits'
+      );
+      assert.ok(
+        !serializedContext.includes('betelgeuse'),
+        'Sanitized context must NOT contain location'
+      );
+      assert.ok(
+        !serializedContext.includes('zaphod-president'),
+        'Sanitized context must NOT contain github username'
+      );
+      assert.ok(
+        !serializedContext.includes('president-galaxy.space'),
+        'Sanitized context must NOT contain portfolio url'
+      );
+      assert.ok(
+        !serializedContext.includes('99999999-8888-7777-6666-555555555555'),
+        'Sanitized context must NOT contain ID'
+      );
 
       // 2. Pass adversarial hallucinated text containing candidate name and email to validator
       const maliciousOutputs = [
@@ -495,10 +551,7 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
           false,
           `Adversarial output "${badOutput}" must be REJECTED by validator`
         );
-        assert.ok(
-          validation.violations.length > 0,
-          `Expected violation for "${badOutput}"`
-        );
+        assert.ok(validation.violations.length > 0, `Expected violation for "${badOutput}"`);
       }
     });
   });
@@ -510,5 +563,4 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
       // ignore
     }
   });
-
 });

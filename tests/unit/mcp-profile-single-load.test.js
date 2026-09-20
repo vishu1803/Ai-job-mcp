@@ -135,19 +135,27 @@ describe('get_candidate_profile — single profile data load', () => {
   it('2. output is identical whether or not the service exposes getCareerProfile', async () => {
     // Baseline: no getCareerProfile at all (old minimal path) vs reuse path
     const fullService = buildProfileService();
-    const withCareer = await handleGetCandidateProfile(mockContext, { candidateId }, {
-      db: mockDb,
-      candidateProfileService: fullService,
-    });
+    const withCareer = await handleGetCandidateProfile(
+      mockContext,
+      { candidateId },
+      {
+        db: mockDb,
+        candidateProfileService: fullService,
+      }
+    );
 
     const minimalService = {
       getProfile: async () => profileView,
       // no getCareerProfile — handler must tolerate and fall back to raw profileView
     };
-    const withoutCareer = await handleGetCandidateProfile(mockContext, { candidateId }, {
-      db: mockDb,
-      candidateProfileService: minimalService,
-    });
+    const withoutCareer = await handleGetCandidateProfile(
+      mockContext,
+      { candidateId },
+      {
+        db: mockDb,
+        candidateProfileService: minimalService,
+      }
+    );
 
     assert.equal(calls.getProfile, 1, 'full-service path still loads profile once');
     assert.equal(withCareer.candidate.id, candidateId);

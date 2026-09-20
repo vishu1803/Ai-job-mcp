@@ -24,12 +24,22 @@ export const ANALYSIS_SNAPSHOT_TTL_MS = 2 * 60 * 60 * 1000;
 export function computeJobContentHash(job) {
   if (!job || typeof job !== 'object') return '';
 
-  const company = String(job.company || job.companyName || '').trim().toLowerCase();
-  const title = String(job.title || job.jobTitle || '').trim().toLowerCase();
+  const company = String(job.company || job.companyName || '')
+    .trim()
+    .toLowerCase();
+  const title = String(job.title || job.jobTitle || '')
+    .trim()
+    .toLowerCase();
   const description = String(job.description || job.rawJobDescription || job.rawText || '').trim();
-  const location = String(job.location || '').trim().toLowerCase();
-  const workplace = String(job.workplace || job.workplaceType || '').trim().toLowerCase();
-  const employmentType = String(job.employmentType || '').trim().toLowerCase();
+  const location = String(job.location || '')
+    .trim()
+    .toLowerCase();
+  const workplace = String(job.workplace || job.workplaceType || '')
+    .trim()
+    .toLowerCase();
+  const employmentType = String(job.employmentType || '')
+    .trim()
+    .toLowerCase();
 
   const canonicalPayload = JSON.stringify({
     company,
@@ -48,7 +58,9 @@ export function computeJobContentHash(job) {
  */
 export const JobAnalysisSnapshotSchema = z.object({
   id: z.string().uuid(),
-  contractVersion: z.literal(ANALYSIS_SNAPSHOT_CONTRACT_VERSION).default(ANALYSIS_SNAPSHOT_CONTRACT_VERSION),
+  contractVersion: z
+    .literal(ANALYSIS_SNAPSHOT_CONTRACT_VERSION)
+    .default(ANALYSIS_SNAPSHOT_CONTRACT_VERSION),
   tenantId: z.string().uuid(),
   candidateId: z.string().uuid(),
   canonicalJobId: z.string().min(1),

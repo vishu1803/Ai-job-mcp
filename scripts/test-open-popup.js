@@ -6,15 +6,19 @@ const profileDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-c
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const port = 9333;
 
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'https://boards.greenhouse.io/'
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'https://boards.greenhouse.io/',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -38,9 +42,12 @@ async function run() {
   const v = await versionRes.json();
   const listRes = await fetch(`http://127.0.0.1:${port}/json/list`);
   const list = await listRes.json();
-  console.log('Targets:', list.map(t => ({ type: t.type, url: t.url })));
+  console.log(
+    'Targets:',
+    list.map((t) => ({ type: t.type, url: t.url }))
+  );
 
-  const swTarget = list.find(t => t.type === 'service_worker');
+  const swTarget = list.find((t) => t.type === 'service_worker');
   if (!swTarget) {
     console.error('No service worker target found');
     p.kill('SIGKILL');
@@ -53,21 +60,25 @@ async function run() {
   try {
     const evalRes = await cdpSend(ws, 'Runtime.evaluate', {
       expression: 'chrome.action.openPopup ? typeof chrome.action.openPopup : "undefined"',
-      returnByValue: true
+      returnByValue: true,
     });
     console.log('chrome.action.openPopup type:', evalRes.result.value);
 
     // Let's call chrome.action.openPopup()
     const openRes = await cdpSend(ws, 'Runtime.evaluate', {
-      expression: 'chrome.action.openPopup().then(() => "OPENED").catch(err => "ERR: " + err.message)',
+      expression:
+        'chrome.action.openPopup().then(() => "OPENED").catch(err => "ERR: " + err.message)',
       awaitPromise: true,
-      returnByValue: true
+      returnByValue: true,
     });
     console.log('chrome.action.openPopup() result:', openRes.result.value);
 
     await sleep(1000);
     const updatedList = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    console.log('Updated targets after openPopup:', updatedList.map(t => ({ type: t.type, url: t.url })));
+    console.log(
+      'Updated targets after openPopup:',
+      updatedList.map((t) => ({ type: t.type, url: t.url }))
+    );
   } catch (err) {
     console.error('Error during CDP eval:', err);
   }
@@ -76,7 +87,7 @@ async function run() {
   process.exit(0);
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error(err);
   p.kill('SIGKILL');
   process.exit(1);

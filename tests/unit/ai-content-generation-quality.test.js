@@ -197,7 +197,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
       for (const [a, b] of pairs) {
         const similarity = computeWordJaccardSimilarity(summaries[a], summaries[b]);
         assert.ok(
-          similarity < 0.60,
+          similarity < 0.6,
           `Pairwise word similarity between ${a} and ${b} must be < 0.60 (got ${similarity.toFixed(3)}). Summaries must not be static fill-in-the-blank templates.`
         );
       }
@@ -205,48 +205,50 @@ describe('AI Resume Content Generation Quality Suite', () => {
 
     it('adapts role emphasis appropriately across target jobs', () => {
       const feSummary = results.frontend.tailoredResume.structuredResume.summary.text.toLowerCase();
-      const beSummary = results.pythonBackend.tailoredResume.structuredResume.summary.text.toLowerCase();
-      const fsSummary = results.fullStack.tailoredResume.structuredResume.summary.text.toLowerCase();
+      const beSummary =
+        results.pythonBackend.tailoredResume.structuredResume.summary.text.toLowerCase();
+      const fsSummary =
+        results.fullStack.tailoredResume.structuredResume.summary.text.toLowerCase();
       const doSummary = results.devOps.tailoredResume.structuredResume.summary.text.toLowerCase();
 
       // Frontend emphasizes UI, frontend, responsive, or client
       assert.ok(
         feSummary.includes('front-end') ||
-        feSummary.includes('frontend') ||
-        feSummary.includes('ui') ||
-        feSummary.includes('interface') ||
-        feSummary.includes('client'),
+          feSummary.includes('frontend') ||
+          feSummary.includes('ui') ||
+          feSummary.includes('interface') ||
+          feSummary.includes('client'),
         'Frontend summary must emphasize frontend / UI / interfaces'
       );
 
       // Backend emphasizes backend, APIs, data, or services
       assert.ok(
         beSummary.includes('backend') ||
-        beSummary.includes('back-end') ||
-        beSummary.includes('api') ||
-        beSummary.includes('data') ||
-        beSummary.includes('service') ||
-        beSummary.includes('persistence'),
+          beSummary.includes('back-end') ||
+          beSummary.includes('api') ||
+          beSummary.includes('data') ||
+          beSummary.includes('service') ||
+          beSummary.includes('persistence'),
         'Backend summary must emphasize backend / APIs / data persistence'
       );
 
       // DevOps emphasizes automation, docker, deployment, or infrastructure
       assert.ok(
         doSummary.includes('devops') ||
-        doSummary.includes('docker') ||
-        doSummary.includes('container') ||
-        doSummary.includes('automation') ||
-        doSummary.includes('pipeline') ||
-        doSummary.includes('reliability'),
+          doSummary.includes('docker') ||
+          doSummary.includes('container') ||
+          doSummary.includes('automation') ||
+          doSummary.includes('pipeline') ||
+          doSummary.includes('reliability'),
         'DevOps summary must emphasize DevOps / automation / containerization'
       );
 
       // Full-Stack emphasizes end-to-end or full-stack delivery
       assert.ok(
         fsSummary.includes('full-stack') ||
-        fsSummary.includes('full stack') ||
-        fsSummary.includes('end-to-end') ||
-        fsSummary.includes('web application'),
+          fsSummary.includes('full stack') ||
+          fsSummary.includes('end-to-end') ||
+          fsSummary.includes('web application'),
         'Full-Stack summary must emphasize full-stack / end-to-end delivery'
       );
     });
@@ -254,23 +256,43 @@ describe('AI Resume Content Generation Quality Suite', () => {
     it('ensures all summaries preserve valid composedFromFactIds, evidenceRefs, sourceFact, and transformationType', () => {
       for (const [key, pkg] of Object.entries(results)) {
         const summary = pkg.tailoredResume?.structuredResume?.summary;
-        assert.ok(Array.isArray(summary.composedFromFactIds), `${key} must have composedFromFactIds array`);
-        assert.ok(summary.composedFromFactIds.length > 0, `${key} summary must be composed from candidate facts`);
-        assert.ok(Array.isArray(summary.evidenceRefs), `${key} summary must have evidenceRefs array`);
+        assert.ok(
+          Array.isArray(summary.composedFromFactIds),
+          `${key} must have composedFromFactIds array`
+        );
+        assert.ok(
+          summary.composedFromFactIds.length > 0,
+          `${key} summary must be composed from candidate facts`
+        );
+        assert.ok(
+          Array.isArray(summary.evidenceRefs),
+          `${key} summary must have evidenceRefs array`
+        );
         assert.ok(summary.evidenceRefs.length > 0, `${key} summary must have evidence refs`);
-        assert.strictEqual(summary.provenanceStatus, 'VERIFIED', `${key} summary provenanceStatus must be VERIFIED`);
+        assert.strictEqual(
+          summary.provenanceStatus,
+          'VERIFIED',
+          `${key} summary provenanceStatus must be VERIFIED`
+        );
         assert.ok(summary.sourceFact, `${key} summary must have sourceFact`);
         assert.ok(
-          ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(summary.transformationType),
+          ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
+            summary.transformationType
+          ),
           `${key} summary must have valid transformationType`
         );
         if (Array.isArray(summary.sentences) && summary.sentences.length > 0) {
           for (const s of summary.sentences) {
             assert.ok(s.text, `${key} summary sentence must have text`);
-            assert.ok(s.composedFromFactIds?.length > 0, `${key} summary sentence must have composedFromFactIds`);
+            assert.ok(
+              s.composedFromFactIds?.length > 0,
+              `${key} summary sentence must have composedFromFactIds`
+            );
             assert.ok(s.sourceFact, `${key} summary sentence must have sourceFact`);
             assert.ok(
-              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(s.transformationType),
+              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
+                s.transformationType
+              ),
               `${key} summary sentence must have valid transformationType`
             );
           }
@@ -323,7 +345,11 @@ describe('AI Resume Content Generation Quality Suite', () => {
         const projects = pkg.tailoredResume?.structuredResume?.projects || [];
         for (const proj of projects) {
           for (const bullet of proj.bullets) {
-            assert.strictEqual(bullet.provenanceStatus, 'VERIFIED', `Bullet in ${proj.name} must be VERIFIED`);
+            assert.strictEqual(
+              bullet.provenanceStatus,
+              'VERIFIED',
+              `Bullet in ${proj.name} must be VERIFIED`
+            );
             assert.ok(
               Array.isArray(bullet.composedFromFactIds) && bullet.composedFromFactIds.length > 0,
               `Bullet in ${proj.name} must have valid composedFromFactIds`
@@ -334,7 +360,9 @@ describe('AI Resume Content Generation Quality Suite', () => {
             );
             assert.ok(bullet.sourceFact, `Bullet in ${proj.name} must have sourceFact`);
             assert.ok(
-              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(bullet.transformationType),
+              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
+                bullet.transformationType
+              ),
               `Bullet in ${proj.name} must have valid transformationType (got ${bullet.transformationType})`
             );
           }
@@ -491,7 +519,11 @@ describe('AI Resume Content Generation Quality Suite', () => {
       };
 
       const result = validateClaimEvidenceGrounding(claim, validationContext);
-      assert.strictEqual(result.valid, false, 'Claim with unbacked 65% latency and 10,000 items must be rejected');
+      assert.strictEqual(
+        result.valid,
+        false,
+        'Claim with unbacked 65% latency and 10,000 items must be rejected'
+      );
       assert.ok(
         result.violations.some((v) => v.code === 'UNSUPPORTED_METRIC'),
         'Must report UNSUPPORTED_METRIC violation'
@@ -507,7 +539,11 @@ describe('AI Resume Content Generation Quality Suite', () => {
       };
 
       const result = validateClaimEvidenceGrounding(claim, validationContext);
-      assert.strictEqual(result.valid, false, 'Substituting Gemini API for OpenAI API must be rejected');
+      assert.strictEqual(
+        result.valid,
+        false,
+        'Substituting Gemini API for OpenAI API must be rejected'
+      );
       assert.ok(
         result.violations.some(
           (v) => v.code === 'TECHNOLOGY_SUBSTITUTION' || v.code === 'UNAUTHORIZED_TECHNOLOGY'
@@ -613,7 +649,11 @@ describe('AI Resume Content Generation Quality Suite', () => {
       };
 
       const result = validateClaimEvidenceGrounding(genuineClaim, validationContext);
-      assert.strictEqual(result.valid, true, `Genuine claim must be valid, got violations: ${JSON.stringify(result.violations)}`);
+      assert.strictEqual(
+        result.valid,
+        true,
+        `Genuine claim must be valid, got violations: ${JSON.stringify(result.violations)}`
+      );
       assert.strictEqual(result.violations.length, 0);
     });
   });

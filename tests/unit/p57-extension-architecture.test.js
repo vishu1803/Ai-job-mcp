@@ -14,16 +14,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { JobIdentity } from '../../extension/lib/job-identity.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
-import { AdapterRegistry, KNOWN_PORTAL_CAPABILITIES } from '../../extension/job-detection/adapter-registry.js';
+import {
+  AdapterRegistry,
+  KNOWN_PORTAL_CAPABILITIES,
+} from '../../extension/job-detection/adapter-registry.js';
 import { FormDetector } from '../../extension/content/form-detector.js';
 
 test('P57 Architecture: Extension Persistent Sidebar & Dynamic Adapters', async (t) => {
-
   await t.test('1. JobIdentity Normalization & Invariant Preservation (Rule 5)', () => {
     // URL with tracking parameters
-    const urlWithTracking = 'https://boards.greenhouse.io/acme/jobs/4098231?utm_source=linkedin&gh_src=custom&ref=feed#app';
+    const urlWithTracking =
+      'https://boards.greenhouse.io/acme/jobs/4098231?utm_source=linkedin&gh_src=custom&ref=feed#app';
     const normalized = JobIdentity.normalizeJobUrl(urlWithTracking);
     assert.strictEqual(normalized, 'https://boards.greenhouse.io/acme/jobs/4098231');
 
@@ -32,8 +38,14 @@ test('P57 Architecture: Extension Persistent Sidebar & Dynamic Adapters', async 
     const applyUrl2 = 'https://jobs.lever.co/stripe/abc-123-xyz/apply/step2';
     const baseJobUrl = 'https://jobs.lever.co/stripe/abc-123-xyz';
 
-    assert.strictEqual(JobIdentity.normalizeJobUrl(applyUrl1), 'https://jobs.lever.co/stripe/abc-123-xyz');
-    assert.strictEqual(JobIdentity.normalizeJobUrl(applyUrl2), 'https://jobs.lever.co/stripe/abc-123-xyz');
+    assert.strictEqual(
+      JobIdentity.normalizeJobUrl(applyUrl1),
+      'https://jobs.lever.co/stripe/abc-123-xyz'
+    );
+    assert.strictEqual(
+      JobIdentity.normalizeJobUrl(applyUrl2),
+      'https://jobs.lever.co/stripe/abc-123-xyz'
+    );
 
     // Deterministic fingerprinting
     const jobA = {
@@ -52,7 +64,11 @@ test('P57 Architecture: Extension Persistent Sidebar & Dynamic Adapters', async 
 
     assert.strictEqual(typeof fpA, 'string');
     assert.strictEqual(fpA.length, 64);
-    assert.strictEqual(fpA, fpA_Apply, 'Fingerprint must be identical across view and apply wizard steps');
+    assert.strictEqual(
+      fpA,
+      fpA_Apply,
+      'Fingerprint must be identical across view and apply wizard steps'
+    );
 
     // Identity comparison
     assert.strictEqual(JobIdentity.isSameJobIdentity(jobA, jobA_ApplyStep), true);
@@ -99,95 +115,125 @@ test('P57 Architecture: Extension Persistent Sidebar & Dynamic Adapters', async 
     assert.strictEqual(sm.state, WORKFLOW_STATES.IDLE);
   });
 
-  await t.test('3. Durable Workflow Store & SPA Navigation Reconciliation (Rule 3 & Rule 5)', async () => {
-    // Mock chrome.storage.local
-    const storageMap = new Map();
-    globalThis.chrome = {
-      storage: {
-        local: {
-          get: (key, cb) => {
-            if (typeof key === 'string') {
-              const res = { [key]: storageMap.get(key) };
+  await t.test(
+    '3. Durable Workflow Store & SPA Navigation Reconciliation (Rule 3 & Rule 5)',
+    async () => {
+      // Mock chrome.storage.local
+      const storageMap = new Map();
+      globalThis.chrome = {
+        storage: {
+          local: {
+            get: (key, cb) => {
+              if (typeof key === 'string') {
+                const res = { [key]: storageMap.get(key) };
+                if (cb) cb(res);
+                return Promise.resolve(res);
+              }
+              const res = {};
+              key.forEach((k) => {
+                res[k] = storageMap.get(k);
+              });
               if (cb) cb(res);
               return Promise.resolve(res);
-            }
-            const res = {};
-            key.forEach((k) => { res[k] = storageMap.get(k); });
-            if (cb) cb(res);
-            return Promise.resolve(res);
-          },
-          set: (obj, cb) => {
-            Object.entries(obj).forEach(([k, v]) => storageMap.set(k, v));
-            if (cb) cb();
-            return Promise.resolve();
-          },
-          remove: (keys, cb) => {
-            const arr = Array.isArray(keys) ? keys : [keys];
-            arr.forEach((k) => storageMap.delete(k));
-            if (cb) cb();
-            return Promise.resolve();
+            },
+            set: (obj, cb) => {
+              Object.entries(obj).forEach(([k, v]) => storageMap.set(k, v));
+              if (cb) cb();
+              return Promise.resolve();
+            },
+            remove: (keys, cb) => {
+              const arr = Array.isArray(keys) ? keys : [keys];
+              arr.forEach((k) => storageMap.delete(k));
+              if (cb) cb();
+              return Promise.resolve();
+            },
           },
         },
-      },
-    };
+      };
 
-    const store = new DurableWorkflowStore();
-    const tabId = 101;
-    const initialJob = {
-      title: 'Full-Stack Engineer',
-      company: 'Acme Cloud',
-      sourceUrl: 'https://careers.acme.com/jobs/8842',
-    };
-    const fingerprint = JobIdentity.deriveJobFingerprint(initialJob);
+      const store = new DurableWorkflowStore();
+      const tabId = 101;
+      const initialJob = {
+        title: 'Full-Stack Engineer',
+        company: 'Acme Cloud',
+        sourceUrl: 'https://careers.acme.com/jobs/8842',
+      };
+      const fingerprint = JobIdentity.deriveJobFingerprint(initialJob);
 
-    const initialWorkflowState = {
-      tabId,
-      jobFingerprint: fingerprint,
-      jobData: initialJob,
-      workflowState: WORKFLOW_STATES.APPLICATION_READY,
-      applicationId: 'app-uuid-8842-canonical',
-      packageHash: 'sha256-abcdef1234567890',
-      fitAnalysis: { overallScore: 84, recommendationBand: 'RECOMMENDED' },
-      recommendedProjects: [
-        { id: 'proj-1', name: 'Cloud Monitor', relevanceScore: 88, technologies: ['Node.js', 'React'] },
-      ],
-      handoffData: { kitStatus: 'READY' },
-    };
+      const initialWorkflowState = {
+        tabId,
+        jobFingerprint: fingerprint,
+        jobData: initialJob,
+        workflowState: WORKFLOW_STATES.APPLICATION_READY,
+        applicationId: 'app-uuid-8842-canonical',
+        packageHash: 'sha256-abcdef1234567890',
+        fitAnalysis: { overallScore: 84, recommendationBand: 'RECOMMENDED' },
+        recommendedProjects: [
+          {
+            id: 'proj-1',
+            name: 'Cloud Monitor',
+            relevanceScore: 88,
+            technologies: ['Node.js', 'React'],
+          },
+        ],
+        handoffData: { kitStatus: 'READY' },
+      };
 
-    // Save initial state
-    await store.saveTabState(tabId, initialWorkflowState);
+      // Save initial state
+      await store.saveTabState(tabId, initialWorkflowState);
 
-    // Simulate closing sidebar and reopening
-    const hydratedState = await store.getTabState(tabId);
-    assert.ok(hydratedState, 'State must persist after closing and reopening');
-    assert.strictEqual(hydratedState.applicationId, 'app-uuid-8842-canonical');
-    assert.strictEqual(hydratedState.recommendedProjects.length, 1);
-    assert.strictEqual(hydratedState.fitAnalysis.overallScore, 84);
+      // Simulate closing sidebar and reopening
+      const hydratedState = await store.getTabState(tabId);
+      assert.ok(hydratedState, 'State must persist after closing and reopening');
+      assert.strictEqual(hydratedState.applicationId, 'app-uuid-8842-canonical');
+      assert.strictEqual(hydratedState.recommendedProjects.length, 1);
+      assert.strictEqual(hydratedState.fitAnalysis.overallScore, 84);
 
-    // Simulate SPA navigation: candidate clicks "Apply Now", URL becomes /jobs/8842/apply
-    const navigationEventSameJob = {
-      sourceUrl: 'https://careers.acme.com/jobs/8842/apply?step=personal_info',
-    };
+      // Simulate SPA navigation: candidate clicks "Apply Now", URL becomes /jobs/8842/apply
+      const navigationEventSameJob = {
+        sourceUrl: 'https://careers.acme.com/jobs/8842/apply?step=personal_info',
+      };
 
-    const reconciledSameJob = await store.reconcileNavigation(tabId, navigationEventSameJob);
-    assert.strictEqual(reconciledSameJob.reconciled, true);
-    assert.strictEqual(reconciledSameJob.jobFingerprint, fingerprint);
-    assert.strictEqual(reconciledSameJob.applicationId, 'app-uuid-8842-canonical', 'applicationId must be preserved across SPA navigation');
-    assert.strictEqual(reconciledSameJob.packageHash, 'sha256-abcdef1234567890', 'packageHash must be preserved');
-    assert.strictEqual(reconciledSameJob.recommendedProjects[0].name, 'Cloud Monitor', 'recommendedProjects must survive navigation');
+      const reconciledSameJob = await store.reconcileNavigation(tabId, navigationEventSameJob);
+      assert.strictEqual(reconciledSameJob.reconciled, true);
+      assert.strictEqual(reconciledSameJob.jobFingerprint, fingerprint);
+      assert.strictEqual(
+        reconciledSameJob.applicationId,
+        'app-uuid-8842-canonical',
+        'applicationId must be preserved across SPA navigation'
+      );
+      assert.strictEqual(
+        reconciledSameJob.packageHash,
+        'sha256-abcdef1234567890',
+        'packageHash must be preserved'
+      );
+      assert.strictEqual(
+        reconciledSameJob.recommendedProjects[0].name,
+        'Cloud Monitor',
+        'recommendedProjects must survive navigation'
+      );
 
-    // Simulate navigation to a DIFFERENT job
-    const navigationEventNewJob = {
-      title: 'DevOps Architect',
-      company: 'Other Corp',
-      sourceUrl: 'https://othercorp.com/careers/9999',
-    };
-    const reconciledNewJob = await store.reconcileNavigation(tabId, navigationEventNewJob);
-    assert.strictEqual(reconciledNewJob.reconciled, false, 'Different job must not reconcile state');
-    assert.notStrictEqual(reconciledNewJob.jobFingerprint, fingerprint);
-    assert.strictEqual(reconciledNewJob.applicationId, null, 'Must not carry over previous application ID to different job');
-    assert.strictEqual(reconciledNewJob.workflowState, WORKFLOW_STATES.JOB_DETECTED);
-  });
+      // Simulate navigation to a DIFFERENT job
+      const navigationEventNewJob = {
+        title: 'DevOps Architect',
+        company: 'Other Corp',
+        sourceUrl: 'https://othercorp.com/careers/9999',
+      };
+      const reconciledNewJob = await store.reconcileNavigation(tabId, navigationEventNewJob);
+      assert.strictEqual(
+        reconciledNewJob.reconciled,
+        false,
+        'Different job must not reconcile state'
+      );
+      assert.notStrictEqual(reconciledNewJob.jobFingerprint, fingerprint);
+      assert.strictEqual(
+        reconciledNewJob.applicationId,
+        null,
+        'Must not carry over previous application ID to different job'
+      );
+      assert.strictEqual(reconciledNewJob.workflowState, WORKFLOW_STATES.JOB_DETECTED);
+    }
+  );
 
   await t.test('4. Adapter Registry & Capability Resolution (Rule 4)', () => {
     // Greenhouse ATS resolution
@@ -321,7 +367,12 @@ test('P57 Architecture: Extension Persistent Sidebar & Dynamic Adapters', async 
     assert.strictEqual(clientProjects.length, 2);
     assert.strictEqual(clientProjects[0].id, '11111111-2222-3333-4444-555555555555');
     assert.strictEqual(clientProjects[0].name, 'Realtime Collaboration Platform');
-    assert.deepStrictEqual(clientProjects[0].technologies, ['React', 'WebSocket', 'TypeScript', 'Node.js']);
+    assert.deepStrictEqual(clientProjects[0].technologies, [
+      'React',
+      'WebSocket',
+      'TypeScript',
+      'Node.js',
+    ]);
     assert.strictEqual(clientProjects[1].id, '22222222-3333-4444-5555-666666666666');
   });
 });

@@ -375,8 +375,14 @@ export class PdfQaValidatorService {
 
       // Token expectation groups: every selected element must survive extraction.
       const expectationGroups = [
-        { label: 'candidate name', tokens: expectedContent.candidateName ? [expectedContent.candidateName] : [] },
-        { label: 'target role', tokens: expectedContent.targetRole ? [expectedContent.targetRole] : [] },
+        {
+          label: 'candidate name',
+          tokens: expectedContent.candidateName ? [expectedContent.candidateName] : [],
+        },
+        {
+          label: 'target role',
+          tokens: expectedContent.targetRole ? [expectedContent.targetRole] : [],
+        },
         { label: 'phone', tokens: expectedContent.phone ? [expectedContent.phone] : [] },
         { label: 'email', tokens: expectedContent.email ? [expectedContent.email] : [] },
         { label: 'location', tokens: expectedContent.location ? [expectedContent.location] : [] },

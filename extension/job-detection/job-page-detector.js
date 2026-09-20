@@ -55,19 +55,27 @@ export class JobPageDetector {
   static sanitizeText(text) {
     if (!text || typeof text !== 'string') return '';
 
-    return text
-      // Remove LLM prompt injection attempts & chat tokens
-      .replace(/<\|(?:im_start|im_end|endoftext|system|assistant|user)\|>/gi, '')
-      .replace(/(?:ignore|disregard)\s+(?:all\s+)?(?:previous|prior)\s+instructions/gi, '[filtered instruction]')
-      .replace(/you\s+are\s+now\s+a\s+(?:developer|administrator|unrestricted)/gi, '[filtered prompt]')
-      // Strip control chars
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
-      // Normalize line breaks and spaces
-      .replace(/\r\n/g, '\n')
-      .replace(/\t/g, ' ')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    return (
+      text
+        // Remove LLM prompt injection attempts & chat tokens
+        .replace(/<\|(?:im_start|im_end|endoftext|system|assistant|user)\|>/gi, '')
+        .replace(
+          /(?:ignore|disregard)\s+(?:all\s+)?(?:previous|prior)\s+instructions/gi,
+          '[filtered instruction]'
+        )
+        .replace(
+          /you\s+are\s+now\s+a\s+(?:developer|administrator|unrestricted)/gi,
+          '[filtered prompt]'
+        )
+        // Strip control chars
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
+        // Normalize line breaks and spaces
+        .replace(/\r\n/g, '\n')
+        .replace(/\t/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+    );
   }
 
   /**
@@ -130,7 +138,9 @@ export class JobPageDetector {
     const sanitizedCompany = rawCompany && rawCompany !== 'Company' ? rawCompany : '';
     const sanitizedLocation = JobPageDetector.sanitizeText(rawPayload.location) || 'Not specified';
     const sanitizedDescription = JobPageDetector.sanitizeText(rawPayload.description);
-    const sanitizedRawText = JobPageDetector.sanitizeText(rawPayload.rawText || rawPayload.description);
+    const sanitizedRawText = JobPageDetector.sanitizeText(
+      rawPayload.rawText || rawPayload.description
+    );
 
     const sanitizedRequirements = (rawPayload.requirements || [])
       .map((r) => JobPageDetector.sanitizeText(r))
@@ -179,9 +189,7 @@ export class JobPageDetector {
       : Boolean(sanitizedDescription.length >= 50 && hasJobSignals);
 
     const isConfidentExtraction = Boolean(
-      sanitizedTitle !== 'Untitled Role' &&
-      hasSufficientContent &&
-      isReady
+      sanitizedTitle !== 'Untitled Role' && hasSufficientContent && isReady
     );
 
     // Analysis readiness (P70): valid detected job with substantive description >= 50 chars
@@ -214,15 +222,20 @@ export class JobPageDetector {
       isConfident: isConfidentExtraction,
       isReady,
       analysisReady,
-      descriptionSource: rawPayload.descriptionSource || (sanitizedDescription ? 'SELECTOR' : 'NONE'),
+      descriptionSource:
+        rawPayload.descriptionSource || (sanitizedDescription ? 'SELECTOR' : 'NONE'),
       jobRootSource: rawPayload.jobRootSource || null,
-      descriptionLength: typeof rawPayload.descriptionLength === 'number' ? rawPayload.descriptionLength : sanitizedDescription.length,
+      descriptionLength:
+        typeof rawPayload.descriptionLength === 'number'
+          ? rawPayload.descriptionLength
+          : sanitizedDescription.length,
       selectedRootSelector: rawPayload.selectedRootSelector || rawPayload.jobRootSource || null,
       selectedRootTag: rawPayload.selectedRootTag || null,
       selectedRootClass: rawPayload.selectedRootClass || null,
       titleSelectorUsed: rawPayload.titleSelectorUsed || 'NONE',
       companySelectorUsed: rawPayload.companySelectorUsed || 'NONE',
-      descriptionSelectorUsed: rawPayload.descriptionSelectorUsed || rawPayload.descriptionSource || 'NONE',
+      descriptionSelectorUsed:
+        rawPayload.descriptionSelectorUsed || rawPayload.descriptionSource || 'NONE',
     };
   }
 }

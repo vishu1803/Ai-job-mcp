@@ -39,14 +39,19 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
 
     // 1. Discover target candidate from database source of truth
     const candidateList = await db.select().from(candidates);
-    candidate = candidateList.find((c) => c.displayName?.includes('Vishwanath') || c.canonicalEmail?.includes('vishw'));
+    candidate = candidateList.find(
+      (c) => c.displayName?.includes('Vishwanath') || c.canonicalEmail?.includes('vishw')
+    );
     assert.ok(candidate, 'Target candidate must exist in database');
 
     const [userRecord] = await db.select().from(users).where(eq(users.id, candidate.userId));
     assert.ok(userRecord, 'Candidate user record must exist in database');
     user = userRecord;
 
-    const [tenantRecord] = await db.select().from(tenants).where(eq(tenants.id, candidate.tenantId));
+    const [tenantRecord] = await db
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, candidate.tenantId));
     assert.ok(tenantRecord, 'Candidate tenant record must exist in database');
     tenant = tenantRecord;
 
@@ -93,7 +98,10 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
     syntheticOtherUser = createdOtherUser;
 
     syntheticOtherSessionToken = crypto.randomBytes(32).toString('hex');
-    const hashedOtherSessionId = crypto.createHash('sha256').update(syntheticOtherSessionToken).digest('hex');
+    const hashedOtherSessionId = crypto
+      .createHash('sha256')
+      .update(syntheticOtherSessionToken)
+      .digest('hex');
     await db.insert(sessions).values({
       id: hashedOtherSessionId,
       userId: syntheticOtherUser.id,
@@ -109,7 +117,10 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
       await db.delete(sessions).where(eq(sessions.id, hashedSessionId));
     }
     if (syntheticOtherSessionToken) {
-      const hashedOtherSessionId = crypto.createHash('sha256').update(syntheticOtherSessionToken).digest('hex');
+      const hashedOtherSessionId = crypto
+        .createHash('sha256')
+        .update(syntheticOtherSessionToken)
+        .digest('hex');
       await db.delete(sessions).where(eq(sessions.id, hashedOtherSessionId));
     }
     if (syntheticOtherTenant) {
@@ -125,9 +136,17 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
       .from(resources)
       .where(and(eq(resources.candidateId, candidate.id), eq(resources.provider, 'GITHUB_APP')));
 
-    assert.strictEqual(candidateRepos.length, 10, 'Candidate must have exactly 10 authentic repositories');
+    assert.strictEqual(
+      candidateRepos.length,
+      10,
+      'Candidate must have exactly 10 authentic repositories'
+    );
     const activeRepos = candidateRepos.filter((r) => r.status === 'ACTIVE');
-    assert.strictEqual(activeRepos.length, 10, 'All 10 authentic repositories must be in ACTIVE status');
+    assert.strictEqual(
+      activeRepos.length,
+      10,
+      'All 10 authentic repositories must be in ACTIVE status'
+    );
   });
 
   it('2. GET /sources returns all 10 connected repositories with valid metadata', async () => {
@@ -172,7 +191,11 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
 
       assert.strictEqual(res.statusCode, 200);
       const body = JSON.parse(res.payload);
-      assert.strictEqual(body.data.github.repositories.length, 10, `Reload attempt ${reloadAttempt} must show 10 repositories`);
+      assert.strictEqual(
+        body.data.github.repositories.length,
+        10,
+        `Reload attempt ${reloadAttempt} must show 10 repositories`
+      );
     }
   });
 
@@ -201,7 +224,11 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
     });
     assert.strictEqual(res9.statusCode, 200);
     const body9 = JSON.parse(res9.payload);
-    assert.strictEqual(body9.data.github.repositories.length, 9, 'Should return 9 active repositories after 1 is disconnected');
+    assert.strictEqual(
+      body9.data.github.repositories.length,
+      9,
+      'Should return 9 active repositories after 1 is disconnected'
+    );
     assert.strictEqual(
       body9.data.github.repositories.some((r) => r.id === repoToDisconnect.id),
       false,
@@ -213,7 +240,11 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
       .select()
       .from(resources)
       .where(and(eq(resources.candidateId, candidate.id), eq(resources.provider, 'GITHUB_APP')));
-    assert.strictEqual(midCheck.length, 10, 'Total database records must remain 10 during disconnection');
+    assert.strictEqual(
+      midCheck.length,
+      10,
+      'Total database records must remain 10 during disconnection'
+    );
     assert.strictEqual(midCheck.filter((r) => r.status === 'DISCONNECTED').length, 1);
 
     // 4. Transition repoToDisconnect: DISCONNECTED -> ACTIVE (simulating reconnection)
@@ -231,14 +262,22 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
     });
     assert.strictEqual(res10.statusCode, 200);
     const body10 = JSON.parse(res10.payload);
-    assert.strictEqual(body10.data.github.repositories.length, 10, 'Should return 10 active repositories after reconnection');
+    assert.strictEqual(
+      body10.data.github.repositories.length,
+      10,
+      'Should return 10 active repositories after reconnection'
+    );
 
     // 6. Assert ZERO duplicate records were created (total count remains exactly 10)
     const finalCheck = await db
       .select()
       .from(resources)
       .where(and(eq(resources.candidateId, candidate.id), eq(resources.provider, 'GITHUB_APP')));
-    assert.strictEqual(finalCheck.length, 10, 'Total database records must remain exactly 10 (0 duplicates)');
+    assert.strictEqual(
+      finalCheck.length,
+      10,
+      'Total database records must remain exactly 10 (0 duplicates)'
+    );
     assert.strictEqual(finalCheck.filter((r) => r.status === 'ACTIVE').length, 10);
   });
 
@@ -291,6 +330,10 @@ describe('P89 Sources & Repository Verification Integration Tests', () => {
     assert.strictEqual(res.statusCode, 200);
     const body = JSON.parse(res.payload);
     assert.strictEqual(body.success, true);
-    assert.strictEqual(body.data.github.repositories.length, 0, 'Other tenant must see 0 repositories');
+    assert.strictEqual(
+      body.data.github.repositories.length,
+      0,
+      'Other tenant must see 0 repositories'
+    );
   });
 });

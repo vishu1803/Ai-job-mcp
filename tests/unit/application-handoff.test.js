@@ -192,7 +192,10 @@ describe('ApplicationHandoffService', () => {
     assert.ok(handoffKit.resume.qaAudit.score >= 75);
 
     assert.ok(handoffKit.coverLetter);
-    assert.equal(handoffKit.coverLetter.filename, 'Vishwanath Nishad - Infrastructure Engineer - Cover Letter.pdf');
+    assert.equal(
+      handoffKit.coverLetter.filename,
+      'Vishwanath Nishad - Infrastructure Engineer - Cover Letter.pdf'
+    );
     assert.ok(handoffKit.coverLetter.storageKey);
     assert.ok(handoffKit.coverLetter.qaAudit.passed);
 

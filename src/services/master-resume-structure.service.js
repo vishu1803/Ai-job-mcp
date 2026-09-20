@@ -91,7 +91,8 @@ export class MasterResumeStructureService {
     const meta = candidateProfile?.profileMetadata || {};
 
     // 1. Explicit resumeStructure on profile or options
-    const explicit = options.masterStructure || candidateProfile.resumeStructure || meta.resumeStructure;
+    const explicit =
+      options.masterStructure || candidateProfile.resumeStructure || meta.resumeStructure;
     if (explicit && Array.isArray(explicit.sectionOrder) && explicit.sectionOrder.length > 0) {
       return MasterResumeStructureSchema.parse({
         sections: explicit.sections || explicit.sectionOrder,
@@ -106,10 +107,7 @@ export class MasterResumeStructureService {
 
     // 2. Derive from candidate base resume sections if available
     const rawSections =
-      candidateProfile.resumeSections ||
-      meta.resumeSections ||
-      meta.resumeData?.sections ||
-      null;
+      candidateProfile.resumeSections || meta.resumeSections || meta.resumeData?.sections || null;
 
     if (Array.isArray(rawSections) && rawSections.length > 0) {
       const derivedOrder = [];
@@ -118,13 +116,17 @@ export class MasterResumeStructureService {
 
       // Sort by order_index / order if available
       const sortedSections = [...rawSections].sort(
-        (a, b) => (a.orderIndex ?? a.order ?? a.section_order ?? 0) - (b.orderIndex ?? b.order ?? b.section_order ?? 0)
+        (a, b) =>
+          (a.orderIndex ?? a.order ?? a.section_order ?? 0) -
+          (b.orderIndex ?? b.order ?? b.section_order ?? 0)
       );
 
       for (const sec of sortedSections) {
         let rawType = sec.sectionType || sec.section_type || sec.type;
         const rawText = String(sec.rawText || sec.raw_text || '').toLowerCase();
-        const rawTitle = String(sec.sectionTitle || sec.section_title || sec.title || sec.heading || '').toLowerCase();
+        const rawTitle = String(
+          sec.sectionTitle || sec.section_title || sec.title || sec.heading || ''
+        ).toLowerCase();
         if (
           rawTitle.includes('problem solving') ||
           rawTitle.includes('dsa') ||
@@ -236,15 +238,14 @@ export class MasterResumeStructureService {
           );
           break;
         case 'SKILLS':
-          hasData = Boolean(
-            Array.isArray(candidateData.skills) && candidateData.skills.length > 0
-          );
+          hasData = Boolean(Array.isArray(candidateData.skills) && candidateData.skills.length > 0);
           break;
         case 'PROJECTS':
           // Technical projects section exists if candidate has projects (Req 6 & 13)
           hasData = Boolean(
             (Array.isArray(candidateData.projects) && candidateData.projects.length > 0) ||
-            (Array.isArray(candidateData.profileMetadata?.projects) && candidateData.profileMetadata.projects.length > 0)
+            (Array.isArray(candidateData.profileMetadata?.projects) &&
+              candidateData.profileMetadata.projects.length > 0)
           );
           break;
         case 'DSA':
@@ -254,8 +255,10 @@ export class MasterResumeStructureService {
             candidateData.dsa?.hasSection ||
             candidateData.dsa?.profileUrl ||
             (Array.isArray(candidateData.dsa?.bullets) && candidateData.dsa.bullets.length > 0) ||
-            (Array.isArray(candidateData.portfolioLinks) && candidateData.portfolioLinks.some(l => /leetcode\.com/i.test(l.url || ''))) ||
-            (Array.isArray(candidateData.links) && candidateData.links.some(l => /leetcode\.com/i.test(l.url || '')))
+            (Array.isArray(candidateData.portfolioLinks) &&
+              candidateData.portfolioLinks.some((l) => /leetcode\.com/i.test(l.url || ''))) ||
+            (Array.isArray(candidateData.links) &&
+              candidateData.links.some((l) => /leetcode\.com/i.test(l.url || '')))
           );
           break;
         case 'EXPERIENCE':
@@ -277,7 +280,10 @@ export class MasterResumeStructureService {
         case 'COURSEWORK':
           hasData = Boolean(
             (Array.isArray(candidateData.coursework) && candidateData.coursework.length > 0) ||
-            (Array.isArray(candidateData.education) && candidateData.education.some(e => Array.isArray(e.coursework) && e.coursework.length > 0))
+            (Array.isArray(candidateData.education) &&
+              candidateData.education.some(
+                (e) => Array.isArray(e.coursework) && e.coursework.length > 0
+              ))
           );
           break;
         case 'PUBLICATIONS':

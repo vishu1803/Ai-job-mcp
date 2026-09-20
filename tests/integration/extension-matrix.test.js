@@ -107,7 +107,9 @@ describe('Extension Test Matrix: Scenarios A through Q (P15-001)', () => {
             skills: ['Python', 'FastAPI', 'Docker', 'PostgreSQL', 'DSA'],
             problemSolving: {
               leetcodeUrl: 'https://leetcode.com/matrix_coder',
-              dsaBullets: ['Implemented optimal graph traversal and dynamic programming algorithms in Python.'],
+              dsaBullets: [
+                'Implemented optimal graph traversal and dynamic programming algorithms in Python.',
+              ],
             },
           },
         },
@@ -140,7 +142,9 @@ describe('Extension Test Matrix: Scenarios A through Q (P15-001)', () => {
     try {
       if (createdTenantIds.length > 0) {
         await db.delete(jobApplications).where(inArray(jobApplications.tenantId, createdTenantIds));
-        await db.delete(applicationPackages).where(inArray(applicationPackages.tenantId, createdTenantIds));
+        await db
+          .delete(applicationPackages)
+          .where(inArray(applicationPackages.tenantId, createdTenantIds));
         await db.delete(projects).where(inArray(projects.tenantId, createdTenantIds));
         await db.delete(candidates).where(inArray(candidates.tenantId, createdTenantIds));
         await db.delete(users).where(inArray(users.tenantId, createdTenantIds));
@@ -202,7 +206,8 @@ describe('Extension Test Matrix: Scenarios A through Q (P15-001)', () => {
       company: 'Discord',
       location: 'San Francisco, CA',
       workplace: 'REMOTE',
-      description: 'Discord needs a Backend Systems Engineer proficient in Python, FastAPI, and Docker.',
+      description:
+        'Discord needs a Backend Systems Engineer proficient in Python, FastAPI, and Docker.',
     };
 
     const res = await app.inject({
@@ -350,7 +355,8 @@ describe('Extension Test Matrix: Scenarios A through Q (P15-001)', () => {
           sourceUrl: 'https://boards.greenhouse.io/discord/jobs/778899',
           title: 'Backend Systems Engineer',
           company: 'Discord',
-          description: 'Discord Backend Systems Engineer proficient in Python, FastAPI, and Docker.',
+          description:
+            'Discord Backend Systems Engineer proficient in Python, FastAPI, and Docker.',
         },
       },
     });
@@ -478,5 +484,3 @@ describe('Extension Test Matrix: Scenarios A through Q (P15-001)', () => {
     assert.equal(body.code, 'APPLICATION_ALREADY_SUBMITTED');
   });
 });
-
-

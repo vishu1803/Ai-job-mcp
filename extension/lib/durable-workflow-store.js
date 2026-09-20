@@ -15,7 +15,9 @@ const STORAGE_PREFIX_JOB = 'ach_wf_job_';
 
 export class DurableWorkflowStore {
   constructor(storage = null) {
-    this.storage = storage || (typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local : null);
+    this.storage =
+      storage ||
+      (typeof chrome !== 'undefined' && chrome.storage?.local ? chrome.storage.local : null);
     this._inMemoryFallback = new Map();
   }
 
@@ -224,7 +226,14 @@ export class DurableWorkflowStore {
       await this._set(`${STORAGE_PREFIX_TAB}${tabId}`, state);
     }
 
-    const fp = state.jobIdentity?.fingerprint || state.jobFingerprint || (state.normalizedJob ? deriveJobFingerprint(state.normalizedJob) : (state.jobData ? deriveJobFingerprint(state.jobData) : null));
+    const fp =
+      state.jobIdentity?.fingerprint ||
+      state.jobFingerprint ||
+      (state.normalizedJob
+        ? deriveJobFingerprint(state.normalizedJob)
+        : state.jobData
+          ? deriveJobFingerprint(state.jobData)
+          : null);
     if (fp && fp !== 'unknown-job') {
       await this._set(`${STORAGE_PREFIX_JOB}${fp}`, state);
     }

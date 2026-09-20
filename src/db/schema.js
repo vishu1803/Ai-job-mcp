@@ -227,10 +227,7 @@ export const tailoredDocumentTypeEnum = pgEnum('tailored_document_type', [
  * Exactly one version per application is CURRENT at any time; superseded
  * versions are ARCHIVED (history preserved, never silently current).
  */
-export const packageLifecycleStateEnum = pgEnum('package_lifecycle_state', [
-  'CURRENT',
-  'ARCHIVED',
-]);
+export const packageLifecycleStateEnum = pgEnum('package_lifecycle_state', ['CURRENT', 'ARCHIVED']);
 
 /**
  * Resume document lifecycle states (Phase 13.5 / ARCH-052 / ADR-072).
@@ -1156,27 +1153,31 @@ export const candidateClaims = pgTable(
 // 24. Skill Catalog Table (Reusable Canonical Skill Registry)
 // ---------------------------------------------------------------------------
 
-export const skillCatalog = pgTable('skill_catalog', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  canonicalName: text('canonical_name').notNull(),
-  slug: text('slug').notNull().unique(),
-  category: text('category').notNull(),
-  subcategory: text('subcategory'),
-  skillType: text('skill_type').default('TECHNOLOGY').notNull(),
-  description: text('description'),
-  aliases: jsonb('aliases').default('[]').notNull(),
-  parentSkillId: uuid('parent_skill_id'),
-  active: boolean('active').default(true).notNull(),
-  sortOrder: integer('sort_order').default(0).notNull(),
-  metadata: jsonb('metadata').default('{}').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [
-  index('idx_skill_catalog_category').on(table.category),
-  index('idx_skill_catalog_subcategory').on(table.subcategory),
-  index('idx_skill_catalog_active').on(table.active),
-  index('idx_skill_catalog_sort_order').on(table.sortOrder),
-]);
+export const skillCatalog = pgTable(
+  'skill_catalog',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    canonicalName: text('canonical_name').notNull(),
+    slug: text('slug').notNull().unique(),
+    category: text('category').notNull(),
+    subcategory: text('subcategory'),
+    skillType: text('skill_type').default('TECHNOLOGY').notNull(),
+    description: text('description'),
+    aliases: jsonb('aliases').default('[]').notNull(),
+    parentSkillId: uuid('parent_skill_id'),
+    active: boolean('active').default(true).notNull(),
+    sortOrder: integer('sort_order').default(0).notNull(),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_skill_catalog_category').on(table.category),
+    index('idx_skill_catalog_subcategory').on(table.subcategory),
+    index('idx_skill_catalog_active').on(table.active),
+    index('idx_skill_catalog_sort_order').on(table.sortOrder),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // 25. Job Analysis Snapshots Table (Authoritative Passthrough - P16-001F-3B)

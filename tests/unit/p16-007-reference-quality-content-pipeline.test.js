@@ -28,9 +28,7 @@ import {
   splitSentences,
 } from '../../src/services/resume-content-strategy.service.js';
 
-import {
-  generateReferenceQualityContentReport,
-} from '../../src/services/resume-layout-engine.service.js';
+import { generateReferenceQualityContentReport } from '../../src/services/resume-layout-engine.service.js';
 
 describe('P16-007: Reference-Quality Content Pipeline', () => {
   // Test 1: Canonical Project Reconciliation preserves every distinct candidate-owned content surface
@@ -71,9 +69,9 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
 
     // Verify all candidate-owned fields are preserved
     assert.ok(proj.bullets.length >= 3, `Expected at least 3 bullets, got ${proj.bullets.length}`);
-    assert.ok(proj.bullets.some(b => b.includes('distributed worker pool')));
-    assert.ok(proj.bullets.some(b => b.includes('fault-tolerant retry mechanism')));
-    assert.ok(proj.bullets.some(b => b.includes('real-time queue depth monitoring')));
+    assert.ok(proj.bullets.some((b) => b.includes('distributed worker pool')));
+    assert.ok(proj.bullets.some((b) => b.includes('fault-tolerant retry mechanism')));
+    assert.ok(proj.bullets.some((b) => b.includes('real-time queue depth monitoring')));
 
     // Verify technologies merged
     assert.ok(proj.technologies.includes('Node.js') || proj.technologies.includes('Redis'));
@@ -104,8 +102,16 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
     mergeCandidateOwnedProjectContent(target2, projA);
 
     // Both merged targets must contain all distinct facts
-    const bullets1 = [...(target1.bullets || []), ...(target1.highlights || []), ...(target1.features || [])];
-    const bullets2 = [...(target2.bullets || []), ...(target2.highlights || []), ...(target2.features || [])];
+    const bullets1 = [
+      ...(target1.bullets || []),
+      ...(target1.highlights || []),
+      ...(target1.features || []),
+    ];
+    const bullets2 = [
+      ...(target2.bullets || []),
+      ...(target2.highlights || []),
+      ...(target2.features || []),
+    ];
 
     assert.equal(bullets1.length, bullets2.length);
   });
@@ -124,7 +130,11 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
       highlights: [],
       evidence: [],
     };
-    const res0 = selectAndRephraseProjectBullets({ project: proj0, jobPosting, options: { maxBullets: 3 } });
+    const res0 = selectAndRephraseProjectBullets({
+      project: proj0,
+      jobPosting,
+      options: { maxBullets: 3 },
+    });
     assert.equal(res0.length, 0, 'Project with 0 facts must produce 0 accomplishment bullets');
 
     // Case 1: 1 candidate fact -> 1 bullet
@@ -134,7 +144,11 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
       highlights: [],
       evidence: [],
     };
-    const res1 = selectAndRephraseProjectBullets({ project: proj1, jobPosting, options: { maxBullets: 3 } });
+    const res1 = selectAndRephraseProjectBullets({
+      project: proj1,
+      jobPosting,
+      options: { maxBullets: 3 },
+    });
     assert.equal(res1.length, 1, 'Project with 1 fact must produce exactly 1 bullet');
 
     // Case 2: 2 candidate facts -> 2 bullets
@@ -144,7 +158,11 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
       highlights: ['Configured automated database migration pipelines with Alembic.'],
       evidence: [],
     };
-    const res2 = selectAndRephraseProjectBullets({ project: proj2, jobPosting, options: { maxBullets: 3 } });
+    const res2 = selectAndRephraseProjectBullets({
+      project: proj2,
+      jobPosting,
+      options: { maxBullets: 3 },
+    });
     assert.equal(res2.length, 2, 'Project with 2 facts must produce exactly 2 bullets');
 
     // Case 3: 3 candidate facts -> 3 bullets
@@ -155,21 +173,30 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
       features: ['Containerized application with Docker Compose for consistent local development.'],
       evidence: [],
     };
-    const res3 = selectAndRephraseProjectBullets({ project: proj3, jobPosting, options: { maxBullets: 3 } });
+    const res3 = selectAndRephraseProjectBullets({
+      project: proj3,
+      jobPosting,
+      options: { maxBullets: 3 },
+    });
     assert.equal(res3.length, 3, 'Project with 3 facts must produce up to 3 bullets');
   });
 
   // Test 4: Redundancy Reduction via Token Overlap (Jaccard similarity >= 0.55)
   test('Redundancy Reduction: Drops near-duplicate bullets describing the same accomplishment', () => {
-    const textA = 'Engineered an automated career agent and Model Context Protocol MCP server in TypeScript.';
-    const textB = 'Built an automated career agent and Model Context Protocol MCP server in TypeScript.';
+    const textA =
+      'Engineered an automated career agent and Model Context Protocol MCP server in TypeScript.';
+    const textB =
+      'Built an automated career agent and Model Context Protocol MCP server in TypeScript.';
     const textC = 'Integrated Gemini API for structured JSON resume analysis and scoring.';
 
     const overlapAB = calculateTokenOverlap(textA, textB);
     const overlapAC = calculateTokenOverlap(textA, textC);
 
     assert.ok(overlapAB >= 0.55, `Expected high overlap for near duplicates, got ${overlapAB}`);
-    assert.ok(overlapAC < 0.40, `Expected low overlap for distinct accomplishments, got ${overlapAC}`);
+    assert.ok(
+      overlapAC < 0.4,
+      `Expected low overlap for distinct accomplishments, got ${overlapAC}`
+    );
 
     const project = {
       name: 'AI Agent Server',
@@ -184,7 +211,11 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
     });
 
     // Redundant textB must have been pruned, leaving 2 distinct accomplishments
-    assert.equal(tailored.length, 2, `Expected 2 distinct bullets after redundancy reduction, got ${tailored.length}`);
+    assert.equal(
+      tailored.length,
+      2,
+      `Expected 2 distinct bullets after redundancy reduction, got ${tailored.length}`
+    );
   });
 
   // Test 5: Grounded Composition of Short Complementary Fragments
@@ -237,7 +268,10 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
     assert.ok(summaryObj && summaryObj.text);
     const sentences = splitSentences(summaryObj.text);
     assert.equal(sentences.length, 3, `Expected exactly 3 sentences, got ${sentences.length}`);
-    assert.ok(summaryObj.text.length >= 250 && summaryObj.text.length <= 460, `Length outside 250-460: ${summaryObj.text.length}`);
+    assert.ok(
+      summaryObj.text.length >= 250 && summaryObj.text.length <= 460,
+      `Length outside 250-460: ${summaryObj.text.length}`
+    );
     // Ensure Sentence 3 is preserved!
     assert.match(summaryObj.text, /Data Structures and Algorithms/i);
     // Ensure no redundant keyword stuffing ("Proficient in...") appended
@@ -261,8 +295,8 @@ describe('P16-007: Reference-Quality Content Pipeline', () => {
     });
 
     assert.equal(tailored.length, 2);
-    assert.ok(tailored.some(b => b.text.includes('JuliaLangX')));
-    assert.ok(tailored.some(b => b.text.includes('Qiskit')));
+    assert.ok(tailored.some((b) => b.text.includes('JuliaLangX')));
+    assert.ok(tailored.some((b) => b.text.includes('Qiskit')));
   });
 
   // Test 8: Rule 8 ReferenceQualityContentReport Auditing

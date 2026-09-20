@@ -21,7 +21,9 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
   // ─────────────────────────────────────────────────────────────────────────
   describe('1. Distinct Canonical Fact Counting', () => {
     test('extractSubstantiveFactTokens extracts lowercase tokens excluding stop words and numbers', () => {
-      const tokens = extractSubstantiveFactTokens('Built distributed worker pool in Node.js and Redis with 4 nodes.');
+      const tokens = extractSubstantiveFactTokens(
+        'Built distributed worker pool in Node.js and Redis with 4 nodes.'
+      );
       assert.ok(tokens.has('distributed'));
       assert.ok(tokens.has('worker'));
       assert.ok(tokens.has('pool'));
@@ -39,11 +41,14 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       const fact1 = 'Built distributed worker pool in Node.js and Redis.';
       const fact2 = 'Implemented fault-tolerant distributed worker pool with Node.js and Redis.';
       const overlap = calculateFactSemanticOverlap(fact1, fact2);
-      assert.ok(overlap >= 0.60, `Expected overlap >= 0.60, got ${overlap}`);
+      assert.ok(overlap >= 0.6, `Expected overlap >= 0.60, got ${overlap}`);
 
       const distinctFact = 'Integrated Stripe webhook handling for customer subscription billing.';
       const distinctOverlap = calculateFactSemanticOverlap(fact1, distinctFact);
-      assert.ok(distinctOverlap < 0.20, `Expected low overlap for distinct fact, got ${distinctOverlap}`);
+      assert.ok(
+        distinctOverlap < 0.2,
+        `Expected low overlap for distinct fact, got ${distinctOverlap}`
+      );
     });
 
     test('countDistinctCanonicalFacts groups semantically duplicate descriptions into 1 fact', () => {
@@ -55,7 +60,7 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         'Streamed large multi-part files directly to S3 object store.', // Duplicate of #3
       ];
 
-      const distinctCount = countDistinctCanonicalFacts(candidateItems, 0.60);
+      const distinctCount = countDistinctCanonicalFacts(candidateItems, 0.6);
       assert.equal(distinctCount, 3, `Expected 3 distinct facts, got ${distinctCount}`);
     });
 
@@ -100,10 +105,19 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         description: 'High-throughput object storage proxy service.',
       };
 
-      const target1 = { ...projA, bullets: [...projA.bullets], highlights: [...projA.highlights], technologies: [...projA.technologies] };
+      const target1 = {
+        ...projA,
+        bullets: [...projA.bullets],
+        highlights: [...projA.highlights],
+        technologies: [...projA.technologies],
+      };
       mergeCandidateOwnedProjectContent(target1, projB);
 
-      const target2 = { ...projB, features: [...projB.features], technologies: [...projB.technologies] };
+      const target2 = {
+        ...projB,
+        features: [...projB.features],
+        technologies: [...projB.technologies],
+      };
       mergeCandidateOwnedProjectContent(target2, projA);
 
       const canonical1 = canonicalizeProject(target1);
@@ -152,7 +166,8 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       // usable height = 792 - 79.2 = 712.8 pt
       // bottom whitespace = 160 - 39.6 = 120.4 pt
       // occupancy = (712.8 - 120.4) / 712.8 = 83.1%
-      const streamContent = 'BT\n1 0 0 1 72 700 Tm\n(Test Header) Tj\n0 -540 Td\n(Lowest Rendered Line) Tj\nET';
+      const streamContent =
+        'BT\n1 0 0 1 72 700 Tm\n(Test Header) Tj\n0 -540 Td\n(Lowest Rendered Line) Tj\nET';
       const compressed = zlib.deflateSync(Buffer.from(streamContent));
       const mockPdf = Buffer.concat([
         Buffer.from('%PDF-1.5\n1 0 obj\n<< /Length ' + compressed.length + ' >>\nstream\n'),
@@ -163,7 +178,7 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       const result = analyzer.measurePdfBottom(mockPdf);
       assert.ok(result.lowestY <= 170, `Expected lowestY around 160, got ${result.lowestY}`);
       assert.ok(result.bottomWhitespacePt > 0);
-      assert.ok(result.pageOccupancyRatio >= 0.70 && result.pageOccupancyRatio <= 0.95);
+      assert.ok(result.pageOccupancyRatio >= 0.7 && result.pageOccupancyRatio <= 0.95);
     });
 
     test('computeAcceptanceMetrics returns all 10 required acceptance properties', () => {
@@ -176,15 +191,21 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
           {
             name: 'Task Scheduler',
             bullets: [
-              { text: 'Built distributed scheduler in Go and Redis handling 50k events per second.' },
-              { text: 'Implemented Raft consensus protocol ensuring high availability across nodes.' },
+              {
+                text: 'Built distributed scheduler in Go and Redis handling 50k events per second.',
+              },
+              {
+                text: 'Implemented Raft consensus protocol ensuring high availability across nodes.',
+              },
             ],
             highlights: ['Designed fault-tolerant leader election.'],
           },
           {
             name: 'API Gateway',
             bullets: [
-              { text: 'Engineered high-throughput reverse proxy in Rust with zero-copy stream processing.' },
+              {
+                text: 'Engineered high-throughput reverse proxy in Rust with zero-copy stream processing.',
+              },
             ],
           },
         ],
@@ -196,7 +217,9 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         ],
         problemSolving: {
           hasSection: true,
-          bullets: ['Solved 450+ LeetCode problems covering trees, graphs, and dynamic programming.'],
+          bullets: [
+            'Solved 450+ LeetCode problems covering trees, graphs, and dynamic programming.',
+          ],
         },
       };
 
@@ -237,7 +260,9 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       };
 
       const mockGenerator = {
-        generateTailoredResumeLatex: () => ({ texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}' }),
+        generateTailoredResumeLatex: () => ({
+          texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}',
+        }),
       };
 
       const optimizer = new ResumeContentOptimizer({
@@ -264,7 +289,10 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         options: { maxIterations: 5 },
       });
 
-      assert.ok(result.iterationsRun <= OPTIMIZER_MAX_ITERATIONS, `Exceeded max iterations: ${result.iterationsRun}`);
+      assert.ok(
+        result.iterationsRun <= OPTIMIZER_MAX_ITERATIONS,
+        `Exceeded max iterations: ${result.iterationsRun}`
+      );
       assert.ok(callCount <= OPTIMIZER_MAX_ITERATIONS, `Compiler called ${callCount} times`);
       assert.ok(result.iterationHistory.length <= OPTIMIZER_MAX_ITERATIONS);
       assert.equal(result.success, true);
@@ -285,11 +313,17 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
 
       const mockAnalyzer = new PdfGeometryAnalyzer();
       // Mock measurePdfBottom: iteration 1 is sparse (120pt whitespace)
-      mockAnalyzer.measurePdfBottom = () => ({ lowestY: 160, bottomWhitespacePt: 120, pageOccupancyRatio: 0.83 });
+      mockAnalyzer.measurePdfBottom = () => ({
+        lowestY: 160,
+        bottomWhitespacePt: 120,
+        pageOccupancyRatio: 0.83,
+      });
       mockAnalyzer._detectPageCount = (buf) => (buf.toString().includes('/Count 2') ? 2 : 1);
 
       const mockGenerator = {
-        generateTailoredResumeLatex: () => ({ texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}' }),
+        generateTailoredResumeLatex: () => ({
+          texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}',
+        }),
       };
 
       const optimizer = new ResumeContentOptimizer({
@@ -348,7 +382,9 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         compileLatexToPdf: async () => ({ pdfBuffer: Buffer.from('%PDF-1.5\n/Count 1\n%%EOF') }),
       };
       const mockGenerator = {
-        generateTailoredResumeLatex: () => ({ texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}' }),
+        generateTailoredResumeLatex: () => ({
+          texContent: '\\documentclass{article}\\begin{document}Resume\\end{document}',
+        }),
       };
 
       const optimizer = new ResumeContentOptimizer({
@@ -356,9 +392,12 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         latexGenerator: mockGenerator,
       });
 
-      const authenticBullet1 = 'Architected event-driven microservices using Apache Kafka and PostgreSQL.';
-      const authenticBullet2 = 'Implemented partition consumer pools with fault-tolerant checkpointing.';
-      const authenticBullet3 = 'Engineered distributed consumer groups with automatic partition rebalancing.';
+      const authenticBullet1 =
+        'Architected event-driven microservices using Apache Kafka and PostgreSQL.';
+      const authenticBullet2 =
+        'Implemented partition consumer pools with fault-tolerant checkpointing.';
+      const authenticBullet3 =
+        'Engineered distributed consumer groups with automatic partition rebalancing.';
       const candidateProfile = {
         candidate: { displayName: 'Carol Candidate', canonicalEmail: 'carol@domain.org' },
         projects: [
@@ -391,7 +430,9 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
         jobPosting,
       });
 
-      const renderedBullets = (result.structuredResume.projects[0]?.bullets || []).map((b) => b.text || b);
+      const renderedBullets = (result.structuredResume.projects[0]?.bullets || []).map(
+        (b) => b.text || b
+      );
       assert.ok(renderedBullets.length > 0);
       // All rendered bullets must match authentic source facts
       for (const b of renderedBullets) {

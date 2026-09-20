@@ -33,10 +33,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p81-title-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\7c255938-ff51-431c-ad8d-b46eb1e7d510';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\7c255938-ff51-431c-ad8d-b46eb1e7d510';
 const CDP_PORT = 9471;
 
 const LIVE_TRIVEOUS_URL = 'https://www.linkedin.com/jobs/view/4465164301/';
@@ -76,7 +78,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 25000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 15000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 15000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -120,7 +123,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -299,8 +304,14 @@ async function main() {
           activeCompany: window.__sidebarController?.activeJob?.company,
         }))()
       `);
-      if (tabAState?.domTitle && tabAState.domTitle !== '—' && tabAState.domCompany?.toLowerCase().includes('triveous')) {
-        console.log(`   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`);
+      if (
+        tabAState?.domTitle &&
+        tabAState.domTitle !== '—' &&
+        tabAState.domCompany?.toLowerCase().includes('triveous')
+      ) {
+        console.log(
+          `   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`
+        );
         break;
       }
     }
@@ -325,8 +336,13 @@ async function main() {
     console.log(`   Rendered Title:   "${tabAState?.domTitle}"`);
     console.log(`   Rendered Company: "${tabAState?.domCompany}"`);
 
-    if (tabAState?.domTitle === 'Use AI to assess how you fit' || tabAState?.domTitle?.includes('Use AI')) {
-      throw new Error(`CRITICAL FAILURE: Side panel extracted marketing/AI copy: "${tabAState.domTitle}"`);
+    if (
+      tabAState?.domTitle === 'Use AI to assess how you fit' ||
+      tabAState?.domTitle?.includes('Use AI')
+    ) {
+      throw new Error(
+        `CRITICAL FAILURE: Side panel extracted marketing/AI copy: "${tabAState.domTitle}"`
+      );
     }
     if (!tabAState?.domCompany?.toLowerCase().includes('triveous')) {
       throw new Error(`FAILURE: Expected company Triveous, got: "${tabAState?.domCompany}"`);
@@ -365,7 +381,9 @@ async function main() {
     `);
     await sleep(1000);
 
-    console.log('   Clicking #rescanBtn to test extraction under live presence of AI fit widget...');
+    console.log(
+      '   Clicking #rescanBtn to test extraction under live presence of AI fit widget...'
+    );
     await sidebarCdp.evaluate(`document.getElementById('rescanBtn').click()`);
     await sleep(4000);
 
@@ -382,13 +400,22 @@ async function main() {
     console.log(`   Title after AI card rescan:   "${postAiWidgetState?.domTitle}"`);
     console.log(`   Company after AI card rescan: "${postAiWidgetState?.domCompany}"`);
 
-    if (postAiWidgetState?.domTitle === 'Use AI to assess how you fit' || postAiWidgetState?.domTitle?.includes('Use AI')) {
-      throw new Error(`CRITICAL REGRESSION: Side panel succumbed to AI fit heading: "${postAiWidgetState.domTitle}"`);
+    if (
+      postAiWidgetState?.domTitle === 'Use AI to assess how you fit' ||
+      postAiWidgetState?.domTitle?.includes('Use AI')
+    ) {
+      throw new Error(
+        `CRITICAL REGRESSION: Side panel succumbed to AI fit heading: "${postAiWidgetState.domTitle}"`
+      );
     }
     if (!postAiWidgetState?.domCompany?.toLowerCase().includes('triveous')) {
-      throw new Error(`FAILURE: Expected company Triveous, got: "${postAiWidgetState?.domCompany}"`);
+      throw new Error(
+        `FAILURE: Expected company Triveous, got: "${postAiWidgetState?.domCompany}"`
+      );
     }
-    console.log('   ✔ Firm resistance confirmed: AI fit heading strictly rejected in favor of authentic job title.');
+    console.log(
+      '   ✔ Firm resistance confirmed: AI fit heading strictly rejected in favor of authentic job title.'
+    );
 
     const screenshot2 = path.join(SCREENSHOT_DIR, 'p81-live-sidepanel-ai-widget-rescan.png');
     await sidebarCdp.captureScreenshot(screenshot2);
@@ -417,11 +444,16 @@ async function main() {
     console.log(`   Title after reload:   "${reloadState?.domTitle}"`);
     console.log(`   Company after reload: "${reloadState?.domCompany}"`);
 
-    if (reloadState?.domTitle === 'Use AI to assess how you fit' || reloadState?.domTitle?.includes('Use AI')) {
+    if (
+      reloadState?.domTitle === 'Use AI to assess how you fit' ||
+      reloadState?.domTitle?.includes('Use AI')
+    ) {
       throw new Error(`CRITICAL FAILURE on reload: extracted "${reloadState.domTitle}"`);
     }
     if (!reloadState?.domCompany?.toLowerCase().includes('triveous')) {
-      throw new Error(`FAILURE on reload: Expected company Triveous, got: "${reloadState?.domCompany}"`);
+      throw new Error(
+        `FAILURE on reload: Expected company Triveous, got: "${reloadState?.domCompany}"`
+      );
     }
     console.log('   ✔ Clean reload persistence verified.');
 
@@ -490,11 +522,16 @@ async function main() {
     console.log(`   Title after switch back:   "${tabABackState?.domTitle}"`);
     console.log(`   Company after switch back: "${tabABackState?.domCompany}"`);
 
-    if (tabABackState?.domTitle === 'Use AI to assess how you fit' || tabABackState?.domTitle?.includes('Use AI')) {
+    if (
+      tabABackState?.domTitle === 'Use AI to assess how you fit' ||
+      tabABackState?.domTitle?.includes('Use AI')
+    ) {
       throw new Error(`CRITICAL FAILURE on tab switch back: extracted "${tabABackState.domTitle}"`);
     }
     if (!tabABackState?.domCompany?.toLowerCase().includes('triveous')) {
-      throw new Error(`FAILURE on tab switch back: Expected company Triveous, got: "${tabABackState?.domCompany}"`);
+      throw new Error(
+        `FAILURE on tab switch back: Expected company Triveous, got: "${tabABackState?.domCompany}"`
+      );
     }
     console.log('   ✔ Tab switching isolation and restoration verified.');
 
@@ -505,7 +542,6 @@ async function main() {
     console.log('\n================================================================');
     console.log('✅ ALL PART 81 REAL CHROME LIVE ACCEPTANCE CHECKS PASSED');
     console.log('================================================================\n');
-
   } finally {
     if (tabACdp) tabACdp.close();
     if (tabBCdp) tabBCdp.close();

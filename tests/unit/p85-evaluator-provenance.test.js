@@ -38,7 +38,10 @@ describe('P85: Evaluator Provenance Service', () => {
     const canonicalB = canonicalizeJson(objB);
 
     assert.equal(JSON.stringify(canonicalA), JSON.stringify(canonicalB));
-    assert.equal(computeSha256(JSON.stringify(canonicalA)), computeSha256(JSON.stringify(canonicalB)));
+    assert.equal(
+      computeSha256(JSON.stringify(canonicalA)),
+      computeSha256(JSON.stringify(canonicalB))
+    );
   });
 
   it('3. Builds canonical evaluator package and calculates reproducible evaluatorInputDigest', () => {

@@ -139,10 +139,7 @@ export const CONTRIBUTION_CLASSES = Object.freeze({
 export function areContributionClassesCompatible(classA, classB) {
   if (!classA || !classB) return true;
   if (classA === classB) return true;
-  const compatiblePairs = new Set([
-    'DESCRIPTION:CONTEXT',
-    'CONTEXT:DESCRIPTION',
-  ]);
+  const compatiblePairs = new Set(['DESCRIPTION:CONTEXT', 'CONTEXT:DESCRIPTION']);
   return compatiblePairs.has(`${classA}:${classB}`);
 }
 
@@ -411,7 +408,9 @@ export function determineFactAgency(text, metadata = {}) {
   // 3. Ambiguous source attribution (e.g. "helped with", "assisted with")
   if (
     metadata.inferred === true ||
-    /^(?:assisted\s+with|helped\s+with|contributed\s+to|participated\s+in|involved\s+in)\b/i.test(norm)
+    /^(?:assisted\s+with|helped\s+with|contributed\s+to|participated\s+in|involved\s+in)\b/i.test(
+      norm
+    )
   ) {
     return {
       level: AGENCY_LEVELS.INFERRED,
@@ -573,8 +572,7 @@ export function classifyContributionClass(
   const norm = String(text || '').trim();
   const lower = norm.toLowerCase();
   const agency =
-    metadata.agency ||
-    determineFactAgency(norm, { sourceType, canonicalFactType, ...metadata });
+    metadata.agency || determineFactAgency(norm, { sourceType, canonicalFactType, ...metadata });
 
   // If agency level is not CANDIDATE, it CANNOT be a candidate-owned contribution class!
   if (agency.level !== AGENCY_LEVELS.CANDIDATE) {
@@ -1663,7 +1661,11 @@ export function sanitizeGroundedAccomplishment(text) {
     const scope = scopeMatch ? scopeMatch[1].trim() : '';
 
     const pastVerb = gerundToPastTense(gerund);
-    if (scope && !remainder.toLowerCase().includes(scope.toLowerCase()) && !remainder.toLowerCase().includes('across')) {
+    if (
+      scope &&
+      !remainder.toLowerCase().includes(scope.toLowerCase()) &&
+      !remainder.toLowerCase().includes('across')
+    ) {
       cleaned = `${pastVerb} ${remainder} across ${scope}.`;
     } else {
       cleaned = `${pastVerb} ${remainder}.`;
@@ -1677,4 +1679,3 @@ export function sanitizeGroundedAccomplishment(text) {
 
   return cleaned;
 }
-

@@ -40,13 +40,16 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p73-live-active-root-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\54f8a139-759d-4dab-b744-2e1d3451b975';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\54f8a139-759d-4dab-b744-2e1d3451b975';
 const CDP_PORT = 9399;
 
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 const LIVE_JOB_B_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -105,13 +108,17 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
 
 async function main() {
-  console.log('=== P73: REAL CHROME LIVE LINKEDIN ACTIVE ROOT & DESCRIPTION EXTRACTION VERIFICATION ===\n');
+  console.log(
+    '=== P73: REAL CHROME LIVE LINKEDIN ACTIVE ROOT & DESCRIPTION EXTRACTION VERIFICATION ===\n'
+  );
 
   // Step 1: Health check
   console.log('1. Checking backend health on http://localhost:3000/healthz...');
@@ -135,7 +142,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch Chrome MV3
   console.log('\n3. Spawning real Chrome MV3 browser instance on port', CDP_PORT, '...');
@@ -183,7 +192,9 @@ async function main() {
     await swCdp.send('Runtime.enable');
 
     // Open Test Tab on Live Appinventiv Job
-    console.log(`\n4. Navigating real browser tab to Live Appinventiv LinkedIn Job: ${LIVE_APPINVENTIV_URL}...`);
+    console.log(
+      `\n4. Navigating real browser tab to Live Appinventiv LinkedIn Job: ${LIVE_APPINVENTIV_URL}...`
+    );
     const tabTarget = await browserCdp.send('Target.createTarget', { url: LIVE_APPINVENTIV_URL });
     const freshList = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
     const tabItem = freshList.find((item) => item.id === tabTarget.targetId);
@@ -193,7 +204,9 @@ async function main() {
     await testTabCdp.send('Page.enable');
     await testTabCdp.send('Runtime.enable');
 
-    console.log('   Waiting 8 seconds for initial LinkedIn page load and content script hydration...');
+    console.log(
+      '   Waiting 8 seconds for initial LinkedIn page load and content script hydration...'
+    );
     await sleep(8000);
 
     const tabsInChrome = await swCdp.evaluate(`
@@ -329,17 +342,23 @@ async function main() {
     // Verify Title and Company
     console.log('   Checking Title and Company...');
     if (sidebarState.activeJob.title !== 'Software Engineer') {
-      throw new Error(`FAILED: Expected title 'Software Engineer', got '${sidebarState.activeJob.title}'`);
+      throw new Error(
+        `FAILED: Expected title 'Software Engineer', got '${sidebarState.activeJob.title}'`
+      );
     }
     if (!sidebarState.activeJob.company.includes('Appinventiv')) {
-      throw new Error(`FAILED: Expected company 'Appinventiv', got '${sidebarState.activeJob.company}'`);
+      throw new Error(
+        `FAILED: Expected company 'Appinventiv', got '${sidebarState.activeJob.company}'`
+      );
     }
     console.log('   ✔ Title = Software Engineer, Company = Appinventiv confirmed');
 
     // Verify Description Extraction & Provenance
     console.log('   Checking Description Extraction & Provenance...');
     if (sidebarState.activeJob.descriptionLength < 50) {
-      throw new Error(`FAILED: Description length is ${sidebarState.activeJob.descriptionLength} < 50`);
+      throw new Error(
+        `FAILED: Description length is ${sidebarState.activeJob.descriptionLength} < 50`
+      );
     }
     console.log(`   ✔ Description length: ${sidebarState.activeJob.descriptionLength} >= 50`);
 
@@ -394,10 +413,14 @@ async function main() {
       throw new Error('FAILED: Did not receive /api/extension/analyze-job response within 25s');
     }
     if (lastAnalyzeResponse.status !== 200) {
-      throw new Error(`FAILED: /api/extension/analyze-job failed with HTTP ${lastAnalyzeResponse.status}`);
+      throw new Error(
+        `FAILED: /api/extension/analyze-job failed with HTTP ${lastAnalyzeResponse.status}`
+      );
     }
     if (serverAnalyzeCalls !== 1) {
-      throw new Error(`FAILED: Expected exactly 1 analyze call after click, saw ${serverAnalyzeCalls}`);
+      throw new Error(
+        `FAILED: Expected exactly 1 analyze call after click, saw ${serverAnalyzeCalls}`
+      );
     }
     console.log(`   ✔ Analysis succeeded with HTTP ${lastAnalyzeResponse.status}`);
     console.log(`   ✔ Exactly 1 analyze call made: ${serverAnalyzeCalls}`);
@@ -462,7 +485,9 @@ async function main() {
     console.log('   Restored Job A State:', JSON.stringify(jobARestored, null, 2));
 
     if (jobARestored?.activeJobTitle !== 'Software Engineer') {
-      throw new Error(`FAILED: Expected restored title 'Software Engineer', got '${jobARestored?.activeJobTitle}'`);
+      throw new Error(
+        `FAILED: Expected restored title 'Software Engineer', got '${jobARestored?.activeJobTitle}'`
+      );
     }
     console.log('   ✔ Restored Job A successfully without contamination from Job B');
 
@@ -488,7 +513,9 @@ async function main() {
     console.log('   Reloaded State:', JSON.stringify(reloadedState, null, 2));
 
     if (reloadedState.title !== 'Software Engineer') {
-      throw new Error(`FAILED: After reload, expected title 'Software Engineer', got '${reloadedState.title}'`);
+      throw new Error(
+        `FAILED: After reload, expected title 'Software Engineer', got '${reloadedState.title}'`
+      );
     }
     console.log('   ✔ Reload test passed: Title maintained across reload');
 
@@ -500,7 +527,6 @@ async function main() {
     console.log('\n================================================================');
     console.log('🎉 P73 REAL CHROME LIVE LINKEDIN VERIFICATION COMPLETED SUCCESSFULLY!');
     console.log('================================================================\n');
-
   } finally {
     if (sidebarCdp) sidebarCdp.close();
     if (testTabCdp) testTabCdp.close();

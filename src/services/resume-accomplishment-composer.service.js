@@ -358,8 +358,7 @@ function assembleRealizedClaim({
     provenanceStatus: primaryFact?.provenance || 'VERIFIED',
     composedFromFactIds,
     semanticDimensions:
-      planned.semanticDimensions ||
-      (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
+      planned.semanticDimensions || (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
     realizationSource,
   });
 
@@ -807,89 +806,173 @@ export function composeProfessionalSummary({
       domain: 'Software Engineering',
       subdomains: ['Full-Stack Systems', 'Cloud Services'],
       keywords: [
-        'fullstack', 'full-stack', 'software', 'web', 'application',
-        'engineering', 'cloud', 'services', 'developer',
+        'fullstack',
+        'full-stack',
+        'software',
+        'web',
+        'application',
+        'engineering',
+        'cloud',
+        'services',
+        'developer',
       ],
       titlePattern: /\b(software\s+engineer|full[- ]?stack|application\s+engineer|developer)\b/i,
       rolePrefix: 'Software Engineer specializing in',
-      differentiator: 'end-to-end software delivery, modular architecture, and test-driven development',
-      sentence1: (domains, tech) => `Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
-      sentence2: (proj, diff) => proj
-        ? `Engineered maintainable software solutions including ${proj.name || proj.displayName}, emphasizing ${diff}.`
-        : `Experienced in developing scalable applications and test-backed software services.`,
-      sentence3: () => 'Committed to high-quality code delivery, robust system reliability, and maintainable production architecture.',
+      differentiator:
+        'end-to-end software delivery, modular architecture, and test-driven development',
+      sentence1: (domains, tech) =>
+        `Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
+      sentence2: (proj, diff) =>
+        proj
+          ? `Engineered maintainable software solutions including ${proj.name || proj.displayName}, emphasizing ${diff}.`
+          : `Experienced in developing scalable applications and test-backed software services.`,
+      sentence3: () =>
+        'Committed to high-quality code delivery, robust system reliability, and maintainable production architecture.',
     },
     {
       id: 'systems',
       domain: 'Distributed Systems',
       subdomains: ['Cloud Infrastructure', 'High-Throughput Telemetry'],
       keywords: [
-        'distributed', 'systems', 'infrastructure', 'rust', 'c++', 'concurrency',
-        'kernel', 'low-latency', 'raft', 'consensus', 'streaming', 'network',
-        'telemetry', 'fault-tolerant', 'go', 'grpc', 'kafka', 'linux',
+        'distributed',
+        'systems',
+        'infrastructure',
+        'rust',
+        'c++',
+        'concurrency',
+        'kernel',
+        'low-latency',
+        'raft',
+        'consensus',
+        'streaming',
+        'network',
+        'telemetry',
+        'fault-tolerant',
+        'go',
+        'grpc',
+        'kafka',
+        'linux',
       ],
-      titlePattern: /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems|rust|c\+\+|raft|linux\s+networking)\b/i,
+      titlePattern:
+        /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems|rust|c\+\+|raft|linux\s+networking)\b/i,
       rolePrefix: 'Systems-focused Software Engineer specializing in',
       differentiator: 'verifiable consensus and deterministic fault-tolerant architecture',
-      sentence1: (domains, tech) => `Systems-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` utilizing ${tech}` : ''}.`,
-      sentence2: (proj, diff) => proj
-        ? `Engineered robust, high-concurrency architectures including ${proj.name || proj.displayName}, emphasizing ${diff}.`
-        : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`,
-      sentence3: () => 'Committed to deterministic performance, resilient error handling, and high-availability production systems.',
+      sentence1: (domains, tech) =>
+        `Systems-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` utilizing ${tech}` : ''}.`,
+      sentence2: (proj, diff) =>
+        proj
+          ? `Engineered robust, high-concurrency architectures including ${proj.name || proj.displayName}, emphasizing ${diff}.`
+          : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`,
+      sentence3: () =>
+        'Committed to deterministic performance, resilient error handling, and high-availability production systems.',
     },
     {
       id: 'ai',
       domain: 'AI Engineering',
       subdomains: ['Machine Learning Platforms', 'Backend Pipelines'],
       keywords: [
-        'ai', 'ml', 'machine learning', 'llm', 'deep learning', 'nlp', 'rag',
-        'pytorch', 'tensorflow', 'inference', 'model', 'pipelines', 'embedding',
+        'ai',
+        'ml',
+        'machine learning',
+        'llm',
+        'deep learning',
+        'nlp',
+        'rag',
+        'pytorch',
+        'tensorflow',
+        'inference',
+        'model',
+        'pipelines',
+        'embedding',
       ],
-      titlePattern: /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i,
+      titlePattern:
+        /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i,
       rolePrefix: 'Software Engineer with technical specialization in',
       differentiator: 'rigorous evidence-backed AI pipelines with low-latency inference endpoints',
-      sentence1: (domains, tech) => `Software Engineer with technical specialization in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` built with ${tech}` : ''}.`,
-      sentence2: (proj, diff) => proj
-        ? `Demonstrated practical engineering delivery in ${proj.name || proj.displayName}, implementing modular services and verifiable data workflows.`
-        : `Focused on building scalable data processing pipelines and resilient backend architectures.`,
-      sentence3: (proj, diff) => `Leverages ${diff} to deliver reliable, production-ready engineering solutions.`,
+      sentence1: (domains, tech) =>
+        `Software Engineer with technical specialization in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` built with ${tech}` : ''}.`,
+      sentence2: (proj, diff) =>
+        proj
+          ? `Demonstrated practical engineering delivery in ${proj.name || proj.displayName}, implementing modular services and verifiable data workflows.`
+          : `Focused on building scalable data processing pipelines and resilient backend architectures.`,
+      sentence3: (proj, diff) =>
+        `Leverages ${diff} to deliver reliable, production-ready engineering solutions.`,
     },
     {
       id: 'frontend',
       domain: 'Modern Web Applications',
       subdomains: ['Component Architecture', 'User Experience'],
       keywords: [
-        'frontend', 'ui', 'ux', 'web', 'client', 'react', 'typescript',
-        'javascript', 'next.js', 'next-js', 'vue', 'angular', 'tailwind',
-        'tailwind-css', 'component', 'accessibility', 'html', 'css',
+        'frontend',
+        'ui',
+        'ux',
+        'web',
+        'client',
+        'react',
+        'typescript',
+        'javascript',
+        'next.js',
+        'next-js',
+        'vue',
+        'angular',
+        'tailwind',
+        'tailwind-css',
+        'component',
+        'accessibility',
+        'html',
+        'css',
       ],
       titlePattern: /\b(frontend|ui|ux|web|client|react|next\.js)\b/i,
       rolePrefix: 'Frontend-focused Software Engineer specializing in',
       differentiator: 'accessible, component-driven user interfaces with responsive layout systems',
-      sentence1: (domains, tech) => `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${tech ? ` with ${tech}` : ''}.`,
-      sentence2: (proj, diff) => proj
-        ? `Architected modular web applications including ${proj.name || proj.displayName}, ensuring accessibility and high performance.`
-        : `Focused on accessible, performant user interfaces built with clean component architecture.`,
-      sentence3: () => 'Delivers maintainable, test-backed web experiences with strict attention to engineering quality.',
+      sentence1: (domains, tech) =>
+        `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${tech ? ` with ${tech}` : ''}.`,
+      sentence2: (proj, diff) =>
+        proj
+          ? `Architected modular web applications including ${proj.name || proj.displayName}, ensuring accessibility and high performance.`
+          : `Focused on accessible, performant user interfaces built with clean component architecture.`,
+      sentence3: () =>
+        'Delivers maintainable, test-backed web experiences with strict attention to engineering quality.',
     },
     {
       id: 'backend',
       domain: 'Backend Engineering',
       subdomains: ['Scalable API Services', 'Data Persistence'],
       keywords: [
-        'backend', 'api', 'server', 'database', 'persistence', 'fastapi',
-        'django', 'flask', 'postgres', 'postgresql', 'mysql', 'sql',
-        'redis', 'mongodb', 'graphql', 'rest', 'microservices', 'node',
-        'express', 'nodejs', 'docker', 'kubernetes',
+        'backend',
+        'api',
+        'server',
+        'database',
+        'persistence',
+        'fastapi',
+        'django',
+        'flask',
+        'postgres',
+        'postgresql',
+        'mysql',
+        'sql',
+        'redis',
+        'mongodb',
+        'graphql',
+        'rest',
+        'microservices',
+        'node',
+        'express',
+        'nodejs',
+        'docker',
+        'kubernetes',
       ],
       titlePattern: /\b(backend|server|api|database|persistence)\b/i,
       rolePrefix: 'Backend-focused Software Engineer specializing in',
       differentiator: 'robust, test-backed service architecture with clean modular boundaries',
-      sentence1: (domains, tech) => `Backend-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
-      sentence2: (proj, diff) => proj
-        ? `Engineered scalable services including ${proj.name || proj.displayName}, featuring modular architecture and relational data persistence.`
-        : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`,
-      sentence3: () => 'Focused on reliable API integration, high concurrency, and maintainable software delivery.',
+      sentence1: (domains, tech) =>
+        `Backend-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
+      sentence2: (proj, diff) =>
+        proj
+          ? `Engineered scalable services including ${proj.name || proj.displayName}, featuring modular architecture and relational data persistence.`
+          : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`,
+      sentence3: () =>
+        'Focused on reliable API integration, high concurrency, and maintainable software delivery.',
     },
   ];
 
@@ -919,7 +1002,7 @@ export function composeProfessionalSummary({
       ...cat,
       // P19: Evidence-first scoring. Candidate evidence is weighted 2x over job signals.
       // A domain without minimum candidate evidence cannot win regardless of job score.
-      totalScore: evidenceScore >= 3 ? (jobScore + evidenceScore * 2) : evidenceScore,
+      totalScore: evidenceScore >= 3 ? jobScore + evidenceScore * 2 : evidenceScore,
       jobScore,
       evidenceScore,
       eligible: evidenceScore >= 3, // P19: Minimum threshold for domain eligibility
@@ -936,7 +1019,11 @@ export function composeProfessionalSummary({
 
   let activeDomain;
   if (eligibleDomains.length > 0) {
-    if (jobTargetDomain && !jobTargetDomain.eligible && eligibleDomains[0].id !== jobTargetDomain.id) {
+    if (
+      jobTargetDomain &&
+      !jobTargetDomain.eligible &&
+      eligibleDomains[0].id !== jobTargetDomain.id
+    ) {
       // Opposing role domain: candidate lacks evidence for the job's specific domain.
       // Fall back to neutral/general domain to avoid domain contradiction.
       activeDomain = generalDomain || eligibleDomains[0];
@@ -947,10 +1034,7 @@ export function composeProfessionalSummary({
     activeDomain = generalDomain || DOMAIN_CATALOG[0];
   }
 
-  const topRelevantTechnicalDomains = [
-    activeDomain.domain,
-    ...activeDomain.subdomains,
-  ];
+  const topRelevantTechnicalDomains = [activeDomain.domain, ...activeDomain.subdomains];
 
   // 2. Dynamically score candidate skills for the active domain & job text
   const scoredSkills = candidateSkills.map((s) => {
@@ -969,7 +1053,9 @@ export function composeProfessionalSummary({
 
   scoredSkills.sort((a, b) => b.score - a.score);
   const topMatched = scoredSkills.filter((s) => s.score > 0).slice(0, 4);
-  const topSkills = (topMatched.length > 0 ? topMatched : scoredSkills.slice(0, 4)).map((s) => s.skill);
+  const topSkills = (topMatched.length > 0 ? topMatched : scoredSkills.slice(0, 4)).map(
+    (s) => s.skill
+  );
 
   const referencedSkillSlugs = topSkills.map(
     (s) => s.slug || (typeof s === 'string' ? s.toLowerCase() : s.name.toLowerCase())
@@ -983,13 +1069,15 @@ export function composeProfessionalSummary({
   if (projects.length > 1) {
     const topSkillSet = new Set(referencedSkillSlugs);
     const sorted = [...projects].sort((a, b) => {
-      const aMatch = (a.technologies || []).filter((t) =>
-        topSkillSet.has(String(t).toLowerCase()) ||
-        activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
+      const aMatch = (a.technologies || []).filter(
+        (t) =>
+          topSkillSet.has(String(t).toLowerCase()) ||
+          activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
       ).length;
-      const bMatch = (b.technologies || []).filter((t) =>
-        topSkillSet.has(String(t).toLowerCase()) ||
-        activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
+      const bMatch = (b.technologies || []).filter(
+        (t) =>
+          topSkillSet.has(String(t).toLowerCase()) ||
+          activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
       ).length;
       return bMatch - aMatch;
     });
@@ -1036,7 +1124,10 @@ export function composeProfessionalSummary({
     // Sentence 1: Role identity adapted with job-matched domain and verified technologies
     // Preserves candidate's authentic core title without hardcoding role branches
     let tailoredSentence1;
-    const baseRole = (profile.headline || profile.currentRole || 'Software Engineer').replace(/Developer/i, 'Engineer');
+    const baseRole = (profile.headline || profile.currentRole || 'Software Engineer').replace(
+      /Developer/i,
+      'Engineer'
+    );
     if (techPhrase) {
       tailoredSentence1 = `${baseRole} specializing in ${activeDomain.domain.toLowerCase()} and ${activeDomain.subdomains[0].toLowerCase()}, with verified competencies in ${techPhrase}.`;
     } else {

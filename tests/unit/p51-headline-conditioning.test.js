@@ -205,7 +205,10 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
         headline: 'Senior Backend Engineer',
         seniority: 'SENIOR',
         careerStatus: 'EMPLOYED',
-        skills: [{ name: 'Python', slug: 'python' }, { name: 'PostgreSQL', slug: 'postgresql' }],
+        skills: [
+          { name: 'Python', slug: 'python' },
+          { name: 'PostgreSQL', slug: 'postgresql' },
+        ],
         projects: [
           {
             id: 'proj-exp-1',
@@ -266,7 +269,10 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
         canonicalEmail: 'web.developer@workmail.net',
         headline: 'Full-Stack Developer',
         careerStatus: 'FRESHER',
-        skills: [{ name: 'React', slug: 'react' }, { name: 'Node.js', slug: 'nodejs' }],
+        skills: [
+          { name: 'React', slug: 'react' },
+          { name: 'Node.js', slug: 'nodejs' },
+        ],
         projects: [
           {
             id: 'proj-noml-1',
@@ -326,10 +332,17 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
       const copyBefore = JSON.stringify(candidateProfile);
 
       buildStructuredResumeSnapshot({ candidateProfile, jobPosting: { title: 'DevOps Engineer' } });
-      buildStructuredResumeSnapshot({ candidateProfile, jobPosting: { title: 'Frontend Developer' } });
+      buildStructuredResumeSnapshot({
+        candidateProfile,
+        jobPosting: { title: 'Frontend Developer' },
+      });
       buildStructuredResumeSnapshot({ candidateProfile, jobPosting: { title: 'Python Engineer' } });
 
-      assert.strictEqual(JSON.stringify(candidateProfile), copyBefore, 'Source profile must never be mutated');
+      assert.strictEqual(
+        JSON.stringify(candidateProfile),
+        copyBefore,
+        'Source profile must never be mutated'
+      );
     });
   });
 
@@ -414,7 +427,8 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
         candidateProfile,
         jobPosting: {
           title: 'Software Engineer, Service Monetization',
-          description: 'Backend subscription services, Python, TypeScript, Node.js, databases, cloud, reliability',
+          description:
+            'Backend subscription services, Python, TypeScript, Node.js, databases, cloud, reliability',
         },
       });
 

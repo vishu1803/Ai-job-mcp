@@ -228,10 +228,11 @@ describe('P90 LIVE BUG FIX — Copilot Scroll Isolation & Profile Save Enum Norm
     });
 
     it('normalizes employmentTypes arrays and single strings', () => {
-      assert.deepEqual(
-        normalizeEmploymentTypes(['full-time', 'contract', 'part_time']),
-        ['FULL_TIME', 'CONTRACT', 'PART_TIME']
-      );
+      assert.deepEqual(normalizeEmploymentTypes(['full-time', 'contract', 'part_time']), [
+        'FULL_TIME',
+        'CONTRACT',
+        'PART_TIME',
+      ]);
       assert.deepEqual(normalizeEmploymentTypes('full_time'), ['FULL_TIME']);
       assert.equal(normalizeEmploymentType('internship'), 'INTERNSHIP');
       assert.equal(normalizeEmploymentType('temporary'), 'CONTRACT');
@@ -436,31 +437,15 @@ describe('P90 LIVE BUG FIX — Copilot Scroll Isolation & Profile Save Enum Norm
 
       // Verify canonical storage in profileMetadata
       const savedPrefs = candidateRecord.profileMetadata.careerPreferences;
-      assert.equal(
-        savedPrefs.noticePeriod,
-        'IMMEDIATE',
-        'Database must store canonical IMMEDIATE'
-      );
-      assert.equal(
-        savedPrefs.remotePreference,
-        'ON_SITE',
-        'Database must store canonical ON_SITE'
-      );
+      assert.equal(savedPrefs.noticePeriod, 'IMMEDIATE', 'Database must store canonical IMMEDIATE');
+      assert.equal(savedPrefs.remotePreference, 'ON_SITE', 'Database must store canonical ON_SITE');
       assert.equal(
         savedPrefs.relocationPreference,
         'WILLING_TO_RELOCATE',
         'Database must store canonical WILLING_TO_RELOCATE'
       );
-      assert.equal(
-        savedPrefs.compensationPeriod,
-        'YEARLY',
-        'Database must store canonical YEARLY'
-      );
-      assert.equal(
-        savedPrefs.visaSponsorshipRequired,
-        'NO',
-        'Database must store canonical NO'
-      );
+      assert.equal(savedPrefs.compensationPeriod, 'YEARLY', 'Database must store canonical YEARLY');
+      assert.equal(savedPrefs.visaSponsorshipRequired, 'NO', 'Database must store canonical NO');
 
       // 2. Reload profile via getCareerProfile
       const reloaded = await service.getCareerProfile(baseContext, candidateId);
@@ -512,11 +497,7 @@ describe('P90 LIVE BUG FIX — Copilot Scroll Isolation & Profile Save Enum Norm
       });
 
       // Idempotency flag check
-      assert.match(
-        renderedHtml,
-        /let isSaving = false;/,
-        'Script must declare isSaving lock flag'
-      );
+      assert.match(renderedHtml, /let isSaving = false;/, 'Script must declare isSaving lock flag');
       assert.match(
         renderedHtml,
         /if \(isSaving\) return;/,

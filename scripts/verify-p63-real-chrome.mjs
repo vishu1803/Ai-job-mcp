@@ -27,10 +27,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p63-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9341;
 const FIXTURE_PORT = 3201;
 
@@ -337,11 +339,17 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // 2. Query target real user and candidate
-  const users = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const users = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   const targetUser = users[0];
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
 
-  const candidates = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const candidates = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const targetCandidate = candidates[0];
   if (!targetCandidate) throw new Error('Target candidate not found');
 
@@ -397,7 +405,9 @@ async function run() {
     try {
       const targetsRes = await browserCdp.send('Target.getTargets');
       const swTarget = targetsRes.targetInfos.find(
-        (t) => (t.type === 'service_worker' || t.url?.includes('chrome-extension://')) && t.url?.includes('service-worker.js')
+        (t) =>
+          (t.type === 'service_worker' || t.url?.includes('chrome-extension://')) &&
+          t.url?.includes('service-worker.js')
       );
       if (swTarget) {
         const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
@@ -422,9 +432,16 @@ async function run() {
       try {
         const msg = JSON.parse(raw.toString());
         if (msg.method === 'Runtime.consoleAPICalled') {
-          console.log('   [Tab Console]', msg.params.type, ...msg.params.args.map((a) => a.value ?? a.description));
+          console.log(
+            '   [Tab Console]',
+            msg.params.type,
+            ...msg.params.args.map((a) => a.value ?? a.description)
+          );
         } else if (msg.method === 'Runtime.exceptionThrown') {
-          console.error('   [Tab Exception]', msg.params.exceptionDetails?.exception?.description || msg.params.exceptionDetails?.text);
+          console.error(
+            '   [Tab Exception]',
+            msg.params.exceptionDetails?.exception?.description || msg.params.exceptionDetails?.text
+          );
         }
       } catch {}
     });
@@ -455,11 +472,15 @@ async function run() {
     console.log('\n--- STEP 1: Authenticate & Verify Canonical User Identity in Tab A ---');
     const TAB_A_ID = 6301;
     const TAB_B_ID = 6302;
-    sidebarTabA = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${TAB_A_ID}`);
+    sidebarTabA = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${TAB_A_ID}`
+    );
 
     // Wait for sidebar controller to initialize
     for (let i = 0; i < 30; i++) {
-      const isReady = await sidebarTabA.evaluate(`Boolean(window.__sidebarController)`).catch(() => false);
+      const isReady = await sidebarTabA
+        .evaluate(`Boolean(window.__sidebarController)`)
+        .catch(() => false);
       if (isReady) break;
       await sleep(200);
     }
@@ -478,7 +499,9 @@ async function run() {
     await sleep(500);
 
     const isAuth = await sidebarTabA.evaluate(`window.__sidebarController.isAuthenticated`);
-    const displayedEmail = await sidebarTabA.evaluate(`document.getElementById('userEmail').textContent`);
+    const displayedEmail = await sidebarTabA.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
 
     console.log(`   [Check] Authenticated: ${isAuth}`);
     console.log(`   [Check] Displayed Email: "${displayedEmail}"`);
@@ -505,11 +528,21 @@ async function run() {
     // STEP 2: Verify Calm Extension UX (DESIGN.md Invariants)
     // -------------------------------------------------------------
     console.log('\n--- STEP 2: Verify Calm Extension UX (Hidden Diagnostic Noise) ---');
-    const syncIndicatorHidden = await sidebarTabA.evaluate(`document.getElementById('syncIndicator').classList.contains('hidden')`);
-    const confidenceBadgeHidden = await sidebarTabA.evaluate(`document.getElementById('confidenceBadge').classList.contains('hidden')`);
-    const portalCapabilitiesHidden = await sidebarTabA.evaluate(`document.getElementById('portalCapabilities').classList.contains('hidden')`);
-    const jobIdTagHidden = await sidebarTabA.evaluate(`document.getElementById('jobIdTag').classList.contains('hidden')`);
-    const reanalyzeBtnHidden = await sidebarTabA.evaluate(`document.getElementById('reanalyzeBtn').classList.contains('hidden')`);
+    const syncIndicatorHidden = await sidebarTabA.evaluate(
+      `document.getElementById('syncIndicator').classList.contains('hidden')`
+    );
+    const confidenceBadgeHidden = await sidebarTabA.evaluate(
+      `document.getElementById('confidenceBadge').classList.contains('hidden')`
+    );
+    const portalCapabilitiesHidden = await sidebarTabA.evaluate(
+      `document.getElementById('portalCapabilities').classList.contains('hidden')`
+    );
+    const jobIdTagHidden = await sidebarTabA.evaluate(
+      `document.getElementById('jobIdTag').classList.contains('hidden')`
+    );
+    const reanalyzeBtnHidden = await sidebarTabA.evaluate(
+      `document.getElementById('reanalyzeBtn').classList.contains('hidden')`
+    );
 
     console.log(`   [Calm UX] #syncIndicator hidden: ${syncIndicatorHidden}`);
     console.log(`   [Calm UX] #confidenceBadge hidden: ${confidenceBadgeHidden}`);
@@ -517,7 +550,13 @@ async function run() {
     console.log(`   [Calm UX] #jobIdTag hidden: ${jobIdTagHidden}`);
     console.log(`   [Calm UX] #reanalyzeBtn hidden: ${reanalyzeBtnHidden}`);
 
-    if (!syncIndicatorHidden || !confidenceBadgeHidden || !portalCapabilitiesHidden || !jobIdTagHidden || !reanalyzeBtnHidden) {
+    if (
+      !syncIndicatorHidden ||
+      !confidenceBadgeHidden ||
+      !portalCapabilitiesHidden ||
+      !jobIdTagHidden ||
+      !reanalyzeBtnHidden
+    ) {
       throw new Error('FAILED: Diagnostic noise elements must be hidden in the Calm UX layout!');
     }
     console.log('   >>> INVARIANT VERIFIED: Diagnostic noise is suppressed <<<');
@@ -543,13 +582,19 @@ async function run() {
 
     // Verify 0 server analyze calls made
     const analyzeCallsAfterChatGPT = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
-    console.log(`   [Check] Server /api/extension/analyze-job calls after ChatGPT scan: ${analyzeCallsAfterChatGPT}`);
+    console.log(
+      `   [Check] Server /api/extension/analyze-job calls after ChatGPT scan: ${analyzeCallsAfterChatGPT}`
+    );
     if (analyzeCallsAfterChatGPT !== 0) {
-      throw new Error(`FAILED: Expected 0 analyze calls during ChatGPT scan, got ${analyzeCallsAfterChatGPT}`);
+      throw new Error(
+        `FAILED: Expected 0 analyze calls during ChatGPT scan, got ${analyzeCallsAfterChatGPT}`
+      );
     }
 
     // Verify sidebar shows calm "No Job Detected" or idle state
-    const jobTitleText = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const jobTitleText = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Check] Current Sidebar Job Title: "${jobTitleText}"`);
 
     await sidebarTabA.captureScreenshot('p63-01-chatgpt-non-job.png');
@@ -567,14 +612,21 @@ async function run() {
       })()
     `);
 
-    console.log('   [Check] LinkedIn Feed Detection Result:', JSON.stringify(linkedinFeedDetectionResult));
+    console.log(
+      '   [Check] LinkedIn Feed Detection Result:',
+      JSON.stringify(linkedinFeedDetectionResult)
+    );
     if (linkedinFeedDetectionResult && linkedinFeedDetectionResult.isJobPage === true) {
-      throw new Error('FAILED: LinkedIn Feed (/feed) was falsely classified as an active job page!');
+      throw new Error(
+        'FAILED: LinkedIn Feed (/feed) was falsely classified as an active job page!'
+      );
     }
 
     const analyzeCallsAfterFeed = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
     if (analyzeCallsAfterFeed !== 0) {
-      throw new Error(`FAILED: Expected 0 analyze calls during LinkedIn Feed scan, got ${analyzeCallsAfterFeed}`);
+      throw new Error(
+        `FAILED: Expected 0 analyze calls during LinkedIn Feed scan, got ${analyzeCallsAfterFeed}`
+      );
     }
 
     // -------------------------------------------------------------
@@ -588,24 +640,42 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: 'https://www.linkedin.com/jobs/view/9001',
       provider: 'LINKEDIN',
-      description: 'Apex Scale is seeking a Staff Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
+      description:
+        'Apex Scale is seeking a Staff Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
       portalMetadata: {
         portalName: 'LinkedIn Jobs',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
     // Simulate local detection event received from content script
-    await sidebarTabA.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`);
+    await sidebarTabA.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
     const activeJobA = await sidebarTabA.evaluate(`window.__sidebarController.activeJob`);
-    const displayedTitleA = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
-    const displayedCompanyA = await sidebarTabA.evaluate(`document.getElementById('jobCompany').textContent`);
-    const portalNameA = await sidebarTabA.evaluate(`document.getElementById('portalName').textContent`);
-    const analyzeBtnDisabledA = await sidebarTabA.evaluate(`document.getElementById('analyzeJobBtn').disabled`);
-    const analyzeBtnTextA = await sidebarTabA.evaluate(`document.getElementById('analyzeJobBtn').textContent.trim()`);
+    const displayedTitleA = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const displayedCompanyA = await sidebarTabA.evaluate(
+      `document.getElementById('jobCompany').textContent`
+    );
+    const portalNameA = await sidebarTabA.evaluate(
+      `document.getElementById('portalName').textContent`
+    );
+    const analyzeBtnDisabledA = await sidebarTabA.evaluate(
+      `document.getElementById('analyzeJobBtn').disabled`
+    );
+    const analyzeBtnTextA = await sidebarTabA.evaluate(
+      `document.getElementById('analyzeJobBtn').textContent.trim()`
+    );
     const callsAfterDetectA = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Active Job Title: "${displayedTitleA}"`);
@@ -613,16 +683,24 @@ async function run() {
     console.log(`   [Check] Portal Name Displayed: "${portalNameA}"`);
     console.log(`   [Check] Analyze Button Disabled: ${analyzeBtnDisabledA}`);
     console.log(`   [Check] Analyze Button Text: "${analyzeBtnTextA}"`);
-    console.log(`   [Check] Server /api/extension/analyze-job calls after detection: ${callsAfterDetectA}`);
+    console.log(
+      `   [Check] Server /api/extension/analyze-job calls after detection: ${callsAfterDetectA}`
+    );
 
     if (!displayedTitleA.includes('Staff Backend Architect')) {
-      throw new Error(`Job A title mismatch: expected "Staff Backend Architect", got "${displayedTitleA}"`);
+      throw new Error(
+        `Job A title mismatch: expected "Staff Backend Architect", got "${displayedTitleA}"`
+      );
     }
     if (analyzeBtnDisabledA) {
-      throw new Error('Analyze Job Button should be ENABLED when job is detected and user is authenticated!');
+      throw new Error(
+        'Analyze Job Button should be ENABLED when job is detected and user is authenticated!'
+      );
     }
     if (callsAfterDetectA !== 0) {
-      throw new Error(`CRITICAL VIOLATION: ${callsAfterDetectA} server calls made during detection! Must be 0.`);
+      throw new Error(
+        `CRITICAL VIOLATION: ${callsAfterDetectA} server calls made during detection! Must be 0.`
+      );
     }
 
     console.log('   >>> INVARIANT VERIFIED: Passive detection made ZERO server calls <<<');
@@ -633,10 +711,13 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEP 6: Explicit Analyze Boundary & Double-Click Protection ---');
     // Dispatch runAnalyzeJob twice rapidly
-    await sidebarTabA.evaluate(`
+    await sidebarTabA.evaluate(
+      `
       window.__sidebarController.runAnalyzeJob();
       window.__sidebarController.runAnalyzeJob(); // Double-click attempt
-    `, false);
+    `,
+      false
+    );
 
     // Wait for analysis completion
     for (let i = 0; i < 30; i++) {
@@ -647,9 +728,15 @@ async function run() {
 
     const stateA = await sidebarTabA.evaluate(`window.__sidebarController.stateMachine.state`);
     const callsAfterAnalyzeA = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
-    const matchScoreA = await sidebarTabA.evaluate(`document.getElementById('scoreValue').textContent.trim()`);
-    const analyzeBtnTextAfter = await sidebarTabA.evaluate(`document.getElementById('analyzeJobBtn').textContent.trim()`);
-    const analyzeBtnDisabledAfter = await sidebarTabA.evaluate(`document.getElementById('analyzeJobBtn').disabled`);
+    const matchScoreA = await sidebarTabA.evaluate(
+      `document.getElementById('scoreValue').textContent.trim()`
+    );
+    const analyzeBtnTextAfter = await sidebarTabA.evaluate(
+      `document.getElementById('analyzeJobBtn').textContent.trim()`
+    );
+    const analyzeBtnDisabledAfter = await sidebarTabA.evaluate(
+      `document.getElementById('analyzeJobBtn').disabled`
+    );
 
     console.log(`   [Check] State after analysis: ${stateA}`);
     console.log(`   [Check] Server /api/extension/analyze-job calls: ${callsAfterAnalyzeA}`);
@@ -661,13 +748,19 @@ async function run() {
       throw new Error(`Expected state to be ANALYSIS_READY or APPLICATION_READY, got: ${stateA}`);
     }
     if (callsAfterAnalyzeA !== 1) {
-      throw new Error(`CRITICAL VIOLATION: Double-click protection failed! Expected exactly 1 call, got ${callsAfterAnalyzeA}`);
+      throw new Error(
+        `CRITICAL VIOLATION: Double-click protection failed! Expected exactly 1 call, got ${callsAfterAnalyzeA}`
+      );
     }
     if (analyzeBtnDisabledAfter) {
-      throw new Error('Analyze button should remain enabled allowing user to "Analyze Again" if desired');
+      throw new Error(
+        'Analyze button should remain enabled allowing user to "Analyze Again" if desired'
+      );
     }
 
-    console.log('   >>> INVARIANT VERIFIED: Exactly 1 server call dispatched with double-click protection <<<');
+    console.log(
+      '   >>> INVARIANT VERIFIED: Exactly 1 server call dispatched with double-click protection <<<'
+    );
     await sidebarTabA.captureScreenshot('p63-03-analyze-ready-state.png');
 
     // -------------------------------------------------------------
@@ -681,11 +774,17 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: 'https://www.linkedin.com/jobs/view/9002',
       provider: 'LINKEDIN',
-      description: 'Apex Scale is seeking a Principal Distributed Systems Engineer with Go, Distributed Storage, and Raft.',
+      description:
+        'Apex Scale is seeking a Principal Distributed Systems Engineer with Go, Distributed Storage, and Raft.',
       portalMetadata: {
         portalName: 'LinkedIn Jobs',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
@@ -699,9 +798,15 @@ async function run() {
     `);
     await sleep(500);
 
-    const activeTitleWhilePending = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
-    const pendingNotificationVisible = await sidebarTabA.evaluate(`!document.getElementById('pendingJobNotification').classList.contains('hidden')`);
-    const pendingJobTitleText = await sidebarTabA.evaluate(`document.getElementById('pendingJobTitle').textContent`);
+    const activeTitleWhilePending = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const pendingNotificationVisible = await sidebarTabA.evaluate(
+      `!document.getElementById('pendingJobNotification').classList.contains('hidden')`
+    );
+    const pendingJobTitleText = await sidebarTabA.evaluate(
+      `document.getElementById('pendingJobTitle').textContent`
+    );
     const callsDuringNavigation = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
 
     console.log(`   [Check] Active Job Title (must still be Job A): "${activeTitleWhilePending}"`);
@@ -710,7 +815,9 @@ async function run() {
     console.log(`   [Check] Server analyze calls during navigation: ${callsDuringNavigation}`);
 
     if (!activeTitleWhilePending.includes('Staff Backend Architect')) {
-      throw new Error(`Job A was prematurely replaced before user clicked Rescan! Current: "${activeTitleWhilePending}"`);
+      throw new Error(
+        `Job A was prematurely replaced before user clicked Rescan! Current: "${activeTitleWhilePending}"`
+      );
     }
     if (!pendingNotificationVisible) {
       throw new Error('Expected calm #pendingJobNotification to be visible');
@@ -719,7 +826,9 @@ async function run() {
       throw new Error(`Pending title text mismatch: "${pendingJobTitleText}"`);
     }
     if (callsDuringNavigation !== 1) {
-      throw new Error(`Server analyze call dispatched during SPA navigation! Total calls: ${callsDuringNavigation}`);
+      throw new Error(
+        `Server analyze call dispatched during SPA navigation! Total calls: ${callsDuringNavigation}`
+      );
     }
 
     console.log('   >>> INVARIANT VERIFIED: Job A preserved intact with calm pending notice <<<');
@@ -735,10 +844,16 @@ async function run() {
     `);
     await sleep(500);
 
-    const switchedActiveTitle = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
-    const pendingNoticeHidden = await sidebarTabA.evaluate(`document.getElementById('pendingJobNotification').classList.contains('hidden')`);
+    const switchedActiveTitle = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const pendingNoticeHidden = await sidebarTabA.evaluate(
+      `document.getElementById('pendingJobNotification').classList.contains('hidden')`
+    );
     const callsAfterRescan = await sidebarTabA.evaluate(`window.__serverAnalyzeCalls`);
-    const analyzeBtnTextRescan = await sidebarTabA.evaluate(`document.getElementById('analyzeJobBtn').textContent.trim()`);
+    const analyzeBtnTextRescan = await sidebarTabA.evaluate(
+      `document.getElementById('analyzeJobBtn').textContent.trim()`
+    );
 
     console.log(`   [Check] Switched Active Job Title: "${switchedActiveTitle}"`);
     console.log(`   [Check] Pending Notification Dismissed: ${pendingNoticeHidden}`);
@@ -746,7 +861,9 @@ async function run() {
     console.log(`   [Check] Analyze Button Text: "${analyzeBtnTextRescan}"`);
 
     if (!switchedActiveTitle.includes('Principal Distributed Systems Engineer')) {
-      throw new Error(`Failed to switch active job to Job B via Rescan! Current: "${switchedActiveTitle}"`);
+      throw new Error(
+        `Failed to switch active job to Job B via Rescan! Current: "${switchedActiveTitle}"`
+      );
     }
     if (!pendingNoticeHidden) {
       throw new Error('Pending job notification must be hidden after Rescan');
@@ -755,7 +872,9 @@ async function run() {
       throw new Error(`Auto-analyze triggered on Rescan! Calls jumped to ${callsAfterRescan}`);
     }
 
-    console.log('   >>> INVARIANT VERIFIED: Rescan switched job with ZERO automatic analyze calls <<<');
+    console.log(
+      '   >>> INVARIANT VERIFIED: Rescan switched job with ZERO automatic analyze calls <<<'
+    );
     await sidebarTabA.captureScreenshot('p63-05-rescan-state.png');
 
     // Analyze Job B in Tab A so Tab A enters ANALYSIS_READY
@@ -766,7 +885,9 @@ async function run() {
       if (state === 'ANALYSIS_READY' || state === 'APPLICATION_READY') break;
       await sleep(1000);
     }
-    const tabAStateFinal = await sidebarTabA.evaluate(`window.__sidebarController.stateMachine.state`);
+    const tabAStateFinal = await sidebarTabA.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
     console.log(`   [Tab A] Final State on Job B: ${tabAStateFinal}`);
 
     // -------------------------------------------------------------
@@ -774,9 +895,13 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEP 9: Tab-Scoped Workflows & Lock Isolation (Tab A vs Tab B) ---');
     // Open Tab B sidebar
-    sidebarTabB = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${TAB_B_ID}`);
+    sidebarTabB = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${TAB_B_ID}`
+    );
     for (let i = 0; i < 30; i++) {
-      const isReady = await sidebarTabB.evaluate(`Boolean(window.__sidebarController)`).catch(() => false);
+      const isReady = await sidebarTabB
+        .evaluate(`Boolean(window.__sidebarController)`)
+        .catch(() => false);
       if (isReady) break;
       await sleep(200);
     }
@@ -797,22 +922,36 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: 'http://127.0.0.1:3199/generic-career/job-c',
       provider: 'GENERIC',
-      description: 'CloudMatrix is hiring a Lead SRE with Kubernetes, Terraform, and Observability experience.',
+      description:
+        'CloudMatrix is hiring a Lead SRE with Kubernetes, Terraform, and Observability experience.',
       portalMetadata: {
         portalName: 'Generic Career Portal',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: false, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: false,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
-    await sidebarTabB.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobCData)})`);
+    await sidebarTabB.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobCData)})`
+    );
     await sleep(500);
 
     // Verify Tab B state
     const tabBState = await sidebarTabB.evaluate(`window.__sidebarController.stateMachine.state`);
-    const tabBActiveTitle = await sidebarTabB.evaluate(`document.getElementById('jobTitle').textContent`);
-    const tabBIsLocked = await sidebarTabB.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const tabBAnalyzeBtnDisabled = await sidebarTabB.evaluate(`document.getElementById('analyzeJobBtn').disabled`);
+    const tabBActiveTitle = await sidebarTabB.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const tabBIsLocked = await sidebarTabB.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
+    const tabBAnalyzeBtnDisabled = await sidebarTabB.evaluate(
+      `document.getElementById('analyzeJobBtn').disabled`
+    );
 
     console.log(`   [Tab B] State: ${tabBState}`);
     console.log(`   [Tab B] Active Job Title: "${tabBActiveTitle}"`);
@@ -820,8 +959,12 @@ async function run() {
     console.log(`   [Tab B] Analyze Button Disabled: ${tabBAnalyzeBtnDisabled}`);
 
     // Verify Tab A state is STILL Job B in ANALYSIS_READY and isolated
-    const tabAStateRecheck = await sidebarTabA.evaluate(`window.__sidebarController.stateMachine.state`);
-    const tabAActiveTitleRecheck = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const tabAStateRecheck = await sidebarTabA.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const tabAActiveTitleRecheck = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Tab A Recheck] State: ${tabAStateRecheck}`);
     console.log(`   [Tab A Recheck] Active Job Title: "${tabAActiveTitleRecheck}"`);
 
@@ -835,7 +978,9 @@ async function run() {
       throw new Error('FAILED: Tab B analyze button was disabled by Tab A!');
     }
     if (!tabAActiveTitleRecheck.includes('Principal Distributed Systems Engineer')) {
-      throw new Error(`FAILED: Tab A active title was altered by Tab B! "${tabAActiveTitleRecheck}"`);
+      throw new Error(
+        `FAILED: Tab A active title was altered by Tab B! "${tabAActiveTitleRecheck}"`
+      );
     }
 
     console.log('   >>> INVARIANT VERIFIED: Full tab and workflow lock isolation verified <<<');
@@ -853,9 +998,15 @@ async function run() {
     `);
     await sleep(500);
 
-    const tabBStateAfterReset = await sidebarTabB.evaluate(`window.__sidebarController.stateMachine.state`);
-    const tabAStateAfterReset = await sidebarTabA.evaluate(`window.__sidebarController.stateMachine.state`);
-    const tabAJobAfterReset = await sidebarTabA.evaluate(`document.getElementById('jobTitle').textContent`);
+    const tabBStateAfterReset = await sidebarTabB.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const tabAStateAfterReset = await sidebarTabA.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const tabAJobAfterReset = await sidebarTabA.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
 
     console.log(`   [Tab B] State after reset: ${tabBStateAfterReset}`);
     console.log(`   [Tab A] State after Tab B reset: ${tabAStateAfterReset}`);
@@ -876,7 +1027,6 @@ async function run() {
     console.log('\n================================================================');
     console.log('  ALL PART 63 REAL CHROME CDP VERIFICATION CHECKS PASSED!');
     console.log('================================================================\n');
-
   } finally {
     if (sidebarTabA) await sidebarTabA.close().catch(() => {});
     if (sidebarTabB) await sidebarTabB.close().catch(() => {});
@@ -897,4 +1047,3 @@ run()
     console.error('\n❌ VERIFICATION SCRIPT FAILED:', err);
     process.exit(1);
   });
-

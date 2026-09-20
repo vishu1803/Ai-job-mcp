@@ -51,12 +51,10 @@ export class HirectAdapter {
       '';
 
     const companyEl =
-      doc.querySelector('[class*="company-name"]') ||
-      doc.querySelector('[class*="companyName"]');
+      doc.querySelector('[class*="company-name"]') || doc.querySelector('[class*="companyName"]');
 
     const locationEl =
-      doc.querySelector('[class*="job-location"]') ||
-      doc.querySelector('[class*="location"]');
+      doc.querySelector('[class*="job-location"]') || doc.querySelector('[class*="location"]');
 
     const descEl =
       doc.querySelector('[class*="job-description"]') ||

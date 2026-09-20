@@ -700,7 +700,9 @@ export class JobDiscoveryService {
     const externalJobs = await this._fetchExternalJobs();
     const hasExternalJobs = externalJobs.length > 0;
     const includeSynthetic =
-      params.includeSynthetic !== undefined ? Boolean(params.includeSynthetic) : this.includeSynthetic;
+      params.includeSynthetic !== undefined
+        ? Boolean(params.includeSynthetic)
+        : this.includeSynthetic;
     const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
     const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 
@@ -795,7 +797,9 @@ export class JobDiscoveryService {
     const validated = GetJobPostingInputSchema.parse(params);
     const externalJobs = await this._fetchExternalJobs();
     const includeSynthetic =
-      params.includeSynthetic !== undefined ? Boolean(params.includeSynthetic) : this.includeSynthetic;
+      params.includeSynthetic !== undefined
+        ? Boolean(params.includeSynthetic)
+        : this.includeSynthetic;
     const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
     const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 

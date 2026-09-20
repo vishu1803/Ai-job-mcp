@@ -63,7 +63,10 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
       if (name === 'class' || name === 'className') {
         el.className = val;
         classListSet.clear();
-        val.split(/\s+/).filter(Boolean).forEach((c) => classListSet.add(c));
+        val
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((c) => classListSet.add(c));
       }
     },
     classList: {
@@ -90,11 +93,16 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const normSel = sel.trim().toLowerCase();
 
         // Tag + attribute e.g. h1[class*="title" i]
-        const tagAttrMatch = normSel.match(/^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const tagAttrMatch = normSel.match(
+          /^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (tagAttrMatch) {
           const [, expectedTag, attrName, op, expectedVal] = tagAttrMatch;
           if (node.tagName.toLowerCase() !== expectedTag.toLowerCase()) return false;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -110,7 +118,12 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         }
 
         // Class only
-        if (normSel.startsWith('.') && !normSel.includes('[') && !normSel.includes(' ') && !normSel.slice(1).includes('.')) {
+        if (
+          normSel.startsWith('.') &&
+          !normSel.includes('[') &&
+          !normSel.includes(' ') &&
+          !normSel.slice(1).includes('.')
+        ) {
           return node.classList.contains(normSel.slice(1));
         }
 
@@ -118,14 +131,22 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const tagClassMatch = normSel.match(/^([a-z0-9]+)\.([a-z0-9_-]+)$/i);
         if (tagClassMatch) {
           const [, expectedTag, expectedClass] = tagClassMatch;
-          return node.tagName.toLowerCase() === expectedTag.toLowerCase() && node.classList.contains(expectedClass);
+          return (
+            node.tagName.toLowerCase() === expectedTag.toLowerCase() &&
+            node.classList.contains(expectedClass)
+          );
         }
 
         // Attribute only [attr*="val"] or [attr="val"]
-        const attrMatch = normSel.match(/^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const attrMatch = normSel.match(
+          /^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (attrMatch) {
           const [, attrName, op, expectedVal] = attrMatch;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -167,9 +188,15 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         const m = normSel.match(/\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]/i);
         if (m) {
           const [, attrName, op, expectedVal] = m;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? curr.className : curr.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? curr.className
+              : curr.getAttribute(attrName);
           if (actualVal) {
-            if (!op || (op === '*=' && actualVal.toLowerCase().includes(expectedVal.toLowerCase()))) {
+            if (
+              !op ||
+              (op === '*=' && actualVal.toLowerCase().includes(expectedVal.toLowerCase()))
+            ) {
               return curr;
             }
           }
@@ -238,15 +265,27 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       // Dedicated job details container has actual job title and company
       const dedicatedDetails = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Backend Software Engineer (Remote)'),
-        createMockElement('A', { class: 'company-name', href: '/company/quik-hire/' }, 'Quik Hire Staffing'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Core backend responsibilities...'.repeat(5)),
+        createMockElement(
+          'A',
+          { class: 'company-name', href: '/company/quik-hire/' },
+          'Quik Hire Staffing'
+        ),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Core backend responsibilities...'.repeat(5)
+        ),
       ]);
       body.children.push(mainContent, dedicatedDetails);
 
       const root = findActiveLinkedInJobRoot(doc);
       assert.ok(root, 'Root must be found');
       assert.equal(root.getAttribute('data-view-name'), 'job-details');
-      assert.notEqual(root.id, 'main-content', 'Generic main must not be selected over dedicated container');
+      assert.notEqual(
+        root.id,
+        'main-content',
+        'Generic main must not be selected over dedicated container'
+      );
     });
 
     it('outranks generic main with dedicated [data-testid="lazy-column"]', () => {
@@ -258,7 +297,11 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       const lazyCol = createMockElement('DIV', { 'data-testid': 'lazy-column' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Principal Cloud Architect'),
         createMockElement('A', { class: 'company-name', href: '/company/test/' }, 'Test Corp'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Architecture responsibilities...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Architecture responsibilities...'.repeat(5)
+        ),
       ]);
       body.children.push(mainEl, lazyCol);
 
@@ -276,13 +319,24 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       const { doc, body } = createMockDocument();
       // Container has only a bare h1 that says marketing text and no explicit title class
       const jobRoot = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
-        createMockElement('H1', { class: 'marketing-upsell' }, 'Take the next step in your job search'),
+        createMockElement(
+          'H1',
+          { class: 'marketing-upsell' },
+          'Take the next step in your job search'
+        ),
         createMockElement('A', { href: '/company/quik-hire/' }, 'Quik Hire Staffing'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Backend engineering job description text...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Backend engineering job description text...'.repeat(5)
+        ),
       ]);
       body.children.push(jobRoot);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       // Because marketing h1 has no explicit title class and is not inside top-card,
       // it must NEVER become the job title.
       assert.notEqual(payload.title, 'Take the next step in your job search');
@@ -317,8 +371,16 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
 
     it('rejects headings located below the job description container', () => {
       const { doc, body } = createMockDocument();
-      const titleCandidate = createMockElement('H2', { class: 't-24' }, 'Take the next step in your job search');
-      const descEl = createMockElement('DIV', { id: 'job-details' }, 'Job description content here '.repeat(10));
+      const titleCandidate = createMockElement(
+        'H2',
+        { class: 't-24' },
+        'Take the next step in your job search'
+      );
+      const descEl = createMockElement(
+        'DIV',
+        { id: 'job-details' },
+        'Job description content here '.repeat(10)
+      );
       const root = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
         descEl,
         titleCandidate, // Located below description in document order
@@ -337,11 +399,19 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
   describe('4. Company/Title Pair Validation', () => {
     it('rejects candidate title from outside top card when company is in top card', () => {
       const { doc, body } = createMockDocument();
-      const companyEl = createMockElement('A', { class: 'topcard__org-name-link', href: '/company/quik-hire/' }, 'Quik Hire Staffing');
+      const companyEl = createMockElement(
+        'A',
+        { class: 'topcard__org-name-link', href: '/company/quik-hire/' },
+        'Quik Hire Staffing'
+      );
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
         companyEl,
       ]);
-      const lowerCandidate = createMockElement('H2', { class: 't-24' }, 'Take the next step in your job search');
+      const lowerCandidate = createMockElement(
+        'H2',
+        { class: 't-24' },
+        'Take the next step in your job search'
+      );
       const root = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         topCard,
         lowerCandidate,
@@ -349,20 +419,30 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       body.children.push(root);
 
       const isValid = isValidLinkedInTitleCandidate(lowerCandidate, root, doc, companyEl);
-      assert.equal(isValid, false, 'Candidate title outside top card must be rejected when company is in top card');
+      assert.equal(
+        isValid,
+        false,
+        'Candidate title outside top card must be rejected when company is in top card'
+      );
     });
 
     it('accepts title candidate when it resides inside the same top card as company', () => {
       const { doc, body } = createMockDocument();
-      const companyEl = createMockElement('A', { class: 'topcard__org-name-link', href: '/company/quik-hire/' }, 'Quik Hire Staffing');
-      const titleEl = createMockElement('H1', { class: 'job-title' }, 'Backend Software Engineer (Remote)');
+      const companyEl = createMockElement(
+        'A',
+        { class: 'topcard__org-name-link', href: '/company/quik-hire/' },
+        'Quik Hire Staffing'
+      );
+      const titleEl = createMockElement(
+        'H1',
+        { class: 'job-title' },
+        'Backend Software Engineer (Remote)'
+      );
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
         titleEl,
         companyEl,
       ]);
-      const root = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
-        topCard,
-      ]);
+      const root = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [topCard]);
       body.children.push(root);
 
       const isValid = isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl);
@@ -380,11 +460,18 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       });
       // DOM contains dedicated root and description but missing explicit title element
       const root = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Requirements and details...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Requirements and details...'.repeat(5)
+        ),
       ]);
       body.children.push(root);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.title, 'Backend Software Engineer (Remote)');
       assert.equal(payload.company, 'Quik Hire Staffing');
       assert.equal(payload.titleSelectorUsed, 'DOCUMENT_TITLE');
@@ -395,11 +482,18 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
         title: 'Backend Software Engineer (Remote) - Quik Hire Staffing | LinkedIn',
       });
       const root = createMockElement('DIV', { 'data-view-name': 'job-details' }, '', [
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Requirements and details...'.repeat(5)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Requirements and details...'.repeat(5)
+        ),
       ]);
       body.children.push(root);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.title, 'Backend Software Engineer (Remote)');
       assert.equal(payload.company, 'Quik Hire Staffing');
       assert.equal(payload.titleSelectorUsed, 'DOCUMENT_TITLE');
@@ -412,14 +506,30 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
   describe('6. Diagnostics Extraction & Detector Forwarding', () => {
     it('populates root, title, company, and description selector diagnostics on payload', () => {
       const { doc, body } = createMockDocument();
-      const jobRoot = createMockElement('DIV', { 'data-view-name': 'job-details', class: 'jobs-details' }, '', [
-        createMockElement('H1', { class: 'job-title' }, 'Backend Software Engineer (Remote)'),
-        createMockElement('A', { class: 'company-name', href: '/company/quik-hire/' }, 'Quik Hire Staffing'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Job description content here...'.repeat(5)),
-      ]);
+      const jobRoot = createMockElement(
+        'DIV',
+        { 'data-view-name': 'job-details', class: 'jobs-details' },
+        '',
+        [
+          createMockElement('H1', { class: 'job-title' }, 'Backend Software Engineer (Remote)'),
+          createMockElement(
+            'A',
+            { class: 'company-name', href: '/company/quik-hire/' },
+            'Quik Hire Staffing'
+          ),
+          createMockElement(
+            'DIV',
+            { class: 'show-more-less-html__markup' },
+            'Job description content here...'.repeat(5)
+          ),
+        ]
+      );
       body.children.push(jobRoot);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.selectedRootSelector, '[data-view-name="job-details"]');
       assert.equal((payload.selectedRootTag || '').toLowerCase(), 'div');
       assert.equal(payload.selectedRootClass, 'jobs-details');
@@ -428,7 +538,10 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       assert.equal(payload.descriptionSelectorUsed, '.show-more-less-html__markup');
 
       // Forwarded via JobPageDetector
-      const detected = JobPageDetector.detect(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const detected = JobPageDetector.detect(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(detected.selectedRootSelector, '[data-view-name="job-details"]');
       assert.equal(detected.titleSelectorUsed, payload.titleSelectorUsed);
       assert.equal(detected.companySelectorUsed, payload.companySelectorUsed);
@@ -448,9 +561,17 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
       // Below the description, there is a promo / marketing banner
       const topCard = createMockElement('DIV', { class: 'job-details-jobs-unified-top-card' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Backend Software Engineer (Remote)'),
-        createMockElement('A', { class: 'job-details-jobs-unified-top-card__company-name', href: '/company/quik-hire/' }, 'Quik Hire Staffing'),
+        createMockElement(
+          'A',
+          { class: 'job-details-jobs-unified-top-card__company-name', href: '/company/quik-hire/' },
+          'Quik Hire Staffing'
+        ),
       ]);
-      const descSection = createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Backend Software Engineer role with Node.js and distributed systems '.repeat(5));
+      const descSection = createMockElement(
+        'DIV',
+        { class: 'show-more-less-html__markup' },
+        'Backend Software Engineer role with Node.js and distributed systems '.repeat(5)
+      );
       const marketingBanner = createMockElement('DIV', { class: 'premium-upsell' }, '', [
         createMockElement('H2', {}, 'Take the next step in your job search'),
       ]);
@@ -461,12 +582,13 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
         marketingBanner,
       ]);
 
-      const mainContent = createMockElement('MAIN', { id: 'main-content' }, '', [
-        jobDetailsRoot,
-      ]);
+      const mainContent = createMockElement('MAIN', { id: 'main-content' }, '', [jobDetailsRoot]);
       body.children.push(mainContent);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4466448213/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4466448213/'
+      );
       assert.equal(payload.title, 'Backend Software Engineer (Remote)');
       assert.equal(payload.company, 'Quik Hire Staffing');
       assert.notEqual(payload.title, 'Take the next step in your job search');
@@ -497,7 +619,10 @@ describe('P74: LinkedIn Robust Title Extraction & Marketing Heading Suppression'
 
     it('GitHub repo returns canHandle=false', () => {
       const { doc } = createMockDocument({ url: 'https://github.com/vishu1803/Ai-job-mcp' });
-      assert.equal(LinkedInAdapter.canHandle(doc, 'https://github.com/vishu1803/Ai-job-mcp'), false);
+      assert.equal(
+        LinkedInAdapter.canHandle(doc, 'https://github.com/vishu1803/Ai-job-mcp'),
+        false
+      );
     });
   });
 });

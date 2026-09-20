@@ -47,7 +47,8 @@ describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
       leetcode: 'https://leetcode.com/u/vishu1803',
       portfolioUrls: ['https://vishu.dev'],
     },
-    summary: 'Full-stack & backend developer specializing in Python, FastAPI, Node.js, and PostgreSQL.',
+    summary:
+      'Full-stack & backend developer specializing in Python, FastAPI, Node.js, and PostgreSQL.',
     experience: [
       {
         company: 'Apex Tech Labs',
@@ -104,7 +105,10 @@ describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
         provenanceStatus: 'CLAIMED',
       },
     ],
-    certifications: ['AWS Certified Solutions Architect - Associate', 'Certified Kubernetes Administrator'],
+    certifications: [
+      'AWS Certified Solutions Architect - Associate',
+      'Certified Kubernetes Administrator',
+    ],
     skills: ['Python', 'FastAPI', 'Node.js', 'PostgreSQL', 'Docker', 'Redis', 'TypeScript'],
     provenance: 'RESUME_CLAIM',
   };

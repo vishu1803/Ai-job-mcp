@@ -14,7 +14,14 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { inArray } from 'drizzle-orm';
 import { db, closeDatabase } from '../../src/db/index.js';
-import { tenants, users, candidates, skills, candidateSkills, projects } from '../../src/db/schema.js';
+import {
+  tenants,
+  users,
+  candidates,
+  skills,
+  candidateSkills,
+  projects,
+} from '../../src/db/schema.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 
 describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
@@ -34,7 +41,8 @@ describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
     title: 'Senior Distributed Systems Engineer',
     location: 'Remote',
     applicationUrl: 'https://boards.greenhouse.io/stripe/jobs/roundtrip-101',
-    description: 'We are seeking a Senior Distributed Systems Engineer experienced in Node.js, PostgreSQL, and event architectures.',
+    description:
+      'We are seeking a Senior Distributed Systems Engineer experienced in Node.js, PostgreSQL, and event architectures.',
     requirements: ['Node.js', 'PostgreSQL', 'TypeScript'],
     skills: ['Node.js', 'PostgreSQL', 'TypeScript'],
     retrievedAt: new Date().toISOString(),
@@ -104,7 +112,9 @@ describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
       problemSolving: {
         hasSection: true,
         profileUrl: 'https://leetcode.com/morganharper',
-        bullets: ['Solved algorithmic optimization challenges in dynamic programming and graph traversal.'],
+        bullets: [
+          'Solved algorithmic optimization challenges in dynamic programming and graph traversal.',
+        ],
         provenanceStatus: 'CLAIMED',
       },
       portfolioLinks: [
@@ -211,9 +221,18 @@ describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
 
     assert.ok(preparedPkg, 'Prepared package must be returned');
     assert.ok(preparedPkg.packageHash, 'Package must have a deterministic SHA-256 hash');
-    assert.ok(preparedPkg.tailoredResume.structuredResume, 'tailoredResume.structuredResume must be present');
-    assert.ok(preparedPkg.tailoredResume.tailoringPlan, 'tailoredResume.tailoringPlan must be present');
-    assert.ok(preparedPkg.tailoredResume.evidenceValidationReceipt, 'tailoredResume.evidenceValidationReceipt must be present');
+    assert.ok(
+      preparedPkg.tailoredResume.structuredResume,
+      'tailoredResume.structuredResume must be present'
+    );
+    assert.ok(
+      preparedPkg.tailoredResume.tailoringPlan,
+      'tailoredResume.tailoringPlan must be present'
+    );
+    assert.ok(
+      preparedPkg.tailoredResume.evidenceValidationReceipt,
+      'tailoredResume.evidenceValidationReceipt must be present'
+    );
 
     const originalStructured = preparedPkg.tailoredResume.structuredResume;
     const originalPlan = preparedPkg.tailoredResume.tailoringPlan;
@@ -229,7 +248,11 @@ describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
     );
 
     assert.ok(retrievedApp, 'Retrieved application record must exist');
-    assert.strictEqual(retrievedApp.packageHash, preparedPkg.packageHash, 'Package hash must match');
+    assert.strictEqual(
+      retrievedApp.packageHash,
+      preparedPkg.packageHash,
+      'Package hash must match'
+    );
 
     const retrievedPkg = retrievedApp.applicationPackage;
     assert.ok(retrievedPkg, 'applicationPackage payload must exist in database row');
@@ -275,7 +298,10 @@ describe('Integration: P16-001F-1 Structured Resume Snapshot Roundtrip', () => {
     assert.strictEqual(structured.education.length, 1);
     assert.strictEqual(structured.education[0].institution, 'University of California, Berkeley');
     assert.strictEqual(structured.certifications.length, 1);
-    assert.strictEqual(structured.certifications[0].name, 'AWS Certified Solutions Architect - Professional');
+    assert.strictEqual(
+      structured.certifications[0].name,
+      'AWS Certified Solutions Architect - Professional'
+    );
     assert.strictEqual(structured.dsa?.hasSection, true);
     assert.strictEqual(structured.dsa?.profileUrl, 'https://leetcode.com/morganharper');
   });

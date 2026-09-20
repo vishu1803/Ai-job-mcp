@@ -27,14 +27,29 @@ import { countDistinctCanonicalFacts } from './candidate-artifact-content.servic
 
 const SECTION_HEADING_PATTERNS = Object.freeze({
   SUMMARY: [/\bprofessional\s+summary\b/i, /\bsummary\b/i, /\bprofile\b/i, /\bobjective\b/i],
-  SKILLS: [/\btechnical\s+skills\b/i, /\bcore\s+competencies\b/i, /\bskills\b/i, /\bcompetencies\b/i],
-  PROJECTS: [/\btechnical\s+projects\b/i, /\bselected\s+projects\b/i, /\bfeatured\s+projects\b/i, /\bprojects\b/i],
+  SKILLS: [
+    /\btechnical\s+skills\b/i,
+    /\bcore\s+competencies\b/i,
+    /\bskills\b/i,
+    /\bcompetencies\b/i,
+  ],
+  PROJECTS: [
+    /\btechnical\s+projects\b/i,
+    /\bselected\s+projects\b/i,
+    /\bfeatured\s+projects\b/i,
+    /\bprojects\b/i,
+  ],
   DSA: [
     /\bproblem\s+solving\s*(?:&|and)\s*algorithmic\s+practice\b/i,
     /\bproblem\s+solving\b/i,
     /\balgorithmic\s+practice\b/i,
   ],
-  EXPERIENCE: [/\bprofessional\s+experience\b/i, /\bexperience\b/i, /\bemployment\b/i, /\bwork\s+history\b/i],
+  EXPERIENCE: [
+    /\bprofessional\s+experience\b/i,
+    /\bexperience\b/i,
+    /\bemployment\b/i,
+    /\bwork\s+history\b/i,
+  ],
   EDUCATION: [/\beducation\b/i, /\bacademic\b/i, /\bqualifications\b/i],
   CERTIFICATIONS: [/\bcertifications\b/i, /\bcertificates\b/i, /\bprofessional\s+development\b/i],
 });
@@ -43,7 +58,15 @@ const SECTION_HEADING_PATTERNS = Object.freeze({
  * Expected canonical section ordering for ATS-safe resumes.
  * Sections not present are simply skipped; ordering is checked among those found.
  */
-const CANONICAL_SECTION_ORDER = ['SUMMARY', 'SKILLS', 'PROJECTS', 'DSA', 'EXPERIENCE', 'EDUCATION', 'CERTIFICATIONS'];
+const CANONICAL_SECTION_ORDER = [
+  'SUMMARY',
+  'SKILLS',
+  'PROJECTS',
+  'DSA',
+  'EXPERIENCE',
+  'EDUCATION',
+  'CERTIFICATIONS',
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Geometry Analyzer
@@ -81,7 +104,9 @@ export class PdfGeometryAnalyzer {
     // 1. Page count detection (with PDF 1.5 object stream support)
     const pageCount = this._detectPageCount(pdfBuffer);
     if (pageCount === null || pageCount <= 0) {
-      return this._failureReport('PAGE_COUNT_UNDETERMINED: Could not reliably determine PDF page count');
+      return this._failureReport(
+        'PAGE_COUNT_UNDETERMINED: Could not reliably determine PDF page count'
+      );
     }
 
     // 2. Extract text for section analysis
@@ -101,7 +126,7 @@ export class PdfGeometryAnalyzer {
     const utilizationResult = this._estimateContentUtilization(extractedText, pageCount);
 
     // 6. DSA presence verification (strict heading match only)
-    const dsaRendered = detectedSections.some(s => s.type === 'DSA');
+    const dsaRendered = detectedSections.some((s) => s.type === 'DSA');
 
     // 7. Spacing consistency (text-based heuristic)
     const spacingConsistency = this._evaluateSpacingConsistency(extractedText, detectedSections);
@@ -114,13 +139,10 @@ export class PdfGeometryAnalyzer {
     );
 
     // 9. Section presence validation against expected
-    const sectionPresenceReport = this._validateSectionPresence(
-      detectedSections,
-      expectedSections
-    );
+    const sectionPresenceReport = this._validateSectionPresence(detectedSections, expectedSections);
 
     // 10. Dual-check verification for optional sections (Content Strategy vs Physical PDF)
-    const expectedNorm = expectedSections.map(s => String(s).toUpperCase());
+    const expectedNorm = expectedSections.map((s) => String(s).toUpperCase());
     const dsaExpected = expectedNorm.includes('DSA') || expectedNorm.includes('PROBLEM_SOLVING');
     let dsaVerificationStatus = 'PASS';
     if (dsaExpected && !dsaRendered) {
@@ -327,13 +349,17 @@ export class PdfGeometryAnalyzer {
         const match = normalizedText.match(pattern);
         if (match) {
           // Check if this heading hasn't been claimed by a higher-priority section
-          const alreadyFound = sections.some(s => s.type === sectionType);
+          const alreadyFound = sections.some((s) => s.type === sectionType);
           if (!alreadyFound) {
             sections.push({
               type: sectionType,
               heading: match[0],
               position: match.index,
-              contentLength: this._estimateSectionContentLength(normalizedText, match.index, sectionType),
+              contentLength: this._estimateSectionContentLength(
+                normalizedText,
+                match.index,
+                sectionType
+              ),
             });
           }
           break; // Use first matching pattern for each section type
@@ -358,7 +384,7 @@ export class PdfGeometryAnalyzer {
       for (const pattern of patterns) {
         const rest = text.slice(startPosition + 1);
         const match = rest.match(pattern);
-        if (match && (startPosition + 1 + match.index) < nextSectionPos) {
+        if (match && startPosition + 1 + match.index < nextSectionPos) {
           nextSectionPos = startPosition + 1 + match.index;
         }
       }
@@ -379,7 +405,7 @@ export class PdfGeometryAnalyzer {
    * @returns {{valid: boolean, order: string[], violations: string[]}}
    */
   _verifySectionOrdering(detectedSections, expectedSectionOrder = null) {
-    const actualOrder = detectedSections.map(s => s.type);
+    const actualOrder = detectedSections.map((s) => s.type);
     const violations = [];
 
     // 1. Detect duplicate section occurrences
@@ -392,9 +418,10 @@ export class PdfGeometryAnalyzer {
     }
 
     // 2. Resolve reference ordering (package-specific or canonical fallback)
-    const referenceOrder = Array.isArray(expectedSectionOrder) && expectedSectionOrder.length > 0
-      ? expectedSectionOrder.map(s => String(s).toUpperCase()).filter(s => s !== 'HEADER')
-      : CANONICAL_SECTION_ORDER;
+    const referenceOrder =
+      Array.isArray(expectedSectionOrder) && expectedSectionOrder.length > 0
+        ? expectedSectionOrder.map((s) => String(s).toUpperCase()).filter((s) => s !== 'HEADER')
+        : CANONICAL_SECTION_ORDER;
 
     // 3. Check pairwise ordering against reference order
     for (let i = 0; i < actualOrder.length; i++) {
@@ -430,7 +457,7 @@ export class PdfGeometryAnalyzer {
    */
   _estimateContentUtilization(text, pageCount) {
     const cleanText = text.replace(/\s+/g, ' ').trim();
-    const wordCount = cleanText.split(' ').filter(w => w.length > 0).length;
+    const wordCount = cleanText.split(' ').filter((w) => w.length > 0).length;
     const charCount = cleanText.length;
     const wordsPerPage = wordCount / Math.max(1, pageCount);
 
@@ -464,7 +491,7 @@ export class PdfGeometryAnalyzer {
    */
   _evaluateSpacingConsistency(text, detectedSections) {
     const findings = [];
-    const lines = text.split('\n').map(l => l.trim());
+    const lines = text.split('\n').map((l) => l.trim());
 
     // Check for excessive consecutive blank lines (indicator of large gaps)
     let maxConsecutiveBlanks = 0;
@@ -479,14 +506,16 @@ export class PdfGeometryAnalyzer {
     }
 
     if (maxConsecutiveBlanks > 5) {
-      findings.push(`Detected ${maxConsecutiveBlanks} consecutive blank lines — possible large spacing gap`);
+      findings.push(
+        `Detected ${maxConsecutiveBlanks} consecutive blank lines — possible large spacing gap`
+      );
     }
 
     // Check section content lengths are reasonably balanced (no one section dominating)
     if (detectedSections.length >= 3) {
       const lengths = detectedSections
-        .filter(s => s.contentLength > 0)
-        .map(s => s.contentLength);
+        .filter((s) => s.contentLength > 0)
+        .map((s) => s.contentLength);
 
       if (lengths.length >= 2) {
         const maxLen = Math.max(...lengths);
@@ -497,7 +526,7 @@ export class PdfGeometryAnalyzer {
       }
     }
 
-    const status = findings.length === 0 ? 'PASS' : (findings.length <= 2 ? 'WARN' : 'FAIL');
+    const status = findings.length === 0 ? 'PASS' : findings.length <= 2 ? 'WARN' : 'FAIL';
 
     return { status, findings };
   }
@@ -602,7 +631,9 @@ export class PdfGeometryAnalyzer {
     let baseTranslateY = 0;
 
     // Check for base coordinate transform cm: e.g. "1 0 0 1 72 720 cm"
-    const cmMatch = streamStr.match(/([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+cm/);
+    const cmMatch = streamStr.match(
+      /([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+cm/
+    );
     if (cmMatch) {
       baseTranslateY = parseFloat(cmMatch[6]) || 0;
     }
@@ -682,7 +713,9 @@ export class PdfGeometryAnalyzer {
     }));
 
     // 3. Experience bullets count
-    const experience = Array.isArray(structuredResume.experience) ? structuredResume.experience : [];
+    const experience = Array.isArray(structuredResume.experience)
+      ? structuredResume.experience
+      : [];
     const experienceBulletsCount = experience.reduce(
       (sum, exp) => sum + (Array.isArray(exp.bullets) ? exp.bullets.length : 0),
       0
@@ -741,9 +774,7 @@ export class PdfGeometryAnalyzer {
     const maxRealisticBullets = projects.length * 3;
     const targetFactCount = Math.min(candidateFactsAvailable, maxRealisticBullets);
     const factUtilizationRatio =
-      targetFactCount > 0
-        ? Math.round((factsRendered / targetFactCount) * 1000) / 1000
-        : 1.0;
+      targetFactCount > 0 ? Math.round((factsRendered / targetFactCount) * 1000) / 1000 : 1.0;
 
     return {
       pageCount,

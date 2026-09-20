@@ -56,7 +56,8 @@ export function renderErrorPage({
     </svg>`;
 
   if (state === UserFacingStateEnum.NOT_FOUND || statusCode === 404) {
-    stateBadge = '<span class="badge badge-neutral" style="font-size:0.75rem;">PAGE NOT FOUND (404)</span>';
+    stateBadge =
+      '<span class="badge badge-neutral" style="font-size:0.75rem;">PAGE NOT FOUND (404)</span>';
     iconSvg = `
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
@@ -64,14 +65,16 @@ export function renderErrorPage({
         <line x1="8" y1="11" x2="14" y2="11"></line>
       </svg>`;
   } else if (state === UserFacingStateEnum.AUTHORIZATION_ERROR || statusCode === 403) {
-    stateBadge = '<span class="badge badge-missing" style="font-size:0.75rem;">ACCESS RESTRICTED (403)</span>';
+    stateBadge =
+      '<span class="badge badge-missing" style="font-size:0.75rem;">ACCESS RESTRICTED (403)</span>';
     iconSvg = `
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
       </svg>`;
   } else if (state === UserFacingStateEnum.AI_FAILURE) {
-    stateBadge = '<span class="badge badge-cyan" style="font-size:0.75rem;">AI COPILOT TEMPORARY STATUS</span>';
+    stateBadge =
+      '<span class="badge badge-cyan" style="font-size:0.75rem;">AI COPILOT TEMPORARY STATUS</span>';
     iconSvg = `
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2"></rect>
@@ -80,7 +83,8 @@ export function renderErrorPage({
         <path d="M8 15h8"></path>
       </svg>`;
   } else if (state === UserFacingStateEnum.SERVER_FAILURE || statusCode >= 500) {
-    stateBadge = '<span class="badge badge-missing" style="font-size:0.75rem;">SERVER ISSUE (500)</span>';
+    stateBadge =
+      '<span class="badge badge-missing" style="font-size:0.75rem;">SERVER ISSUE (500)</span>';
     iconSvg = `
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
@@ -89,7 +93,9 @@ export function renderErrorPage({
       </svg>`;
   }
 
-  const primaryActionLabel = escapeHtml(recoveryAction?.label || (statusCode === 404 ? 'Go to Dashboard' : 'Try again'));
+  const primaryActionLabel = escapeHtml(
+    recoveryAction?.label || (statusCode === 404 ? 'Go to Dashboard' : 'Try again')
+  );
   const primaryActionHref = recoveryAction?.href
     ? escapeHtml(recoveryAction.href)
     : statusCode === 404

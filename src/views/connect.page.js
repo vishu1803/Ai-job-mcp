@@ -652,4 +652,3 @@ export function renderConnectPage({
     user,
   });
 }
-

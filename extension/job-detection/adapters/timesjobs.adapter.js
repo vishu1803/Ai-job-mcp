@@ -27,10 +27,7 @@ export class TimesJobsAdapter {
     } catch {
       /* fall through to DOM heuristics */
     }
-    return Boolean(
-      doc.querySelector('#jobDescription') ||
-      doc.querySelector('.job-detail-head')
-    );
+    return Boolean(doc.querySelector('#jobDescription') || doc.querySelector('.job-detail-head'));
   }
 
   /**
@@ -72,9 +69,7 @@ export class TimesJobsAdapter {
       doc.querySelector('[class*="jobDesc"]') ||
       doc.querySelector('.jd-desc');
 
-    const title = titleEl
-      ? titleEl.textContent.trim()
-      : metaContent('meta[property="og:title"]');
+    const title = titleEl ? titleEl.textContent.trim() : metaContent('meta[property="og:title"]');
     const company = companyEl
       ? companyEl.textContent.trim()
       : metaContent('meta[property="og:site_name"]') || 'Company';

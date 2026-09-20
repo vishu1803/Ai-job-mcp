@@ -35,7 +35,7 @@ export const DETECTION_REQUEST_TIMEOUT_MS = 7000;
 if (DETECTION_REQUEST_TIMEOUT_MS <= DETECTION_MAX_DURATION_MS) {
   throw new Error(
     `Detection timeout invariant violated: DETECTION_REQUEST_TIMEOUT_MS (${DETECTION_REQUEST_TIMEOUT_MS}) ` +
-    `must be strictly greater than DETECTION_MAX_DURATION_MS (${DETECTION_MAX_DURATION_MS})`
+      `must be strictly greater than DETECTION_MAX_DURATION_MS (${DETECTION_MAX_DURATION_MS})`
   );
 }
 
@@ -54,4 +54,3 @@ export const HYDRATION_DELAYS = [100, 250, 500, 900, 1500, 2500, 4000, 6000, 800
  * Used in: extension/content/content-script.js
  */
 export const HYDRATION_MAX_LIFETIME_MS = 10000;
-

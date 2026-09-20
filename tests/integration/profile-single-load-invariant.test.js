@@ -89,9 +89,7 @@ describe('profile pipeline single-load invariants (real DB, read-only)', () => {
       const statements = cap.stop();
       const evidenceStmts = statements.filter((s) => s.includes('from "evidence_items"'));
       const projectResStmts = statements.filter((s) => s.includes('from "project_resources"'));
-      const candidateSkillsStmts = statements.filter((s) =>
-        s.includes('from "candidate_skills"')
-      );
+      const candidateSkillsStmts = statements.filter((s) => s.includes('from "candidate_skills"'));
       assert.equal(candidateSkillsStmts.length, 1, 'candidate_skills must be loaded exactly once');
       assert.equal(projectResStmts.length, 1, 'project_resources must be a single batched query');
       // One candidate-level evidence fetch (skills) + one batched project-evidence fetch
@@ -114,8 +112,11 @@ describe('profile pipeline single-load invariants (real DB, read-only)', () => {
       const reuseOnly = cap2.stop();
 
       assert.equal(reuseOnly.length, 0, 'reused-profileView path must run no additional queries');
-      assert.deepEqual(JSON.parse(JSON.stringify(reused)), JSON.parse(JSON.stringify(fresh)),
-        'career profile output must be identical between fresh-load and reused-profileView');
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(reused)),
+        JSON.parse(JSON.stringify(fresh)),
+        'career profile output must be identical between fresh-load and reused-profileView'
+      );
       assert.ok(reusedStatements.length > 0, 'sanity: fresh load actually queried');
       assert.equal(reused.candidateId, FIXTURE_CANDIDATE_ID);
     } finally {
@@ -132,13 +133,15 @@ describe('profile pipeline single-load invariants (real DB, read-only)', () => {
         { candidateProfileService: svc }
       );
       const statements = cap.stop();
-      const candidateSkillsStmts = statements.filter((s) =>
-        s.includes('from "candidate_skills"')
-      );
+      const candidateSkillsStmts = statements.filter((s) => s.includes('from "candidate_skills"'));
       const projectResStmts = statements.filter((s) => s.includes('from "project_resources"'));
       const evidenceStmts = statements.filter((s) => s.includes('from "evidence_items"'));
       assert.equal(candidateSkillsStmts.length, 1, 'handler must load candidate_skills once');
-      assert.equal(projectResStmts.length, 1, 'handler must run one batched project_resources query');
+      assert.equal(
+        projectResStmts.length,
+        1,
+        'handler must run one batched project_resources query'
+      );
       assert.equal(evidenceStmts.length, 2, 'handler must run 2 batched evidence queries');
       assert.ok(!hasLegacyPerProjectEvidence(statements));
       assert.equal(output.candidate.id, FIXTURE_CANDIDATE_ID);

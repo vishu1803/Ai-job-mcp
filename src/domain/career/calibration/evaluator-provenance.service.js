@@ -9,10 +9,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import {
-  EvaluatorProvenanceSchema,
-  EvaluatorTypeEnum,
-} from './multimodel-evaluation.schemas.js';
+import { EvaluatorProvenanceSchema, EvaluatorTypeEnum } from './multimodel-evaluation.schemas.js';
 
 /**
  * Computes deterministic SHA-256 hash for string or buffer data.
@@ -194,15 +191,23 @@ export function createEvaluatorProvenanceRecord(params) {
   }
 
   // Prevent mislabeling LLMs as human recruiters
-  if (evaluatorType !== 'LLM_EXTERNAL' && ['claude', 'gemini', 'grok'].includes(provider.toLowerCase())) {
-    throw new Error(`External LLM provider "${provider}" cannot be labeled as "${evaluatorType}". Must be LLM_EXTERNAL.`);
+  if (
+    evaluatorType !== 'LLM_EXTERNAL' &&
+    ['claude', 'gemini', 'grok'].includes(provider.toLowerCase())
+  ) {
+    throw new Error(
+      `External LLM provider "${provider}" cannot be labeled as "${evaluatorType}". Must be LLM_EXTERNAL.`
+    );
   }
 
   // Compute raw response hash
-  const rawString = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(canonicalizeJson(rawResponse));
+  const rawString =
+    typeof rawResponse === 'string' ? rawResponse : JSON.stringify(canonicalizeJson(rawResponse));
   const outputDigest = computeSha256(rawString);
 
-  const derivedSourceType = sourceType ?? (evaluatorType === 'LLM_EXTERNAL' ? 'SYNTHETIC_LLM_EVALUATOR' : 'VERIFIED_HUMAN_EVALUATOR');
+  const derivedSourceType =
+    sourceType ??
+    (evaluatorType === 'LLM_EXTERNAL' ? 'SYNTHETIC_LLM_EVALUATOR' : 'VERIFIED_HUMAN_EVALUATOR');
 
   const record = {
     evaluationId,

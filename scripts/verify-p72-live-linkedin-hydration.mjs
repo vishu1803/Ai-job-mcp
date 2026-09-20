@@ -39,13 +39,16 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p72-live-hydration-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\24129254-6ef8-4f60-afce-133116b0bc39';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\24129254-6ef8-4f60-afce-133116b0bc39';
 const CDP_PORT = 9388;
 
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 const LIVE_JOB_B_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -104,7 +107,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -134,7 +139,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch Chrome MV3
   console.log('\n3. Spawning real Chrome MV3 browser instance on port', CDP_PORT, '...');
@@ -182,7 +189,9 @@ async function main() {
     await swCdp.send('Runtime.enable');
 
     // Open Test Tab on Live Appinventiv Job
-    console.log(`\n4. Navigating real browser tab to Live Appinventiv LinkedIn Job: ${LIVE_APPINVENTIV_URL}...`);
+    console.log(
+      `\n4. Navigating real browser tab to Live Appinventiv LinkedIn Job: ${LIVE_APPINVENTIV_URL}...`
+    );
     const tabTarget = await browserCdp.send('Target.createTarget', { url: LIVE_APPINVENTIV_URL });
     const freshList = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
     const tabItem = freshList.find((item) => item.id === tabTarget.targetId);
@@ -192,7 +201,9 @@ async function main() {
     await testTabCdp.send('Page.enable');
     await testTabCdp.send('Runtime.enable');
 
-    console.log('   Waiting 7 seconds for initial LinkedIn page load and content script hydration...');
+    console.log(
+      '   Waiting 7 seconds for initial LinkedIn page load and content script hydration...'
+    );
     await sleep(7000);
 
     const tabsInChrome = await swCdp.evaluate(`
@@ -295,17 +306,23 @@ async function main() {
     // Verify Title and Company
     console.log('   Checking Title and Company...');
     if (sidebarState.activeJob.title !== 'Software Engineer') {
-      throw new Error(`FAILED: Expected title 'Software Engineer', got '${sidebarState.activeJob.title}'`);
+      throw new Error(
+        `FAILED: Expected title 'Software Engineer', got '${sidebarState.activeJob.title}'`
+      );
     }
     if (!sidebarState.activeJob.company.includes('Appinventiv')) {
-      throw new Error(`FAILED: Expected company 'Appinventiv', got '${sidebarState.activeJob.company}'`);
+      throw new Error(
+        `FAILED: Expected company 'Appinventiv', got '${sidebarState.activeJob.company}'`
+      );
     }
     console.log('   ✔ Title = Software Engineer, Company = Appinventiv confirmed');
 
     // Verify Description Hydration
     console.log('   Checking Description Hydration...');
     if (sidebarState.activeJob.descriptionLength < 50) {
-      throw new Error(`FAILED: Description length is ${sidebarState.activeJob.descriptionLength} < 50`);
+      throw new Error(
+        `FAILED: Description length is ${sidebarState.activeJob.descriptionLength} < 50`
+      );
     }
     if (sidebarState.activeJob.analysisReady !== true) {
       throw new Error('FAILED: activeJob.analysisReady must be true');
@@ -352,10 +369,14 @@ async function main() {
       throw new Error('FAILED: Did not receive /api/extension/analyze-job response within 20s');
     }
     if (lastAnalyzeResponse.status !== 200) {
-      throw new Error(`FAILED: /api/extension/analyze-job failed with HTTP ${lastAnalyzeResponse.status}`);
+      throw new Error(
+        `FAILED: /api/extension/analyze-job failed with HTTP ${lastAnalyzeResponse.status}`
+      );
     }
     if (serverAnalyzeCalls !== 1) {
-      throw new Error(`FAILED: Expected exactly 1 analyze call after click, saw ${serverAnalyzeCalls}`);
+      throw new Error(
+        `FAILED: Expected exactly 1 analyze call after click, saw ${serverAnalyzeCalls}`
+      );
     }
     console.log(`   ✔ Analysis succeeded with HTTP ${lastAnalyzeResponse.status}`);
     console.log(`   ✔ Exactly 1 analyze call made: ${serverAnalyzeCalls}`);
@@ -417,7 +438,10 @@ async function main() {
       };
     })()`);
     console.log('   Job A Back State:', JSON.stringify(jobABackState, null, 2));
-    assert(jobABackState.activeJobTitle === 'Software Engineer', 'Must detect Software Engineer on navigation back');
+    assert(
+      jobABackState.activeJobTitle === 'Software Engineer',
+      'Must detect Software Engineer on navigation back'
+    );
     assert(jobABackState.activeJobCompany.includes('Appinventiv'), 'Must detect Appinventiv');
     console.log('   ✔ Navigation back to Job A successful with fresh state');
 

@@ -36,7 +36,9 @@ export function buildApplicationArtifactFilename({
   const clampedTitle = safeTitle.length > 60 ? safeTitle.substring(0, 60).trim() : safeTitle;
 
   const base = `${clampedName} - ${clampedTitle}`;
-  const normalizedType = String(artifactType || '').toLowerCase().replace(/_/g, '-');
+  const normalizedType = String(artifactType || '')
+    .toLowerCase()
+    .replace(/_/g, '-');
 
   let suffix = '';
   let defaultExt = 'pdf';

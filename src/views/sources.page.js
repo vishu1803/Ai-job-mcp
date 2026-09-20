@@ -58,7 +58,7 @@ export function renderSourcesPage({
 }) {
   const isConnected = Boolean(
     gitHubConnection &&
-      (gitHubConnection.status === 'ACTIVE' || gitHubConnection.connected === true)
+    (gitHubConnection.status === 'ACTIVE' || gitHubConnection.connected === true)
   );
   const repoList =
     Array.isArray(resources) && resources.length > 0
@@ -426,6 +426,7 @@ export function renderSourcesPage({
     content,
     activeNav: 'sources',
     user,
-    description: 'Manage your active resume, connected GitHub repositories, and career evidence sources.',
+    description:
+      'Manage your active resume, connected GitHub repositories, and career evidence sources.',
   });
 }

@@ -8,15 +8,19 @@ const profileDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-c
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const port = 9333;
 
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'about:blank'
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'about:blank',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -37,25 +41,28 @@ async function cdpSend(ws, method, params = {}) {
 async function run() {
   await sleep(1500);
   const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-  const pageTarget = list.find(t => t.type === 'page');
-  
+  const pageTarget = list.find((t) => t.type === 'page');
+
   const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
-  await new Promise(r => ws.addEventListener('open', r));
-  
+  await new Promise((r) => ws.addEventListener('open', r));
+
   await cdpSend(ws, 'Page.enable');
   await cdpSend(ws, 'Page.navigate', { url: 'https://example.com' });
   await sleep(2000);
-  
+
   const screenshotRes = await cdpSend(ws, 'Page.captureScreenshot', { format: 'png' });
   const buffer = Buffer.from(screenshotRes.data, 'base64');
-  const outPath = path.resolve('C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\a789c68e-737f-4844-bcf5-3784465634bd', 'test-example-screenshot.png');
+  const outPath = path.resolve(
+    'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\a789c68e-737f-4844-bcf5-3784465634bd',
+    'test-example-screenshot.png'
+  );
   fs.writeFileSync(outPath, buffer);
   console.log(`Saved screenshot: ${outPath} (${buffer.length} bytes)`);
-  
+
   p.kill('SIGKILL');
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error(err);
   p.kill('SIGKILL');
   process.exit(1);

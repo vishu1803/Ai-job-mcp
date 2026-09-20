@@ -86,7 +86,8 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
     };
     defaultAiResumeContentGenerator.generateResumeAiContent = async () => ({
       success: true,
-      summary: 'Experienced software engineer specializing in Python, AWS, and distributed systems.',
+      summary:
+        'Experienced software engineer specializing in Python, AWS, and distributed systems.',
       projectBullets: {
         all: [
           'Engineered resilient task processing workers using Python and AWS.',
@@ -384,7 +385,11 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
     const pkgPayload = pkgRow.packagePayload;
     assert.equal(pkgPayload.candidateId, candidateA.id);
     assert.equal(pkgPayload.candidateEmail, userA.email);
-    assert.equal(pkgPayload.candidatePhone, '+91 7905087928', 'Candidate phone from profile must be preserved');
+    assert.equal(
+      pkgPayload.candidatePhone,
+      '+91 7905087928',
+      'Candidate phone from profile must be preserved'
+    );
   });
 
   // ---------------------------------------------------------------------------

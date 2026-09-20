@@ -52,10 +52,16 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
     // profile-aggregation assertions are deterministic.
     await ensureFixtureEvidenceSkills(db, fixture);
     await ensureEvidenceSkill(db, fixture, {
-      slug: 'docker', name: 'Docker', category: 'CLOUD_DEVOPS', provenance: 'VERIFIED',
+      slug: 'docker',
+      name: 'Docker',
+      category: 'CLOUD_DEVOPS',
+      provenance: 'VERIFIED',
     });
     await ensureEvidenceSkill(db, fixture, {
-      slug: 'redis', name: 'Redis', category: 'DATABASE', provenance: 'CORROBORATED',
+      slug: 'redis',
+      name: 'Redis',
+      category: 'DATABASE',
+      provenance: 'CORROBORATED',
     });
 
     // Add candidate-declared skills (distinct from the evidence-seeded Docker/Redis)
@@ -64,11 +70,10 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
     for (const slug of ['nginx', 'kafka']) {
       const [cat] = (await db.execute(sql`SELECT id FROM skill_catalog WHERE slug = ${slug}`)).rows;
       if (cat) {
-        await service.addAdditionalSkill(
-          { tenantId: fixture.tenantId },
-          fixture.candidateId,
-          { catalogSkillId: cat.id, proficiency: 'PROFICIENT' }
-        );
+        await service.addAdditionalSkill({ tenantId: fixture.tenantId }, fixture.candidateId, {
+          catalogSkillId: cat.id,
+          proficiency: 'PROFICIENT',
+        });
       }
     }
   });
@@ -99,7 +104,12 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
     });
 
     it('identifies child packages with explicit parent mappings for evidence remapping', () => {
-      const children = ['tailwind-merge', 'socket-io-client', 'drizzle-orm-node-postgres', 'lucide-react'];
+      const children = [
+        'tailwind-merge',
+        'socket-io-client',
+        'drizzle-orm-node-postgres',
+        'lucide-react',
+      ];
       for (const child of children) {
         const norm = TaxonomyMapper.normalize(child);
         assert.ok(
@@ -117,7 +127,6 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
       assert.equal(norm.category, 'NOISE');
       assert.equal(norm.isSkillWorthy, false);
     });
-
 
     it('rate-limits unknown-term telemetry on consecutive calls', () => {
       clearObservedTermsCache();
@@ -141,7 +150,7 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
       const allSkills = profile.topSkills || [];
       assert.ok(Array.isArray(allSkills), 'Profile should have topSkills array');
 
-      const slugs = allSkills.map(s => s.slug);
+      const slugs = allSkills.map((s) => s.slug);
       const contaminatedSamples = [
         'clsx',
         'tailwind-merge',
@@ -187,7 +196,10 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
       assert.ok(skillsBySlug.has('docker'), 'Docker should be indexed');
       assert.ok(skillsBySlug.has('postgresql'), 'Postgresql should be indexed');
       assert.ok(!skillsBySlug.has('clsx'), 'clsx must NEVER be indexed into job-fit matching');
-      assert.ok(!skillsBySlug.has('cookie-parser'), 'cookie-parser must NEVER be indexed into job-fit matching');
+      assert.ok(
+        !skillsBySlug.has('cookie-parser'),
+        'cookie-parser must NEVER be indexed into job-fit matching'
+      );
     });
   });
 
@@ -223,7 +235,7 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
       `);
 
       assert.ok(declared.rows.length >= 2, 'Fixture should have at least 2 user-declared skills');
-      const declaredSlugs = declared.rows.map(r => r.slug);
+      const declaredSlugs = declared.rows.map((r) => r.slug);
       assert.ok(declaredSlugs.includes('nginx'), 'User-declared NGINX must remain');
       assert.ok(declaredSlugs.includes('kafka'), 'User-declared Kafka must remain');
       for (const r of declared.rows) {

@@ -50,8 +50,14 @@ B.S. in Computer Science - University of Washington (2015 – 2019)
       },
     });
 
-    assert.ok(report.passed, `Expected Word PDF to pass ATS parseability, got score ${report.atsParseabilityScore}`);
-    assert.ok(report.atsParseabilityScore >= 80, `Expected score >= 80, got ${report.atsParseabilityScore}`);
+    assert.ok(
+      report.passed,
+      `Expected Word PDF to pass ATS parseability, got score ${report.atsParseabilityScore}`
+    );
+    assert.ok(
+      report.atsParseabilityScore >= 80,
+      `Expected score >= 80, got ${report.atsParseabilityScore}`
+    );
 
     const contactCheck = report.checks.find((c) => c.checkId === 'CONTACT_COMPLETENESS');
     assert.ok(contactCheck?.passed, 'Expected contact completeness to pass');

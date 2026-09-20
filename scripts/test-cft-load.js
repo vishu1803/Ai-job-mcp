@@ -1,21 +1,26 @@
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const chromePath = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const chromePath =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const profileDir = 'C:\\Users\\VISHW\\AppData\\Local\\Temp\\cft-profile-clean';
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const port = 9333;
 
 console.log('Spawning Chrome for Testing with extension...');
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'about:blank'
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'about:blank',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -55,7 +60,7 @@ async function run() {
 
   console.log('Connected to Chrome for Testing:', v.Browser);
   const ws = new WebSocket(v.webSocketDebuggerUrl);
-  await new Promise(r => ws.addEventListener('open', r));
+  await new Promise((r) => ws.addEventListener('open', r));
 
   const t = await cdpSend(ws, 'Target.getTargets');
   console.log('Targets in Chrome for Testing:');
@@ -67,7 +72,7 @@ async function run() {
   process.exit(0);
 }
 
-run().catch(e => {
+run().catch((e) => {
   console.error(e);
   p.kill('SIGKILL');
   process.exit(1);

@@ -31,11 +31,14 @@ describe('P17: End-to-End Evidence Grounded Resume Intelligence & PDF Quality', 
     // Verify Core Invariant: Every project bullet must have valid composedFromFactIds pointing to inventory
     const inventoryFactIds = new Set(inventory.facts.map((f) => f.factId || f.id));
     for (const p of doc.projects) {
-      for (const b of (p.bullets || [])) {
+      for (const b of p.bullets || []) {
         assert.ok(Array.isArray(b.composedFromFactIds), 'Must have composedFromFactIds array');
         assert.ok(b.composedFromFactIds.length > 0, 'Must trace to at least one canonical fact');
         for (const fid of b.composedFromFactIds) {
-          assert.ok(inventoryFactIds.has(fid), `Bullet factId ${fid} must exist in canonical fact inventory`);
+          assert.ok(
+            inventoryFactIds.has(fid),
+            `Bullet factId ${fid} must exist in canonical fact inventory`
+          );
         }
       }
     }

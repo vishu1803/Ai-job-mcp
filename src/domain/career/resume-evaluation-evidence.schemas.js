@@ -19,11 +19,7 @@ export const RequirementTypeEnum = z.enum([
   'RESPONSIBILITY',
 ]);
 
-export const RequirementImportanceEnum = z.enum([
-  'REQUIRED',
-  'PREFERRED',
-  'OPTIONAL',
-]);
+export const RequirementImportanceEnum = z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']);
 
 export const CandidateAuthorizationEnum = z.enum([
   'AUTHORIZED',
@@ -74,7 +70,10 @@ export const ResumeEvaluationEvidenceSchema = z.strictObject({
     })
     .optional(),
   explanation: z.string().trim().min(1),
-  recordedAt: z.string().datetime().default(() => new Date().toISOString()),
+  recordedAt: z
+    .string()
+    .datetime()
+    .default(() => new Date().toISOString()),
 });
 
 export const ResumeEvaluationTraceabilityReportSchema = z.strictObject({
@@ -85,5 +84,8 @@ export const ResumeEvaluationTraceabilityReportSchema = z.strictObject({
   totalPossibleScore: z.number().min(0.0),
   evidenceItems: z.array(ResumeEvaluationEvidenceSchema).default([]),
   overallConfidence: z.number().min(0.0).max(1.0),
-  generatedAt: z.string().datetime().default(() => new Date().toISOString()),
+  generatedAt: z
+    .string()
+    .datetime()
+    .default(() => new Date().toISOString()),
 });

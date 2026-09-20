@@ -27,7 +27,8 @@
  */
 
 const INTERN_REGEX = /(?<![\w-])intern(?:ship)?\b/i;
-const CONTRACT_REGEX = /(?<![\w-])contract(?:or|ing)?\b|\bcontractual\s+basis\b|\bcontract\s+(?:role|position|basis|engagement)\b/i;
+const CONTRACT_REGEX =
+  /(?<![\w-])contract(?:or|ing)?\b|\bcontractual\s+basis\b|\bcontract\s+(?:role|position|basis|engagement)\b/i;
 
 /**
  * Normalizes an explicit employment-type string (e.g. from DOM criteria or JSON-LD).
@@ -42,7 +43,8 @@ export function normalizeEmploymentType(value) {
 
   if (clean.includes('intern')) return 'INTERN';
   if (clean.includes('part') && clean.includes('time')) return 'PART_TIME';
-  if (clean.includes('contract') || clean.includes('temporary') || clean.includes('freelance')) return 'CONTRACT';
+  if (clean.includes('contract') || clean.includes('temporary') || clean.includes('freelance'))
+    return 'CONTRACT';
   if (clean.includes('full') && clean.includes('time')) return 'FULL_TIME';
 
   return null;

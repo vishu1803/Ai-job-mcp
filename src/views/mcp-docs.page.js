@@ -849,7 +849,8 @@ export const TOOLS_CATALOG = [
         arguments: { applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e' },
       },
     },
-    safetyNotes: 'Destructive for unsubmitted applications only. Submitted applications must be archived instead.',
+    safetyNotes:
+      'Destructive for unsubmitted applications only. Submitted applications must be archived instead.',
   },
 
   // Category 5: Job Discovery & Application Workflow (8 tools)
@@ -1766,7 +1767,8 @@ export function renderMcpDocsPage({ user = null } = {}) {
                     </div>
                   `
                           )
-                          .join('')}
+                          .join('')
+                  }
                 </div>
               </div>
 

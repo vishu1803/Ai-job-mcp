@@ -74,9 +74,7 @@ describe('Job-Conditioned Resume Heading Suite', () => {
       { name: 'PostgreSQL', slug: 'postgresql' },
       { name: 'Docker', slug: 'docker' },
     ],
-    projects: [
-      { name: 'API Server', technologies: ['Python', 'FastAPI', 'PostgreSQL'] },
-    ],
+    projects: [{ name: 'API Server', technologies: ['Python', 'FastAPI', 'PostgreSQL'] }],
     experience: [],
     education: [{ institution: 'State University', degree: 'B.S. Computer Science' }],
   };
@@ -91,9 +89,7 @@ describe('Job-Conditioned Resume Heading Suite', () => {
       { name: 'TypeScript', slug: 'typescript' },
       { name: 'CSS', slug: 'css' },
     ],
-    projects: [
-      { name: 'UI Kit', technologies: ['React', 'TypeScript', 'Next.js'] },
-    ],
+    projects: [{ name: 'UI Kit', technologies: ['React', 'TypeScript', 'Next.js'] }],
     experience: [],
     education: [{ institution: 'State University', degree: 'B.S. Computer Science' }],
   };
@@ -134,10 +130,7 @@ describe('Job-Conditioned Resume Heading Suite', () => {
         normalizeTargetRoleTitle('Full-Stack Engineer (Remote)'),
         'Full-Stack Engineer'
       );
-      assert.strictEqual(
-        normalizeTargetRoleTitle('Full Stack Developer'),
-        'Full-Stack Developer'
-      );
+      assert.strictEqual(normalizeTargetRoleTitle('Full Stack Developer'), 'Full-Stack Developer');
     });
 
     it('strips employer attachments and trailing commas', () => {
@@ -217,11 +210,12 @@ describe('Job-Conditioned Resume Heading Suite', () => {
         'Distributed Systems Engineer — High-Throughput Services',
         'DevOps / Platform Engineer — Cloud Infrastructure',
       ];
-      const headings = jobs.map((title) =>
-        deriveTargetRoleHeading({
-          candidateProfile: candidateWithBroadEvidence,
-          jobPosting: { title },
-        }).heading
+      const headings = jobs.map(
+        (title) =>
+          deriveTargetRoleHeading({
+            candidateProfile: candidateWithBroadEvidence,
+            jobPosting: { title },
+          }).heading
       );
       const uniqueHeadings = new Set(headings);
       assert.strictEqual(

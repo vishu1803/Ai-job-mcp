@@ -86,10 +86,7 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
       appsHtml.includes('Tracking applications organizes your interview timeline'),
       'Must explain why tracking applications matters'
     );
-    assert.ok(
-      appsHtml.includes('+ Track Application'),
-      'Must include track application action'
-    );
+    assert.ok(appsHtml.includes('+ Track Application'), 'Must include track application action');
 
     // Resumes empty state
     const resumesHtml = renderResumesPage({ user: dummyUser, resumesList: [] });
@@ -134,7 +131,10 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     });
     assert.ok(layoutHtml.includes('portal-toast-container'), 'Must render toast container');
     assert.ok(layoutHtml.includes('portal-toast-success'), 'Must define success toast styling');
-    assert.ok(layoutHtml.includes('window.UserFacingState'), 'Must expose UserFacingState client object');
+    assert.ok(
+      layoutHtml.includes('window.UserFacingState'),
+      'Must expose UserFacingState client object'
+    );
   });
 
   // 4. Validation Error State
@@ -165,8 +165,14 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
 
     // Check that layout script includes highlightFieldErrors with focus
     const layoutHtml = renderLayout({ title: 'T', content: '' });
-    assert.ok(layoutHtml.includes('highlightFieldErrors'), 'Layout must define highlightFieldErrors');
-    assert.ok(layoutHtml.includes('validation-summary-card'), 'Layout must define validation-summary-card');
+    assert.ok(
+      layoutHtml.includes('highlightFieldErrors'),
+      'Layout must define highlightFieldErrors'
+    );
+    assert.ok(
+      layoutHtml.includes('validation-summary-card'),
+      'Layout must define validation-summary-card'
+    );
     assert.ok(layoutHtml.includes('firstField.focus()'), 'Must focus first invalid field');
   });
 
@@ -234,7 +240,10 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     // Verify offline banner element in layout
     const layoutHtml = renderLayout({ title: 'T', content: '' });
     assert.ok(layoutHtml.includes('portalOfflineBanner'), 'Layout must include offline banner');
-    assert.ok(layoutHtml.includes('updateOnlineStatus'), 'Layout must include online status listener');
+    assert.ok(
+      layoutHtml.includes('updateOnlineStatus'),
+      'Layout must include online status listener'
+    );
   });
 
   // 10. Server Failure State (Reassurance & Support ID)
@@ -311,18 +320,9 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
         false,
         `Sanitized string must not leak technical details: ${sanitizedMsg}`
       );
-      assert.ok(
-        !sanitizedMsg.includes('SELECT'),
-        'Must not contain SQL keywords'
-      );
-      assert.ok(
-        !sanitizedMsg.includes('ZodError'),
-        'Must not contain internal class names'
-      );
-      assert.ok(
-        !sanitizedMsg.includes('127.0.0.1'),
-        'Must not contain IP addresses or ports'
-      );
+      assert.ok(!sanitizedMsg.includes('SELECT'), 'Must not contain SQL keywords');
+      assert.ok(!sanitizedMsg.includes('ZodError'), 'Must not contain internal class names');
+      assert.ok(!sanitizedMsg.includes('127.0.0.1'), 'Must not contain IP addresses or ports');
     }
   });
 
@@ -343,7 +343,10 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
       html.includes('Your information') && html.includes('been lost'),
       'Must render reassurance message'
     );
-    assert.ok(html.includes('Support Reference: req-support-test-999'), 'Must render support ID badge');
+    assert.ok(
+      html.includes('Support Reference: req-support-test-999'),
+      'Must render support ID badge'
+    );
     assert.ok(html.includes('Try again'), 'Must render recovery CTA button');
     assert.ok(html.includes('role="alert"'), 'Must have accessible ARIA alert role');
     assert.ok(html.includes('Go to Dashboard'), 'Must render dashboard fallback link');

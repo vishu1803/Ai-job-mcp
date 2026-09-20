@@ -16,13 +16,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { buildApp } from '../../src/app.js';
 import { db, closeDatabase } from '../../src/db/index.js';
-import {
-  tenants,
-  users,
-  candidates,
-  projects,
-  jobApplications,
-} from '../../src/db/schema.js';
+import { tenants, users, candidates, projects, jobApplications } from '../../src/db/schema.js';
 import { createSession } from '../../src/security/session.service.js';
 
 describe('P59: Handoff Idempotency & Session Verification Integration Suite', () => {
@@ -64,69 +58,81 @@ Requirements:
     const tenantId = crypto.randomUUID();
     createdTenantIds.push(tenantId);
 
-    [tenant] = await db.insert(tenants).values({
-      id: tenantId,
-      name: 'P59 Idempotency Org',
-      slug: `p59-org-${Date.now()}`,
-    }).returning();
+    [tenant] = await db
+      .insert(tenants)
+      .values({
+        id: tenantId,
+        name: 'P59 Idempotency Org',
+        slug: `p59-org-${Date.now()}`,
+      })
+      .returning();
 
     const userId = crypto.randomUUID();
-    [user] = await db.insert(users).values({
-      id: userId,
-      tenantId: tenant.id,
-      email: `p59-user-${Date.now()}@example.test`,
-      displayName: 'Morgan Systems Architect',
-      role: 'MEMBER',
-      status: 'ACTIVE',
-    }).returning();
+    [user] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        tenantId: tenant.id,
+        email: `p59-user-${Date.now()}@example.test`,
+        displayName: 'Morgan Systems Architect',
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      })
+      .returning();
 
     const candidateId = crypto.randomUUID();
-    [candidate] = await db.insert(candidates).values({
-      id: candidateId,
-      tenantId: tenant.id,
-      userId: user.id,
-      displayName: 'Morgan Systems Architect',
-      canonicalEmail: user.email,
-      status: 'ACTIVE',
-      profileMetadata: {
-        userCustom: {},
-        systemInferred: { onboardingState: 'COMPLETED' },
-        resumeData: {
-          identity: { fullName: 'Morgan Systems Architect', email: user.email },
-          skills: ['Node.js', 'Docker', 'Redis', 'PostgreSQL', 'TypeScript'],
-          projects: [
-            {
-              title: 'High-Throughput-Message-Broker',
-              slug: 'message-broker',
-              description: 'Distributed streaming message broker handling millions of events/sec',
-              skills: ['Node.js', 'Redis', 'Docker'],
-              bullets: [
-                'Designed streaming message broker architecture using Node.js and Redis clustering',
-                'Orchestrated multi-region container deployments with Docker',
-              ],
-            },
-          ],
+    [candidate] = await db
+      .insert(candidates)
+      .values({
+        id: candidateId,
+        tenantId: tenant.id,
+        userId: user.id,
+        displayName: 'Morgan Systems Architect',
+        canonicalEmail: user.email,
+        status: 'ACTIVE',
+        profileMetadata: {
+          userCustom: {},
+          systemInferred: { onboardingState: 'COMPLETED' },
+          resumeData: {
+            identity: { fullName: 'Morgan Systems Architect', email: user.email },
+            skills: ['Node.js', 'Docker', 'Redis', 'PostgreSQL', 'TypeScript'],
+            projects: [
+              {
+                title: 'High-Throughput-Message-Broker',
+                slug: 'message-broker',
+                description: 'Distributed streaming message broker handling millions of events/sec',
+                skills: ['Node.js', 'Redis', 'Docker'],
+                bullets: [
+                  'Designed streaming message broker architecture using Node.js and Redis clustering',
+                  'Orchestrated multi-region container deployments with Docker',
+                ],
+              },
+            ],
+          },
         },
-      },
-    }).returning();
+      })
+      .returning();
 
     // 2. Seed verified portfolio project
-    [project1] = await db.insert(projects).values({
-      id: crypto.randomUUID(),
-      tenantId: tenant.id,
-      candidateId: candidate.id,
-      name: 'High-Throughput-Message-Broker',
-      slug: 'message-broker',
-      projectType: 'SERVICE',
-      provenanceStatus: 'VERIFIED',
-      verificationStatus: 'VERIFIED',
-      metadata: {
-        skills: ['Node.js', 'Redis', 'Docker', 'PostgreSQL'],
-        languages: ['TypeScript', 'JavaScript'],
-        frameworks: ['Node.js'],
-        databases: ['Redis', 'PostgreSQL'],
-      },
-    }).returning();
+    [project1] = await db
+      .insert(projects)
+      .values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        name: 'High-Throughput-Message-Broker',
+        slug: 'message-broker',
+        projectType: 'SERVICE',
+        provenanceStatus: 'VERIFIED',
+        verificationStatus: 'VERIFIED',
+        metadata: {
+          skills: ['Node.js', 'Redis', 'Docker', 'PostgreSQL'],
+          languages: ['TypeScript', 'JavaScript'],
+          frameworks: ['Node.js'],
+          databases: ['Redis', 'PostgreSQL'],
+        },
+      })
+      .returning();
 
     // 3. Create active session
     session = await createSession(db, {
@@ -230,7 +236,11 @@ Requirements:
 
     assert.strictEqual(secondRes.statusCode, 200);
     const secondData = JSON.parse(secondRes.payload);
-    assert.strictEqual(secondData.applicationId, existingAppId, 'Must reuse the exact same application ID!');
+    assert.strictEqual(
+      secondData.applicationId,
+      existingAppId,
+      'Must reuse the exact same application ID!'
+    );
 
     // Call prepare-handoff a third time (e.g. sidebar reload or second user click)
     const thirdRes = await app.inject({
@@ -255,7 +265,11 @@ Requirements:
       .select()
       .from(jobApplications)
       .where(eq(jobApplications.tenantId, tenant.id));
-    assert.strictEqual(finalApps.length, 1, 'Idempotency invariant: zero duplicate applications created');
+    assert.strictEqual(
+      finalApps.length,
+      1,
+      'Idempotency invariant: zero duplicate applications created'
+    );
   });
 
   it('4. POST /auth/logout revokes session, causing session endpoint to report NOT_AUTHENTICATED', async () => {

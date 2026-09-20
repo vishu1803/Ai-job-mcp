@@ -41,10 +41,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p68-live-linkedin-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\60a23d1d-49b1-4a06-b500-a5a1e32127d3';
 const CDP_PORT = 9367;
 
 const LIVE_JOB_A_URL = 'https://www.linkedin.com/jobs/view/4419969671/';
@@ -108,7 +110,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -137,7 +141,9 @@ async function main() {
     tenantId: canonicalUser.tenantId,
   });
   const sessionToken = session.rawToken;
-  console.log(`   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`);
+  console.log(
+    `   Session created for user ${canonicalUser.id}, token: ${sessionToken.slice(0, 16)}...`
+  );
 
   // Step 3: Launch Chrome MV3
   console.log('\n3. Spawning real Chrome MV3 browser instance on port', CDP_PORT, '...');
@@ -332,8 +338,12 @@ async function main() {
       };
 
       cycleRecords.push(record);
-      console.log(`   Detected: ${record.detected} (${record.title} | ${record.company || '—'}) in ${record.latencyMs}ms`);
-      console.log(`   Sidebar Title: "${record.activeSidebarTitle}", Company: "${record.activeSidebarCompany}"`);
+      console.log(
+        `   Detected: ${record.detected} (${record.title} | ${record.company || '—'}) in ${record.latencyMs}ms`
+      );
+      console.log(
+        `   Sidebar Title: "${record.activeSidebarTitle}", Company: "${record.activeSidebarCompany}"`
+      );
       console.log(`   Analyze-Job Calls so far: ${record.analyzeCalls}`);
       return record;
     }
@@ -348,7 +358,9 @@ async function main() {
         window.__sidebarController._requestDetectionFromTab();
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p68-01-live-linkedin-job-a-cycle1.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p68-01-live-linkedin-job-a-cycle1.png')
+    );
 
     // Cycle 2: Hard reload Job A
     await recordCycle(2, 'Hard Reload Job A', async () => {
@@ -358,7 +370,9 @@ async function main() {
         window.__sidebarController._requestDetectionFromTab();
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p68-02-live-linkedin-job-a-reload.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p68-02-live-linkedin-job-a-reload.png')
+    );
 
     // Cycle 3: Second reload Job A
     await recordCycle(3, 'Second Reload Job A', async () => {
@@ -397,7 +411,9 @@ async function main() {
         window.__sidebarController.rescan();
       `);
     });
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p68-03-live-linkedin-job-b-cycle6.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p68-03-live-linkedin-job-b-cycle6.png')
+    );
 
     // Cycle 7: Switch away to GitHub and back to Job B
     await recordCycle(7, 'Switch away to GitHub and back to Job B', async () => {
@@ -454,7 +470,10 @@ async function main() {
         uiTitle: document.getElementById('jobTitle')?.textContent?.trim() || '',
       })
     `);
-    console.log('   Tab race state:', tabRaceState.activeJob === null ? 'PASS (Stale result discarded cleanly)' : 'FAIL');
+    console.log(
+      '   Tab race state:',
+      tabRaceState.activeJob === null ? 'PASS (Stale result discarded cleanly)' : 'FAIL'
+    );
     if (tabRaceState.activeJob !== null) {
       throw new Error('Tab switch race failed: stale job adopted on wrong tab');
     }
@@ -488,7 +507,9 @@ async function main() {
     console.log('   Feed activeJob:', feedState.activeJob);
     console.log('   Feed UI Title:', feedState.uiTitle);
     console.log('   Feed UI Company:', feedState.uiCompany);
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p68-04-live-linkedin-nonjob-cleared.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p68-04-live-linkedin-nonjob-cleared.png')
+    );
 
     if (feedState.activeJob !== null) {
       throw new Error('Non-job feed regression failed: active job was not cleared');
@@ -530,7 +551,9 @@ async function main() {
     console.log('   Workflow state:', analyzeResult.state);
     console.log('   Total server calls to /api/extension/analyze-job:', serverAnalyzeCalls);
     console.log('   Matched skills count:', analyzeResult.matchedSkillsCount);
-    await sidebarCdp.captureScreenshot(path.join(SCREENSHOT_DIR, 'p68-05-live-linkedin-analyzed-single-call.png'));
+    await sidebarCdp.captureScreenshot(
+      path.join(SCREENSHOT_DIR, 'p68-05-live-linkedin-analyzed-single-call.png')
+    );
 
     if (serverAnalyzeCalls !== 1) {
       throw new Error(`Server boundary failed: expected exactly 1 call, got ${serverAnalyzeCalls}`);
@@ -542,16 +565,18 @@ async function main() {
     console.log('\n=================================================================');
     console.log('P68 REAL LINKEDIN STRESS VERIFICATION RESULTS TABLE');
     console.log('=================================================================');
-    console.table(cycleRecords.map((r) => ({
-      Cycle: r.cycle,
-      Description: r.description,
-      'Ext ID': r.externalJobId,
-      Detected: r.detected ? 'YES' : 'NO',
-      Title: r.title.length > 30 ? r.title.slice(0, 30) + '...' : r.title,
-      Company: r.company || '—',
-      'Latency (ms)': r.latencyMs,
-      'Analyze Calls': r.analyzeCalls,
-    })));
+    console.table(
+      cycleRecords.map((r) => ({
+        Cycle: r.cycle,
+        Description: r.description,
+        'Ext ID': r.externalJobId,
+        Detected: r.detected ? 'YES' : 'NO',
+        Title: r.title.length > 30 ? r.title.slice(0, 30) + '...' : r.title,
+        Company: r.company || '—',
+        'Latency (ms)': r.latencyMs,
+        'Analyze Calls': r.analyzeCalls,
+      }))
+    );
 
     console.log('\n>>> P68 REAL LINKEDIN STRESS VERIFICATION PASSED WITH 100% SUCCESS <<<');
   } finally {

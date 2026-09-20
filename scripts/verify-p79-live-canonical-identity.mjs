@@ -26,14 +26,17 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p79-authority-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
 const CDP_PORT = 9460;
 
 const LIVE_QUIK_HIRE_URL = 'https://www.linkedin.com/jobs/view/4466448213/';
-const LIVE_APPINVENTIV_URL = 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
+const LIVE_APPINVENTIV_URL =
+  'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430';
 const LIVE_CHATGPT_URL = 'https://chatgpt.com/';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -70,7 +73,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 25000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 15000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 15000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -114,7 +118,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -287,7 +293,9 @@ async function main() {
         }))()
       `);
       if (tabAState?.domTitle && tabAState.domTitle !== '—') {
-        console.log(`   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`);
+        console.log(
+          `   [T+${i}s] Tab A Rendered: "${tabAState.domTitle}" at "${tabAState.domCompany}"`
+        );
         break;
       }
     }
@@ -313,7 +321,9 @@ async function main() {
         })()
       `);
       if (btnState && !btnState.disabled) {
-        console.log(`   [T+${i}s] #analyzeJobBtn enabled: auth=${btnState.isAuthenticated}, descLen=${btnState.descLength}`);
+        console.log(
+          `   [T+${i}s] #analyzeJobBtn enabled: auth=${btnState.isAuthenticated}, descLen=${btnState.descLength}`
+        );
         break;
       }
       if (btnState && !btnState.isAuthenticated) {
@@ -339,7 +349,9 @@ async function main() {
     }
 
     // Trigger analysis exclusively via DOM CLICK (NO private method shortcut!)
-    console.log('\n5. Triggering analysis via DOM click on #analyzeJobBtn (NO private method shortcuts)...');
+    console.log(
+      '\n5. Triggering analysis via DOM click on #analyzeJobBtn (NO private method shortcuts)...'
+    );
     await sidebarCdp.evaluate(`document.getElementById('analyzeJobBtn').click()`);
 
     // Poll for analysis completion
@@ -358,7 +370,9 @@ async function main() {
         }))()
       `);
       if (tabAPostAnalyze?.hasFitAnalysis) {
-        console.log(`   [T+${i}s] Analysis Complete! Score: ${tabAPostAnalyze.scoreValue}, Title: "${tabAPostAnalyze.domTitle}"`);
+        console.log(
+          `   [T+${i}s] Analysis Complete! Score: ${tabAPostAnalyze.scoreValue}, Title: "${tabAPostAnalyze.domTitle}"`
+        );
         break;
       }
     }
@@ -372,7 +386,9 @@ async function main() {
 
     // Title invariance check
     if (tabAPostAnalyze.domTitle !== tabAPreAnalyze.domTitle) {
-      throw new Error(`Title mutated during analysis: from "${tabAPreAnalyze.domTitle}" to "${tabAPostAnalyze.domTitle}"`);
+      throw new Error(
+        `Title mutated during analysis: from "${tabAPreAnalyze.domTitle}" to "${tabAPostAnalyze.domTitle}"`
+      );
     }
 
     const shot1 = path.join(SCREENSHOT_DIR, 'p79-01-live-tab-a-analyzed.png');
@@ -413,8 +429,14 @@ async function main() {
           activeCompany: window.__sidebarController?.activeJob?.company,
         }))()
       `);
-      if (tabBState?.domTitle && tabBState.domTitle !== '—' && tabBState.domCompany?.includes('Appinventiv')) {
-        console.log(`   [T+${i}s] Tab B Rendered: "${tabBState.domTitle}" at "${tabBState.domCompany}"`);
+      if (
+        tabBState?.domTitle &&
+        tabBState.domTitle !== '—' &&
+        tabBState.domCompany?.includes('Appinventiv')
+      ) {
+        console.log(
+          `   [T+${i}s] Tab B Rendered: "${tabBState.domTitle}" at "${tabBState.domCompany}"`
+        );
         break;
       }
     }
@@ -509,7 +531,9 @@ async function main() {
     console.log(JSON.stringify(tabARestored, null, 2));
 
     if (tabARestored.domTitle !== tabAPostAnalyze.domTitle) {
-      throw new Error(`Tab A title was corrupted on switch-back: expected "${tabAPostAnalyze.domTitle}", got "${tabARestored.domTitle}"`);
+      throw new Error(
+        `Tab A title was corrupted on switch-back: expected "${tabAPostAnalyze.domTitle}", got "${tabARestored.domTitle}"`
+      );
     }
     if (!tabARestored.hasFitAnalysis) {
       throw new Error('Tab A fitAnalysis was lost on switch-back');
@@ -532,7 +556,9 @@ async function main() {
     console.log(JSON.stringify(tabAPostRescan, null, 2));
 
     if (tabAPostRescan.domTitle !== tabAPostAnalyze.domTitle) {
-      throw new Error(`Explicit rescan mutated Tab A title: from "${tabAPostAnalyze.domTitle}" to "${tabAPostRescan.domTitle}"`);
+      throw new Error(
+        `Explicit rescan mutated Tab A title: from "${tabAPostAnalyze.domTitle}" to "${tabAPostRescan.domTitle}"`
+      );
     }
 
     const shot4 = path.join(SCREENSHOT_DIR, 'p79-04-live-tab-a-restored.png');
@@ -542,7 +568,6 @@ async function main() {
     console.log('\n===============================================================');
     console.log('>>> ALL REQUIREMENT 5 REAL VERIFICATION CHECKS PASSED 100%! <<<');
     console.log('===============================================================\n');
-
   } finally {
     if (browserCdp) browserCdp.close();
     if (swCdp) swCdp.close();

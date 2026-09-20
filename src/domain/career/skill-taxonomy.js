@@ -759,7 +759,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'mariadb',
     name: 'MariaDB',
     category: 'DATABASE',
-    description: 'Community-developed, commercially supported fork of the MySQL relational database.',
+    description:
+      'Community-developed, commercially supported fork of the MySQL relational database.',
     aliases: ['mariadb', 'maria-db', 'mariadb-server'],
     relationships: {
       builtOn: ['c', 'cpp'],
@@ -772,7 +773,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'dynamodb',
     name: 'Amazon DynamoDB',
     category: 'DATABASE',
-    description: 'Fully managed serverless, key-value NoSQL database designed for high performance.',
+    description:
+      'Fully managed serverless, key-value NoSQL database designed for high performance.',
     aliases: [
       'dynamodb',
       'dynamo-db',
@@ -792,7 +794,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'rds',
     name: 'AWS RDS',
     category: 'DATABASE',
-    description: 'Amazon Relational Database Service for managing relational databases in the cloud.',
+    description:
+      'Amazon Relational Database Service for managing relational databases in the cloud.',
     aliases: ['rds', 'aws rds', 'aws-rds', 'amazon rds'],
     relationships: {
       builtOn: ['aws'],
@@ -992,7 +995,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'ec2',
     name: 'AWS EC2',
     category: 'CLOUD_DEVOPS',
-    description: 'Amazon Elastic Compute Cloud providing scalable computing capacity in the AWS Cloud.',
+    description:
+      'Amazon Elastic Compute Cloud providing scalable computing capacity in the AWS Cloud.',
     aliases: ['ec2', 'aws ec2', 'aws-ec2', 'amazon ec2'],
     relationships: {
       builtOn: ['aws'],

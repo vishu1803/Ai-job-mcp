@@ -13,9 +13,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  handleGetCandidateProfile,
-} from '../../src/mcp/tools/career-read-tools.js';
+import { handleGetCandidateProfile } from '../../src/mcp/tools/career-read-tools.js';
 import { GetCandidateProfileOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
 
 const tenantId = 'a0000000-0000-4000-a000-000000000001';
@@ -116,8 +114,24 @@ function buildProfileService({ skills, topSkills, careerProfile = null } = {}) {
         summary: 'Summary',
         canonicalEmail: 'alice@example.com',
         topSkills: topSkills || [
-          { slug: 'typescript', name: 'TypeScript', category: 'LANGUAGES', tier: 'PRIMARY', confidenceScore: 0.95, evidenceCount: 8, provenanceStatus: 'VERIFIED' },
-          { slug: 'aws', name: 'AWS', category: 'CLOUD_DEVOPS', tier: 'PRIMARY', confidenceScore: 0.5, evidenceCount: 1, provenanceStatus: 'SELF_DECLARED' },
+          {
+            slug: 'typescript',
+            name: 'TypeScript',
+            category: 'LANGUAGES',
+            tier: 'PRIMARY',
+            confidenceScore: 0.95,
+            evidenceCount: 8,
+            provenanceStatus: 'VERIFIED',
+          },
+          {
+            slug: 'aws',
+            name: 'AWS',
+            category: 'CLOUD_DEVOPS',
+            tier: 'PRIMARY',
+            confidenceScore: 0.5,
+            evidenceCount: 1,
+            provenanceStatus: 'SELF_DECLARED',
+          },
         ],
       },
   };
@@ -166,7 +180,10 @@ describe('get_candidate_profile — Additional Skills contract', () => {
     );
 
     const slugs = result.additionalSkills.map((s) => s.slug);
-    assert.ok(!slugs.includes('typescript'), 'TypeScript (VERIFIED) must not appear in additionalSkills');
+    assert.ok(
+      !slugs.includes('typescript'),
+      'TypeScript (VERIFIED) must not appear in additionalSkills'
+    );
   });
 
   it('4. includeSkillsSummary=false omits topSkills but keeps additionalSkills/learningSkills structural', async () => {
@@ -198,14 +215,35 @@ describe('get_candidate_profile — Additional Skills contract', () => {
       },
       profileCompletenessScore: 50,
       identities: [],
-      connectedResourcesSummary: { totalConnected: 0, publicRepositories: 0, privateRepositories: 0 },
+      connectedResourcesSummary: {
+        totalConnected: 0,
+        publicRepositories: 0,
+        privateRepositories: 0,
+      },
       topSkills: [
-        { slug: 'aws', name: 'AWS', category: 'CLOUD_DEVOPS', confidenceScore: 0.5, evidenceCount: 0, provenanceStatus: 'SELF_DECLARED' },
-        { slug: 'terraform', name: 'Terraform', category: 'CLOUD_DEVOPS', confidenceScore: 0.2, evidenceCount: 0, provenanceStatus: 'LEARNING' },
+        {
+          slug: 'aws',
+          name: 'AWS',
+          category: 'CLOUD_DEVOPS',
+          confidenceScore: 0.5,
+          evidenceCount: 0,
+          provenanceStatus: 'SELF_DECLARED',
+        },
+        {
+          slug: 'terraform',
+          name: 'Terraform',
+          category: 'CLOUD_DEVOPS',
+          confidenceScore: 0.2,
+          evidenceCount: 0,
+          provenanceStatus: 'LEARNING',
+        },
       ],
     };
     const parsed = GetCandidateProfileOutputSchema.safeParse(sample);
-    assert.ok(parsed.success, `schema should accept SELF_DECLARED/LEARNING topSkills: ${JSON.stringify(parsed.error?.errors)}`);
+    assert.ok(
+      parsed.success,
+      `schema should accept SELF_DECLARED/LEARNING topSkills: ${JSON.stringify(parsed.error?.errors)}`
+    );
   });
 
   it('6. missing additional/learning skills yields empty arrays (no data fabrication)', async () => {

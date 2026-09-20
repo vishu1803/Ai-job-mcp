@@ -105,8 +105,16 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       targetBullets: 3,
     });
 
-    assert.equal(result.plannedClaims.length, 3, 'Must plan exactly 3 distinct claims for 3 distinct candidate-owned facts');
-    assert.equal(result.omittedFacts.length, 0, 'No candidate-owned facts should be omitted when budget >= 3');
+    assert.equal(
+      result.plannedClaims.length,
+      3,
+      'Must plan exactly 3 distinct claims for 3 distinct candidate-owned facts'
+    );
+    assert.equal(
+      result.omittedFacts.length,
+      0,
+      'No candidate-owned facts should be omitted when budget >= 3'
+    );
 
     const composed = composeProfessionalProjectBullets({
       facts,
@@ -224,8 +232,16 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       targetBullets: 2,
     });
 
-    assert.equal(plan.plannedClaims.length, 2, 'Architecture and implementation must form 2 separate claims');
-    assert.equal(plan.plannedClaims[0].complementaryFacts.length, 0, 'Must not swallow implementation into architecture');
+    assert.equal(
+      plan.plannedClaims.length,
+      2,
+      'Architecture and implementation must form 2 separate claims'
+    );
+    assert.equal(
+      plan.plannedClaims[0].complementaryFacts.length,
+      0,
+      'Must not swallow implementation into architecture'
+    );
   });
 
   // Category D: Optimization + supported outcome can compose into a stronger bullet.
@@ -263,11 +279,22 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       targetBullets: 1,
     });
 
-    assert.equal(constrainedPlan.plannedClaims.length, 1, 'Constrained budget should pair into 1 claim');
-    assert.equal(constrainedPlan.plannedClaims[0].facts.length, 2, 'Paired claim must contain both primary and supporting fact');
+    assert.equal(
+      constrainedPlan.plannedClaims.length,
+      1,
+      'Constrained budget should pair into 1 claim'
+    );
+    assert.equal(
+      constrainedPlan.plannedClaims[0].facts.length,
+      2,
+      'Paired claim must contain both primary and supporting fact'
+    );
 
     const synthesized = synthesizeAccomplishmentNarrative(facts[0].text, facts[1].text);
-    assert.ok(synthesized.includes('reducing database query response times'), 'Must use fluent participle transformation');
+    assert.ok(
+      synthesized.includes('reducing database query response times'),
+      'Must use fluent participle transformation'
+    );
   });
 
   // Category E: Project description still cannot create candidate agency.
@@ -283,7 +310,11 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       renderable: true,
     };
 
-    assert.equal(isAccomplishmentCandidate(descFact), false, 'Project description must not be accomplishment candidate');
+    assert.equal(
+      isAccomplishmentCandidate(descFact),
+      false,
+      'Project description must not be accomplishment candidate'
+    );
 
     const plan = defaultResumeClaimPlannerService.planClaims({
       facts: [descFact],
@@ -293,7 +324,11 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     });
 
     // In Strategy C description fallback, action is strictly null, cannot invent candidate action
-    assert.equal(plan.plannedClaims[0].action, null, 'Must not invent active verb for project description');
+    assert.equal(
+      plan.plannedClaims[0].action,
+      null,
+      'Must not invent active verb for project description'
+    );
 
     // Claim validation Check 21 rejects unauthorized candidate agency
     const unauthorizedClaim = {
@@ -304,15 +339,16 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       factIds: ['fact-desc'],
       agencyLevel: 'CANDIDATE',
     };
-    const validation = defaultResumeClaimValidationService.validateClaim(
-      unauthorizedClaim,
-      {
-        factInventory: [descFact],
-        sectionOwnerType: 'PROJECT',
-        sectionOwnerId: 'proj-desc-only',
-      }
+    const validation = defaultResumeClaimValidationService.validateClaim(unauthorizedClaim, {
+      factInventory: [descFact],
+      sectionOwnerType: 'PROJECT',
+      sectionOwnerId: 'proj-desc-only',
+    });
+    assert.equal(
+      validation.valid,
+      false,
+      'Must reject claim asserting candidate agency without trusted facts'
     );
-    assert.equal(validation.valid, false, 'Must reject claim asserting candidate agency without trusted facts');
     assert.ok(validation.violations.some((v) => v.code === 'AGENCY_NOT_AUTHORIZED'));
   });
 
@@ -326,9 +362,20 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     };
 
     const agency = determineFactAgency(repoFact.text, repoFact);
-    assert.equal(agency.level, AGENCY_LEVELS.NONE, 'External repo fact with active verb must have agency.level NONE');
+    assert.equal(
+      agency.level,
+      AGENCY_LEVELS.NONE,
+      'External repo fact with active verb must have agency.level NONE'
+    );
     assert.equal(agency.source, AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY);
-    assert.equal(isAccomplishmentCandidate({ ...repoFact, agencyLevel: agency.level, agencySource: agency.source }), false);
+    assert.equal(
+      isAccomplishmentCandidate({
+        ...repoFact,
+        agencyLevel: agency.level,
+        agencySource: agency.source,
+      }),
+      false
+    );
   });
 
   // Category G: candidateId alone still cannot create ownership.
@@ -344,7 +391,11 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     assert.equal(isTrusted, false, 'candidateId alone must not establish trusted agency source');
 
     const agency = determineFactAgency(fact.text, fact);
-    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE, 'candidateId alone must not establish CANDIDATE agency');
+    assert.notEqual(
+      agency.level,
+      AGENCY_LEVELS.CANDIDATE,
+      'candidateId alone must not establish CANDIDATE agency'
+    );
   });
 
   // Category H: projectId alone still cannot create ownership.
@@ -360,7 +411,11 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     assert.equal(isTrusted, false, 'projectId alone must not establish trusted agency source');
 
     const agency = determineFactAgency(fact.text, fact);
-    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE, 'projectId alone must not establish CANDIDATE agency');
+    assert.notEqual(
+      agency.level,
+      AGENCY_LEVELS.CANDIDATE,
+      'projectId alone must not establish CANDIDATE agency'
+    );
   });
 
   // Category I: Missing provenance still fails closed.
@@ -390,7 +445,14 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     const agency = determineFactAgency(fact.text, fact);
     assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
     assert.equal(agency.source, AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET);
-    assert.equal(isAccomplishmentCandidate({ ...fact, agencyLevel: agency.level, agencySource: agency.source }), true);
+    assert.equal(
+      isAccomplishmentCandidate({
+        ...fact,
+        agencyLevel: agency.level,
+        agencySource: agency.source,
+      }),
+      true
+    );
   });
 
   // Category K: ownership=CANDIDATE still works.
@@ -405,7 +467,14 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     assert.equal(isTrustedCandidateAgencySource(undefined, fact), true);
     const agency = determineFactAgency(fact.text, fact);
     assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
-    assert.equal(isAccomplishmentCandidate({ ...fact, agencyLevel: agency.level, agencySource: agency.source }), true);
+    assert.equal(
+      isAccomplishmentCandidate({
+        ...fact,
+        agencyLevel: agency.level,
+        agencySource: agency.source,
+      }),
+      true
+    );
   });
 
   // Category L: Rendered agency invariant still rejects unauthorized candidate claims.
@@ -426,7 +495,9 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       () => {
         assertRenderedCandidateAgencyInvariant([renderedBullet], [unauthorizedFact]);
       },
-      (err) => err.name === 'ValidationError' && /asserts candidate agency without contributing facts/i.test(err.message)
+      (err) =>
+        err.name === 'ValidationError' &&
+        /asserts candidate agency without contributing facts/i.test(err.message)
     );
   });
 
@@ -476,7 +547,11 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
       targetBullets: 3,
     });
 
-    assert.equal(plan.plannedClaims.length, 3, 'All 3 facts must survive claim planning with diversity backfill');
+    assert.equal(
+      plan.plannedClaims.length,
+      3,
+      'All 3 facts must survive claim planning with diversity backfill'
+    );
     assert.equal(plan.omittedFacts.length, 0, 'Zero facts omitted when targetBullets = 3');
 
     const comp = composeProfessionalProjectBullets({
@@ -516,7 +591,10 @@ describe('P18: Rich, ATS-Friendly Resume Composition & Provenance Safety', () =>
     });
 
     const expandMove = moves.find((m) => m.type === 'BULLETS' && m.id === 'proj-expandable');
-    assert.ok(expandMove, 'Optimizer must generate an expansion move for eligible project when space is available');
+    assert.ok(
+      expandMove,
+      'Optimizer must generate an expansion move for eligible project when space is available'
+    );
     assert.equal(expandMove.currentCount, 1);
   });
 

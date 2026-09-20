@@ -51,7 +51,8 @@ describe('Content Selection / Optional Section Boundary', () => {
     phone: '555-0199',
     location: 'San Francisco, CA',
     headline: 'Senior Backend Engineer',
-    summary: 'Experienced backend systems architect specializing in high-throughput distributed microservices.',
+    summary:
+      'Experienced backend systems architect specializing in high-throughput distributed microservices.',
     skills: [
       { name: 'Node.js', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
       { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
@@ -139,7 +140,10 @@ describe('Content Selection / Optional Section Boundary', () => {
 
       assert.ok(resume.sectionSnapshots, 'sectionSnapshots must be present');
       assert.equal(resume.sectionSnapshots.PROBLEM_SOLVING.bullets.length, 2);
-      assert.equal(resume.sectionSnapshots.PROBLEM_SOLVING.profileUrl, 'https://leetcode.com/u/alexmercer');
+      assert.equal(
+        resume.sectionSnapshots.PROBLEM_SOLVING.profileUrl,
+        'https://leetcode.com/u/alexmercer'
+      );
       assert.equal(resume.sectionSnapshots.CERTIFICATIONS.records.length, 1);
       assert.equal(resume.sectionSnapshots.PUBLICATIONS.records.length, 1);
       assert.equal(resume.sectionSnapshots.ACHIEVEMENTS.records.length, 1);
@@ -183,9 +187,13 @@ describe('Content Selection / Optional Section Boundary', () => {
       };
 
       // Content Strategy explicitly omits DSA
-      const resume = contentService.buildTailoredResumeMarkdown(candidateWithLeetCodeOnly, dummyJob, {
-        includeProblemSolving: false,
-      });
+      const resume = contentService.buildTailoredResumeMarkdown(
+        candidateWithLeetCodeOnly,
+        dummyJob,
+        {
+          includeProblemSolving: false,
+        }
+      );
 
       assert.ok(!resume.selectedSections.includes('PROBLEM_SOLVING'), 'DSA must NOT be selected');
       assert.ok(!resume.markdownContent.includes('Problem Solving & Algorithmic Practice'));
@@ -262,9 +270,7 @@ describe('Content Selection / Optional Section Boundary', () => {
     it('fails validation when DSA is selected by Content Strategy but valid candidate DSA content is missing', () => {
       const candidateWithNoDsaContent = {
         ...baseCandidate,
-        portfolioLinks: [
-          { label: 'LeetCode', url: 'https://leetcode.com/u/alexmercer' },
-        ],
+        portfolioLinks: [{ label: 'LeetCode', url: 'https://leetcode.com/u/alexmercer' }],
         problemSolving: null,
         hasProblemSolvingSection: false,
       };
@@ -306,7 +312,11 @@ describe('Content Selection / Optional Section Boundary', () => {
         },
         (err) => {
           assert.ok(err instanceof ValidationError);
-          assert.ok(err.message.includes('DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing'));
+          assert.ok(
+            err.message.includes(
+              'DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing'
+            )
+          );
           return true;
         }
       );
@@ -327,7 +337,13 @@ describe('Content Selection / Optional Section Boundary', () => {
         tailoredResume: {
           title: 'Resume',
           markdownContent: '## Professional Summary\nSummary.',
-          selectedSections: ['SUMMARY', 'TECHNICAL_SKILLS', 'PROJECTS', 'PROFESSIONAL_EXPERIENCE', 'EDUCATION'],
+          selectedSections: [
+            'SUMMARY',
+            'TECHNICAL_SKILLS',
+            'PROJECTS',
+            'PROFESSIONAL_EXPERIENCE',
+            'EDUCATION',
+          ],
           sectionSnapshots: {},
         },
       };
@@ -380,7 +396,10 @@ describe('Content Selection / Optional Section Boundary', () => {
         candidateProfile: baseCandidate,
       });
 
-      assert.ok(latex.texContent.includes('\\atssection{Publications}'), 'Must render Publications');
+      assert.ok(
+        latex.texContent.includes('\\atssection{Publications}'),
+        'Must render Publications'
+      );
       assert.ok(
         latex.texContent.includes('Distributed Consensus in Modern Clouds'),
         'Must render authentic publication title'
@@ -399,7 +418,13 @@ describe('Content Selection / Optional Section Boundary', () => {
         targetJob: dummyJob,
         tailoredResume: {
           title: 'Resume',
-          selectedSections: ['SUMMARY', 'TECHNICAL_SKILLS', 'PROJECTS', 'PROFESSIONAL_EXPERIENCE', 'EDUCATION'],
+          selectedSections: [
+            'SUMMARY',
+            'TECHNICAL_SKILLS',
+            'PROJECTS',
+            'PROFESSIONAL_EXPERIENCE',
+            'EDUCATION',
+          ],
         },
       };
 
@@ -413,7 +438,11 @@ describe('Content Selection / Optional Section Boundary', () => {
         candidateProfile: candidateWithLeetcode,
       });
 
-      assert.equal(model.optionalSections.dsa, null, 'Layout engine must not include DSA when selectedSections omits it');
+      assert.equal(
+        model.optionalSections.dsa,
+        null,
+        'Layout engine must not include DSA when selectedSections omits it'
+      );
     });
   });
 });

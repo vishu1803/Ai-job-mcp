@@ -52,7 +52,8 @@ export class ApplicationHandoffService {
     this.resumeQualityAssessment =
       dependencies.resumeQualityAssessment || new ResumeQualityAssessmentService();
     this.resumeParser = dependencies.resumeParser || new ResumeParserService();
-    this.geometryAnalyzer = dependencies.geometryAnalyzer || new PdfGeometryAnalyzer({ resumeParser: this.resumeParser });
+    this.geometryAnalyzer =
+      dependencies.geometryAnalyzer || new PdfGeometryAnalyzer({ resumeParser: this.resumeParser });
     this.documentStorage = dependencies.documentStorage || new DocumentStorageService();
     this.candidateProfileService =
       dependencies.candidateProfileService || new CandidateProfileService();
@@ -220,7 +221,8 @@ export class ApplicationHandoffService {
             generationContractVersion:
               handoffKit.generationContractVersion ||
               artifact.generationContractVersion ||
-              (applicationPackage.structuredResume || applicationPackage.tailoredResume?.structuredResume
+              (applicationPackage.structuredResume ||
+              applicationPackage.tailoredResume?.structuredResume
                 ? RESUME_GENERATION_CONTRACT_VERSION
                 : LEGACY_GENERATION_CONTRACT_VERSION),
             structuredResumeSchemaVersion:
@@ -495,7 +497,10 @@ export class ApplicationHandoffService {
       };
       const clean = (s) => String(s || '').trim();
 
-      const candName = snapshot.candidateIdentity?.displayName || snapshot.candidateIdentity?.fullName || snapshot.candidateIdentity?.name;
+      const candName =
+        snapshot.candidateIdentity?.displayName ||
+        snapshot.candidateIdentity?.fullName ||
+        snapshot.candidateIdentity?.name;
       if (candName) {
         expected.candidateName = clean(candName);
       }
@@ -596,7 +601,9 @@ export class ApplicationHandoffService {
           ? snapshot.contact.links
           : [];
       for (const link of candLinks) {
-        const label = clean(typeof link === 'object' && link !== null ? (link.label || link.platform) : '');
+        const label = clean(
+          typeof link === 'object' && link !== null ? link.label || link.platform : ''
+        );
         if (label) {
           expected.links.push(label);
         }
@@ -644,15 +651,23 @@ export class ApplicationHandoffService {
             return Boolean(Array.isArray(snapshot.education) && snapshot.education.length > 0);
           case 'DSA':
             return Boolean(
-              (snapshot.dsa && Array.isArray(snapshot.dsa.bullets) && snapshot.dsa.bullets.length > 0) ||
-              (snapshot.problemSolving && Array.isArray(snapshot.problemSolving.bullets) && snapshot.problemSolving.bullets.length > 0)
+              (snapshot.dsa &&
+                Array.isArray(snapshot.dsa.bullets) &&
+                snapshot.dsa.bullets.length > 0) ||
+              (snapshot.problemSolving &&
+                Array.isArray(snapshot.problemSolving.bullets) &&
+                snapshot.problemSolving.bullets.length > 0)
             );
           case 'CERTIFICATIONS':
-            return Boolean(Array.isArray(snapshot.certifications) && snapshot.certifications.length > 0);
+            return Boolean(
+              Array.isArray(snapshot.certifications) && snapshot.certifications.length > 0
+            );
           case 'COURSEWORK':
             return Boolean(Array.isArray(snapshot.coursework) && snapshot.coursework.length > 0);
           case 'PUBLICATIONS':
-            return Boolean(Array.isArray(snapshot.publications) && snapshot.publications.length > 0);
+            return Boolean(
+              Array.isArray(snapshot.publications) && snapshot.publications.length > 0
+            );
           default:
             return false;
         }
@@ -672,7 +687,10 @@ export class ApplicationHandoffService {
         ? expected
         : null;
     };
-    const expectedContent = buildExpectedContent(structuredResume, resumeLatexResult.appliedMaxBulletsPerProject);
+    const expectedContent = buildExpectedContent(
+      structuredResume,
+      resumeLatexResult.appliedMaxBulletsPerProject
+    );
 
     const verifiedSkillNames = (applicationPackage.verifiedSkills || []).map((s) => s.name);
     const resumeQaAudit = await this.qaValidator.validatePdf({
@@ -722,15 +740,20 @@ export class ApplicationHandoffService {
         applicationPackage.tailoredResume?.sectionOrder ||
         null;
 
-      const selectedSections = applicationPackage.tailoredResume?.selectedSections ||
-        applicationPackage.selectedSections || [];
-      const expectedSections = packageSectionOrder && packageSectionOrder.length > 0
-        ? packageSectionOrder.filter((s) => s !== 'HEADER')
-        : ['SUMMARY', 'SKILLS', 'PROJECTS'];
+      const selectedSections =
+        applicationPackage.tailoredResume?.selectedSections ||
+        applicationPackage.selectedSections ||
+        [];
+      const expectedSections =
+        packageSectionOrder && packageSectionOrder.length > 0
+          ? packageSectionOrder.filter((s) => s !== 'HEADER')
+          : ['SUMMARY', 'SKILLS', 'PROJECTS'];
       if (!packageSectionOrder) {
-        if (selectedSections.includes('PROBLEM_SOLVING') ||
-            selectedSections.includes('LEETCODE') ||
-            selectedSections.includes('ALGORITHMIC_PRACTICE')) {
+        if (
+          selectedSections.includes('PROBLEM_SOLVING') ||
+          selectedSections.includes('LEETCODE') ||
+          selectedSections.includes('ALGORITHMIC_PRACTICE')
+        ) {
           expectedSections.push('DSA');
         }
         expectedSections.push('EXPERIENCE', 'EDUCATION');

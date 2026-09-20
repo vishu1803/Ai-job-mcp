@@ -94,7 +94,9 @@ describe('P85: Consensus Governance & Truth Separation', () => {
       ...normalizeEvaluatorFindings([rawFindings[2]], 'grok'),
     ];
 
-    const cloudConsensus = calculateSemanticConsensus(normalized).find((c) => c.subject === 'CLOUD_PLATFORM');
+    const cloudConsensus = calculateSemanticConsensus(normalized).find(
+      (c) => c.subject === 'CLOUD_PLATFORM'
+    );
 
     // Candidate actually has verified AWS experience in canonical facts
     const candidateWithCloud = {
@@ -122,7 +124,9 @@ describe('P85: Consensus Governance & Truth Separation', () => {
       ...normalizeEvaluatorFindings([rawFindings[2]], 'grok'),
     ];
 
-    const nestConsensus = calculateSemanticConsensus(normalized).find((c) => c.subject === 'NESTJS_EXPERIENCE');
+    const nestConsensus = calculateSemanticConsensus(normalized).find(
+      (c) => c.subject === 'NESTJS_EXPERIENCE'
+    );
     assert.ok(nestConsensus);
 
     const candidateWithoutNest = { facts: [], projects: [] };

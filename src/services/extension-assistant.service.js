@@ -48,8 +48,7 @@ export class ExtensionAssistantService {
     this.database = dependencies.database;
     this.candidateProfileService =
       dependencies.candidateProfileService || new CandidateProfileService(dependencies.database);
-    this.readinessService =
-      dependencies.readinessService || new ApplicationReadinessService();
+    this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
     this.careerAssistantService =
       dependencies.careerAssistantService ||
       new AiCareerAssistantService({
@@ -60,7 +59,8 @@ export class ExtensionAssistantService {
       });
     this.analyzeJobFitTool = dependencies.analyzeJobFitTool || handleAnalyzeJobFit;
     this.aiProvider = dependencies.aiProvider !== undefined ? dependencies.aiProvider : null;
-    this.logger = dependencies.logger || defaultLogger.child({ module: 'ExtensionAssistantService' });
+    this.logger =
+      dependencies.logger || defaultLogger.child({ module: 'ExtensionAssistantService' });
   }
 
   /**
@@ -112,7 +112,10 @@ export class ExtensionAssistantService {
 
     // Extract core expectations and responsibilities from text
     const descLower = description.toLowerCase();
-    const lines = description.split('\n').map((l) => l.trim()).filter(Boolean);
+    const lines = description
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
     for (const l of lines) {
       if (/^[•*-]\s+/.test(l) || /^\d+\.\s+/.test(l)) {
         const clean = l.replace(/^[•*-\d.]+\s+/, '').trim();
@@ -155,7 +158,10 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         }
       } catch (err) {
         aiAvailable = false;
-        this.logger.warn({ err }, 'AI provider failed during explainJobPage; falling back to deterministic explanation');
+        this.logger.warn(
+          { err },
+          'AI provider failed during explainJobPage; falling back to deterministic explanation'
+        );
       }
     } else if (!provider) {
       aiAvailable = false;
@@ -163,8 +169,14 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
 
     return ExplainJobResponseSchema.parse({
       summary,
-      responsibilities: responsibilities.length > 0 ? responsibilities : ['Review job description for detailed tasks.'],
-      keyExpectations: keyExpectations.length > 0 ? keyExpectations : ['Relevant engineering and domain expertise.'],
+      responsibilities:
+        responsibilities.length > 0
+          ? responsibilities
+          : ['Review job description for detailed tasks.'],
+      keyExpectations:
+        keyExpectations.length > 0
+          ? keyExpectations
+          : ['Relevant engineering and domain expertise.'],
       detectedDetails,
       groundedInPage: true,
       aiAvailable,
@@ -196,7 +208,8 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
     let employmentType = job.employmentType || null;
     if (!employmentType) {
       if (/\bfull-?time\b/i.test(text)) employmentType = 'FULL_TIME';
-      else if (/\bcontract\b/i.test(text) || /\bfreelance\b/i.test(text)) employmentType = 'CONTRACT';
+      else if (/\bcontract\b/i.test(text) || /\bfreelance\b/i.test(text))
+        employmentType = 'CONTRACT';
       else if (/\bpart-?time\b/i.test(text)) employmentType = 'PART_TIME';
       else if (/\bintern(?:ship)?\b/i.test(text)) employmentType = 'INTERNSHIP';
     }
@@ -204,8 +217,12 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
     // 3. Compensation detection
     let salaryRange = null;
     const salaryMatch =
-      text.match(/\$\s*([0-9]{2,3}(?:,[0-9]{3})*(?:\.[0-9]+)?\s*(?:k|usd)?)\s*(?:-|to)\s*\$\s*([0-9]{2,3}(?:,[0-9]{3})*(?:\.[0-9]+)?\s*(?:k|usd)?)/i) ||
-      text.match(/(?:₹|rs\.?|inr)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:-|to)\s*([0-9]+(?:\.[0-9]+)?)\s*lpa/i) ||
+      text.match(
+        /\$\s*([0-9]{2,3}(?:,[0-9]{3})*(?:\.[0-9]+)?\s*(?:k|usd)?)\s*(?:-|to)\s*\$\s*([0-9]{2,3}(?:,[0-9]{3})*(?:\.[0-9]+)?\s*(?:k|usd)?)/i
+      ) ||
+      text.match(
+        /(?:₹|rs\.?|inr)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:-|to)\s*([0-9]+(?:\.[0-9]+)?)\s*lpa/i
+      ) ||
       text.match(/\$\s*([0-9]{2,3}(?:,[0-9]{3})*)\s*(?:\/|\s*per\s*)(?:yr|year|hr|hour)/i);
     if (salaryMatch) {
       salaryRange = salaryMatch[0].trim();
@@ -225,7 +242,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
 
     // 5. Sponsorship / clearance notes
     let sponsorshipNotes = null;
-    if (/(?:no\s+sponsorship|unable\s+to\s+sponsor|cannot\s+sponsor|sponsorship\s+is\s+not\s+available)/i.test(text)) {
+    if (
+      /(?:no\s+sponsorship|unable\s+to\s+sponsor|cannot\s+sponsor|sponsorship\s+is\s+not\s+available)/i.test(
+        text
+      )
+    ) {
       sponsorshipNotes = 'Visa sponsorship is not available for this role.';
     } else if (/(?:sponsorship\s+available|will\s+sponsor|sponsorship\s+offered)/i.test(text)) {
       sponsorshipNotes = 'Visa sponsorship is mentioned as available.';
@@ -235,10 +256,38 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
 
     // 6. Core skills extraction
     const COMMON_TECH = [
-      'javascript', 'typescript', 'python', 'java', 'go', 'golang', 'rust', 'c++', 'c#',
-      'react', 'next.js', 'node.js', 'vue', 'angular', 'fastapi', 'django', 'flask',
-      'postgresql', 'postgres', 'mysql', 'mongodb', 'redis', 'elasticsearch',
-      'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'graphql', 'rest', 'kafka', 'git',
+      'javascript',
+      'typescript',
+      'python',
+      'java',
+      'go',
+      'golang',
+      'rust',
+      'c++',
+      'c#',
+      'react',
+      'next.js',
+      'node.js',
+      'vue',
+      'angular',
+      'fastapi',
+      'django',
+      'flask',
+      'postgresql',
+      'postgres',
+      'mysql',
+      'mongodb',
+      'redis',
+      'elasticsearch',
+      'docker',
+      'kubernetes',
+      'aws',
+      'gcp',
+      'azure',
+      'graphql',
+      'rest',
+      'kafka',
+      'git',
     ];
     const coreSkills = [];
     const textLower = text.toLowerCase();
@@ -279,8 +328,9 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         ? rawReqs.split(',').map((s) => s.trim())
         : [];
 
-    const verifiedSkills = (candidateProfile.verifiedSkills || candidateProfile.skills || []).map((s) =>
-      typeof s === 'string' ? s.toLowerCase() : (s.name || s.canonicalName || '').toLowerCase()
+    const verifiedSkills = (candidateProfile.verifiedSkills || candidateProfile.skills || []).map(
+      (s) =>
+        typeof s === 'string' ? s.toLowerCase() : (s.name || s.canonicalName || '').toLowerCase()
     );
 
     const matches = [];
@@ -292,7 +342,10 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       if (!normReq) continue;
 
       const matched = verifiedSkills.some(
-        (v) => v === normReq || (v.length > 2 && normReq.includes(v)) || (normReq.length > 2 && v.includes(normReq))
+        (v) =>
+          v === normReq ||
+          (v.length > 2 && normReq.includes(v)) ||
+          (normReq.length > 2 && v.includes(normReq))
       );
 
       if (matched) {
@@ -376,7 +429,8 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
    */
   generateAutofillPlan({ formFields = [], candidateProfile = {} }) {
     const contact = candidateProfile.contact || {};
-    const prefs = candidateProfile.jobPreferences || candidateProfile.profileMetadata?.careerPreferences || {};
+    const prefs =
+      candidateProfile.jobPreferences || candidateProfile.profileMetadata?.careerPreferences || {};
     const userCustom = candidateProfile.profileMetadata?.userCustom || {};
     const social = candidateProfile.socialLinks || {};
 
@@ -400,8 +454,14 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       let unavailabilityReason = null;
 
       // 1. Identity
-      if (rawType === 'FIRST_NAME' || rawName.includes('first_name') || rawName.includes('firstname')) {
-        const val = contact.firstName || (candidateProfile.displayName ? candidateProfile.displayName.split(' ')[0] : null);
+      if (
+        rawType === 'FIRST_NAME' ||
+        rawName.includes('first_name') ||
+        rawName.includes('firstname')
+      ) {
+        const val =
+          contact.firstName ||
+          (candidateProfile.displayName ? candidateProfile.displayName.split(' ')[0] : null);
         if (val) {
           value = val;
           source = 'CANONICAL_PROFILE_IDENTITY';
@@ -409,8 +469,16 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
           evidence = 'Canonical Candidate Profile Display Name / Contact First Name';
           available = true;
         }
-      } else if (rawType === 'LAST_NAME' || rawName.includes('last_name') || rawName.includes('lastname')) {
-        const val = contact.lastName || (candidateProfile.displayName ? candidateProfile.displayName.split(' ').slice(1).join(' ') : null);
+      } else if (
+        rawType === 'LAST_NAME' ||
+        rawName.includes('last_name') ||
+        rawName.includes('lastname')
+      ) {
+        const val =
+          contact.lastName ||
+          (candidateProfile.displayName
+            ? candidateProfile.displayName.split(' ').slice(1).join(' ')
+            : null);
         if (val) {
           value = val;
           source = 'CANONICAL_PROFILE_IDENTITY';
@@ -419,7 +487,10 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
           available = true;
         }
       } else if (rawType === 'FULL_NAME' || rawName === 'name' || rawName.includes('fullname')) {
-        const val = candidateProfile.displayName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || null;
+        const val =
+          candidateProfile.displayName ||
+          `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+          null;
         if (val) {
           value = val;
           source = 'CANONICAL_PROFILE_IDENTITY';
@@ -469,7 +540,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
           evidence = 'Candidate Verified Profile Social Links (GitHub)';
           available = true;
         }
-      } else if (rawType === 'PORTFOLIO_URL' || rawName.includes('portfolio') || rawName.includes('website')) {
+      } else if (
+        rawType === 'PORTFOLIO_URL' ||
+        rawName.includes('portfolio') ||
+        rawName.includes('website')
+      ) {
         const val = social.portfolio || candidateProfile.portfolioUrl || contact.portfolio || null;
         if (val) {
           value = val;
@@ -499,7 +574,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
           evidence = 'Candidate Contact Address (State)';
           available = true;
         }
-      } else if (rawType === 'POSTAL_CODE' || rawName.includes('postal') || rawName.includes('zip')) {
+      } else if (
+        rawType === 'POSTAL_CODE' ||
+        rawName.includes('postal') ||
+        rawName.includes('zip')
+      ) {
         const val = contact.postalCode || null;
         if (val) {
           value = val;
@@ -511,7 +590,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       }
 
       // 5. Notice Period / Availability (Non-sensitive, but structured)
-      else if (rawType === 'NOTICE_PERIOD' || rawName.includes('notice') || rawName.includes('availability')) {
+      else if (
+        rawType === 'NOTICE_PERIOD' ||
+        rawName.includes('notice') ||
+        rawName.includes('availability')
+      ) {
         const val = prefs.noticePeriod || userCustom.noticePeriod || null;
         if (val) {
           value = formatNoticePeriodLabel(val, prefs.customNoticePeriod);
@@ -551,7 +634,12 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         const val = prefs.visaSponsorshipRequired ?? userCustom.visaSponsorshipRequired ?? null;
         if (val !== null && val !== undefined) {
           const strVal = String(val).trim().toUpperCase();
-          value = strVal === 'YES' || val === true ? 'Yes' : strVal === 'NO' || val === false ? 'No' : String(val);
+          value =
+            strVal === 'YES' || val === true
+              ? 'Yes'
+              : strVal === 'NO' || val === false
+                ? 'No'
+                : String(val);
           source = 'CANONICAL_CAREER_PREFERENCES';
           confidence = 0.95;
           evidence = 'Career Preferences Visa Sponsorship (User Declared)';
@@ -654,7 +742,8 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
    * @returns {object} Clean, humanized explanation and recovery steps
    */
   explainApplicationError({ error, _context = {} }) {
-    const rawMessage = typeof error === 'string' ? error : error?.message || 'Application submission failed';
+    const rawMessage =
+      typeof error === 'string' ? error : error?.message || 'Application submission failed';
     const sanitized = sanitizeErrorMessage(rawMessage);
 
     let errorCategory = 'SUBMISSION_ERROR';
@@ -673,7 +762,9 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       errorCategory = 'VALIDATION_ERROR';
       humanSummary = 'The application form is missing one or more required fields.';
       recoverySteps.push('Check the highlighted required fields on the portal form.');
-      recoverySteps.push('Complete the missing answers or use Safe Autofill for verified profile fields.');
+      recoverySteps.push(
+        'Complete the missing answers or use Safe Autofill for verified profile fields.'
+      );
       suggestedAction = 'Fill in the required fields';
     } else if (/network|offline|econnrefused|fetch/i.test(rawMessage)) {
       errorCategory = 'NETWORK_ERROR';
@@ -684,7 +775,8 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       suggestedAction = 'Retry submission';
     } else if (/file|resume|format|pdf|upload|size/i.test(rawMessage)) {
       errorCategory = 'DOCUMENT_UPLOAD_ERROR';
-      humanSummary = 'The application portal encountered an issue processing your resume or attachment.';
+      humanSummary =
+        'The application portal encountered an issue processing your resume or attachment.';
       recoverySteps.push('Ensure your resume is a standard PDF under 5MB.');
       recoverySteps.push('Download the tailored PDF from your Handoff Kit and re-upload.');
       suggestedAction = 'Re-upload verified resume PDF';
@@ -766,10 +858,19 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       // Fallback to rule comparison if ATS tool throws
       const comp = this.compareRequirements({ job, candidateProfile });
       jobMatch = {
-        score: comp.totalRequirements > 0 ? Math.round((comp.satisfiedCount / comp.totalRequirements) * 100) : 70,
+        score:
+          comp.totalRequirements > 0
+            ? Math.round((comp.satisfiedCount / comp.totalRequirements) * 100)
+            : 70,
         band: 'RECOMMENDED',
-        matchedSkills: comp.matches.filter((m) => m.satisfied).map((m) => m.requirement).slice(0, 5),
-        missingSkills: comp.matches.filter((m) => !m.satisfied).map((m) => m.requirement).slice(0, 5),
+        matchedSkills: comp.matches
+          .filter((m) => m.satisfied)
+          .map((m) => m.requirement)
+          .slice(0, 5),
+        missingSkills: comp.matches
+          .filter((m) => !m.satisfied)
+          .map((m) => m.requirement)
+          .slice(0, 5),
         summary: comp.summary,
       };
     }
@@ -830,7 +931,10 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
           'The AI assistant is temporarily unavailable. Job match, readiness, and manual application remain fully accessible.';
       }
     } catch (err) {
-      this.logger.warn({ err }, 'AI service unavailable in getCompactContext; failing closed gracefully');
+      this.logger.warn(
+        { err },
+        'AI service unavailable in getCompactContext; failing closed gracefully'
+      );
       aiHelp = {
         available: false,
         overview: `Role: ${job.title || 'Role'} at ${job.company || 'Company'}.`,

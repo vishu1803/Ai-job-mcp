@@ -19,9 +19,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  buildStructuredResumeDocument,
-} from '../../src/services/structured-resume.service.js';
+import { buildStructuredResumeDocument } from '../../src/services/structured-resume.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 import { LatexCompilerService } from '../../src/services/latex-compiler.service.js';
 import { ResumeParserService } from '../../src/services/resume-parser.service.js';
@@ -49,26 +47,58 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           { name: 'Git', provenanceStatus: 'VERIFIED' },
         ],
         projects: [
-          { id: 'fp-1', name: 'Algorithmic Visualizer', technologies: ['Python', 'React'], bullets: ['Visualized graph traversal and sorting algorithms in interactive web canvas.'] },
-          { id: 'fp-2', name: 'Distributed Key-Value Store', technologies: ['Java'], bullets: ['Implemented Raft consensus algorithm with leader election and log replication.'] },
-          { id: 'fp-3', name: 'Compiler Frontend', technologies: ['Python'], bullets: ['Constructed recursive descent parser generating abstract syntax trees.'] },
-          { id: 'fp-4', name: 'Database Query Engine', technologies: ['PostgreSQL', 'Java'], bullets: ['Built relational query execution engine with B-tree indexing.'] },
+          {
+            id: 'fp-1',
+            name: 'Algorithmic Visualizer',
+            technologies: ['Python', 'React'],
+            bullets: [
+              'Visualized graph traversal and sorting algorithms in interactive web canvas.',
+            ],
+          },
+          {
+            id: 'fp-2',
+            name: 'Distributed Key-Value Store',
+            technologies: ['Java'],
+            bullets: [
+              'Implemented Raft consensus algorithm with leader election and log replication.',
+            ],
+          },
+          {
+            id: 'fp-3',
+            name: 'Compiler Frontend',
+            technologies: ['Python'],
+            bullets: ['Constructed recursive descent parser generating abstract syntax trees.'],
+          },
+          {
+            id: 'fp-4',
+            name: 'Database Query Engine',
+            technologies: ['PostgreSQL', 'Java'],
+            bullets: ['Built relational query execution engine with B-tree indexing.'],
+          },
         ],
         experience: [],
         education: [
-          { institution: 'Institute of Technology', degree: 'B.S. in Computer Science', year: '2024', gpa: '3.9' },
+          {
+            institution: 'Institute of Technology',
+            degree: 'B.S. in Computer Science',
+            year: '2024',
+            gpa: '3.9',
+          },
         ],
         problemSolving: {
           hasSection: true,
           profileUrl: 'https://leetcode.com/devon-fresher',
-          bullets: ['Solved 400+ algorithmic problems across trees, graphs, and dynamic programming.'],
+          bullets: [
+            'Solved 400+ algorithmic problems across trees, graphs, and dynamic programming.',
+          ],
         },
       },
       job: {
         id: 'job-fresher',
         title: 'Junior Software Engineer',
         company: 'Cloud Scale Inc',
-        description: 'Junior engineer role requiring strong algorithmic problem solving, Python, Java, and computer science fundamentals.',
+        description:
+          'Junior engineer role requiring strong algorithmic problem solving, Python, Java, and computer science fundamentals.',
         projectRankings: [
           { projectId: 'fp-1', relevanceScore: 90, relevanceRank: 1 },
           { projectId: 'fp-2', relevanceScore: 85, relevanceRank: 2 },
@@ -107,9 +137,24 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'ep-1', name: 'E-Commerce Platform', technologies: ['TypeScript', 'Node.js', 'PostgreSQL'], bullets: ['Engineered checkout pipeline and order tracking services.'] },
-          { id: 'ep-2', name: 'Analytics Service', technologies: ['React', 'TypeScript'], bullets: ['Delivered real-time telemetry dashboard with websocket streaming.'] },
-          { id: 'ep-3', name: 'Notification Service', technologies: ['Node.js', 'Redis'], bullets: ['Built asynchronous webhook dispatcher processing event notifications.'] },
+          {
+            id: 'ep-1',
+            name: 'E-Commerce Platform',
+            technologies: ['TypeScript', 'Node.js', 'PostgreSQL'],
+            bullets: ['Engineered checkout pipeline and order tracking services.'],
+          },
+          {
+            id: 'ep-2',
+            name: 'Analytics Service',
+            technologies: ['React', 'TypeScript'],
+            bullets: ['Delivered real-time telemetry dashboard with websocket streaming.'],
+          },
+          {
+            id: 'ep-3',
+            name: 'Notification Service',
+            technologies: ['Node.js', 'Redis'],
+            bullets: ['Built asynchronous webhook dispatcher processing event notifications.'],
+          },
         ],
         education: [
           { institution: 'Tech University', degree: 'B.S. in Software Engineering', year: '2023' },
@@ -119,7 +164,8 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
         id: 'job-early',
         title: 'Full-Stack Software Engineer',
         company: 'Nexus Software',
-        description: 'Full-stack developer with experience in React, Node.js, TypeScript, and modern APIs.',
+        description:
+          'Full-stack developer with experience in React, Node.js, TypeScript, and modern APIs.',
         projectRankings: [
           { projectId: 'ep-1', relevanceScore: 88, relevanceRank: 1 },
           { projectId: 'ep-2', relevanceScore: 82, relevanceRank: 2 },
@@ -169,8 +215,20 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'sp-1', name: 'Distributed Task Orchestrator', technologies: ['Go', 'Kubernetes'], bullets: ['Implemented fault-tolerant distributed job scheduler with consensus heartbeat.'] },
-          { id: 'sp-2', name: 'Log Ingestion Daemon', technologies: ['Go', 'Kafka'], bullets: ['Constructed high-concurrency log collector with buffer recycling.'] },
+          {
+            id: 'sp-1',
+            name: 'Distributed Task Orchestrator',
+            technologies: ['Go', 'Kubernetes'],
+            bullets: [
+              'Implemented fault-tolerant distributed job scheduler with consensus heartbeat.',
+            ],
+          },
+          {
+            id: 'sp-2',
+            name: 'Log Ingestion Daemon',
+            technologies: ['Go', 'Kafka'],
+            bullets: ['Constructed high-concurrency log collector with buffer recycling.'],
+          },
         ],
         education: [
           { institution: 'Metro University', degree: 'M.S. in Computer Science', year: '2018' },
@@ -180,7 +238,8 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
         id: 'job-senior',
         title: 'Senior Staff Backend Engineer',
         company: 'DataCore Global',
-        description: 'Senior backend engineer required with Go, Kubernetes, Kafka, and distributed architecture background.',
+        description:
+          'Senior backend engineer required with Go, Kubernetes, Kafka, and distributed architecture background.',
         projectRankings: [
           { projectId: 'sp-1', relevanceScore: 95, relevanceRank: 1 },
           { projectId: 'sp-2', relevanceScore: 89, relevanceRank: 2 },
@@ -217,11 +276,25 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'bp-1', name: 'Telemetry Stream Processor', technologies: ['Node.js', 'Redis', 'PostgreSQL'], bullets: ['Engineered stream deduping and partition routing pipeline.'] },
-          { id: 'bp-2', name: 'Auth & Session Proxy', technologies: ['Node.js', 'Docker'], bullets: ['Implemented stateless token authentication reverse proxy.'] },
+          {
+            id: 'bp-1',
+            name: 'Telemetry Stream Processor',
+            technologies: ['Node.js', 'Redis', 'PostgreSQL'],
+            bullets: ['Engineered stream deduping and partition routing pipeline.'],
+          },
+          {
+            id: 'bp-2',
+            name: 'Auth & Session Proxy',
+            technologies: ['Node.js', 'Docker'],
+            bullets: ['Implemented stateless token authentication reverse proxy.'],
+          },
         ],
         education: [
-          { institution: 'Western Tech University', degree: 'B.S. in Computer Science', year: '2022' },
+          {
+            institution: 'Western Tech University',
+            degree: 'B.S. in Computer Science',
+            year: '2022',
+          },
         ],
       },
       job: {
@@ -265,8 +338,18 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'fp-prod-1', name: 'Component Library', technologies: ['React', 'TypeScript', 'Tailwind CSS'], bullets: ['Published accessible design tokens and interactive component suite.'] },
-          { id: 'fp-prod-2', name: 'SaaS Workspace Dashboard', technologies: ['Next.js', 'React'], bullets: ['Created responsive analytics dashboard with client-side state management.'] },
+          {
+            id: 'fp-prod-1',
+            name: 'Component Library',
+            technologies: ['React', 'TypeScript', 'Tailwind CSS'],
+            bullets: ['Published accessible design tokens and interactive component suite.'],
+          },
+          {
+            id: 'fp-prod-2',
+            name: 'SaaS Workspace Dashboard',
+            technologies: ['Next.js', 'React'],
+            bullets: ['Created responsive analytics dashboard with client-side state management.'],
+          },
         ],
         education: [
           { institution: 'Eastern Polytechnic', degree: 'B.S. in Computer Science', year: '2022' },
@@ -276,7 +359,8 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
         id: 'job-frontend',
         title: 'Frontend Product Engineer',
         company: 'HyperGrowth UI',
-        description: 'Frontend specialist experienced with React, TypeScript, and accessible component libraries.',
+        description:
+          'Frontend specialist experienced with React, TypeScript, and accessible component libraries.',
         projectRankings: [
           { projectId: 'fp-prod-1', relevanceScore: 94, relevanceRank: 1 },
           { projectId: 'fp-prod-2', relevanceScore: 88, relevanceRank: 2 },
@@ -313,18 +397,33 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'ml-1', name: 'Semantic Search Engine', technologies: ['Python', 'FastAPI', 'PyTorch'], bullets: ['Implemented vector embedding retrieval pipeline for enterprise documents.'] },
-          { id: 'ml-2', name: 'Model Evaluation Harness', technologies: ['Python', 'Docker'], bullets: ['Constructed automated benchmark suite assessing model accuracy and drift.'] },
+          {
+            id: 'ml-1',
+            name: 'Semantic Search Engine',
+            technologies: ['Python', 'FastAPI', 'PyTorch'],
+            bullets: ['Implemented vector embedding retrieval pipeline for enterprise documents.'],
+          },
+          {
+            id: 'ml-2',
+            name: 'Model Evaluation Harness',
+            technologies: ['Python', 'Docker'],
+            bullets: ['Constructed automated benchmark suite assessing model accuracy and drift.'],
+          },
         ],
         education: [
-          { institution: 'National Research University', degree: 'M.S. in Artificial Intelligence', year: '2021' },
+          {
+            institution: 'National Research University',
+            degree: 'M.S. in Artificial Intelligence',
+            year: '2021',
+          },
         ],
       },
       job: {
         id: 'job-aiml',
         title: 'Machine Learning Engineer',
         company: 'DeepLogic AI',
-        description: 'ML engineer experienced with PyTorch, model serving, and Python API architecture.',
+        description:
+          'ML engineer experienced with PyTorch, model serving, and Python API architecture.',
         projectRankings: [
           { projectId: 'ml-1', relevanceScore: 96, relevanceRank: 1 },
           { projectId: 'ml-2', relevanceScore: 90, relevanceRank: 2 },
@@ -361,11 +460,25 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'mob-1', name: 'Field Service App', technologies: ['React Native', 'TypeScript'], bullets: ['Built offline-first mobile app with SQLite synchronization.'] },
-          { id: 'mob-2', name: 'GraphQL Gateway', technologies: ['Node.js', 'GraphQL'], bullets: ['Created federated schema aggregating mobile API endpoints.'] },
+          {
+            id: 'mob-1',
+            name: 'Field Service App',
+            technologies: ['React Native', 'TypeScript'],
+            bullets: ['Built offline-first mobile app with SQLite synchronization.'],
+          },
+          {
+            id: 'mob-2',
+            name: 'GraphQL Gateway',
+            technologies: ['Node.js', 'GraphQL'],
+            bullets: ['Created federated schema aggregating mobile API endpoints.'],
+          },
         ],
         education: [
-          { institution: 'Polytechnic Institute', degree: 'B.S. in Information Systems', year: '2022' },
+          {
+            institution: 'Polytechnic Institute',
+            degree: 'B.S. in Information Systems',
+            year: '2022',
+          },
         ],
       },
       job: {
@@ -409,11 +522,25 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'inf-1', name: 'Infrastructure as Code Platform', technologies: ['Terraform', 'Kubernetes'], bullets: ['Automated cloud resource provisioning with GitOps workflow.'] },
-          { id: 'inf-2', name: 'Observability Exporter', technologies: ['Linux', 'Docker'], bullets: ['Configured Prometheus metric scrapers and custom health endpoints.'] },
+          {
+            id: 'inf-1',
+            name: 'Infrastructure as Code Platform',
+            technologies: ['Terraform', 'Kubernetes'],
+            bullets: ['Automated cloud resource provisioning with GitOps workflow.'],
+          },
+          {
+            id: 'inf-2',
+            name: 'Observability Exporter',
+            technologies: ['Linux', 'Docker'],
+            bullets: ['Configured Prometheus metric scrapers and custom health endpoints.'],
+          },
         ],
         education: [
-          { institution: 'Stockholm Technical University', degree: 'B.S. in Computer Science', year: '2021' },
+          {
+            institution: 'Stockholm Technical University',
+            degree: 'B.S. in Computer Science',
+            year: '2021',
+          },
         ],
       },
       job: {
@@ -457,18 +584,33 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'sys-1', name: 'High-Performance Order Router', technologies: ['C++', 'Linux'], bullets: ['Engineered memory-mapped matching engine with microsecond latency.'] },
-          { id: 'sys-2', name: 'Embedded Sensor Driver', technologies: ['C', 'Linux'], bullets: ['Constructed kernel-space character device driver with interrupt handling.'] },
+          {
+            id: 'sys-1',
+            name: 'High-Performance Order Router',
+            technologies: ['C++', 'Linux'],
+            bullets: ['Engineered memory-mapped matching engine with microsecond latency.'],
+          },
+          {
+            id: 'sys-2',
+            name: 'Embedded Sensor Driver',
+            technologies: ['C', 'Linux'],
+            bullets: ['Constructed kernel-space character device driver with interrupt handling.'],
+          },
         ],
         education: [
-          { institution: 'Imperial Engineering University', degree: 'B.S. in Electrical & Computer Engineering', year: '2021' },
+          {
+            institution: 'Imperial Engineering University',
+            degree: 'B.S. in Electrical & Computer Engineering',
+            year: '2021',
+          },
         ],
       },
       job: {
         id: 'job-cpp',
         title: 'C++ Systems Engineer',
         company: 'Quantum Trading Systems',
-        description: 'Systems software engineer specializing in modern C++, memory models, and Linux kernel fundamentals.',
+        description:
+          'Systems software engineer specializing in modern C++, memory models, and Linux kernel fundamentals.',
         projectRankings: [
           { projectId: 'sys-1', relevanceScore: 95, relevanceRank: 1 },
           { projectId: 'sys-2', relevanceScore: 88, relevanceRank: 2 },
@@ -505,18 +647,37 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
           },
         ],
         projects: [
-          { id: 'nov-1', name: 'Zero-Allocation Parser', technologies: ['Zig', 'SurrealDB'], bullets: ['Engineered SIMD-accelerated serialization format with zero heap allocations.'] },
-          { id: 'nov-2', name: 'Heterogeneous Compute Kernel', technologies: ['Mojo', 'Bun'], bullets: ['Constructed GPU matrix multiply primitives utilizing hardware tensor cores.'] },
+          {
+            id: 'nov-1',
+            name: 'Zero-Allocation Parser',
+            technologies: ['Zig', 'SurrealDB'],
+            bullets: [
+              'Engineered SIMD-accelerated serialization format with zero heap allocations.',
+            ],
+          },
+          {
+            id: 'nov-2',
+            name: 'Heterogeneous Compute Kernel',
+            technologies: ['Mojo', 'Bun'],
+            bullets: [
+              'Constructed GPU matrix multiply primitives utilizing hardware tensor cores.',
+            ],
+          },
         ],
         education: [
-          { institution: 'Advanced Computing Academy', degree: 'B.S. in Applied Mathematics & Computing', year: '2022' },
+          {
+            institution: 'Advanced Computing Academy',
+            degree: 'B.S. in Applied Mathematics & Computing',
+            year: '2022',
+          },
         ],
       },
       job: {
         id: 'job-novel',
         title: 'Modern Systems Engineer',
         company: 'Pioneer Runtimes',
-        description: 'Research and development engineer exploring high-performance next-generation systems languages.',
+        description:
+          'Research and development engineer exploring high-performance next-generation systems languages.',
         projectRankings: [
           { projectId: 'nov-1', relevanceScore: 92, relevanceRank: 1 },
           { projectId: 'nov-2', relevanceScore: 86, relevanceRank: 2 },
@@ -549,7 +710,11 @@ describe('P16-003: 10-Archetype Real PDF Acceptance & One-Page Verification (Req
 
       // 1. Strict One-Page Fit Verification (Req 27)
       const pageCount = countPdfPages(pdfBuffer);
-      assert.equal(pageCount, 1, `${tc.title} must compile to exactly 1 page; got ${pageCount} pages`);
+      assert.equal(
+        pageCount,
+        1,
+        `${tc.title} must compile to exactly 1 page; got ${pageCount} pages`
+      );
 
       // 2. Text Extraction & Fidelity Verification
       const extractedText = parser.extractRawText({ buffer: pdfBuffer, format: 'PDF' });

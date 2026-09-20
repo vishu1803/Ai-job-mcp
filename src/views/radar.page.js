@@ -156,7 +156,8 @@ export function renderRadarPage({
           discoveredJobs.length === 0
             ? renderEmptyState({
                 title: 'No Live Opportunities Found',
-                message: 'No live job board postings matched your current search parameters. Broaden your search or evaluate a custom role in Custom Analysis.',
+                message:
+                  'No live job board postings matched your current search parameters. Broaden your search or evaluate a custom role in Custom Analysis.',
                 actionLabel: 'Analyze a Job Posting',
                 actionHref: '/apps/radar?tab=analyze',
                 icon: 'radar',
@@ -296,7 +297,8 @@ export function renderRadarPage({
           savedJobApplications.length === 0
             ? renderEmptyState({
                 title: 'No Saved Jobs in Pipeline',
-                message: 'You have not saved any opportunities yet. Save roles from the Discover feed to prepare tailored application kits.',
+                message:
+                  'You have not saved any opportunities yet. Save roles from the Discover feed to prepare tailored application kits.',
                 actionLabel: 'Discover Matching Jobs',
                 actionHref: '/apps/radar?tab=discover',
                 icon: 'briefcase',
@@ -308,7 +310,11 @@ export function renderRadarPage({
                 const atsScore =
                   app.atsFitSnapshot?.overallScore || app.atsFitSnapshot?.atsScore || 75;
                 const badgeClass =
-                  atsScore >= 80 ? 'badge-verified' : atsScore >= 60 ? 'badge-indigo' : 'badge-amber';
+                  atsScore >= 80
+                    ? 'badge-verified'
+                    : atsScore >= 60
+                      ? 'badge-indigo'
+                      : 'badge-amber';
                 const savedDate = app.createdAt
                   ? new Date(app.createdAt).toLocaleDateString(undefined, {
                       month: 'short',

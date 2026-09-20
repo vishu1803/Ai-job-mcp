@@ -921,7 +921,8 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
       {
         candidateId,
         jobTitle: 'Software Engineer',
-        jobDescriptionText: 'Build React and Next.js user interfaces with accessible frontend workflows.',
+        jobDescriptionText:
+          'Build React and Next.js user interfaces with accessible frontend workflows.',
       },
       {
         db,
@@ -944,7 +945,10 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
     assert.ok(backend.resume);
     assert.ok(frontend.resume);
     assert.notStrictEqual(backendTrace.jobFingerprint, frontendTrace.jobFingerprint);
-    assert.notDeepStrictEqual(backendTrace.normalizedRequirements, frontendTrace.normalizedRequirements);
+    assert.notDeepStrictEqual(
+      backendTrace.normalizedRequirements,
+      frontendTrace.normalizedRequirements
+    );
     assert.notDeepStrictEqual(backendTrace.matches, frontendTrace.matches);
 
     const directWorkflow = new JobApplicationWorkflowService({
@@ -963,10 +967,12 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
         categoryName: category.categoryName,
         skills: category.skills.map((skill) => skill.name),
       })),
-      backendPrepared.prepared.tailoredResume.structuredResume.skills.categories.map((category) => ({
-        categoryName: category.categoryName,
-        skills: category.skills.map((skill) => skill.name),
-      }))
+      backendPrepared.prepared.tailoredResume.structuredResume.skills.categories.map(
+        (category) => ({
+          categoryName: category.categoryName,
+          skills: category.skills.map((skill) => skill.name),
+        })
+      )
     );
   });
 });

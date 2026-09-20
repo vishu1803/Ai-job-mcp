@@ -105,10 +105,7 @@ const VALID_TRANSITIONS = {
     WORKFLOW_EVENTS.FORM_FOUND,
     WORKFLOW_EVENTS.RESET,
   ],
-  [WORKFLOW_STATES.READY_FOR_USER_REVIEW]: [
-    WORKFLOW_EVENTS.FORM_FOUND,
-    WORKFLOW_EVENTS.RESET,
-  ],
+  [WORKFLOW_STATES.READY_FOR_USER_REVIEW]: [WORKFLOW_EVENTS.FORM_FOUND, WORKFLOW_EVENTS.RESET],
 };
 
 export class WorkflowStateMachine {
@@ -231,7 +228,12 @@ export class WorkflowStateMachine {
       this.currentState = eventOrState;
       this.history.push(eventOrState);
       if (typeof this.listener === 'function') {
-        this.listener({ from: previousState, to: eventOrState, event: 'DIRECT_TRANSITION', context });
+        this.listener({
+          from: previousState,
+          to: eventOrState,
+          event: 'DIRECT_TRANSITION',
+          context,
+        });
       }
       return true;
     }

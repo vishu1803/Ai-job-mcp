@@ -142,7 +142,11 @@ export class ResumeContentOptimizer {
       if (f.ownerId) keys.add(f.ownerId);
       if (f.association?.projectName) {
         keys.add(f.association.projectName);
-        keys.add(String(f.association.projectName).toLowerCase().replace(/[^a-z0-9]/g, ''));
+        keys.add(
+          String(f.association.projectName)
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+        );
       }
       for (const k of keys) {
         inventoryFactCountByProject.set(k, (inventoryFactCountByProject.get(k) || 0) + 1);
@@ -159,7 +163,9 @@ export class ResumeContentOptimizer {
       null;
 
     if (structuredResume) {
-      currentStructuredResume = JSON.parse(JSON.stringify(structuredResume.structuredResume || structuredResume));
+      currentStructuredResume = JSON.parse(
+        JSON.stringify(structuredResume.structuredResume || structuredResume)
+      );
     } else {
       const snap = buildStructuredResumeSnapshot({
         candidateProfile,
@@ -209,8 +215,12 @@ export class ResumeContentOptimizer {
           order: idx + 1,
         }))
       );
-      const extractedCategoryOrder = rawCats.map((cat) => cat.categoryName || cat.category).filter(Boolean);
-      const extractedSkillSlugs = extractedSelectedSkills.map((s) => s.slug || s.name).filter(Boolean);
+      const extractedCategoryOrder = rawCats
+        .map((cat) => cat.categoryName || cat.category)
+        .filter(Boolean);
+      const extractedSkillSlugs = extractedSelectedSkills
+        .map((s) => s.slug || s.name)
+        .filter(Boolean);
 
       if (extractedSelectedSkills.length > 0) {
         initialTailoringPlan = {
@@ -348,7 +358,8 @@ export class ResumeContentOptimizer {
         }
 
         // Available vertical space in points (estimated)
-        const availableSpacePt = geometry.bottomWhitespacePt || (1 - geometry.pageOccupancyRatio) * 640;
+        const availableSpacePt =
+          geometry.bottomWhitespacePt || (1 - geometry.pageOccupancyRatio) * 640;
 
         // Generate and evaluate candidate moves by expected value per page capacity
         const candidateMoves = this._generateCandidateMoves({
@@ -377,7 +388,12 @@ export class ResumeContentOptimizer {
             }
             iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${bestMove.name} (${currentCount} -> ${targetCount})`;
             this.logger.info(
-              { project: bestMove.name, newCount: targetCount, iteration, expectedValue: bestMove.expectedValue },
+              {
+                project: bestMove.name,
+                newCount: targetCount,
+                iteration,
+                expectedValue: bestMove.expectedValue,
+              },
               'Optimizer expanding project bullets from canonical fact inventory'
             );
           } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT) {
@@ -490,10 +506,15 @@ export class ResumeContentOptimizer {
         },
         final: {
           pageCount: finalResult.acceptanceMetrics?.pageCount || finalStats.pageCount,
-          bottomWhitespacePt: finalResult.geometry?.bottomWhitespacePt ?? finalStats.bottomWhitespacePt,
-          pageOccupancyRatio: finalResult.geometry?.pageOccupancyRatio ?? finalStats.pageOccupancyRatio,
-          factsRendered: finalResult.acceptanceMetrics?.factUtilization?.factsRendered ?? finalStats.factsRendered,
-          writingQualityScore: finalResult.writingQuality?.writingQualityScore ?? finalStats.writingQualityScore,
+          bottomWhitespacePt:
+            finalResult.geometry?.bottomWhitespacePt ?? finalStats.bottomWhitespacePt,
+          pageOccupancyRatio:
+            finalResult.geometry?.pageOccupancyRatio ?? finalStats.pageOccupancyRatio,
+          factsRendered:
+            finalResult.acceptanceMetrics?.factUtilization?.factsRendered ??
+            finalStats.factsRendered,
+          writingQualityScore:
+            finalResult.writingQuality?.writingQualityScore ?? finalStats.writingQualityScore,
         },
         bulletsAdded: Math.max(
           0,
@@ -523,8 +544,8 @@ export class ResumeContentOptimizer {
     const moves = [];
     const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
     const hasJobRequirements =
-      Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0 ||
-      Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0;
+      (Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0) ||
+      (Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0);
     const projectCoverage = (project) => {
       const projectKey = project.id || project.projectId || project.name;
       const facts = scoredInventoryFacts.filter(
@@ -548,8 +569,13 @@ export class ResumeContentOptimizer {
     for (const fact of scoredInventoryFacts) {
       const key = fact.association?.projectId || fact.ownerId || fact.association?.projectName;
       if (!key) continue;
-      const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
-      relevanceByProject.set(normalized, Math.max(relevanceByProject.get(normalized) || 0, fact.jobRelevance || 0));
+      const normalized = String(key)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+      relevanceByProject.set(
+        normalized,
+        Math.max(relevanceByProject.get(normalized) || 0, fact.jobRelevance || 0)
+      );
     }
 
     // Move Type 1: Expand Project Bullets
@@ -564,7 +590,11 @@ export class ResumeContentOptimizer {
 
       const factCount =
         inventoryFactCountByProject?.get?.(pId) ??
-        inventoryFactCountByProject?.get?.(String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ??
+        inventoryFactCountByProject?.get?.(
+          String(p.name || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+        ) ??
         0;
       if (factCount <= effectiveCount) continue;
 
@@ -642,7 +672,7 @@ export class ResumeContentOptimizer {
     const renderedFactIds = new Set();
     const projects = structuredResume?.projects || [];
     for (const p of projects) {
-      for (const b of (p.bullets || [])) {
+      for (const b of p.bullets || []) {
         if (Array.isArray(b.composedFromFactIds)) {
           for (const fid of b.composedFromFactIds) renderedFactIds.add(fid);
         }

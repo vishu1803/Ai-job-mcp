@@ -29,7 +29,9 @@ export class FormDetector {
       doc.querySelector('#application-form, #job-application, .application-form') ||
       doc.querySelector('form');
 
-    const inputs = formEl ? formEl.querySelectorAll('input, select, textarea') : doc.querySelectorAll('input, select, textarea');
+    const inputs = formEl
+      ? formEl.querySelectorAll('input, select, textarea')
+      : doc.querySelectorAll('input, select, textarea');
 
     const detectedFields = [];
     inputs.forEach((input) => {
@@ -83,10 +85,16 @@ export class FormDetector {
     let fieldType = 'UNKNOWN';
     let canonicalMapping = null;
 
-    if (/first[\s_-]?name/i.test(descriptor) || (descriptor.includes('first') && descriptor.includes('name'))) {
+    if (
+      /first[\s_-]?name/i.test(descriptor) ||
+      (descriptor.includes('first') && descriptor.includes('name'))
+    ) {
       fieldType = 'FIRST_NAME';
       canonicalMapping = 'candidate.firstName';
-    } else if (/last[\s_-]?name/i.test(descriptor) || (descriptor.includes('last') && descriptor.includes('name'))) {
+    } else if (
+      /last[\s_-]?name/i.test(descriptor) ||
+      (descriptor.includes('last') && descriptor.includes('name'))
+    ) {
       fieldType = 'LAST_NAME';
       canonicalMapping = 'candidate.lastName';
     } else if (/full[\s_-]?name/i.test(descriptor) || descriptor === 'name') {
@@ -98,7 +106,10 @@ export class FormDetector {
     } else if (/phone|mobile|telephone/i.test(descriptor) || input.type === 'tel') {
       fieldType = 'PHONE';
       canonicalMapping = 'candidate.phone';
-    } else if (/resume|cv|curriculum/i.test(descriptor) || (input.type === 'file' && /resume|cv/i.test(descriptor))) {
+    } else if (
+      /resume|cv|curriculum/i.test(descriptor) ||
+      (input.type === 'file' && /resume|cv/i.test(descriptor))
+    ) {
       fieldType = 'RESUME_UPLOAD';
       canonicalMapping = 'artifacts.resume';
     } else if (/cover[\s_-]?letter/i.test(descriptor)) {
@@ -113,7 +124,11 @@ export class FormDetector {
     } else if (/portfolio|website|url/i.test(descriptor)) {
       fieldType = 'PORTFOLIO_URL';
       canonicalMapping = 'candidate.portfolioUrl';
-    } else if (/authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship/i.test(descriptor)) {
+    } else if (
+      /authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship/i.test(
+        descriptor
+      )
+    ) {
       fieldType = 'WORK_AUTHORIZATION';
       canonicalMapping = 'candidate.careerPreferences.workAuthorization';
     } else if (/sponsor/i.test(descriptor)) {

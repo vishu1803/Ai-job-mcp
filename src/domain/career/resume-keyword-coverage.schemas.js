@@ -106,5 +106,8 @@ export const ResumeKeywordCoverageReportSchema = z.strictObject({
   stuffingWarnings: z.array(KeywordStuffingWarningSchema).default([]),
   confidence: z.number().min(0.0).max(1.0).default(1.0),
   confidenceFactors: ConfidenceFactorsSchema.optional(),
-  analyzedAt: z.string().datetime().default(() => new Date().toISOString()),
+  analyzedAt: z
+    .string()
+    .datetime()
+    .default(() => new Date().toISOString()),
 });

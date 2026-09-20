@@ -29,9 +29,7 @@ import {
   deriveTargetRoleHeading,
   deriveSectionOrdering,
 } from '../../src/services/resume-content-strategy.service.js';
-import {
-  buildStructuredResumeDocument,
-} from '../../src/services/structured-resume.service.js';
+import { buildStructuredResumeDocument } from '../../src/services/structured-resume.service.js';
 import { PdfGeometryAnalyzer } from '../../src/services/pdf-geometry-analyzer.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 
@@ -287,7 +285,10 @@ describe('P16-001E: Job-Tailored Heading & Dynamic Section Ordering', () => {
 
     assert.ok(experienceIdx !== -1, 'EXPERIENCE section must be present');
     assert.ok(projectsIdx !== -1, 'PROJECTS section must be present');
-    assert.ok(experienceIdx < projectsIdx, 'EXPERIENCE must precede PROJECTS for experienced candidate');
+    assert.ok(
+      experienceIdx < projectsIdx,
+      'EXPERIENCE must precede PROJECTS for experienced candidate'
+    );
   });
 
   it('Test J: Package-specific section order is honored', () => {
@@ -379,11 +380,7 @@ describe('P16-001E: Job-Tailored Heading & Dynamic Section Ordering', () => {
   it('Test N: Missing selected section is rejected', () => {
     const analyzer = new PdfGeometryAnalyzer();
 
-    const detectedSections = [
-      { type: 'SUMMARY' },
-      { type: 'SKILLS' },
-      { type: 'EDUCATION' },
-    ];
+    const detectedSections = [{ type: 'SUMMARY' }, { type: 'SKILLS' }, { type: 'EDUCATION' }];
 
     const expectedSections = ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION'];
     const presenceReport = analyzer._validateSectionPresence(detectedSections, expectedSections);

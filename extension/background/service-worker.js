@@ -59,13 +59,15 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    chrome.runtime.sendMessage({
-      type: 'ACTIVE_TAB_CHANGED',
-      tabId: activeInfo.tabId,
-      url: tab?.url,
-    }).catch(() => {
-      // No listener active, ignore
-    });
+    chrome.runtime
+      .sendMessage({
+        type: 'ACTIVE_TAB_CHANGED',
+        tabId: activeInfo.tabId,
+        url: tab?.url,
+      })
+      .catch(() => {
+        // No listener active, ignore
+      });
   } catch {
     // Tab might have been closed
   }
@@ -74,14 +76,16 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 // Forward active tab page reload or URL navigation
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' || changeInfo.url) {
-    chrome.runtime.sendMessage({
-      type: 'TAB_UPDATED',
-      tabId,
-      url: tab?.url || changeInfo.url,
-      status: changeInfo.status,
-    }).catch(() => {
-      // No listener active, ignore
-    });
+    chrome.runtime
+      .sendMessage({
+        type: 'TAB_UPDATED',
+        tabId,
+        url: tab?.url || changeInfo.url,
+        status: changeInfo.status,
+      })
+      .catch(() => {
+        // No listener active, ignore
+      });
   }
 });
 
@@ -188,14 +192,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       })();
 
-      chrome.runtime.sendMessage({
-        type: 'JOB_DESCRIPTION_HYDRATED',
-        tabId: senderTabId,
-        jobData: message.jobData,
-        jobFingerprint: message.jobFingerprint,
-      }).catch(() => {
-        // No listener active (e.g. sidebar closed), ignore
-      });
+      chrome.runtime
+        .sendMessage({
+          type: 'JOB_DESCRIPTION_HYDRATED',
+          tabId: senderTabId,
+          jobData: message.jobData,
+          jobFingerprint: message.jobFingerprint,
+        })
+        .catch(() => {
+          // No listener active (e.g. sidebar closed), ignore
+        });
       sendResponse({ success: true, hydrated: true, forwarded: true });
     } else {
       sendResponse({ success: false, error: 'Missing or invalid sender tab identity' });
@@ -203,5 +209,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
-
-

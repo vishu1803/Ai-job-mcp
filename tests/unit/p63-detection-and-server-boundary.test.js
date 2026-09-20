@@ -29,15 +29,13 @@ import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin
 import { GenericCareerPageAdapter } from '../../extension/job-detection/adapters/generic-career.adapter.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
 
-function createMockDocument({
-  elements = {},
-  meta = {},
-  scripts = [],
-  bodyText = '',
-} = {}) {
+function createMockDocument({ elements = {}, meta = {}, scripts = [], bodyText = '' } = {}) {
   const doc = {
     body: { textContent: bodyText },
     querySelector(selector) {
@@ -81,7 +79,9 @@ function createMockDocument({
       }
       const cleanSelector = selector.replace(/\s+i\]/g, ']');
       if (elements[cleanSelector]) {
-        return Array.isArray(elements[cleanSelector]) ? elements[cleanSelector] : [elements[cleanSelector]];
+        return Array.isArray(elements[cleanSelector])
+          ? elements[cleanSelector]
+          : [elements[cleanSelector]];
       }
       return [];
     },
@@ -99,7 +99,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
           'a.topcard__org-name-link': { textContent: 'CloudScale Inc' },
           'span.topcard__flavor--bullet': { textContent: 'Seattle, WA (Remote)' },
           '.show-more-less-html__markup': {
-            textContent: 'About the role: CloudScale is looking for a Staff Distributed Systems Engineer. Requirements: 5+ years Go, Kubernetes, Raft consensus.',
+            textContent:
+              'About the role: CloudScale is looking for a Staff Distributed Systems Engineer. Requirements: 5+ years Go, Kubernetes, Raft consensus.',
             querySelectorAll: () => [
               { textContent: '5+ years experience in distributed systems' },
               { textContent: 'Deep expertise with Go and Kubernetes' },
@@ -126,7 +127,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
           '.job-details-jobs-unified-top-card__job-title': { textContent: 'Lead Backend Engineer' },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'FinTech Labs' },
           '#job-details': {
-            textContent: 'FinTech Labs is hiring a Lead Backend Engineer with Node.js and PostgreSQL.',
+            textContent:
+              'FinTech Labs is hiring a Lead Backend Engineer with Node.js and PostgreSQL.',
             querySelectorAll: () => [{ textContent: 'Strong Node.js and SQL skills' }],
           },
         },
@@ -152,7 +154,9 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       ];
 
       for (const url of nonJobUrls) {
-        const dom = createMockDocument({ bodyText: 'General social feed and professional network content' });
+        const dom = createMockDocument({
+          bodyText: 'General social feed and professional network content',
+        });
         const canHandle = LinkedInAdapter.canHandle(dom, url);
         assert.strictEqual(canHandle, false, `Failed to reject ${url}`);
 
@@ -171,7 +175,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       const searchUrl = 'https://www.linkedin.com/jobs/search/?keywords=software%20engineer';
 
       const canHandle = LinkedInAdapter.canHandle(dom, searchUrl);
-      assert.strictEqual(canHandle, false, 'Search listing without active job must not be handled as active job page');
+      assert.strictEqual(
+        canHandle,
+        false,
+        'Search listing without active job must not be handled as active job page'
+      );
 
       const result = JobDetectionEngine.evaluate(dom, searchUrl);
       assert.strictEqual(result.detected, false);
@@ -183,9 +191,10 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
   describe('2. Conservative Generic Detection (ChatGPT & Non-Job False Positive Prevention)', () => {
     it('strictly rejects ChatGPT pages (chat conversation, prompt interface, no hardcoded blacklist)', () => {
       const chatgptDom = createMockDocument({
-        bodyText: 'ChatGPT. You are an expert backend engineer with 10 years of experience. Tell me about microservices, Docker, Kubernetes, and developer skills.',
+        bodyText:
+          'ChatGPT. You are an expert backend engineer with 10 years of experience. Tell me about microservices, Docker, Kubernetes, and developer skills.',
         elements: {
-          'h1': { textContent: 'ChatGPT' },
+          h1: { textContent: 'ChatGPT' },
         },
       });
       const chatgptUrl = 'https://chatgpt.com/c/68c74a5e-1234-5678-90ab-cdef12345678';
@@ -211,35 +220,37 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         {
           url: 'https://github.com/torvalds/linux',
           dom: createMockDocument({
-            elements: { 'h1': { textContent: 'torvalds / linux' } },
+            elements: { h1: { textContent: 'torvalds / linux' } },
             bodyText: 'Linux kernel source tree. Requirements: C compiler, make, gcc.',
           }),
         },
         {
           url: 'https://github.com/facebook/react/issues/12345',
           dom: createMockDocument({
-            elements: { 'h1': { textContent: 'Bug: state update batching issue' } },
-            bodyText: 'Steps to reproduce: developer experience in react 19. Responsibilities: fix bug.',
+            elements: { h1: { textContent: 'Bug: state update batching issue' } },
+            bodyText:
+              'Steps to reproduce: developer experience in react 19. Responsibilities: fix bug.',
           }),
         },
         {
           url: 'https://docs.python.org/3/tutorial/classes.html',
           dom: createMockDocument({
-            elements: { 'h1': { textContent: '9. Classes — Python 3 documentation' } },
+            elements: { h1: { textContent: '9. Classes — Python 3 documentation' } },
             bodyText: 'Classes provide a means of bundling data and functionality together.',
           }),
         },
         {
           url: 'https://medium.com/@dev/how-to-become-a-senior-developer-in-2026',
           dom: createMockDocument({
-            elements: { 'h1': { textContent: 'How to Become a Senior Developer in 2026' } },
-            bodyText: 'Skills you need: system design, leadership, years of experience, mentoring junior engineers.',
+            elements: { h1: { textContent: 'How to Become a Senior Developer in 2026' } },
+            bodyText:
+              'Skills you need: system design, leadership, years of experience, mentoring junior engineers.',
           }),
         },
         {
           url: 'https://www.google.com/search?q=full+stack+engineer+jobs',
           dom: createMockDocument({
-            elements: { 'h1': { textContent: 'Google Search' } },
+            elements: { h1: { textContent: 'Google Search' } },
             bodyText: 'Search results for full stack engineer jobs in San Francisco.',
           }),
         },
@@ -260,7 +271,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         '@context': 'https://schema.org/',
         '@type': 'JobPosting',
         title: 'Senior Cloud Platform Engineer',
-        description: 'Vanguard Systems is seeking a Senior Cloud Platform Engineer with Kubernetes and AWS experience.',
+        description:
+          'Vanguard Systems is seeking a Senior Cloud Platform Engineer with Kubernetes and AWS experience.',
         hiringOrganization: {
           '@type': 'Organization',
           name: 'Vanguard Systems',
@@ -294,17 +306,20 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
     it('positively detects generic career portal with job URL and substantive Apply structure', () => {
       const dom = createMockDocument({
         elements: {
-          'h1': { textContent: 'Lead Infrastructure Engineer' },
+          h1: { textContent: 'Lead Infrastructure Engineer' },
           'button[class*="apply" i]': { textContent: 'Apply for this Job' },
-          'h2': { textContent: 'Job Description' },
-          'h3': { textContent: 'Requirements' },
-          'li': [
-            { textContent: '4+ years experience designing infrastructure pipelines with Terraform.' },
+          h2: { textContent: 'Job Description' },
+          h3: { textContent: 'Requirements' },
+          li: [
+            {
+              textContent: '4+ years experience designing infrastructure pipelines with Terraform.',
+            },
             { textContent: 'Hands-on production Kubernetes cluster operations experience.' },
             { textContent: 'Proficiency in Go, Python, or Rust for systems tooling.' },
           ],
         },
-        bodyText: 'About the role: Nebula AI is seeking a Lead Infrastructure Engineer to build our scalable distributed platform. You will be responsible for orchestrating Kubernetes, configuring Terraform modules, and building resilient distributed systems. Apply for this job today! Requirements: 4+ years Terraform and Kubernetes.',
+        bodyText:
+          'About the role: Nebula AI is seeking a Lead Infrastructure Engineer to build our scalable distributed platform. You will be responsible for orchestrating Kubernetes, configuring Terraform modules, and building resilient distributed systems. Apply for this job today! Requirements: 4+ years Terraform and Kubernetes.',
       });
       const url = 'https://jobs.ashbyhq.com/nebula-ai/8765-4321';
 
@@ -353,7 +368,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         const url = 'https://techblog.example.com/posts/architecture-2026';
 
         const canHandle = GenericCareerPageAdapter.canHandle(dom, url);
-        assert.strictEqual(canHandle, false, `Generic adapter should reject non-JobPosting @type=${schema['@type']}`);
+        assert.strictEqual(
+          canHandle,
+          false,
+          `Generic adapter should reject non-JobPosting @type=${schema['@type']}`
+        );
 
         const portalId = AdapterRegistry.resolvePortalIdentity(url, dom);
         assert.notStrictEqual(portalId.portalName, 'Structured Web Page (JSON-LD JobPosting)');
@@ -406,7 +425,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         analyzeJob: async (job) => {
           analyzeCalls++;
           return {
-            fitAnalysis: { overallScore: 84, matchedSkills: ['Node.js', 'PostgreSQL'], missingSkills: ['GraphQL'] },
+            fitAnalysis: {
+              overallScore: 84,
+              matchedSkills: ['Node.js', 'PostgreSQL'],
+              missingSkills: ['GraphQL'],
+            },
             recommendedProjects: [{ id: 'p1', name: 'Scale Pipeline', relevanceScore: 88 }],
             analysisSnapshotId: 'snap-123',
           };
@@ -426,7 +449,9 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         get: async (k) => (typeof k === 'string' ? { [k]: storageData[k] } : storageData),
         set: async (obj) => Object.assign(storageData, obj),
         remove: async (k) => delete storageData[k],
-        clear: async () => { for (const k of Object.keys(storageData)) delete storageData[k]; },
+        clear: async () => {
+          for (const k of Object.keys(storageData)) delete storageData[k];
+        },
       };
 
       mockStore = new DurableWorkflowStore(mockStorage);
@@ -480,7 +505,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
-        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        description:
+          'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
         analysisReady: true,
       };
 
@@ -529,7 +555,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
 
       assert.strictEqual(analyzeCalls, 0, 'Background detection of Job B must NOT call analyze');
       assert.strictEqual(controller.activeJob.title, jobA.title, 'Job A must remain active');
-      assert.strictEqual(controller.pendingDetectedJob.title, jobB.title, 'Job B must be stored as pending');
+      assert.strictEqual(
+        controller.pendingDetectedJob.title,
+        jobB.title,
+        'Job B must be stored as pending'
+      );
     });
 
     it('explicit Rescan switches active workflow with ZERO server calls', async () => {
@@ -544,7 +574,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Job B - Staff Architect',
         company: 'Company B',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1002',
-        description: 'Job B requirements: 8+ years architecting enterprise scale systems with Kubernetes.',
+        description:
+          'Job B requirements: 8+ years architecting enterprise scale systems with Kubernetes.',
         analysisReady: true,
       };
 
@@ -566,7 +597,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
-        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        description:
+          'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
         analysisReady: true,
       };
 
@@ -586,7 +618,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
-        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        description:
+          'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
         analysisReady: true,
       };
 
@@ -655,13 +688,15 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Engineer A',
         company: 'Corp A',
         sourceUrl: 'https://site.com/a',
-        description: 'Engineer A role requiring scalable systems design, API engineering, and distributed services maintenance for enterprise cloud platforms.',
+        description:
+          'Engineer A role requiring scalable systems design, API engineering, and distributed services maintenance for enterprise cloud platforms.',
       };
       const jobB = {
         title: 'Engineer B',
         company: 'Corp B',
         sourceUrl: 'https://site.com/b',
-        description: 'Engineer B role requiring distributed backend services, reliability engineering, and continuous integration workflows.',
+        description:
+          'Engineer B role requiring distributed backend services, reliability engineering, and continuous integration workflows.',
       };
 
       // Set up Tab A with completed handoff -> locked
@@ -698,7 +733,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       // Invariant: Tab B must NOT inherit Tab A locked state or active job!
       assert.strictEqual(controller.activeJob.title, 'Engineer B');
       assert.strictEqual(controller.isWorkflowLocked(), false, 'Tab B must NOT be locked');
-      assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false, 'Tab B Analyze button must be enabled');
+      assert.strictEqual(
+        controller.elements.analyzeJobBtn.disabled,
+        false,
+        'Tab B Analyze button must be enabled'
+      );
       assert.strictEqual(controller.elements.analyzeJobBtn.textContent, 'Analyze Job Match');
 
       // Switch back to Tab A
@@ -777,7 +816,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       controller.activeJob = {
         title: 'Principal Architect',
         company: 'Vanguard',
-        description: 'Principal Architect role with more than 50 characters of substantive technical requirements for high availability distributed systems.',
+        description:
+          'Principal Architect role with more than 50 characters of substantive technical requirements for high availability distributed systems.',
       };
       controller.cachedState = controller.store.createInitialState(555);
       controller.elements = {

@@ -1236,9 +1236,9 @@ export class EvidenceMatchingService {
           ? SkillTaxonomyEngine.normalizeSkill(req.normalizedCriteria.technology)?.canonicalSlug
           : null);
       const targetSkillSlug = rawTargetSkillSlug
-        ? (SkillTaxonomyEngine.normalizeSkill(rawTargetSkillSlug)?.canonicalSlug ||
-           SkillTaxonomyEngine.generateSafeSlug(rawTargetSkillSlug) ||
-           null)
+        ? SkillTaxonomyEngine.normalizeSkill(rawTargetSkillSlug)?.canonicalSlug ||
+          SkillTaxonomyEngine.generateSafeSlug(rawTargetSkillSlug) ||
+          null
         : null;
 
       const candidateSkills = Array.isArray(candidateProfile.skills) ? candidateProfile.skills : [];
@@ -1308,15 +1308,18 @@ export class EvidenceMatchingService {
         // prove practical application development. Only source-level code evidence
         // (CODE_USAGE, CODE_IMPORT_USAGE, CONFIG_SYNTAX_DECLARATION) qualifies.
         const SOURCE_LEVEL_EVIDENCE_TYPES = new Set([
-          'CODE_USAGE', 'CODE_IMPORT_USAGE', 'CONFIG_SYNTAX_DECLARATION',
-          'COMMIT_CONTRIBUTION', 'FILE_PATTERN_MATCH',
+          'CODE_USAGE',
+          'CODE_IMPORT_USAGE',
+          'CONFIG_SYNTAX_DECLARATION',
+          'COMMIT_CONTRIBUTION',
+          'FILE_PATTERN_MATCH',
         ]);
         const hasSourceLevelEvidence = evidenceRefs.some(
-          (ev) => SOURCE_LEVEL_EVIDENCE_TYPES.has(ev.evidenceType) &&
+          (ev) =>
+            SOURCE_LEVEL_EVIDENCE_TYPES.has(ev.evidenceType) &&
             !EvidenceMatchingService._isLowTrustEvidence(ev)
         );
-        const hasOnlyManifestEvidence = evidenceRefs.length > 0 &&
-          !hasSourceLevelEvidence;
+        const hasOnlyManifestEvidence = evidenceRefs.length > 0 && !hasSourceLevelEvidence;
 
         const isFallbackMatch = practicalSkill !== matchedSkill;
         const evidenceSkillName = practicalSkill?.name || req.extractedValue;
@@ -1345,13 +1348,15 @@ export class EvidenceMatchingService {
           resolvedTrustClass = 'HIGH_TRUST';
           matchConfidence = 0.75;
           if (isFallbackMatch) {
-            explanationText = professionalMonths === 0
-              ? `PARTIAL: Candidate demonstrates practical application development using ${evidenceSkillName} (a ${targetTechName} framework) through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}), but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
-              : `MATCHED: Candidate demonstrates practical ${targetTechName} application development via ${evidenceSkillName} with ${professionalMonths} months professional experience and verified repository implementations.`;
+            explanationText =
+              professionalMonths === 0
+                ? `PARTIAL: Candidate demonstrates practical application development using ${evidenceSkillName} (a ${targetTechName} framework) through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}), but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
+                : `MATCHED: Candidate demonstrates practical ${targetTechName} application development via ${evidenceSkillName} with ${professionalMonths} months professional experience and verified repository implementations.`;
           } else {
-            explanationText = professionalMonths === 0
-              ? `PARTIAL: Candidate demonstrates practical ${targetTechName} application development through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}) and 4 months internship experience, but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
-              : `MATCHED: Candidate demonstrates practical ${targetTechName} application development with ${professionalMonths} months professional experience and verified repository implementations.`;
+            explanationText =
+              professionalMonths === 0
+                ? `PARTIAL: Candidate demonstrates practical ${targetTechName} application development through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}) and 4 months internship experience, but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
+                : `MATCHED: Candidate demonstrates practical ${targetTechName} application development with ${professionalMonths} months professional experience and verified repository implementations.`;
           }
         } else {
           // Low-confidence or unknown provenance with source evidence

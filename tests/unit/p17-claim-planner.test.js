@@ -59,7 +59,11 @@ describe('P17: ResumeClaimPlannerService', () => {
     // Verify distinct semantic dimensions across planned claims
     const primaryDims = result.plannedClaims.map((c) => c.semanticDimensions[0]);
     const uniqueDims = new Set(primaryDims);
-    assert.equal(uniqueDims.size, primaryDims.length, 'Each bullet should cover a distinct dimension');
+    assert.equal(
+      uniqueDims.size,
+      primaryDims.length,
+      'Each bullet should cover a distinct dimension'
+    );
   });
 
   it('separates project description facts and prioritizes accomplishments', () => {

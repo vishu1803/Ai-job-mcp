@@ -18,13 +18,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { db, closeDatabase } from '../../src/db/index.js';
-import {
-  tenants,
-  users,
-  candidates,
-  candidateSkills,
-  skillCatalog,
-} from '../../src/db/schema.js';
+import { tenants, users, candidates, candidateSkills, skillCatalog } from '../../src/db/schema.js';
 import { CandidateAdditionalSkillsService } from '../../src/services/candidate-additional-skills.service.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { NotFoundError, ValidationError } from '../../src/errors/index.js';
@@ -91,8 +85,8 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
       .from(skillCatalog)
       .where(sql`slug IN ('docker', 'redis')`);
 
-    dockerCatalogSkill = catalogRows.find(s => s.slug === 'docker');
-    redisCatalogSkill = catalogRows.find(s => s.slug === 'redis');
+    dockerCatalogSkill = catalogRows.find((s) => s.slug === 'docker');
+    redisCatalogSkill = catalogRows.find((s) => s.slug === 'redis');
 
     assert.ok(dockerCatalogSkill, 'Docker must exist in skill_catalog');
     assert.ok(redisCatalogSkill, 'Redis must exist in skill_catalog');
@@ -121,7 +115,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     ]);
 
     // 2. Query (simulate refresh)
-    const skillsAfterRefresh = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const skillsAfterRefresh = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(skillsAfterRefresh.length, 1);
     assert.equal(skillsAfterRefresh[0].skillSlug, 'docker');
     assert.equal(skillsAfterRefresh[0].catalogSkillId, dockerCatalogSkill.id);
@@ -129,13 +126,16 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
 
   it('TEST B: Add Docker -> Save -> Edit headline -> Save again -> Docker remains', async () => {
     // 1. Initial state: candidate has Docker
-    const initialSkills = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const initialSkills = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(initialSkills.length, 1);
     assert.equal(initialSkills[0].catalogSkillId, dockerCatalogSkill.id);
 
     // 2. Emulate what frontend buildSavePayload() sends during a profile edit (headline edit):
     // Frontend maps hydrated skills: s => ({ catalogSkillId: s.catalogSkillId, ... })
-    const payloadSkills = initialSkills.map(s => ({
+    const payloadSkills = initialSkills.map((s) => ({
       catalogSkillId: s.catalogSkillId,
       proficiency: s.proficiency,
       usageContext: s.usageContext || null,
@@ -151,7 +151,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     await additionalSkillsService.setAdditionalSkills(context, testCandidate.id, payloadSkills);
 
     // 3. Verify Docker remains in database
-    const skillsAfterSecondSave = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const skillsAfterSecondSave = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(skillsAfterSecondSave.length, 1);
     assert.equal(skillsAfterSecondSave[0].skillSlug, 'docker');
     assert.equal(skillsAfterSecondSave[0].catalogSkillId, dockerCatalogSkill.id);
@@ -163,7 +166,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
 
   it('TEST C: Add Docker -> Save -> Edit preferences -> Save again -> Docker remains', async () => {
     // 1. Get hydrated additional skills
-    const hydratedSkills = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const hydratedSkills = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(hydratedSkills.length, 1);
     assert.equal(hydratedSkills[0].catalogSkillId, dockerCatalogSkill.id);
 
@@ -175,7 +181,7 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
       },
     });
 
-    const payloadSkills = hydratedSkills.map(s => ({
+    const payloadSkills = hydratedSkills.map((s) => ({
       catalogSkillId: s.catalogSkillId,
       proficiency: s.proficiency,
       usageContext: s.usageContext,
@@ -185,7 +191,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     await additionalSkillsService.setAdditionalSkills(context, testCandidate.id, payloadSkills);
 
     // 3. Verify Docker remains
-    const skillsAfterPrefsSave = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const skillsAfterPrefsSave = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(skillsAfterPrefsSave.length, 1);
     assert.equal(skillsAfterPrefsSave[0].skillSlug, 'docker');
     assert.equal(skillsAfterPrefsSave[0].catalogSkillId, dockerCatalogSkill.id);
@@ -205,10 +214,13 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     ]);
 
     // 2. Query (simulate refresh)
-    const skillsAfterRefresh = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const skillsAfterRefresh = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(skillsAfterRefresh.length, 2);
 
-    const slugs = skillsAfterRefresh.map(s => s.skillSlug).sort();
+    const slugs = skillsAfterRefresh.map((s) => s.skillSlug).sort();
     assert.deepEqual(slugs, ['docker', 'redis']);
 
     for (const skill of skillsAfterRefresh) {
@@ -219,7 +231,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
 
   it('TEST E: Save with intentionally invalid catalogSkillId -> fails, existing stored skills remain unchanged', async () => {
     // 1. Verify 2 skills exist before failed attempt
-    const beforeSkills = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const beforeSkills = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(beforeSkills.length, 2);
 
     const fakeCatalogId = crypto.randomUUID();
@@ -242,9 +257,12 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     );
 
     // 3. Verify existing skills are completely preserved (no wipeout)
-    const afterFailedSkills = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const afterFailedSkills = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(afterFailedSkills.length, 2);
-    const slugs = afterFailedSkills.map(s => s.skillSlug).sort();
+    const slugs = afterFailedSkills.map((s) => s.skillSlug).sort();
     assert.deepEqual(slugs, ['docker', 'redis']);
   });
 
@@ -278,7 +296,9 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
     // Correct implementation mapping
     const payload = mockClientData.map((s, idx) => {
       if (!s.catalogSkillId) {
-        throw new Error(`Additional skill at position ${idx + 1} is missing required catalogSkillId`);
+        throw new Error(
+          `Additional skill at position ${idx + 1} is missing required catalogSkillId`
+        );
       }
       return {
         catalogSkillId: s.catalogSkillId,
@@ -299,27 +319,30 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
       },
     ];
 
-    assert.throws(
-      () => {
-        corruptedData.map((s, idx) => {
-          if (!s.catalogSkillId) {
-            throw new Error(`Additional skill at position ${idx + 1} is missing required catalogSkillId`);
-          }
-          return { catalogSkillId: s.catalogSkillId };
-        });
-      },
-      /missing required catalogSkillId/
-    );
+    assert.throws(() => {
+      corruptedData.map((s, idx) => {
+        if (!s.catalogSkillId) {
+          throw new Error(
+            `Additional skill at position ${idx + 1} is missing required catalogSkillId`
+          );
+        }
+        return { catalogSkillId: s.catalogSkillId };
+      });
+    }, /missing required catalogSkillId/);
   });
 
   it('TEST H: Successful save response means DB actually contains the submitted skills', async () => {
     // 1. Submit only Redis
-    const updateResult = await additionalSkillsService.setAdditionalSkills(context, testCandidate.id, [
-      {
-        catalogSkillId: redisCatalogSkill.id,
-        proficiency: 'ADVANCED',
-      },
-    ]);
+    const updateResult = await additionalSkillsService.setAdditionalSkills(
+      context,
+      testCandidate.id,
+      [
+        {
+          catalogSkillId: redisCatalogSkill.id,
+          proficiency: 'ADVANCED',
+        },
+      ]
+    );
 
     assert.equal(updateResult.length, 1);
     assert.equal(updateResult[0].skillSlug, 'redis');
@@ -341,7 +364,10 @@ describe('Additional Skills Persistence & Canonical Contract Tests', () => {
 
   it('TEST I: Failed save NEVER deletes previously persisted skills', async () => {
     // 1. Ensure Redis is persisted
-    const beforeRows = await additionalSkillsService.listAdditionalSkills(context, testCandidate.id);
+    const beforeRows = await additionalSkillsService.listAdditionalSkills(
+      context,
+      testCandidate.id
+    );
     assert.equal(beforeRows.length, 1);
     assert.equal(beforeRows[0].skillSlug, 'redis');
 

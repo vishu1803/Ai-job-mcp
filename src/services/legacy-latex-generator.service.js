@@ -14,10 +14,7 @@ import {
   formatProjectDisplayName,
   groundAndSanitizeProject,
 } from './candidate-artifact-content.service.js';
-import {
-  normalizeTechnologyName,
-  isNoisyTechnology,
-} from '../utils/technology-normalizer.js';
+import { normalizeTechnologyName, isNoisyTechnology } from '../utils/technology-normalizer.js';
 
 /**
  * Escapes reserved LaTeX characters in dynamic user strings and safely
@@ -198,19 +195,23 @@ export class LegacyLatexGenerator {
     const profileLinkElements = [];
 
     // Resolve authoritative portfolio links from candidate profile or package.
-    const profileLinksList = (
+    const profileLinksList =
       Array.isArray(candidateProfile?.portfolioLinks) && candidateProfile.portfolioLinks.length > 0
         ? candidateProfile.portfolioLinks
-        : Array.isArray(candidateProfile?.profileMetadata?.portfolioLinks) && candidateProfile.profileMetadata.portfolioLinks.length > 0
+        : Array.isArray(candidateProfile?.profileMetadata?.portfolioLinks) &&
+            candidateProfile.profileMetadata.portfolioLinks.length > 0
           ? candidateProfile.profileMetadata.portfolioLinks
-          : Array.isArray(candidateProfile?.candidate?.profileMetadata?.portfolioLinks) && candidateProfile.candidate.profileMetadata.portfolioLinks.length > 0
+          : Array.isArray(candidateProfile?.candidate?.profileMetadata?.portfolioLinks) &&
+              candidateProfile.candidate.profileMetadata.portfolioLinks.length > 0
             ? candidateProfile.candidate.profileMetadata.portfolioLinks
-            : Array.isArray(candidateProfile?.profileMetadata?.userCustom?.portfolioLinks) && candidateProfile.profileMetadata.userCustom.portfolioLinks.length > 0
+            : Array.isArray(candidateProfile?.profileMetadata?.userCustom?.portfolioLinks) &&
+                candidateProfile.profileMetadata.userCustom.portfolioLinks.length > 0
               ? candidateProfile.profileMetadata.userCustom.portfolioLinks
-              : Array.isArray(candidateProfile?.candidate?.profileMetadata?.userCustom?.portfolioLinks)
+              : Array.isArray(
+                    candidateProfile?.candidate?.profileMetadata?.userCustom?.portfolioLinks
+                  )
                 ? candidateProfile.candidate.profileMetadata.userCustom.portfolioLinks
-                : []
-    );
+                : [];
     const packageLinksList = Array.isArray(applicationPackage?.portfolioLinks)
       ? applicationPackage.portfolioLinks
       : [];
@@ -262,7 +263,8 @@ export class LegacyLatexGenerator {
     const portfolioLink = customLinks.find(
       (l) =>
         /portfolio|website|personal/i.test(l.label || l.platform || '') ||
-        (l.type === 'PORTFOLIO' || l.type === 'WEBSITE') ||
+        l.type === 'PORTFOLIO' ||
+        l.type === 'WEBSITE' ||
         (l.url && !/github\.com|linkedin\.com|leetcode\.com/i.test(l.url))
     );
     if (portfolioLink?.url && isRealUrl(portfolioLink.url)) {
@@ -427,13 +429,17 @@ export class LegacyLatexGenerator {
       const dedupedLearning = normalizeAndDeduplicateSkills(learningSkills);
       const capLines = [];
       if (dedupedVerified.length > 0) {
-        capLines.push(`\\textbf{Verified Capabilities:} ${escapeLatex(dedupedVerified.join(', '))}`);
+        capLines.push(
+          `\\textbf{Verified Capabilities:} ${escapeLatex(dedupedVerified.join(', '))}`
+        );
       }
       if (dedupedClaimed.length > 0) {
         capLines.push(`\\textbf{Technical Proficiency:} ${escapeLatex(dedupedClaimed.join(', '))}`);
       }
       if (dedupedLearning.length > 0) {
-        capLines.push(`\\textbf{Active Learning / Growth:} ${escapeLatex(dedupedLearning.join(', '))}`);
+        capLines.push(
+          `\\textbf{Active Learning / Growth:} ${escapeLatex(dedupedLearning.join(', '))}`
+        );
       }
       if (capLines.length > 0) {
         skillsLatexSection = `\\atssection{Core Competencies}\n${capLines.join('\\\\\n')}\\par`;
@@ -573,7 +579,9 @@ export class LegacyLatexGenerator {
 
     const isExplicitlySelected = hasSelectedSectionsList
       ? selectedSections.some((s) =>
-          ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(String(s).toUpperCase())
+          ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(
+            String(s).toUpperCase()
+          )
         )
       : /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
           applicationPackage.tailoredResume?.markdownContent || ''
@@ -870,9 +878,11 @@ ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
 
     // 8. Other optional candidate-owned sections (Coursework, Publications, Achievements, Additional Skills, Awards)
     let courseworkLatexSection = '';
-    const isCourseworkSelected = hasSelectedSectionsList && selectedSections.some((s) =>
-      ['COURSEWORK', 'RELEVANT_COURSEWORK'].includes(String(s).toUpperCase())
-    );
+    const isCourseworkSelected =
+      hasSelectedSectionsList &&
+      selectedSections.some((s) =>
+        ['COURSEWORK', 'RELEVANT_COURSEWORK'].includes(String(s).toUpperCase())
+      );
     if (isCourseworkSelected) {
       const cwSnapshot = sectionSnapshots.COURSEWORK || null;
       const cwRecords = Array.isArray(cwSnapshot?.records) ? cwSnapshot.records : [];
@@ -886,9 +896,11 @@ ${cwRecords.map((c) => `  \\item ${escapeLatex(typeof c === 'string' ? c : c.nam
     }
 
     let publicationsLatexSection = '';
-    const isPubSelected = hasSelectedSectionsList && selectedSections.some((s) =>
-      ['PUBLICATIONS', 'PUBLICATION'].includes(String(s).toUpperCase())
-    );
+    const isPubSelected =
+      hasSelectedSectionsList &&
+      selectedSections.some((s) =>
+        ['PUBLICATIONS', 'PUBLICATION'].includes(String(s).toUpperCase())
+      );
     if (isPubSelected) {
       const pubSnapshot = sectionSnapshots.PUBLICATIONS || null;
       const pubRecords = Array.isArray(pubSnapshot?.records) ? pubSnapshot.records : [];
@@ -902,9 +914,11 @@ ${pubRecords.map((p) => `  \\item ${escapeLatex(typeof p === 'string' ? p : p.ti
     }
 
     let achievementsLatexSection = '';
-    const isAchievementsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
-      ['ACHIEVEMENTS', 'ACHIEVEMENT'].includes(String(s).toUpperCase())
-    );
+    const isAchievementsSelected =
+      hasSelectedSectionsList &&
+      selectedSections.some((s) =>
+        ['ACHIEVEMENTS', 'ACHIEVEMENT'].includes(String(s).toUpperCase())
+      );
     if (isAchievementsSelected) {
       const achSnapshot = sectionSnapshots.ACHIEVEMENTS || null;
       const achRecords = Array.isArray(achSnapshot?.records) ? achSnapshot.records : [];
@@ -918,9 +932,11 @@ ${achRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.ti
     }
 
     let additionalSkillsLatexSection = '';
-    const isAddSkillsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
-      ['ADDITIONAL_SKILLS', 'ADDITIONAL_SKILL'].includes(String(s).toUpperCase())
-    );
+    const isAddSkillsSelected =
+      hasSelectedSectionsList &&
+      selectedSections.some((s) =>
+        ['ADDITIONAL_SKILLS', 'ADDITIONAL_SKILL'].includes(String(s).toUpperCase())
+      );
     if (isAddSkillsSelected) {
       const skSnapshot = sectionSnapshots.ADDITIONAL_SKILLS || null;
       const skRecords = Array.isArray(skSnapshot?.records) ? skSnapshot.records : [];
@@ -934,9 +950,9 @@ ${skRecords.map((s) => `  \\item ${escapeLatex(typeof s === 'string' ? s : s.nam
     }
 
     let awardsLatexSection = '';
-    const isAwardsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
-      ['AWARDS', 'AWARD'].includes(String(s).toUpperCase())
-    );
+    const isAwardsSelected =
+      hasSelectedSectionsList &&
+      selectedSections.some((s) => ['AWARDS', 'AWARD'].includes(String(s).toUpperCase()));
     if (isAwardsSelected) {
       const awSnapshot = sectionSnapshots.AWARDS || null;
       const awRecords = Array.isArray(awSnapshot?.records) ? awSnapshot.records : [];
@@ -953,12 +969,14 @@ ${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.tit
     const hasRealEducation = educationRecords.length > 0;
 
     const summaryLatexSection = `\\atssection{Professional Summary}\n${summaryText ? escapeLatex(summaryText) : '\\textit{(Professional summary not provided in profile.)}'}\\par`;
-    const experienceLatexSection = hasRealExperience && expEntries.length > 0
-      ? `\\atssection{Professional Experience}\n${expEntries.join('\n')}`
-      : '';
-    const educationLatexSection = hasRealEducation && eduEntries.length > 0
-      ? `\\atssection{Education}\n${eduEntries.join('\n')}`
-      : '';
+    const experienceLatexSection =
+      hasRealExperience && expEntries.length > 0
+        ? `\\atssection{Professional Experience}\n${expEntries.join('\n')}`
+        : '';
+    const educationLatexSection =
+      hasRealEducation && eduEntries.length > 0
+        ? `\\atssection{Education}\n${eduEntries.join('\n')}`
+        : '';
 
     const sectionBlocks = {
       SUMMARY: summaryLatexSection,
@@ -978,8 +996,13 @@ ${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.tit
     const authoritativeOrder = (
       applicationPackage.structuredResume?.sectionOrder ||
       applicationPackage.tailoringPlan?.sectionOrder ||
-      applicationPackage.tailoredResume?.sectionOrder ||
-      ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION']
+      applicationPackage.tailoredResume?.sectionOrder || [
+        'SUMMARY',
+        'SKILLS',
+        'PROJECTS',
+        'EXPERIENCE',
+        'EDUCATION',
+      ]
     )
       .map((s) => String(s).toUpperCase())
       .filter((s) => s !== 'HEADER');

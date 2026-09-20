@@ -364,4 +364,3 @@ export const CANONICAL_PORTAL_ROUTES = Object.freeze({
   SOURCES: { path: '/sources', label: 'Connected Sources' },
   CONNECT: { path: '/connect', label: 'AI Connect & Tokens' },
 });
-

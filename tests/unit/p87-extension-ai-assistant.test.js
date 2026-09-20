@@ -167,9 +167,7 @@ Requirements:
       aiProvider: failingProvider,
       analyzeJobFitTool: async () => ({
         atsScore: { overallScore: 82, matchBand: 'STRONG' },
-        requirementMatches: [
-          { normalizedRequirement: 'TypeScript', matchStatus: 'MATCHED' },
-        ],
+        requirementMatches: [{ normalizedRequirement: 'TypeScript', matchStatus: 'MATCHED' }],
       }),
     });
 
@@ -246,7 +244,7 @@ Requirements:
     assert.ok(noticeConflict.applicationValue.includes('Immediate'));
     assert.ok(
       noticeConflict.resolutionOptions.includes('KEEP_PROFILE') &&
-      noticeConflict.resolutionOptions.includes('USE_APPLICATION'),
+        noticeConflict.resolutionOptions.includes('USE_APPLICATION'),
       'Surfaces choices rather than unilaterally overwriting'
     );
 
@@ -263,10 +261,22 @@ Requirements:
       { name: 'applicant_email', fieldType: 'EMAIL', label: 'Email Address' },
       { name: 'applicant_phone', fieldType: 'PHONE', label: 'Phone' },
       { name: 'github_profile', fieldType: 'GITHUB_URL', label: 'GitHub URL' },
-      { name: 'legal_work_auth', fieldType: 'WORK_AUTHORIZATION', label: 'Are you authorized to work in the US?' },
-      { name: 'visa_sponsorship', fieldType: 'VISA_SPONSORSHIP', label: 'Will you require sponsorship?' },
+      {
+        name: 'legal_work_auth',
+        fieldType: 'WORK_AUTHORIZATION',
+        label: 'Are you authorized to work in the US?',
+      },
+      {
+        name: 'visa_sponsorship',
+        fieldType: 'VISA_SPONSORSHIP',
+        label: 'Will you require sponsorship?',
+      },
       { name: 'expected_salary', fieldType: 'SALARY_EXPECTATION', label: 'Desired Salary' },
-      { name: 'unsupported_field', fieldType: 'CLEARANCE_LEVEL', label: 'Do you hold a TS/SCI clearance?' },
+      {
+        name: 'unsupported_field',
+        fieldType: 'CLEARANCE_LEVEL',
+        label: 'Do you hold a TS/SCI clearance?',
+      },
     ];
 
     const plan = assistantService.generateAutofillPlan({
@@ -293,19 +303,31 @@ Requirements:
     assert.equal(authField.value, 'US Citizen');
     assert.equal(authField.source, 'CANONICAL_CAREER_PREFERENCES');
     assert.equal(authField.confidence, 0.95);
-    assert.equal(authField.requiresConfirmation, true, 'Work authorization MUST require confirmation');
+    assert.equal(
+      authField.requiresConfirmation,
+      true,
+      'Work authorization MUST require confirmation'
+    );
     assert.equal(authField.isSensitive, true);
 
     // 3. Sensitive visa sponsorship field (STRICT CONFIRMATION REQUIRED)
     const visaField = plan.mappedFields.find((f) => f.fieldType === 'VISA_SPONSORSHIP');
     assert.equal(visaField.value, 'No');
-    assert.equal(visaField.requiresConfirmation, true, 'Visa sponsorship MUST require confirmation');
+    assert.equal(
+      visaField.requiresConfirmation,
+      true,
+      'Visa sponsorship MUST require confirmation'
+    );
     assert.equal(visaField.isSensitive, true);
 
     // 4. Sensitive salary field (STRICT CONFIRMATION REQUIRED)
     const salaryField = plan.mappedFields.find((f) => f.fieldType === 'SALARY_EXPECTATION');
     assert.equal(salaryField.value, '160,000');
-    assert.equal(salaryField.requiresConfirmation, true, 'Salary expectation MUST require confirmation');
+    assert.equal(
+      salaryField.requiresConfirmation,
+      true,
+      'Salary expectation MUST require confirmation'
+    );
     assert.equal(salaryField.isSensitive, true);
 
     // 5. Unavailable field (Clearance) MUST NOT be fabricated
@@ -339,7 +361,9 @@ Requirements:
 
   it('6. Application Error Translation: Reassures user and provides actionable guidance without leaking internals', () => {
     // Test a raw error that has internal technical traces
-    const rawError = new Error('ValidationError at job_applications.canonical_email: missing required field phone');
+    const rawError = new Error(
+      'ValidationError at job_applications.canonical_email: missing required field phone'
+    );
     const explanation = assistantService.explainApplicationError({ error: rawError });
 
     assert.equal(explanation.errorCategory, 'VALIDATION_ERROR');

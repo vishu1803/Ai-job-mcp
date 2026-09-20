@@ -11,13 +11,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  createEvaluatorProvenanceRecord,
-} from '../../src/domain/career/calibration/evaluator-provenance.service.js';
+import { createEvaluatorProvenanceRecord } from '../../src/domain/career/calibration/evaluator-provenance.service.js';
 
-import {
-  buildBenchmarkGovernanceReport,
-} from '../../src/domain/career/calibration/benchmark-governance.service.js';
+import { buildBenchmarkGovernanceReport } from '../../src/domain/career/calibration/benchmark-governance.service.js';
 
 import {
   P84_TARGET_JOB,
@@ -84,7 +80,10 @@ describe('P85: Human Label Integrity & Recruiter Grounding', () => {
 
     assert.equal(report.evaluatorReliability.humanRecruiterClaimStatus, 'SYNTHETIC_PROXY_ONLY');
     assert.equal(report.governanceVerdict.humanValidation, 'NOT_ESTABLISHED');
-    assert.match(report.limitations[0], /synthetic LLM proxies, NOT verified human technical recruiters/);
+    assert.match(
+      report.limitations[0],
+      /synthetic LLM proxies, NOT verified human technical recruiters/
+    );
   });
 
   it('3. Allows genuine human reviewers to use HUMAN_RECRUITER evaluatorType', () => {

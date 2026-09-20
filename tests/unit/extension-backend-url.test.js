@@ -11,11 +11,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  validateBackendUrl,
-  isLoopbackUrl,
-  PROD_BACKEND_URL,
-} from '../../extension/config.js';
+import { validateBackendUrl, isLoopbackUrl, PROD_BACKEND_URL } from '../../extension/config.js';
 import { BackendClient } from '../../extension/api/backend-client.js';
 
 describe('P15-002 Batch 2: Backend URL pinning (validateBackendUrl)', () => {
@@ -39,15 +35,33 @@ describe('P15-002 Batch 2: Backend URL pinning (validateBackendUrl)', () => {
   });
 
   it('rejects malformed URLs and non-http(s) schemes', () => {
-    assert.equal(validateBackendUrl('not a url', { isProduction: false }).reason, 'BACKEND_URL_MALFORMED');
-    assert.equal(validateBackendUrl('ftp://localhost:3000', { isProduction: false }).reason, 'BACKEND_URL_BAD_SCHEME');
-    assert.equal(validateBackendUrl('chrome-extension://abc', { isProduction: false }).reason, 'BACKEND_URL_BAD_SCHEME');
+    assert.equal(
+      validateBackendUrl('not a url', { isProduction: false }).reason,
+      'BACKEND_URL_MALFORMED'
+    );
+    assert.equal(
+      validateBackendUrl('ftp://localhost:3000', { isProduction: false }).reason,
+      'BACKEND_URL_BAD_SCHEME'
+    );
+    assert.equal(
+      validateBackendUrl('chrome-extension://abc', { isProduction: false }).reason,
+      'BACKEND_URL_BAD_SCHEME'
+    );
   });
 
   it('rejects URLs that are not bare origins (path/query/hash)', () => {
-    assert.equal(validateBackendUrl('http://localhost:3000/api', { isProduction: false }).reason, 'BACKEND_URL_NOT_ORIGIN');
-    assert.equal(validateBackendUrl('http://localhost:3000?x=1', { isProduction: false }).reason, 'BACKEND_URL_NOT_ORIGIN');
-    assert.equal(validateBackendUrl('http://localhost:3000#frag', { isProduction: false }).reason, 'BACKEND_URL_NOT_ORIGIN');
+    assert.equal(
+      validateBackendUrl('http://localhost:3000/api', { isProduction: false }).reason,
+      'BACKEND_URL_NOT_ORIGIN'
+    );
+    assert.equal(
+      validateBackendUrl('http://localhost:3000?x=1', { isProduction: false }).reason,
+      'BACKEND_URL_NOT_ORIGIN'
+    );
+    assert.equal(
+      validateBackendUrl('http://localhost:3000#frag', { isProduction: false }).reason,
+      'BACKEND_URL_NOT_ORIGIN'
+    );
   });
 
   it('production requires the pinned https origin', () => {
@@ -66,7 +80,9 @@ describe('P15-002 Batch 2: Backend URL pinning (validateBackendUrl)', () => {
 
     const loopback = validateBackendUrl('http://localhost:3000', { isProduction: true });
     assert.equal(loopback.valid, false);
-    assert.ok(['BACKEND_URL_INSECURE_FOR_PRODUCTION', 'BACKEND_URL_NOT_PINNED'].includes(loopback.reason));
+    assert.ok(
+      ['BACKEND_URL_INSECURE_FOR_PRODUCTION', 'BACKEND_URL_NOT_PINNED'].includes(loopback.reason)
+    );
   });
 
   it('production rejects private/loopback https hosts (SSRF-style credential exfil)', () => {

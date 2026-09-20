@@ -363,7 +363,9 @@ describe('P16-001F-5 Fix 4: candidate-owned metadata fallbacks', () => {
         {
           name: 'Synthesis Only Project',
           technologies: ['NestJS', 'PostgreSQL', 'TypeORM', 'Redis'],
-          highlights: ['Engineered scalable backend services with NestJS, PostgreSQL, TypeORM, and Redis.'],
+          highlights: [
+            'Engineered scalable backend services with NestJS, PostgreSQL, TypeORM, and Redis.',
+          ],
         },
       ],
     });

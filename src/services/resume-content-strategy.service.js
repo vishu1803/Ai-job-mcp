@@ -532,7 +532,9 @@ export function selectAndRephraseProjectBullets({
       const techs = projectTechs.filter((t) => bulletLower.includes(String(t).toLowerCase()));
       const agency = determineFactAgency(text, { sourceType, candidateAuthored, factType });
       const evidenceRole = classifyEvidenceRole(text, sourceType, 'IMPLEMENTATION');
-      const contributionClass = classifyContributionClass(text, sourceType, 'IMPLEMENTATION', { agency });
+      const contributionClass = classifyContributionClass(text, sourceType, 'IMPLEMENTATION', {
+        agency,
+      });
 
       return {
         factId: `${pId}-claim-${i}`,
@@ -696,10 +698,7 @@ export function deriveTargetRoleHeading({
       (tenureMetrics.professionalTenureYears < 1.0 && experiences.length === 0));
 
   const rawProfileHeadline =
-    profile.headline ||
-    profile.candidate?.headline ||
-    meta.headline ||
-    meta.userCustom?.headline;
+    profile.headline || profile.candidate?.headline || meta.headline || meta.userCustom?.headline;
   let curatedProfileHeadline = '';
   if (rawProfileHeadline && typeof rawProfileHeadline === 'string' && rawProfileHeadline.trim()) {
     curatedProfileHeadline = rawProfileHeadline.trim();
@@ -832,9 +831,10 @@ export function deriveTargetRoleHeading({
     }
 
     const seniorWordMatch = normalized.match(/\b(senior|lead|staff|principal)\b/i);
-    const validSeniorPrefix = (!isFresher && seniorWordMatch)
-      ? `${seniorWordMatch[0].charAt(0).toUpperCase() + seniorWordMatch[0].slice(1).toLowerCase()} `
-      : '';
+    const validSeniorPrefix =
+      !isFresher && seniorWordMatch
+        ? `${seniorWordMatch[0].charAt(0).toUpperCase() + seniorWordMatch[0].slice(1).toLowerCase()} `
+        : '';
 
     const coreRole = normalized
       .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
@@ -848,10 +848,15 @@ export function deriveTargetRoleHeading({
     const isFullStackRole = /\bfull[- ]?stack\b/i.test(normalized);
     const isFrontendRole = /\bfront[- ]?end\b/i.test(normalized) && !isFullStackRole;
     const isPythonRole = /\bpython\b/i.test(normalized);
-    const isBackendRole = (/\bback[- ]?end\b/i.test(normalized) || isPythonRole) && !isFullStackRole;
+    const isBackendRole =
+      (/\bback[- ]?end\b/i.test(normalized) || isPythonRole) && !isFullStackRole;
     const isDistributedRole = /\b(?:distributed|systems)\b/i.test(normalized);
-    const isDevOpsRole = /\b(?:devops|platform|infrastructure|sre|site reliability|cloud)\b/i.test(normalized);
-    const isMobileRole = /\b(?:ios|android|swift|kotlin|mobile|flutter|react native)\b/i.test(normalized);
+    const isDevOpsRole = /\b(?:devops|platform|infrastructure|sre|site reliability|cloud)\b/i.test(
+      normalized
+    );
+    const isMobileRole = /\b(?:ios|android|swift|kotlin|mobile|flutter|react native)\b/i.test(
+      normalized
+    );
 
     // Headline Precedence Rule:
     // 1. Broad explicit role identity in posting (e.g. "Software Engineer") must NOT be
@@ -927,7 +932,10 @@ export function deriveTargetRoleHeading({
       const jobTerms = normalized
         .toLowerCase()
         .split(/[\s/—–-]+/)
-        .filter((t) => !['engineer', 'developer', 'software', 'senior', 'junior', 'lead', 'staff'].includes(t));
+        .filter(
+          (t) =>
+            !['engineer', 'developer', 'software', 'senior', 'junior', 'lead', 'staff'].includes(t)
+        );
       const hasJobTermEvidence =
         jobTerms.length > 0 &&
         jobTerms.some((term) =>
@@ -995,9 +1003,11 @@ export function deriveTargetRoleHeading({
     candidateHeadline,
     // Target role from job posting (seniority-adjusted if fresher)
     targetRole: rawJobTitle
-      ? (isFresher
-          ? normalizeTargetRoleTitle(rawJobTitle).replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '').trim()
-          : normalizeTargetRoleTitle(rawJobTitle))
+      ? isFresher
+        ? normalizeTargetRoleTitle(rawJobTitle)
+            .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+            .trim()
+        : normalizeTargetRoleTitle(rawJobTitle)
       : heading,
     // Tailored headline: role-conditioned and evidence-grounded
     tailoredHeadline: heading,

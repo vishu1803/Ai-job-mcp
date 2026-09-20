@@ -138,11 +138,10 @@ export function renderResumesPage({
         </div>
       </div>
 
-      ${
-        (() => {
-          const baseResume = resumesList.find((r) => r.isBaseResume);
-          if (!baseResume) return '';
-          return `
+      ${(() => {
+        const baseResume = resumesList.find((r) => r.isBaseResume);
+        if (!baseResume) return '';
+        return `
         <div class="card" style="margin-bottom:2rem; padding:20px 24px; border-left:4px solid var(--accent-emerald); background:var(--bg-surface-elevated);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
             <div style="display:flex; gap:14px; align-items:center;">
@@ -172,8 +171,7 @@ export function renderResumesPage({
           </div>
         </div>
       `;
-        })()
-      }
+      })()}
 
       <!-- Upload Zone -->
       <div class="card" style="margin-bottom:2.5rem; padding:28px;">

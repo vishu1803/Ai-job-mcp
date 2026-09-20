@@ -60,9 +60,7 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
         certifications: [
           { name: 'Certified Systems Architect', issuer: 'Open Group', issueDate: '2023' },
         ],
-        languages: [
-          { language: 'English', proficiency: 'Native' },
-        ],
+        languages: [{ language: 'English', proficiency: 'Native' }],
         projects: [
           {
             name: 'Fastify Gateway',
@@ -89,9 +87,7 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       { skillName: 'Node.js', provenanceStatus: 'VERIFIED' },
       { skillName: 'PostgreSQL', provenanceStatus: 'CLAIMED' },
     ],
-    technologySignals: [
-      { skillName: 'Dotenv', provenanceStatus: 'VERIFIED' },
-    ],
+    technologySignals: [{ skillName: 'Dotenv', provenanceStatus: 'VERIFIED' }],
     highlightedProjects: [
       {
         name: 'Fastify Gateway',
@@ -150,7 +146,10 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       assert.ok(html.includes(`id="tab-${tabId}"`), `Must render tab button for: ${tabId}`);
       assert.ok(html.includes(`data-tab="${tabId}"`), `Must have data-tab attribute for: ${tabId}`);
       assert.ok(html.includes(`id="panel-${tabId}"`), `Must render tab panel for: ${tabId}`);
-      assert.ok(html.includes(`aria-controls="panel-${tabId}"`), `Must associate tab with panel: ${tabId}`);
+      assert.ok(
+        html.includes(`aria-controls="panel-${tabId}"`),
+        `Must associate tab with panel: ${tabId}`
+      );
     }
 
     assert.ok(html.includes('role="tablist"'), 'Navigation container must have role="tablist"');
@@ -166,9 +165,19 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       activeSection: 'eligibility',
     });
 
-    assert.ok(html.includes('id="tab-eligibility"') && html.includes('aria-selected="true"'), 'Eligibility tab must be active');
-    assert.ok(html.includes('id="panel-eligibility"') && /id="panel-eligibility"[\s\S]*?class="tab-panel\s+active"/.test(html), 'Eligibility panel must be active');
-    assert.ok(html.includes('id="tab-overview"') && html.includes('aria-selected="false"'), 'Overview tab must not be active');
+    assert.ok(
+      html.includes('id="tab-eligibility"') && html.includes('aria-selected="true"'),
+      'Eligibility tab must be active'
+    );
+    assert.ok(
+      html.includes('id="panel-eligibility"') &&
+        /id="panel-eligibility"[\s\S]*?class="tab-panel\s+active"/.test(html),
+      'Eligibility panel must be active'
+    );
+    assert.ok(
+      html.includes('id="tab-overview"') && html.includes('aria-selected="false"'),
+      'Overview tab must not be active'
+    );
 
     // Test legacy alias mapping: 'links' maps to 'contact', 'experience' maps to 'professional'
     const htmlLegacyLinks = renderProfilePage({
@@ -177,7 +186,11 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       profile: mockProfile,
       activeSection: 'links',
     });
-    assert.ok(htmlLegacyLinks.includes('id="tab-contact"') && htmlLegacyLinks.includes('aria-selected="true"'), 'Legacy "links" must activate "contact" tab');
+    assert.ok(
+      htmlLegacyLinks.includes('id="tab-contact"') &&
+        htmlLegacyLinks.includes('aria-selected="true"'),
+      'Legacy "links" must activate "contact" tab'
+    );
 
     const htmlLegacyExp = renderProfilePage({
       user: mockUser,
@@ -185,7 +198,11 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       profile: mockProfile,
       activeSection: 'experience',
     });
-    assert.ok(htmlLegacyExp.includes('id="tab-professional"') && htmlLegacyExp.includes('aria-selected="true"'), 'Legacy "experience" must activate "professional" tab');
+    assert.ok(
+      htmlLegacyExp.includes('id="tab-professional"') &&
+        htmlLegacyExp.includes('aria-selected="true"'),
+      'Legacy "experience" must activate "professional" tab'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -227,10 +244,19 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       activeSection: 'overview',
     });
 
-    assert.ok(html.includes('issue(s) require your attention'), 'Must display attention banner when issues exist');
+    assert.ok(
+      html.includes('issue(s) require your attention'),
+      'Must display attention banner when issues exist'
+    );
     assert.ok(html.includes('action-item'), 'Must list action items');
-    assert.ok(html.includes('switch-tab-trigger'), 'Action items must provide deep-link tab trigger buttons');
-    assert.ok(html.includes('data-target-tab="eligibility"'), 'Action item must target eligibility tab');
+    assert.ok(
+      html.includes('switch-tab-trigger'),
+      'Action items must provide deep-link tab trigger buttons'
+    );
+    assert.ok(
+      html.includes('data-target-tab="eligibility"'),
+      'Action item must target eligibility tab'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -243,8 +269,14 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       profile: mockProfile,
     });
 
-    assert.ok(html.includes('<details class="advanced-disclosure">'), 'Must use advanced-disclosure container');
-    assert.ok(html.includes('<summary>Show repository verification details</summary>'), 'Must provide friendly summary');
+    assert.ok(
+      html.includes('<details class="advanced-disclosure">'),
+      'Must use advanced-disclosure container'
+    );
+    assert.ok(
+      html.includes('<summary>Show repository verification details</summary>'),
+      'Must provide friendly summary'
+    );
     // Ensure raw JSON dumps or AST engine metadata are not rendered bare
     assert.ok(!html.includes('"astEvidenceCount": 14'), 'Must not leak raw AST JSON dump');
   });
@@ -290,7 +322,10 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     });
 
     assert.ok(html.includes('class="required-star"'), 'Must have required star indicators');
-    assert.ok(html.includes('class="optional-tag"'), 'Must have optional tags for voluntary fields');
+    assert.ok(
+      html.includes('class="optional-tag"'),
+      'Must have optional tags for voluntary fields'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -306,13 +341,22 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     assert.ok(html.includes('id="section-contact"'), 'Must preserve #section-contact anchor');
     assert.ok(html.includes('id="section-readiness"'), 'Must preserve #section-readiness anchor');
     assert.ok(html.includes('id="section-links"'), 'Must preserve #section-links anchor');
-    assert.ok(html.includes('id="section-preferences"'), 'Must preserve #section-preferences anchor');
+    assert.ok(
+      html.includes('id="section-preferences"'),
+      'Must preserve #section-preferences anchor'
+    );
     assert.ok(html.includes('id="section-experience"'), 'Must preserve #section-experience anchor');
     assert.ok(html.includes('id="section-education"'), 'Must preserve #section-education anchor');
     assert.ok(html.includes('id="section-skills"'), 'Must preserve #section-skills anchor');
     assert.ok(html.includes('id="section-projects"'), 'Must preserve #section-projects anchor');
-    assert.ok(html.includes('id="section-credentials"'), 'Must preserve #section-credentials anchor');
-    assert.ok(html.includes('id="section-eligibility"'), 'Must preserve #section-eligibility anchor');
+    assert.ok(
+      html.includes('id="section-credentials"'),
+      'Must preserve #section-credentials anchor'
+    );
+    assert.ok(
+      html.includes('id="section-eligibility"'),
+      'Must preserve #section-eligibility anchor'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -325,10 +369,16 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
       profile: mockProfile,
     });
 
-    assert.ok(html.includes('id="globalSaveIndicator"'), 'Must render global save status indicator');
+    assert.ok(
+      html.includes('id="globalSaveIndicator"'),
+      'Must render global save status indicator'
+    );
     assert.ok(html.includes('aria-live="polite"'), 'Save indicator must have aria-live="polite"');
     assert.ok(html.includes('id="stickySaveBar"'), 'Must render sticky save bar');
-    assert.ok(html.includes('window.__INITIAL_PROFILE__'), 'Must embed initial profile state for dirty tracking');
+    assert.ok(
+      html.includes('window.__INITIAL_PROFILE__'),
+      'Must embed initial profile state for dirty tracking'
+    );
     assert.ok(html.includes('profile-nav-tabs'), 'Must render responsive navigation tab bar');
   });
 });

@@ -30,7 +30,10 @@ import {
   doesClaimAssertCandidateAgency,
   isTrustedCandidateAgencySource,
 } from './candidate-fact-inventory.service.js';
-import { calculateTokenOverlap, sanitizeGroundedAccomplishment } from './resume-composition-primitives.js';
+import {
+  calculateTokenOverlap,
+  sanitizeGroundedAccomplishment,
+} from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 import { validateAiPrivacy } from './ai-context-sanitizer.service.js';
 
@@ -100,14 +103,18 @@ export function isMetricAuthorizedByFacts(metricRaw, contributingFacts = []) {
     // 1. Explicit metrics in fact.metrics array
     if (Array.isArray(fact.metrics)) {
       for (const m of fact.metrics) {
-        const cleanM = String(m.raw || m.value || m).toLowerCase().replace(/\s+/g, '');
+        const cleanM = String(m.raw || m.value || m)
+          .toLowerCase()
+          .replace(/\s+/g, '');
         if (cleanM === cleanTm || cleanM.includes(cleanTm) || cleanTm.includes(cleanM)) {
           return { authorized: true, type: 'EXPLICIT', source: fact.factId };
         }
       }
     }
     // 2. Explicit metric string in fact text
-    const cleanFactText = String(fact.text || '').toLowerCase().replace(/\s+/g, '');
+    const cleanFactText = String(fact.text || '')
+      .toLowerCase()
+      .replace(/\s+/g, '');
     if (cleanFactText.includes(cleanTm)) {
       return { authorized: true, type: 'EXPLICIT', source: fact.factId };
     }
@@ -215,7 +222,9 @@ export class ResumeClaimValidationService {
     const factIds =
       Array.isArray(claim.factIds) && claim.factIds.length > 0
         ? claim.factIds
-        : (Array.isArray(claim.composedFromFactIds) ? claim.composedFromFactIds : []);
+        : Array.isArray(claim.composedFromFactIds)
+          ? claim.composedFromFactIds
+          : [];
     const factInventory = context.factInventory;
 
     // Index facts for rapid lookup
@@ -354,7 +363,9 @@ export class ResumeClaimValidationService {
           f.canonicalFactType === 'METRIC' ||
           f.evidenceRole === 'OUTCOME' ||
           (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-        (f.provenanceStatus === 'VERIFIED' || f.provenance === 'VERIFIED' || f.corroborated === true)
+        (f.provenanceStatus === 'VERIFIED' ||
+          f.provenance === 'VERIFIED' ||
+          f.corroborated === true)
       );
 
     const isVerifiedMetricFact = (f) =>
@@ -363,7 +374,9 @@ export class ResumeClaimValidationService {
         f.sourceType !== 'bullet' &&
         f.sourceType !== 'summary' &&
         (f.canonicalFactType === 'METRIC' || (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-        (f.provenanceStatus === 'VERIFIED' || f.provenance === 'VERIFIED' || f.corroborated === true)
+        (f.provenanceStatus === 'VERIFIED' ||
+          f.provenance === 'VERIFIED' ||
+          f.corroborated === true)
       );
 
     const outcomePattern =
@@ -373,8 +386,7 @@ export class ResumeClaimValidationService {
       if (!supportedInFacts) {
         violations.push({
           code: 'UNSUPPORTED_OUTCOME',
-          message:
-            'Claim asserts an outcome clause not substantiated by verified source evidence',
+          message: 'Claim asserts an outcome clause not substantiated by verified source evidence',
         });
       }
     }
@@ -395,8 +407,7 @@ export class ResumeClaimValidationService {
     }
 
     // (b) Developer velocity
-    const velocityPattern =
-      /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
+    const velocityPattern = /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
     if (velocityPattern.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
@@ -549,9 +560,7 @@ export class ResumeClaimValidationService {
         if (authorizedTopics.has(dLower)) return true;
         const parts = dLower.split('_');
         if (parts.some((p) => authorizedTopics.has(p))) return true;
-        return [...authorizedTopics].some(
-          (at) => at.includes(dLower) || dLower.includes(at)
-        );
+        return [...authorizedTopics].some((at) => at.includes(dLower) || dLower.includes(at));
       });
       if (!hasOverlap && contributingFacts.length > 0) {
         violations.push({
@@ -613,9 +622,13 @@ export class ResumeClaimValidationService {
         });
       }
       const isFragment =
-        /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)/i.test(trimmed);
+        /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)/i.test(
+          trimmed
+        );
       const startsWithActionVerb =
-        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed)\b/i.test(trimmed) ||
+        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed)\b/i.test(
+          trimmed
+        ) ||
         /^designed\s+and\s+implemented\b/i.test(trimmed) ||
         /^built\s+and\s+(?:deployed|implemented|designed)\b/i.test(trimmed) ||
         /^architected\s+and\s+(?:engineered|implemented)\b/i.test(trimmed) ||
@@ -873,14 +886,19 @@ export class ResumeClaimValidationService {
     const factsToCheck = isProjectClaim
       ? [
           ...contributingFacts,
-          ...((Array.isArray(context.factInventory) ? context.factInventory : (context.factInventory?.facts || [])).filter(
+          ...(Array.isArray(context.factInventory)
+            ? context.factInventory
+            : context.factInventory?.facts || []
+          ).filter(
             (f) =>
-              (f.sectionOwnerType === 'PROJECT' || f.ownerType === 'PROJECT' || f.association?.projectId) &&
+              (f.sectionOwnerType === 'PROJECT' ||
+                f.ownerType === 'PROJECT' ||
+                f.association?.projectId) &&
               (!context.sectionOwnerId ||
                 f.sectionOwnerId === context.sectionOwnerId ||
                 f.ownerId === context.sectionOwnerId ||
                 f.association?.projectId === context.sectionOwnerId)
-          )),
+          ),
         ]
       : [
           ...contributingFacts,
@@ -928,9 +946,12 @@ export class ResumeClaimValidationService {
     }
 
     const text = String(claim.text || '').trim();
-    const factIds = Array.isArray(claim.composedFromFactIds) && claim.composedFromFactIds.length > 0
-      ? claim.composedFromFactIds
-      : (Array.isArray(claim.factIds) ? claim.factIds : []);
+    const factIds =
+      Array.isArray(claim.composedFromFactIds) && claim.composedFromFactIds.length > 0
+        ? claim.composedFromFactIds
+        : Array.isArray(claim.factIds)
+          ? claim.factIds
+          : [];
 
     // 1. Check composedFromFactIds
     if (factIds.length === 0) {
@@ -953,8 +974,17 @@ export class ResumeClaimValidationService {
     }
 
     // 3. Check transformationType
-    const validTransformations = new Set(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']);
-    if (!claim.transformationType || !validTransformations.has(String(claim.transformationType).toUpperCase())) {
+    const validTransformations = new Set([
+      'REWRITE',
+      'CONDENSE',
+      'COMBINE',
+      'EMPHASIZE',
+      'VERBATIM',
+    ]);
+    if (
+      !claim.transformationType ||
+      !validTransformations.has(String(claim.transformationType).toUpperCase())
+    ) {
       violations.push({
         code: 'INVALID_TRANSFORMATION_TYPE',
         message: `Claim transformationType "${claim.transformationType}" must be one of REWRITE, CONDENSE, COMBINE, EMPHASIZE, VERBATIM`,
@@ -998,16 +1028,31 @@ export class ResumeClaimValidationService {
 
     // 5. Technology substitution & unauthorized technology
     const authorizedTechs = this._buildAuthorizedTechSet(context, contributingFacts);
-    const sourceTextsCombined = contributingFacts.map((f) => f.text || '').join(' ') + ' ' + (typeof sourceFact === 'string' ? sourceFact : (Array.isArray(sourceFact) ? sourceFact.join(' ') : ''));
+    const sourceTextsCombined =
+      contributingFacts.map((f) => f.text || '').join(' ') +
+      ' ' +
+      (typeof sourceFact === 'string'
+        ? sourceFact
+        : Array.isArray(sourceFact)
+          ? sourceFact.join(' ')
+          : '');
 
     // Check specific technology substitution: OpenAI vs Gemini
-    if (/\bopenai\b/i.test(sourceTextsCombined) && !/\bgemini\b/i.test(sourceTextsCombined) && /\bgemini\b/i.test(text)) {
+    if (
+      /\bopenai\b/i.test(sourceTextsCombined) &&
+      !/\bgemini\b/i.test(sourceTextsCombined) &&
+      /\bgemini\b/i.test(text)
+    ) {
       violations.push({
         code: 'TECHNOLOGY_SUBSTITUTION',
         message: 'Claim substituted "Gemini" for verified candidate technology "OpenAI"',
       });
     }
-    if (/\bgemini\b/i.test(sourceTextsCombined) && !/\bopenai\b/i.test(sourceTextsCombined) && /\bopenai\b/i.test(text)) {
+    if (
+      /\bgemini\b/i.test(sourceTextsCombined) &&
+      !/\bopenai\b/i.test(sourceTextsCombined) &&
+      /\bopenai\b/i.test(text)
+    ) {
       violations.push({
         code: 'TECHNOLOGY_SUBSTITUTION',
         message: 'Claim substituted "OpenAI" for verified candidate technology "Gemini"',
@@ -1022,7 +1067,10 @@ export class ResumeClaimValidationService {
       const norm = normalizeTechnologyName(m).toLowerCase();
       if (!authorizedTechs.has(norm)) {
         // If CSS is checked but Tailwind or Tailwind CSS is authorized, allow it
-        if ((norm === 'css' || norm === 'css3') && (authorizedTechs.has('tailwind css') || authorizedTechs.has('tailwind'))) {
+        if (
+          (norm === 'css' || norm === 'css3') &&
+          (authorizedTechs.has('tailwind css') || authorizedTechs.has('tailwind'))
+        ) {
           continue;
         }
         violations.push({
@@ -1033,10 +1081,16 @@ export class ResumeClaimValidationService {
     }
 
     // 6. Number & Metric grounding
-    const metricMatches = text.match(/\b\d+(?:\.\d+)?%|\b\d+[\d,]*(?:\+)?\s*(?:seconds?|secs?|ms|users?|clients?|repositories|items?|requests?(?:\/|\s*per\s*)sec(?:ond)?)\b/gi) || [];
+    const metricMatches =
+      text.match(
+        /\b\d+(?:\.\d+)?%|\b\d+[\d,]*(?:\+)?\s*(?:seconds?|secs?|ms|users?|clients?|repositories|items?|requests?(?:\/|\s*per\s*)sec(?:ond)?)\b/gi
+      ) || [];
     for (const mm of metricMatches) {
       const cleanMm = mm.toLowerCase().replace(/\s+/g, '');
-      const sourceHasMetric = sourceTextsCombined.toLowerCase().replace(/\s+/g, '').includes(cleanMm);
+      const sourceHasMetric = sourceTextsCombined
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .includes(cleanMm);
       if (!sourceHasMetric) {
         violations.push({
           code: 'UNSUPPORTED_METRIC',
@@ -1127,8 +1181,7 @@ export function hasUnsupportedOutcomeOrMetric(text, contributingFacts = []) {
     return true;
   }
 
-  const velocityPattern =
-    /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
+  const velocityPattern = /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
   if (velocityPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }

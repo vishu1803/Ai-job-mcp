@@ -9,7 +9,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { PdfGeometryAnalyzer } from '../../src/services/pdf-geometry-analyzer.service.js';
-import { DENSITY_CLASSIFICATION, PAGE_STRATEGY } from '../../src/services/resume-layout-engine.service.js';
+import {
+  DENSITY_CLASSIFICATION,
+  PAGE_STRATEGY,
+} from '../../src/services/resume-layout-engine.service.js';
 
 const analyzer = new PdfGeometryAnalyzer();
 
@@ -22,27 +25,27 @@ const analyzer = new PdfGeometryAnalyzer();
  * This is NOT a valid PDF for rendering, but contains enough structure
  * for the analyzer's text extraction and page count detection.
  */
-function createSyntheticPdfBuffer({
-  text = '',
-  pageCount = 1,
-} = {}) {
+function createSyntheticPdfBuffer({ text = '', pageCount = 1 } = {}) {
   // Build a minimal PDF structure
   const textOperators = text
     .split('\n')
-    .filter(l => l.trim().length > 0)
-    .map(line => `(${line.replace(/[()\\]/g, '')})Tj`)
+    .filter((l) => l.trim().length > 0)
+    .map((line) => `(${line.replace(/[()\\]/g, '')})Tj`)
     .join(' ');
 
-  const pageObjects = Array.from({ length: pageCount }, (_, i) =>
-    `/Type /Page /Parent 2 0 R /Contents ${3 + i} 0 R`
+  const pageObjects = Array.from(
+    { length: pageCount },
+    (_, i) => `/Type /Page /Parent 2 0 R /Contents ${3 + i} 0 R`
   ).join('\n');
 
   const pdfContent = [
     '%PDF-1.4',
     '1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj',
     `2 0 obj <</Type /Pages /Kids [${Array.from({ length: pageCount }, (_, i) => `${3 + i} 0 R`).join(' ')}] /Count ${pageCount}>> endobj`,
-    ...Array.from({ length: pageCount }, (_, i) =>
-      `${3 + i} 0 obj <</Length ${textOperators.length + 20}>> stream\nBT ${textOperators} ET\nendstream endobj`
+    ...Array.from(
+      { length: pageCount },
+      (_, i) =>
+        `${3 + i} 0 obj <</Length ${textOperators.length + 20}>> stream\nBT ${textOperators} ET\nendstream endobj`
     ),
     `${3 + pageCount} 0 obj <</Type /Page /Parent 2 0 R>> endobj`,
     `xref\n0 ${4 + pageCount}`,
@@ -123,7 +126,7 @@ describe('PdfGeometryAnalyzer — P14-026', () => {
       });
 
       if (result.success) {
-        const sectionTypes = result.sections.map(s => s.type);
+        const sectionTypes = result.sections.map((s) => s.type);
         assert.ok(sectionTypes.includes('SUMMARY'), 'Should detect Summary');
         assert.ok(sectionTypes.includes('SKILLS'), 'Should detect Skills');
         assert.ok(sectionTypes.includes('PROJECTS'), 'Should detect Projects');
@@ -266,8 +269,13 @@ describe('PdfGeometryAnalyzer — P14-026', () => {
 
   describe('Spacing Consistency', () => {
     it('returns PASS for well-structured text', () => {
-      const text = 'Header\n\nSummary content\n\nSkills content\n\nProjects content\n\nExperience\n\nEducation';
-      const sections = [{ type: 'SUMMARY', contentLength: 100 }, { type: 'SKILLS', contentLength: 80 }, { type: 'EXPERIENCE', contentLength: 120 }];
+      const text =
+        'Header\n\nSummary content\n\nSkills content\n\nProjects content\n\nExperience\n\nEducation';
+      const sections = [
+        { type: 'SUMMARY', contentLength: 100 },
+        { type: 'SKILLS', contentLength: 80 },
+        { type: 'EXPERIENCE', contentLength: 120 },
+      ];
       const result = analyzer._evaluateSpacingConsistency(text, sections);
       assert.strictEqual(result.status, 'PASS');
     });

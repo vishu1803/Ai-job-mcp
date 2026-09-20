@@ -56,8 +56,14 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       const html = renderCopilotDrawer({ pageContext: 'dashboard' });
       assert.match(html, /width:\s*400px;/);
       assert.match(html, /max-width:\s*90vw;/);
-      assert.match(html, /@media\s*\(max-width:\s*900px\)\s*\{\s*\.copilot-drawer\s*\{\s*width:\s*360px;/);
-      assert.match(html, /@media\s*\(max-width:\s*600px\)\s*\{\s*\.copilot-drawer\s*\{\s*top:\s*auto;/);
+      assert.match(
+        html,
+        /@media\s*\(max-width:\s*900px\)\s*\{\s*\.copilot-drawer\s*\{\s*width:\s*360px;/
+      );
+      assert.match(
+        html,
+        /@media\s*\(max-width:\s*600px\)\s*\{\s*\.copilot-drawer\s*\{\s*top:\s*auto;/
+      );
     });
 
     it('enforces unblurred subtle backdrop overlay keeping page readable', () => {
@@ -96,7 +102,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
     it('ensures backdrop is non-blocking on desktop viewports so screen clicks do not dismiss drawer', () => {
       const html = renderCopilotDrawer({ pageContext: 'dashboard' });
-      assert.match(html, /@media\s*\(min-width:\s*901px\)\s*\{\s*\.copilot-backdrop\s*\{\s*display:\s*none\s*!important;\s*pointer-events:\s*none\s*!important;/);
+      assert.match(
+        html,
+        /@media\s*\(min-width:\s*901px\)\s*\{\s*\.copilot-backdrop\s*\{\s*display:\s*none\s*!important;\s*pointer-events:\s*none\s*!important;/
+      );
       assert.match(html, /id="copilotClearBtn"/);
     });
   });
@@ -198,7 +207,13 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
           return {
             text: JSON.stringify({
               summary: 'Here are your next recommended steps.',
-              findings: [{ severity: 'info', title: 'Action Plan', description: 'Review your resume and apply to matching roles.' }],
+              findings: [
+                {
+                  severity: 'info',
+                  title: 'Action Plan',
+                  description: 'Review your resume and apply to matching roles.',
+                },
+              ],
               actions: [{ id: 'view_matching_jobs', label: 'View matching jobs' }],
             }),
           };
@@ -366,7 +381,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         actions: [{ id: 'complete_profile', label: 'Complete profile' }],
         url: 'https://evil.example.com',
       };
-      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithUrl).success, false);
+      assert.strictEqual(
+        StructuredAssistantResponseSchema.safeParse(responseWithUrl).success,
+        false
+      );
 
       const responseWithPath = {
         summary: 'Summary with forbidden path key',
@@ -374,7 +392,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         actions: [{ id: 'complete_profile', label: 'Complete profile' }],
         path: '/profile',
       };
-      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithPath).success, false);
+      assert.strictEqual(
+        StructuredAssistantResponseSchema.safeParse(responseWithPath).success,
+        false
+      );
 
       const responseWithRoute = {
         summary: 'Summary with forbidden route key',
@@ -382,7 +403,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         actions: [{ id: 'complete_profile', label: 'Complete profile' }],
         route: '/profile',
       };
-      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithRoute).success, false);
+      assert.strictEqual(
+        StructuredAssistantResponseSchema.safeParse(responseWithRoute).success,
+        false
+      );
     });
 
     it('confirms NavigationSuggestionSchema is quarantined and rejected from structured response', () => {
@@ -393,7 +417,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         actions: [{ id: 'complete_profile', label: 'Complete profile' }],
         navigationSuggestions: [{ label: 'Go to profile', path: '/profile' }],
       };
-      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithLegacyNav).success, false);
+      assert.strictEqual(
+        StructuredAssistantResponseSchema.safeParse(responseWithLegacyNav).success,
+        false
+      );
 
       // Legacy NavigationSuggestionSchema itself is quarantined as strict
       assert.strictEqual(
@@ -401,7 +428,11 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         true
       );
       assert.strictEqual(
-        NavigationSuggestionSchema.safeParse({ label: 'Profile', path: '/profile', arbitraryField: 'bad' }).success,
+        NavigationSuggestionSchema.safeParse({
+          label: 'Profile',
+          path: '/profile',
+          arbitraryField: 'bad',
+        }).success,
         false
       );
     });
@@ -445,14 +476,18 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       for (const actionId of SUPPORTED_PRODUCT_ACTION_IDS) {
         const mapping = TRUSTED_ACTION_NAVIGATION_MAP[actionId];
         assert.ok(mapping, `Action ID ${actionId} must be mapped in TRUSTED_ACTION_NAVIGATION_MAP`);
-        assert.ok(mapping.path.startsWith('/'), `Path for ${actionId} must be a valid internal route path`);
+        assert.ok(
+          mapping.path.startsWith('/'),
+          `Path for ${actionId} must be a valid internal route path`
+        );
         assert.ok(mapping.label, `Label for ${actionId} must exist`);
       }
     });
 
     it('sanitizes internal route paths from text and replaces with human labels', () => {
       const assistant = new AiCareerAssistantService();
-      const rawText = 'Please visit /profile to update your skills, or check /sources for code evidence, or /apps/radar for matching roles.';
+      const rawText =
+        'Please visit /profile to update your skills, or check /sources for code evidence, or /apps/radar for matching roles.';
       const sanitized = assistant._sanitizeNoRoutes(rawText);
 
       assert.doesNotMatch(sanitized, /\/profile/);
@@ -497,8 +532,16 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
             text: JSON.stringify({
               summary: 'Your application readiness is blocked by missing requirements.',
               findings: [
-                { severity: 'critical', title: 'Work Authorization', description: 'Missing legal authorization status' },
-                { severity: 'warning', title: 'Contact Phone', description: 'Required for recruiter outreach' },
+                {
+                  severity: 'critical',
+                  title: 'Work Authorization',
+                  description: 'Missing legal authorization status',
+                },
+                {
+                  severity: 'warning',
+                  title: 'Contact Phone',
+                  description: 'Required for recruiter outreach',
+                },
               ],
               actions: [{ id: 'complete_profile', label: 'Complete profile' }],
             }),
@@ -537,16 +580,25 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
       assert.strictEqual(response.state, 'SUCCESS');
       assert.ok(response.structuredResponse);
-      assert.ok(response.structuredResponse.findings.length >= 2, 'Should contain at least the 2 blockers');
       assert.ok(
-        response.structuredResponse.findings.some((f) => /work authorization/i.test(f.title) || /work authorization/i.test(f.description)),
+        response.structuredResponse.findings.length >= 2,
+        'Should contain at least the 2 blockers'
+      );
+      assert.ok(
+        response.structuredResponse.findings.some(
+          (f) => /work authorization/i.test(f.title) || /work authorization/i.test(f.description)
+        ),
         'Must include work authorization blocker'
       );
       assert.ok(
-        response.structuredResponse.findings.some((f) => /phone/i.test(f.title) || /phone/i.test(f.description)),
+        response.structuredResponse.findings.some(
+          (f) => /phone/i.test(f.title) || /phone/i.test(f.description)
+        ),
         'Must include contact phone blocker'
       );
-      assert.ok(response.structuredResponse.actions.some((a) => SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id)));
+      assert.ok(
+        response.structuredResponse.actions.some((a) => SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id))
+      );
     });
 
     it('enforces boundary on unsupplied context: never claims to have reviewed repositories when none were provided', async () => {
@@ -556,12 +608,14 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
           promptSent = prompt;
           return {
             text: JSON.stringify({
-              summary: 'Based on the profile information available to me, you have verified Node.js skills.',
+              summary:
+                'Based on the profile information available to me, you have verified Node.js skills.',
               findings: [
                 {
                   severity: 'warning',
                   title: 'No Repositories Connected',
-                  description: 'Connect your GitHub account in Sources to provide verifiable code evidence.',
+                  description:
+                    'Connect your GitHub account in Sources to provide verifiable code evidence.',
                 },
               ],
               actions: [{ id: 'review_sources', label: 'Review sources' }],
@@ -601,7 +655,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       assert.match(promptSent, /BOUNDARY ON UNSUPPLIED CONTEXT \(HARD RULE\)/);
       assert.match(promptSent, /NEVER say 'I reviewed your repositories'/);
       // Response must NOT claim it reviewed repositories
-      assert.doesNotMatch(response.structuredResponse.summary, /I reviewed your (?:GitHub )?repositories/i);
+      assert.doesNotMatch(
+        response.structuredResponse.summary,
+        /I reviewed your (?:GitHub )?repositories/i
+      );
     });
 
     it('proves assistant does not invent skills, repositories, employment, education, certifications, applications, resume claims, job matches, or cloud experience', async () => {
@@ -609,8 +666,14 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         async generateText({ prompt }) {
           // Verify anti-invention invariant is mandated in the prompt
           assert.match(prompt, /ANTI-INVENTION INVARIANT \(HARD RULE\)/);
-          assert.match(prompt, /NEVER invent skills, repositories, employment history, education\/degrees, certifications, applications, resume claims, or job matches/);
-          assert.match(prompt, /Never claim cloud experience \(AWS, GCP, Azure\) unless backed by code evidence/);
+          assert.match(
+            prompt,
+            /NEVER invent skills, repositories, employment history, education\/degrees, certifications, applications, resume claims, or job matches/
+          );
+          assert.match(
+            prompt,
+            /Never claim cloud experience \(AWS, GCP, Azure\) unless backed by code evidence/
+          );
 
           return {
             text: JSON.stringify({
@@ -619,7 +682,8 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
                 {
                   severity: 'warning',
                   title: 'Unverified Cloud Experience',
-                  description: 'No cloud infrastructure code was found in your connected repositories.',
+                  description:
+                    'No cloud infrastructure code was found in your connected repositories.',
                 },
               ],
               actions: [{ id: 'complete_profile', label: 'Complete profile' }],
@@ -638,7 +702,8 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       });
 
       const response = await assistant.handleUserMessage({
-        message: 'Can you claim I am an AWS Certified Solutions Architect with 5 years GCP experience?',
+        message:
+          'Can you claim I am an AWS Certified Solutions Architect with 5 years GCP experience?',
         tenantId: 't-1',
         userId: 'u-1',
         candidateId: 'c-1',
@@ -672,7 +737,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
           return {
             text: JSON.stringify({
               summary: 'Readiness evaluation is currently unavailable.',
-              findings: [{ severity: 'info', title: 'Status', description: 'Readiness unassessed.' }],
+              findings: [
+                { severity: 'info', title: 'Status', description: 'Readiness unassessed.' },
+              ],
               actions: [{ id: 'complete_profile', label: 'Complete profile' }],
             }),
           };
@@ -701,7 +768,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       assert.strictEqual(generalResp.state, 'SUCCESS');
       // Prompt must NOT contain hardcoded 75%
       assert.doesNotMatch(promptSent, /75%/);
-      assert.match(promptSent, /Application Readiness:\s*UNKNOWN \(Readiness evaluation unavailable\)/);
+      assert.match(
+        promptSent,
+        /Application Readiness:\s*UNKNOWN \(Readiness evaluation unavailable\)/
+      );
 
       // Case 3: deterministic handler also returns no invented score
       const readinessResp = await serviceWithMock.handleUserMessage({
@@ -743,7 +813,10 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
       assert.strictEqual(response.state, 'AI_FAILURE');
       assert.ok(response.structuredResponse);
-      assert.strictEqual(response.structuredResponse.summary, 'Career Copilot is temporarily unavailable.');
+      assert.strictEqual(
+        response.structuredResponse.summary,
+        'Career Copilot is temporarily unavailable.'
+      );
       // Never leak stack trace or internal API errors in structured response
       assert.doesNotMatch(response.structuredResponse.summary, /Vertex/i);
       assert.doesNotMatch(response.structuredResponse.summary, /503/);
@@ -754,12 +827,16 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       const assistant = new AiCareerAssistantService();
       const malformedAiOutput = 'This is raw unformatted prose without any JSON structure.';
 
-      const parsed = assistant._parseStructuredResponse(malformedAiOutput, "What's blocking me from applying?", {
-        readinessData: {
-          overallScore: 40,
-          missingItems: [{ label: 'Notice Period', notes: 'Required screening field' }],
-        },
-      });
+      const parsed = assistant._parseStructuredResponse(
+        malformedAiOutput,
+        "What's blocking me from applying?",
+        {
+          readinessData: {
+            overallScore: 40,
+            missingItems: [{ label: 'Notice Period', notes: 'Required screening field' }],
+          },
+        }
+      );
 
       assert.ok(parsed);
       assert.strictEqual(typeof parsed.summary, 'string');

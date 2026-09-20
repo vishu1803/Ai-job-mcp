@@ -27,7 +27,6 @@ const CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
 const VERCEL_JOB_ID = '70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f';
 
 describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
-
   // ===========================================================================
   // 1. Root Issue 1: Qualitative Experience Requirements
   // ===========================================================================
@@ -120,7 +119,11 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
       // A dependency declaration in package.json does not prove practical application development
       assert.strictEqual(match.candidateProvenance, 'CLAIMED');
       assert.strictEqual(match.provenanceTrustClass, 'LOW_TRUST');
-      assert.ok(match.explanation.includes('dependency declaration') || match.explanation.includes('dependency awareness') || match.explanation.includes('Dependency Declaration'));
+      assert.ok(
+        match.explanation.includes('dependency declaration') ||
+          match.explanation.includes('dependency awareness') ||
+          match.explanation.includes('Dependency Declaration')
+      );
       assert.ok(match.explanation.includes('Node.js'));
     });
   });
@@ -162,7 +165,10 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
       );
       const slugs = skills.map((s) => s.slug);
       assert.ok(slugs.includes('node-js'), 'Should match node-js');
-      assert.ok(!slugs.includes('javascript'), 'Should NOT spuriously match javascript from .js suffix');
+      assert.ok(
+        !slugs.includes('javascript'),
+        'Should NOT spuriously match javascript from .js suffix'
+      );
     });
   });
 
@@ -244,7 +250,10 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
         profileMetadata: {},
       };
 
-      const { match } = EvidenceMatchingService._evaluateEligibilityRequirement(req, candidateProfile);
+      const { match } = EvidenceMatchingService._evaluateEligibilityRequirement(
+        req,
+        candidateProfile
+      );
       assert.strictEqual(match.matchStatus, 'UNKNOWN');
       assert.ok(match.explanation.includes('unrecorded in profile'));
     });
@@ -292,22 +301,13 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
         PrimaryEvidenceSelector.isLowTrust({ filePath: 'backend/vendor/bundle.js' }),
         true
       );
-      assert.strictEqual(
-        PrimaryEvidenceSelector.isLowTrust({ filePath: 'dist/app.min.js' }),
-        true
-      );
+      assert.strictEqual(PrimaryEvidenceSelector.isLowTrust({ filePath: 'dist/app.min.js' }), true);
       assert.strictEqual(
         PrimaryEvidenceSelector.isLowTrust({ filePath: 'package-lock.json' }),
         true
       );
-      assert.strictEqual(
-        PrimaryEvidenceSelector.isLowTrust({ filePath: 'package.json' }),
-        false
-      );
-      assert.strictEqual(
-        PrimaryEvidenceSelector.isLowTrust({ filePath: 'src/server.js' }),
-        false
-      );
+      assert.strictEqual(PrimaryEvidenceSelector.isLowTrust({ filePath: 'package.json' }), false);
+      assert.strictEqual(PrimaryEvidenceSelector.isLowTrust({ filePath: 'src/server.js' }), false);
     });
 
     it('candidate-authored code strictly ranks higher than low-trust node_modules evidence', () => {
@@ -326,7 +326,10 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
       };
 
       const cmp = PrimaryEvidenceSelector.compare(highTrustEv, lowTrustEv);
-      assert.ok(cmp < 0, 'High-trust candidate-authored code must rank strictly higher than low-trust evidence');
+      assert.ok(
+        cmp < 0,
+        'High-trust candidate-authored code must rank strictly higher than low-trust evidence'
+      );
 
       const best = PrimaryEvidenceSelector.selectBestPrimary([lowTrustEv, highTrustEv]);
       assert.strictEqual(best.id, highTrustEv.id, 'Must select high-trust evidence as primary');
@@ -409,13 +412,25 @@ Requirements:
         assert.ok(typeof project.relevanceScore === 'number', 'Must have numeric relevanceScore');
         for (const req of project.matchedRequirements) {
           assert.ok(req.requirementId, 'matchedRequirement must have requirementId');
-          assert.ok(req.normalizedRequirement, 'matchedRequirement must have normalizedRequirement');
+          assert.ok(
+            req.normalizedRequirement,
+            'matchedRequirement must have normalizedRequirement'
+          );
           assert.ok(req.matchStatus, 'matchedRequirement must have matchStatus');
-          assert.ok(Array.isArray(req.candidateSkills), 'matchedRequirement must have candidateSkills');
+          assert.ok(
+            Array.isArray(req.candidateSkills),
+            'matchedRequirement must have candidateSkills'
+          );
           assert.ok(req.candidateProvenance, 'matchedRequirement must have candidateProvenance');
           assert.ok(req.provenanceTrustClass, 'matchedRequirement must have provenanceTrustClass');
-          assert.ok(Array.isArray(req.supportingEvidence), 'matchedRequirement must have supportingEvidence array');
-          assert.ok(typeof req.explanation === 'string', 'matchedRequirement must have explanation string');
+          assert.ok(
+            Array.isArray(req.supportingEvidence),
+            'matchedRequirement must have supportingEvidence array'
+          );
+          assert.ok(
+            typeof req.explanation === 'string',
+            'matchedRequirement must have explanation string'
+          );
         }
       }
     });
@@ -435,8 +450,13 @@ Requirements:
       assert.ok(result.jobContext.totalRequirementsIdentified >= 20);
 
       const summary = result.requirementSummary;
-      const countSum = summary.matchedCount + summary.partialCount + summary.missingCount + summary.unknownCount;
-      assert.strictEqual(result.requirementMatches.length, countSum, 'Matches length must equal count sum');
+      const countSum =
+        summary.matchedCount + summary.partialCount + summary.missingCount + summary.unknownCount;
+      assert.strictEqual(
+        result.requirementMatches.length,
+        countSum,
+        'Matches length must equal count sum'
+      );
     });
   });
 

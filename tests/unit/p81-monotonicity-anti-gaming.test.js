@@ -36,8 +36,20 @@ describe('P81 Rule 36: Score Monotonicity & Anti-Gaming Engine', () => {
     companyName: 'Distributed Tech',
     requirements: [
       { id: randomUUID(), skill: 'Go', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
-      { id: randomUUID(), skill: 'PostgreSQL', importance: 'REQUIRED', category: 'SKILL', weight: 1.0 },
-      { id: randomUUID(), skill: 'AWS ECS', importance: 'PREFERRED', category: 'SKILL', weight: 1.0 },
+      {
+        id: randomUUID(),
+        skill: 'PostgreSQL',
+        importance: 'REQUIRED',
+        category: 'SKILL',
+        weight: 1.0,
+      },
+      {
+        id: randomUUID(),
+        skill: 'AWS ECS',
+        importance: 'PREFERRED',
+        category: 'SKILL',
+        weight: 1.0,
+      },
     ],
   };
 
@@ -115,14 +127,19 @@ describe('P81 Rule 36: Score Monotonicity & Anti-Gaming Engine', () => {
 
     if (options.omitClaimValidation) {
       return generateUnifiedQualityReport({
-        atsParseabilityReport: defaultAtsParseabilityService.evaluateAtsParseability({ structuredResume: resume }),
-        jobMatchReport: { jobMatchScore: 80, confidence: 0.90 },
+        atsParseabilityReport: defaultAtsParseabilityService.evaluateAtsParseability({
+          structuredResume: resume,
+        }),
+        jobMatchReport: { jobMatchScore: 80, confidence: 0.9 },
         keywordCoverageReport: ResumeKeywordCoverageService.analyzeKeywordCoverage({
           jobDescription: targetJob,
           structuredResume: resume,
           candidateProfile: profile,
         }),
-        contentQualityReport: evaluateResumeWritingQuality({ structuredResume: resume, factInventory: facts }),
+        contentQualityReport: evaluateResumeWritingQuality({
+          structuredResume: resume,
+          factInventory: facts,
+        }),
         claimValidationReport: null, // OMITTED
         analyzedAt: '2026-09-18T00:00:00.000Z',
       });
@@ -173,7 +190,7 @@ describe('P81 Rule 36: Score Monotonicity & Anti-Gaming Engine', () => {
 
     return generateUnifiedQualityReport({
       atsParseabilityReport: atsReport,
-      jobMatchReport: { jobMatchScore: 80, confidence: 0.90 },
+      jobMatchReport: { jobMatchScore: 80, confidence: 0.9 },
       keywordCoverageReport: keywordReport,
       contentQualityReport: qualityReport,
       claimValidationReport,
@@ -218,7 +235,11 @@ describe('P81 Rule 36: Score Monotonicity & Anti-Gaming Engine', () => {
 
     const reportB = evaluateCandidatePackage(gamingResumeB, honestProfile, honestFactInventory);
 
-    assert.equal(reportB.headlineScore, 0, 'Gaming with unbacked metric must result in headlineScore = 0');
+    assert.equal(
+      reportB.headlineScore,
+      0,
+      'Gaming with unbacked metric must result in headlineScore = 0'
+    );
     assert.equal(reportB.status, 'REJECTED_BY_INTEGRITY_GATE');
     assert.ok(reportB.headlineScore <= reportA.headlineScore);
   });
@@ -283,12 +304,14 @@ Go, PostgreSQL
 
     const resClean = defaultAtsParseabilityService.evaluateAtsParseability({
       texContent: cleanTex,
-      extractedText: 'Morgan Chen | morgan@example.com\nProfessional Summary\nSenior backend systems engineer.\nTechnical Skills\nGo, PostgreSQL\nEducation\nMIT\nProjects\nKV Store\nExperience\nEngineer',
+      extractedText:
+        'Morgan Chen | morgan@example.com\nProfessional Summary\nSenior backend systems engineer.\nTechnical Skills\nGo, PostgreSQL\nEducation\nMIT\nProjects\nKV Store\nExperience\nEngineer',
     });
 
     const resMulti = defaultAtsParseabilityService.evaluateAtsParseability({
       texContent: multiColumnTex,
-      extractedText: 'Morgan Chen | morgan@example.com\nProfessional Summary\nSenior backend systems engineer.\nTechnical Skills\nGo, PostgreSQL\nEducation\nMIT\nProjects\nKV Store\nExperience\nEngineer',
+      extractedText:
+        'Morgan Chen | morgan@example.com\nProfessional Summary\nSenior backend systems engineer.\nTechnical Skills\nGo, PostgreSQL\nEducation\nMIT\nProjects\nKV Store\nExperience\nEngineer',
     });
 
     assert.ok(
@@ -343,25 +366,25 @@ Go, PostgreSQL
     // Normal PDF buffer
     const normalPdf = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-      '4 0 obj\n<< /Length 120 >>\nstream\n' +
-      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
-      'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
-      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+        '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+        '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+        '4 0 obj\n<< /Length 120 >>\nstream\n' +
+        'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+        'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
+        'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
       'latin1'
     );
 
     // Attack PDF buffer with text positioned off-screen (y = 950 or -50)
     const attackPdf = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-      '4 0 obj\n<< /Length 180 >>\nstream\n' +
-      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
-      'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
-      'BT /F1 10 Tf 72 950 Td (Kubernetes AWS Docker Machine Learning Hidden Keywords) Tj ET\n' +
-      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+        '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+        '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+        '4 0 obj\n<< /Length 180 >>\nstream\n' +
+        'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+        'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
+        'BT /F1 10 Tf 72 950 Td (Kubernetes AWS Docker Machine Learning Hidden Keywords) Tj ET\n' +
+        'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
       'latin1'
     );
 
@@ -384,14 +407,14 @@ Go, PostgreSQL
   it('Attack C: White/invisible text mode (/Tr 3) triggers detection and drops score (Score_B < Score_A)', () => {
     const attackPdfInvisible = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-      '4 0 obj\n<< /Length 180 >>\nstream\n' +
-      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
-      '3 Tr\n' + // Rendering mode 3 = invisible text
-      'BT /F1 10 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis) Tj ET\n' +
-      '0 Tr\n' +
-      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+        '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+        '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+        '4 0 obj\n<< /Length 180 >>\nstream\n' +
+        'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+        '3 Tr\n' + // Rendering mode 3 = invisible text
+        'BT /F1 10 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis) Tj ET\n' +
+        '0 Tr\n' +
+        'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
       'latin1'
     );
 
@@ -409,12 +432,12 @@ Go, PostgreSQL
   it('Attack D: Microscopic text (<2pt) triggers detection (Score_B < Score_A)', () => {
     const attackPdfMicroscopic = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-      '4 0 obj\n<< /Length 180 >>\nstream\n' +
-      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
-      'BT /F1 1.0 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis Docker) Tj ET\n' +
-      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+        '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+        '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+        '4 0 obj\n<< /Length 180 >>\nstream\n' +
+        'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+        'BT /F1 1.0 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis Docker) Tj ET\n' +
+        'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
       'latin1'
     );
 
@@ -433,13 +456,13 @@ Go, PostgreSQL
     // PDF with keywords in metadata dictionary /Keywords, but text stream does NOT have them
     const pdfWithMetadataSpam = Buffer.from(
       '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
-      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
-      '4 0 obj\n<< /Length 100 >>\nstream\n' +
-      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
-      'endstream\nendobj\n' +
-      '5 0 obj\n<< /Title (Resume) /Keywords (PostgreSQL, Kubernetes, AWS, Rust, Docker) >>\nendobj\n' +
-      'xref\n0 6\ntrailer\n<< /Root 1 0 R /Info 5 0 R >>\n%%EOF',
+        '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+        '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+        '4 0 obj\n<< /Length 100 >>\nstream\n' +
+        'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+        'endstream\nendobj\n' +
+        '5 0 obj\n<< /Title (Resume) /Keywords (PostgreSQL, Kubernetes, AWS, Rust, Docker) >>\nendobj\n' +
+        'xref\n0 6\ntrailer\n<< /Root 1 0 R /Info 5 0 R >>\n%%EOF',
       'latin1'
     );
 
@@ -472,7 +495,9 @@ Go, PostgreSQL
       headline: 'Morgan Chen | Python Python Python Python | morgan@example.com',
     };
     // Clean projects and skills do NOT mention Python
-    resumeHeaderSpam.skills = { categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }] }] };
+    resumeHeaderSpam.skills = {
+      categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }] }],
+    };
     resumeHeaderSpam.projects[0].technologies = ['Go', 'Raft'];
 
     const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
@@ -510,4 +535,3 @@ Go, PostgreSQL
     assert.equal(k8sMatch.satisfiesRequirement, false);
   });
 });
-

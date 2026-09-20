@@ -104,7 +104,8 @@ export class GenericCareerPageAdapter {
         jsonLd &&
         GenericCareerPageAdapter.isJobPosting(jsonLd) &&
         (jsonLd.title || jsonLd.name) &&
-        (jsonLd.description && jsonLd.description.length >= 30)
+        jsonLd.description &&
+        jsonLd.description.length >= 30
       ) {
         return true;
       }
@@ -168,10 +169,15 @@ export class GenericCareerPageAdapter {
 
     let hasDedicatedApplyCta = false;
     const candidateButtons = Array.from(
-      doc.querySelectorAll?.('button, a[role="button"], a.btn, a[class*="apply" i], button[class*="apply" i]') || []
+      doc.querySelectorAll?.(
+        'button, a[role="button"], a.btn, a[class*="apply" i], button[class*="apply" i]'
+      ) || []
     );
-    const DEDICATED_APPLY_REGEX = /^(?:apply(?:\s+(?:now|for\s+this\s+(?:job|role|position)))?|submit\s+application)$/i;
-    hasDedicatedApplyCta = candidateButtons.some((b) => DEDICATED_APPLY_REGEX.test((b.textContent || '').trim()));
+    const DEDICATED_APPLY_REGEX =
+      /^(?:apply(?:\s+(?:now|for\s+this\s+(?:job|role|position)))?|submit\s+application)$/i;
+    hasDedicatedApplyCta = candidateButtons.some((b) =>
+      DEDICATED_APPLY_REGEX.test((b.textContent || '').trim())
+    );
 
     const hasApplyControl = hasApplicationForm || hasDedicatedApplyCta;
 
@@ -198,11 +204,16 @@ export class GenericCareerPageAdapter {
 
     // Pillar 4: Recognized ATS structural signature
     const hasAtsSignature = Boolean(
-      doc.querySelector?.('[data-qa="job-detail"], [data-qa="posting-headline"], .ashby-job-posting-app, .bamboo-job-detail')
+      doc.querySelector?.(
+        '[data-qa="job-detail"], [data-qa="posting-headline"], .ashby-job-posting-app, .bamboo-job-detail'
+      )
     );
 
     // Require ALL THREE structural pillars OR recognized ATS signature
-    if ((hasApplyControl && hasJobMetaContainer && hasSubstantiveJobDescription) || hasAtsSignature) {
+    if (
+      (hasApplyControl && hasJobMetaContainer && hasSubstantiveJobDescription) ||
+      hasAtsSignature
+    ) {
       return true;
     }
 
@@ -274,7 +285,10 @@ export class GenericCareerPageAdapter {
       const description = GenericCareerPageAdapter.stripHtml(jsonLd.description || '');
 
       let workplace = 'UNKNOWN';
-      if (jsonLd.jobLocationType === 'TELECOMMUTE' || description.toLowerCase().includes('remote')) {
+      if (
+        jsonLd.jobLocationType === 'TELECOMMUTE' ||
+        description.toLowerCase().includes('remote')
+      ) {
         workplace = 'REMOTE';
       } else if (description.toLowerCase().includes('hybrid')) {
         workplace = 'HYBRID';
@@ -313,7 +327,7 @@ export class GenericCareerPageAdapter {
       doc.querySelector?.('h1') ||
       doc.querySelector?.('h2[class*="job-title" i]');
 
-    let title = titleEl ? titleEl.textContent.trim() : (ogTitle || '');
+    let title = titleEl ? titleEl.textContent.trim() : ogTitle || '';
 
     // Cleanup title if it has " - Company" suffix
     if (title && title.includes(' - ')) {
@@ -329,7 +343,7 @@ export class GenericCareerPageAdapter {
       doc.querySelector?.('[data-qa*="company" i]') ||
       doc.querySelector?.('[class*="organization" i]');
 
-    let company = companyEl ? companyEl.textContent.trim() : (ogSiteName || '');
+    let company = companyEl ? companyEl.textContent.trim() : ogSiteName || '';
     if (company === 'Company') {
       company = '';
     }
@@ -352,9 +366,10 @@ export class GenericCareerPageAdapter {
     const requirements = [];
 
     if (descContainer) {
-      const listItems = typeof descContainer.querySelectorAll === 'function'
-        ? descContainer.querySelectorAll('li')
-        : [];
+      const listItems =
+        typeof descContainer.querySelectorAll === 'function'
+          ? descContainer.querySelectorAll('li')
+          : [];
       listItems.forEach((li) => {
         const text = (li.textContent || '').trim();
         if (text.length > 15 && text.length < 500) {

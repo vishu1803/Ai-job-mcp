@@ -14,8 +14,9 @@
   --accent-emerald: #10b981;
   --accent-amber: #f59e0b;
   --accent-rose: #f43f5e;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 * {
@@ -1030,8 +1031,14 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Part 62 — Single Primary CTA & Secondary Regeneration */
@@ -1087,7 +1094,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Compact AI Career Assistant Styles */
@@ -1165,7 +1174,7 @@ body {
 }
 
 .compact-checklist li::before {
-  content: "•";
+  content: '•';
   color: var(--accent-amber);
   font-weight: bold;
 }
@@ -1236,5 +1245,3 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: #fcd34d;
 }
-
-

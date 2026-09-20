@@ -39,7 +39,12 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
 
   const mockRepos = [
     { id: '1001', name: 'cloud-mesh', fullName: 'testuser/cloud-mesh', isPrivate: false },
-    { id: '1002', name: 'telemetry-engine', fullName: 'testuser/telemetry-engine', isPrivate: true },
+    {
+      id: '1002',
+      name: 'telemetry-engine',
+      fullName: 'testuser/telemetry-engine',
+      isPrivate: true,
+    },
   ];
 
   class MockGitHubConnector extends BaseResourceConnector {
@@ -189,10 +194,7 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
 
     it('rejects with NotFoundError when getting synthetic posting with includeSynthetic: false', async () => {
       const discovery = new JobDiscoveryService({ includeSynthetic: false });
-      await assert.rejects(
-        async () => discovery.getJobPosting({ jobId: 'SYN-001' }),
-        /not found/i
-      );
+      await assert.rejects(async () => discovery.getJobPosting({ jobId: 'SYN-001' }), /not found/i);
     });
   });
 

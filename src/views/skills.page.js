@@ -180,7 +180,9 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
           `<span style="font-family:var(--font-mono); font-size:0.75rem;">repo: <a href="${escapeHtml(rawMatch.resourceUrl)}" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:none; font-weight:500;">${repoName}</a></span>`
         );
       } else {
-        parts.push(`<span style="font-family:var(--font-mono); font-size:0.75rem;">repo: ${repoName}</span>`);
+        parts.push(
+          `<span style="font-family:var(--font-mono); font-size:0.75rem;">repo: ${repoName}</span>`
+        );
       }
     }
 

@@ -48,14 +48,22 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
           const ex = await db.execute(sql`SELECT id FROM skill_catalog WHERE slug = ${entry.slug}`);
           if (ex.rows.length === 0) {
             await db.insert(skillCatalog).values({
-              canonicalName: entry.canonicalName, slug: entry.slug, category: entry.category,
-              subcategory: entry.subcategory || null, skillType: entry.skillType || 'TECHNOLOGY',
-              description: entry.description || null, aliases: entry.aliases || [],
-              active: true, sortOrder: entry.sortOrder || 0, metadata: {},
+              canonicalName: entry.canonicalName,
+              slug: entry.slug,
+              category: entry.category,
+              subcategory: entry.subcategory || null,
+              skillType: entry.skillType || 'TECHNOLOGY',
+              description: entry.description || null,
+              aliases: entry.aliases || [],
+              active: true,
+              sortOrder: entry.sortOrder || 0,
+              metadata: {},
             });
             inserted++;
           }
-        } catch { /* ignore duplicate/seed conflicts */ }
+        } catch {
+          /* ignore duplicate/seed conflicts */
+        }
       }
       console.log(`  Seeded ${inserted} new entries`);
     }
@@ -77,7 +85,8 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
       const catRes = await db.execute(sql`SELECT id FROM skill_catalog WHERE slug = ${slug}`);
       assert.ok(catRes.rows.length > 0, `${slug} must exist in catalog`);
       const result = await service.addAdditionalSkill({ tenantId }, candidateId, {
-        catalogSkillId: catRes.rows[0].id, proficiency,
+        catalogSkillId: catRes.rows[0].id,
+        proficiency,
       });
       const expected = proficiency === 'CURRENTLY_LEARNING' ? 'LEARNING' : 'SELF_DECLARED';
       assert.strictEqual(result.provenanceStatus, expected, `${slug}: expected ${expected}`);
@@ -93,8 +102,12 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
 
   // STEP 3: Evidence protection
   it('Step 3: Evidence-backed skills not downgraded', async () => {
-    const verifiedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'VERIFIED'`);
-    const corroboratedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'CORROBORATED'`);
+    const verifiedRes = await db.execute(
+      sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'VERIFIED'`
+    );
+    const corroboratedRes = await db.execute(
+      sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'CORROBORATED'`
+    );
     const evidenceSkills = [...verifiedRes.rows, ...corroboratedRes.rows];
     console.log(`  Evidence-backed: ${evidenceSkills.length}`);
     for (const s of evidenceSkills) console.log(`    ${s.slug}: ${s.provenance_status}`);
@@ -117,34 +130,78 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
 
   // STEP 5: analyze_job_fit matching integration
   it('Step 5: Evidence matching handles SELF_DECLARED and LEARNING', () => {
-    const verifiedSkill = { id: randomUUID(), slug: 'typescript', name: 'TypeScript', provenanceStatus: 'VERIFIED', confidenceScore: 0.95, evidenceCount: 5 };
-    const selfDeclaredSkill = { id: randomUUID(), slug: 'aws', name: 'AWS', provenanceStatus: 'SELF_DECLARED', confidenceScore: 0.0, evidenceCount: 0, proficiency: 'PROFICIENT' };
-    const learningSkill = { id: randomUUID(), slug: 'terraform', name: 'Terraform', provenanceStatus: 'LEARNING', confidenceScore: 0.0, evidenceCount: 0, proficiency: 'CURRENTLY_LEARNING' };
+    const verifiedSkill = {
+      id: randomUUID(),
+      slug: 'typescript',
+      name: 'TypeScript',
+      provenanceStatus: 'VERIFIED',
+      confidenceScore: 0.95,
+      evidenceCount: 5,
+    };
+    const selfDeclaredSkill = {
+      id: randomUUID(),
+      slug: 'aws',
+      name: 'AWS',
+      provenanceStatus: 'SELF_DECLARED',
+      confidenceScore: 0.0,
+      evidenceCount: 0,
+      proficiency: 'PROFICIENT',
+    };
+    const learningSkill = {
+      id: randomUUID(),
+      slug: 'terraform',
+      name: 'Terraform',
+      provenanceStatus: 'LEARNING',
+      confidenceScore: 0.0,
+      evidenceCount: 0,
+      proficiency: 'CURRENTLY_LEARNING',
+    };
 
     const skillsBySlug = new Map([
-      ['typescript', verifiedSkill], ['aws', selfDeclaredSkill], ['terraform', learningSkill],
+      ['typescript', verifiedSkill],
+      ['aws', selfDeclaredSkill],
+      ['terraform', learningSkill],
     ]);
 
     const makeReq = (slug, name) => ({
-      id: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0,
-      skillSlug: slug, extractedValue: name, originalText: `Required: ${name}`,
-      rawSnippet: `Required: ${name}`, normalizedCriteria: { skillSlug: slug }, confidenceScore: 0.9,
+      id: randomUUID(),
+      category: 'SKILL',
+      importance: 'REQUIRED',
+      weight: 1.0,
+      skillSlug: slug,
+      extractedValue: name,
+      originalText: `Required: ${name}`,
+      rawSnippet: `Required: ${name}`,
+      normalizedCriteria: { skillSlug: slug },
+      confidenceScore: 0.9,
     });
 
     // TypeScript → MATCHED / VERIFIED
-    const r1 = EvidenceMatchingService._evaluateSkillRequirement(makeReq('typescript', 'TypeScript'), skillsBySlug, new Map());
+    const r1 = EvidenceMatchingService._evaluateSkillRequirement(
+      makeReq('typescript', 'TypeScript'),
+      skillsBySlug,
+      new Map()
+    );
     assert.strictEqual(r1.match.matchStatus, 'MATCHED');
     assert.strictEqual(r1.match.candidateProvenance, 'VERIFIED');
     console.log(`  ✅ TypeScript: ${r1.match.matchStatus} (${r1.match.candidateProvenance})`);
 
     // AWS → PARTIAL / SELF_DECLARED
-    const r2 = EvidenceMatchingService._evaluateSkillRequirement(makeReq('aws', 'AWS'), skillsBySlug, new Map());
+    const r2 = EvidenceMatchingService._evaluateSkillRequirement(
+      makeReq('aws', 'AWS'),
+      skillsBySlug,
+      new Map()
+    );
     assert.strictEqual(r2.match.matchStatus, 'PARTIAL');
     assert.strictEqual(r2.match.candidateProvenance, 'SELF_DECLARED');
     console.log(`  ✅ AWS: ${r2.match.matchStatus} (${r2.match.candidateProvenance})`);
 
     // Terraform → MISSING / LEARNING
-    const r3 = EvidenceMatchingService._evaluateSkillRequirement(makeReq('terraform', 'Terraform'), skillsBySlug, new Map());
+    const r3 = EvidenceMatchingService._evaluateSkillRequirement(
+      makeReq('terraform', 'Terraform'),
+      skillsBySlug,
+      new Map()
+    );
     assert.strictEqual(r3.match.matchStatus, 'MISSING');
     assert.strictEqual(r3.match.candidateProvenance, 'LEARNING');
     console.log(`  ✅ Terraform: ${r3.match.matchStatus} (${r3.match.candidateProvenance})`);
@@ -154,17 +211,56 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
 
   // STEP 6: Scoring semantics audit
   it('Step 6: SELF_DECLARED never becomes VERIFIED', () => {
-    const PROVENANCE_PRIORITY = { CORROBORATED: 5, VERIFIED: 4, INFERRED: 3, CLAIMED: 2, SELF_DECLARED: 1, LEARNING: 0, MISSING: 0 };
-    assert.ok(PROVENANCE_PRIORITY.VERIFIED > PROVENANCE_PRIORITY.SELF_DECLARED, 'VERIFIED > SELF_DECLARED');
-    assert.ok(PROVENANCE_PRIORITY.SELF_DECLARED > PROVENANCE_PRIORITY.LEARNING, 'SELF_DECLARED > LEARNING');
-    assert.ok(PROVENANCE_PRIORITY.CORROBORATED > PROVENANCE_PRIORITY.VERIFIED, 'CORROBORATED > VERIFIED');
+    const PROVENANCE_PRIORITY = {
+      CORROBORATED: 5,
+      VERIFIED: 4,
+      INFERRED: 3,
+      CLAIMED: 2,
+      SELF_DECLARED: 1,
+      LEARNING: 0,
+      MISSING: 0,
+    };
+    assert.ok(
+      PROVENANCE_PRIORITY.VERIFIED > PROVENANCE_PRIORITY.SELF_DECLARED,
+      'VERIFIED > SELF_DECLARED'
+    );
+    assert.ok(
+      PROVENANCE_PRIORITY.SELF_DECLARED > PROVENANCE_PRIORITY.LEARNING,
+      'SELF_DECLARED > LEARNING'
+    );
+    assert.ok(
+      PROVENANCE_PRIORITY.CORROBORATED > PROVENANCE_PRIORITY.VERIFIED,
+      'CORROBORATED > VERIFIED'
+    );
 
     // Confirm no upgrade path exists in the matcher
-    const selfDeclaredSkill = { id: randomUUID(), slug: 'kafka', name: 'Kafka', provenanceStatus: 'SELF_DECLARED', confidenceScore: 0.0, evidenceCount: 0 };
+    const selfDeclaredSkill = {
+      id: randomUUID(),
+      slug: 'kafka',
+      name: 'Kafka',
+      provenanceStatus: 'SELF_DECLARED',
+      confidenceScore: 0.0,
+      evidenceCount: 0,
+    };
     const skillsBySlug = new Map([['kafka', selfDeclaredSkill]]);
-    const req = { id: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0, skillSlug: 'kafka', extractedValue: 'Kafka', originalText: 'Required: Kafka', rawSnippet: 'Kafka', normalizedCriteria: { skillSlug: 'kafka' }, confidenceScore: 0.9 };
+    const req = {
+      id: randomUUID(),
+      category: 'SKILL',
+      importance: 'REQUIRED',
+      weight: 1.0,
+      skillSlug: 'kafka',
+      extractedValue: 'Kafka',
+      originalText: 'Required: Kafka',
+      rawSnippet: 'Kafka',
+      normalizedCriteria: { skillSlug: 'kafka' },
+      confidenceScore: 0.9,
+    };
     const result = EvidenceMatchingService._evaluateSkillRequirement(req, skillsBySlug, new Map());
-    assert.strictEqual(result.match.candidateProvenance, 'SELF_DECLARED', 'Must remain SELF_DECLARED');
+    assert.strictEqual(
+      result.match.candidateProvenance,
+      'SELF_DECLARED',
+      'Must remain SELF_DECLARED'
+    );
     assert.notStrictEqual(result.match.matchStatus, 'MATCHED', 'Must NOT be MATCHED');
     console.log('  ✅ Step 6 PASS: No hidden upgrade path');
   });

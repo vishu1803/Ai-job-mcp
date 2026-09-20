@@ -94,7 +94,10 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
       if (name === 'class' || name === 'className') {
         el.className = val;
         classListSet.clear();
-        val.split(/\s+/).filter(Boolean).forEach((c) => classListSet.add(c));
+        val
+          .split(/\s+/)
+          .filter(Boolean)
+          .forEach((c) => classListSet.add(c));
       }
     },
     classList: {
@@ -127,11 +130,16 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         }
 
         // Tag + attribute selector e.g. script[type="application/ld+json"] or h1[class*="job" i]
-        const tagAttrMatch = normSel.match(/^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const tagAttrMatch = normSel.match(
+          /^([a-z0-9]+)\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (tagAttrMatch) {
           const [, expectedTag, attrName, op, expectedVal] = tagAttrMatch;
           if (node.tagName.toLowerCase() !== expectedTag.toLowerCase()) return false;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -154,10 +162,15 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
         }
 
         // Attribute matching [attr="val"] or [attr*="val"]
-        const attrMatch = normSel.match(/^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i);
+        const attrMatch = normSel.match(
+          /^\[([a-z0-9_-]+)([\*~^$]?=)?["']?([^"'\]\s]+)?["']?\s*[a-z]*\]$/i
+        );
         if (attrMatch) {
           const [, attrName, op, expectedVal] = attrMatch;
-          const actualVal = (attrName === 'class' || attrName === 'className') ? node.className : node.getAttribute(attrName);
+          const actualVal =
+            attrName === 'class' || attrName === 'className'
+              ? node.className
+              : node.getAttribute(attrName);
           if (actualVal === null || actualVal === undefined) return false;
           if (!op) return true;
           if (op === '=') return actualVal.toLowerCase() === expectedVal.toLowerCase();
@@ -231,7 +244,7 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
       if (!el.parentElement) return null;
       const siblings = el.parentElement.children || [];
       const idx = siblings.indexOf(el);
-      return (idx !== -1 && idx + 1 < siblings.length) ? siblings[idx + 1] : null;
+      return idx !== -1 && idx + 1 < siblings.length ? siblings[idx + 1] : null;
     },
     configurable: true,
   });
@@ -241,7 +254,7 @@ function createMockElement(tagName, attributes = {}, textContent = '', children 
       if (!el.parentElement) return null;
       const siblings = el.parentElement.children || [];
       const idx = siblings.indexOf(el);
-      return (idx > 0) ? siblings[idx - 1] : null;
+      return idx > 0 ? siblings[idx - 1] : null;
     },
     configurable: true,
   });
@@ -292,11 +305,16 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
   describe('1. Active LinkedIn Job Root Discovery (findActiveLinkedInJobRoot)', () => {
     it('identifies [data-view-name="job-details"] as active root', () => {
       const { doc, body } = createMockDocument();
-      const jobRoot = createMockElement('DIV', { 'data-view-name': 'job-details', class: 'jobs-details' }, '', [
-        createMockElement('H1', { class: 'job-title' }, 'Senior Software Engineer'),
-        createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'A'.repeat(120)),
-      ]);
+      const jobRoot = createMockElement(
+        'DIV',
+        { 'data-view-name': 'job-details', class: 'jobs-details' },
+        '',
+        [
+          createMockElement('H1', { class: 'job-title' }, 'Senior Software Engineer'),
+          createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
+          createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'A'.repeat(120)),
+        ]
+      );
       body.children.push(jobRoot);
       jobRoot.parentElement = body;
 
@@ -310,7 +328,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       const { doc, body } = createMockDocument();
       const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         createMockElement('H1', { class: 'topcard__title' }, 'Lead Architect'),
-        createMockElement('A', { class: 'topcard__org-name-link', href: '/company/tech/' }, 'Tech Corp'),
+        createMockElement(
+          'A',
+          { class: 'topcard__org-name-link', href: '/company/tech/' },
+          'Tech Corp'
+        ),
         createMockElement('DIV', { class: 'jobs-description__content' }, 'B'.repeat(150)),
       ]);
       body.children.push(jobRoot);
@@ -354,11 +376,16 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
 
     it('identifies [data-testid="lazy-column"] as active root', () => {
       const { doc, body } = createMockDocument();
-      const jobRoot = createMockElement('DIV', { 'data-testid': 'lazy-column', class: 'lazy-col' }, '', [
-        createMockElement('H1', { class: 'job-title' }, 'DevOps Engineer'),
-        createMockElement('A', { href: '/company/cloud/' }, 'Cloud Inc'),
-        createMockElement('DIV', { class: 'jobs-box__html-content' }, 'E'.repeat(130)),
-      ]);
+      const jobRoot = createMockElement(
+        'DIV',
+        { 'data-testid': 'lazy-column', class: 'lazy-col' },
+        '',
+        [
+          createMockElement('H1', { class: 'job-title' }, 'DevOps Engineer'),
+          createMockElement('A', { href: '/company/cloud/' }, 'Cloud Inc'),
+          createMockElement('DIV', { class: 'jobs-box__html-content' }, 'E'.repeat(130)),
+        ]
+      );
       body.children.push(jobRoot);
       jobRoot.parentElement = body;
 
@@ -372,7 +399,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       const jobRoot = createMockElement('DIV', { class: 'details' }, '', [
         createMockElement('DIV', { class: 'top-card-layout' }, '', [
           createMockElement('H1', { class: 'top-card-layout__title' }, 'Software Engineer'),
-          createMockElement('A', { class: 'topcard__org-name-link', href: '/company/appinventiv/' }, 'Appinventiv'),
+          createMockElement(
+            'A',
+            { class: 'topcard__org-name-link', href: '/company/appinventiv/' },
+            'Appinventiv'
+          ),
         ]),
         createMockElement('SECTION', { class: 'description' }, '', [
           createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'F'.repeat(200)),
@@ -392,7 +423,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       const innerContent = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Software Engineer'),
         createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Substantive description text '.repeat(10)),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Substantive description text '.repeat(10)
+        ),
       ]);
       const outerLayout = createMockElement('DIV', { class: 'job-view-layout' }, '', [
         innerContent,
@@ -412,7 +447,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       body.textContent = 'Welcome to LinkedIn Feed and miscellaneous navigation';
 
       const root = findActiveLinkedInJobRoot(doc);
-      assert.strictEqual(root, null, 'findActiveLinkedInJobRoot must return null when no job root exists');
+      assert.strictEqual(
+        root,
+        null,
+        'findActiveLinkedInJobRoot must return null when no job root exists'
+      );
       assert.notStrictEqual(root, doc.body);
       assert.notStrictEqual(root, doc.documentElement);
     });
@@ -424,7 +463,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
   describe('2. Root-Scoped Description Extraction (extractLinkedInDescription)', () => {
     it('Priority 1: extracts from known selector (#job-details) inside active root -> SELECTOR', () => {
       const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
-        createMockElement('DIV', { id: 'job-details' }, 'Full stack development with Node.js, React, and PostgreSQL on AWS cloud pipelines with automated testing.'),
+        createMockElement(
+          'DIV',
+          { id: 'job-details' },
+          'Full stack development with Node.js, React, and PostgreSQL on AWS cloud pipelines with automated testing.'
+        ),
       ]);
 
       const res = extractLinkedInDescription(jobRoot);
@@ -436,7 +479,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
 
     it('Priority 1: extracts from .show-more-less-html__markup inside active root -> SELECTOR', () => {
       const jobRoot = createMockElement('DIV', { class: 'details' }, '', [
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'Developing resilient scalable microservices with Docker, Kubernetes, and Golang at global enterprise scale.'),
+        createMockElement(
+          'DIV',
+          { class: 'show-more-less-html__markup' },
+          'Developing resilient scalable microservices with Docker, Kubernetes, and Golang at global enterprise scale.'
+        ),
       ]);
 
       const res = extractLinkedInDescription(jobRoot);
@@ -447,8 +494,16 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
 
     it('Priority 2: Semantic "About the job" heading extraction when selectors change -> ABOUT_THE_JOB', () => {
       // Simulate modern layout where classes are renamed to custom hash classes
-      const aboutHeading = createMockElement('H2', { class: 'custom-heading-xyz' }, 'About the job');
-      const contentBlock = createMockElement('DIV', { class: 'custom-unpredicted-content-block' }, 'We are looking for a Senior Software Engineer to build our AI core platform. Requirements include Python, PyTorch, Fastify, and PostgreSQL.');
+      const aboutHeading = createMockElement(
+        'H2',
+        { class: 'custom-heading-xyz' },
+        'About the job'
+      );
+      const contentBlock = createMockElement(
+        'DIV',
+        { class: 'custom-unpredicted-content-block' },
+        'We are looking for a Senior Software Engineer to build our AI core platform. Requirements include Python, PyTorch, Fastify, and PostgreSQL.'
+      );
       const section = createMockElement('SECTION', { class: 'custom-section-abc' }, '', [
         aboutHeading,
         contentBlock,
@@ -465,8 +520,16 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
 
     it('Priority 2: Semantic "About the job" heading ignores recruiter cards and show-more buttons', () => {
       const aboutHeading = createMockElement('H3', {}, 'About the role');
-      const recruiterCard = createMockElement('DIV', { class: 'recruiter-card' }, 'Recruiter Name - Message on LinkedIn to connect with hiring manager.');
-      const contentBlock = createMockElement('DIV', { class: 'role-body-text' }, 'Responsible for leading cross-functional engineering teams, designing event-driven distributed architectures, and maintaining high reliability.');
+      const recruiterCard = createMockElement(
+        'DIV',
+        { class: 'recruiter-card' },
+        'Recruiter Name - Message on LinkedIn to connect with hiring manager.'
+      );
+      const contentBlock = createMockElement(
+        'DIV',
+        { class: 'role-body-text' },
+        'Responsible for leading cross-functional engineering teams, designing event-driven distributed architectures, and maintaining high reliability.'
+      );
       const section = createMockElement('SECTION', { class: 'role-details' }, '', [
         aboutHeading,
         recruiterCard,
@@ -484,7 +547,12 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
 
     it('Priority 3: JSON-LD JobPosting fallback when DOM has no description -> JSON_LD', () => {
       const { doc, body } = createMockDocument();
-      const emptyJobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', []);
+      const emptyJobRoot = createMockElement(
+        'DIV',
+        { class: 'jobs-details__main-content' },
+        '',
+        []
+      );
       body.children.push(emptyJobRoot);
 
       // Add JSON-LD script tag
@@ -492,7 +560,8 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
         '@context': 'https://schema.org',
         '@type': 'JobPosting',
         title: 'Software Engineer',
-        description: '<p>Constructing cloud-native applications with TypeScript, Node.js, and Docker for our enterprise logistics platform.</p>',
+        description:
+          '<p>Constructing cloud-native applications with TypeScript, Node.js, and Docker for our enterprise logistics platform.</p>',
       });
       const script = createMockElement('SCRIPT', { type: 'application/ld+json' }, jsonLdContent);
       body.children.push(script);
@@ -517,7 +586,11 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
     it('NEVER extracts description from elements outside the active job root', () => {
       const { doc, body } = createMockDocument();
       // Unrelated sidebar card with description class outside active root
-      const unrelatedAside = createMockElement('ASIDE', { class: 'jobs-description' }, 'Unrelated recommended jobs card with lots of text that should never be extracted because it is outside the active job root!');
+      const unrelatedAside = createMockElement(
+        'ASIDE',
+        { class: 'jobs-description' },
+        'Unrelated recommended jobs card with lots of text that should never be extracted because it is outside the active job root!'
+      );
       body.children.push(unrelatedAside);
 
       // Active root with no description
@@ -537,15 +610,29 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
   // =========================================================================
   describe('3. Extraction Provenance Tracking', () => {
     it('tracks descriptionSource, jobRootSource, and descriptionLength on LinkedInAdapter.extract', () => {
-      const { doc, body } = createMockDocument({ url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430' });
-      const jobRoot = createMockElement('DIV', { 'data-view-name': 'job-details', class: 'jobs-details' }, '', [
-        createMockElement('H1', { class: 'job-title' }, 'Software Engineer'),
-        createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
-        createMockElement('DIV', { class: 'show-more-less-html__markup' }, 'The ideal candidate will be responsible for developing high-quality applications. They will also be responsible for designing and implementing testable and scalable code.'),
-      ]);
+      const { doc, body } = createMockDocument({
+        url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
+      });
+      const jobRoot = createMockElement(
+        'DIV',
+        { 'data-view-name': 'job-details', class: 'jobs-details' },
+        '',
+        [
+          createMockElement('H1', { class: 'job-title' }, 'Software Engineer'),
+          createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
+          createMockElement(
+            'DIV',
+            { class: 'show-more-less-html__markup' },
+            'The ideal candidate will be responsible for developing high-quality applications. They will also be responsible for designing and implementing testable and scalable code.'
+          ),
+        ]
+      );
       body.children.push(jobRoot);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430'
+      );
       assert.equal(payload.provider, 'LINKEDIN');
       assert.equal(payload.title, 'Software Engineer');
       assert.equal(payload.company, 'Appinventiv');
@@ -557,18 +644,27 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
     });
 
     it('reports ABOUT_THE_JOB provenance when semantic extraction is used', () => {
-      const { doc, body } = createMockDocument({ url: 'https://www.linkedin.com/jobs/view/4419969671/' });
+      const { doc, body } = createMockDocument({
+        url: 'https://www.linkedin.com/jobs/view/4419969671/',
+      });
       const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Senior Go Developer'),
         createMockElement('A', { href: '/company/gm/' }, 'General Motors'),
         createMockElement('SECTION', { class: 'about-section' }, '', [
           createMockElement('H2', {}, 'About the job'),
-          createMockElement('DIV', {}, 'Looking for an experienced Go backend developer to design cloud-native microservices with Kubernetes, gRPC, and PostgreSQL.'),
+          createMockElement(
+            'DIV',
+            {},
+            'Looking for an experienced Go backend developer to design cloud-native microservices with Kubernetes, gRPC, and PostgreSQL.'
+          ),
         ]),
       ]);
       body.children.push(jobRoot);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(payload.descriptionSource, 'ABOUT_THE_JOB');
       assert.equal(payload.jobRootSource, '.jobs-details__main-content');
       assert.ok(payload.descriptionLength >= 50);
@@ -581,7 +677,9 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
   // =========================================================================
   describe('4. Separation of JOB_DETECTED and ANALYSIS_READY', () => {
     it('JOB_DETECTED=true (isReady: true) and ANALYSIS_READY=false when title/company confirmed but description < 50', () => {
-      const { doc, body } = createMockDocument({ url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430' });
+      const { doc, body } = createMockDocument({
+        url: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
+      });
       const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Software Engineer'),
         createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
@@ -589,24 +687,36 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       ]);
       body.children.push(jobRoot);
 
-      const payload = LinkedInAdapter.extract(doc, 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430'
+      );
       assert.equal(payload.title, 'Software Engineer');
       assert.equal(payload.company, 'Appinventiv');
       assert.equal(payload.description, '');
       assert.equal(payload.descriptionSource, 'NONE');
       assert.equal(payload.isReady, true, 'Job must be detected immediately');
-      assert.equal(payload.analysisReady, false, 'Analysis must NOT be ready until description >= 50');
+      assert.equal(
+        payload.analysisReady,
+        false,
+        'Analysis must NOT be ready until description >= 50'
+      );
     });
 
     it('JobDetectionEngine evaluates detected: true and ready: true (analysisReady false on payload)', () => {
-      const { doc, body } = createMockDocument({ url: 'https://www.linkedin.com/jobs/view/12345/' });
+      const { doc, body } = createMockDocument({
+        url: 'https://www.linkedin.com/jobs/view/12345/',
+      });
       const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
         createMockElement('H1', { class: 'job-title' }, 'Software Engineer'),
         createMockElement('A', { href: '/company/appinventiv/' }, 'Appinventiv'),
       ]);
       body.children.push(jobRoot);
 
-      const evalResult = JobDetectionEngine.evaluate(doc, 'https://www.linkedin.com/jobs/view/12345/');
+      const evalResult = JobDetectionEngine.evaluate(
+        doc,
+        'https://www.linkedin.com/jobs/view/12345/'
+      );
       assert.equal(evalResult.detected, true);
       assert.equal(evalResult.ready, true);
       assert.equal(evalResult.jobData.analysisReady, false);
@@ -688,7 +798,9 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
         aboutHeading,
         collapsedMarkup,
       ]);
-      const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [section]);
+      const jobRoot = createMockElement('DIV', { class: 'jobs-details__main-content' }, '', [
+        section,
+      ]);
 
       const res = extractLinkedInDescription(jobRoot);
       assert.equal(res.descriptionSource, 'ABOUT_THE_JOB');
@@ -730,9 +842,22 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
     });
 
     it('different externalJobId produces different fingerprint', () => {
-      const jobA = { provider: 'LINKEDIN', externalJobId: '4464770430', title: 'Software Engineer', company: 'Appinventiv' };
-      const jobB = { provider: 'LINKEDIN', externalJobId: '4419969671', title: 'Go Developer', company: 'General Motors' };
-      assert.notEqual(JobIdentity.deriveJobFingerprint(jobA), JobIdentity.deriveJobFingerprint(jobB));
+      const jobA = {
+        provider: 'LINKEDIN',
+        externalJobId: '4464770430',
+        title: 'Software Engineer',
+        company: 'Appinventiv',
+      };
+      const jobB = {
+        provider: 'LINKEDIN',
+        externalJobId: '4419969671',
+        title: 'Go Developer',
+        company: 'General Motors',
+      };
+      assert.notEqual(
+        JobIdentity.deriveJobFingerprint(jobA),
+        JobIdentity.deriveJobFingerprint(jobB)
+      );
     });
   });
 
@@ -760,8 +885,10 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       // Hydration arrival updates state
       const hydratedData = {
         ...initialState.jobData,
-        description: 'The ideal candidate will be responsible for developing high-quality applications with Node.js and TypeScript.',
-        rawText: 'The ideal candidate will be responsible for developing high-quality applications with Node.js and TypeScript.',
+        description:
+          'The ideal candidate will be responsible for developing high-quality applications with Node.js and TypeScript.',
+        rawText:
+          'The ideal candidate will be responsible for developing high-quality applications with Node.js and TypeScript.',
         analysisReady: true,
         descriptionSource: 'SELECTOR',
         jobRootSource: '[data-view-name="job-details"]',
@@ -803,7 +930,10 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
       // Form arrives
       const formData = {
         hasForm: true,
-        fields: [{ name: 'fullName', type: 'text' }, { name: 'email', type: 'email' }],
+        fields: [
+          { name: 'fullName', type: 'text' },
+          { name: 'email', type: 'email' },
+        ],
       };
 
       const reconciled = await store.reconcileNavigation({
@@ -854,9 +984,14 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
     });
 
     it('LinkedIn jobs search with no active selected job: detected=false', () => {
-      const { doc } = createMockDocument({ url: 'https://www.linkedin.com/jobs/search/?keywords=software%20engineer' });
+      const { doc } = createMockDocument({
+        url: 'https://www.linkedin.com/jobs/search/?keywords=software%20engineer',
+      });
       // No active job details, no active list item
-      const result = JobDetectionEngine.evaluate(doc, 'https://www.linkedin.com/jobs/search/?keywords=software%20engineer');
+      const result = JobDetectionEngine.evaluate(
+        doc,
+        'https://www.linkedin.com/jobs/search/?keywords=software%20engineer'
+      );
       assert.equal(result.detected, false);
       assert.equal(result.jobData, null);
     });
@@ -867,30 +1002,61 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
   // =========================================================================
   describe('13. Working Portal Regression (Greenhouse, Wellfound, Generic)', () => {
     it('Greenhouse: detection and description still work', () => {
-      const { doc, body } = createMockDocument({ url: 'https://boards.greenhouse.io/stripe/jobs/1234567' });
+      const { doc, body } = createMockDocument({
+        url: 'https://boards.greenhouse.io/stripe/jobs/1234567',
+      });
       body.children.push(
         createMockElement('H1', { class: 'app-title' }, 'Infrastructure Engineer'),
         createMockElement('SPAN', { class: 'company-name' }, 'Stripe'),
-        createMockElement('DIV', { id: 'content' }, 'Stripe is looking for an Infrastructure Engineer to build global reliability systems and payment pipelines.'.repeat(2))
+        createMockElement(
+          'DIV',
+          { id: 'content' },
+          'Stripe is looking for an Infrastructure Engineer to build global reliability systems and payment pipelines.'.repeat(
+            2
+          )
+        )
       );
 
-      assert.equal(GreenhouseAdapter.canHandle(doc, 'https://boards.greenhouse.io/stripe/jobs/1234567'), true);
-      const payload = GreenhouseAdapter.extract(doc, 'https://boards.greenhouse.io/stripe/jobs/1234567');
+      assert.equal(
+        GreenhouseAdapter.canHandle(doc, 'https://boards.greenhouse.io/stripe/jobs/1234567'),
+        true
+      );
+      const payload = GreenhouseAdapter.extract(
+        doc,
+        'https://boards.greenhouse.io/stripe/jobs/1234567'
+      );
       assert.equal(payload.title, 'Infrastructure Engineer');
       assert.equal(payload.company, 'Stripe');
       assert.ok(payload.description.length >= 50);
     });
 
     it('Wellfound: detection and description still work via Generic adapter', () => {
-      const { doc, body } = createMockDocument({ url: 'https://wellfound.com/jobs/98765-senior-ai-engineer' });
+      const { doc, body } = createMockDocument({
+        url: 'https://wellfound.com/jobs/98765-senior-ai-engineer',
+      });
       body.children.push(
         createMockElement('H1', { class: 'header' }, 'Senior AI Engineer'),
         createMockElement('DIV', { class: 'company-name' }, 'Anthropic'),
-        createMockElement('DIV', { class: 'job-description' }, 'Building frontier AI models and evaluating alignment for large-scale production agent deployment. '.repeat(2))
+        createMockElement(
+          'DIV',
+          { class: 'job-description' },
+          'Building frontier AI models and evaluating alignment for large-scale production agent deployment. '.repeat(
+            2
+          )
+        )
       );
 
-      assert.equal(GenericCareerPageAdapter.canHandle(doc, 'https://wellfound.com/jobs/98765-senior-ai-engineer'), true);
-      const payload = GenericCareerPageAdapter.extract(doc, 'https://wellfound.com/jobs/98765-senior-ai-engineer');
+      assert.equal(
+        GenericCareerPageAdapter.canHandle(
+          doc,
+          'https://wellfound.com/jobs/98765-senior-ai-engineer'
+        ),
+        true
+      );
+      const payload = GenericCareerPageAdapter.extract(
+        doc,
+        'https://wellfound.com/jobs/98765-senior-ai-engineer'
+      );
       assert.equal(payload.title, 'Senior AI Engineer');
       assert.equal(payload.company, 'Anthropic');
       assert.ok(payload.description.length >= 50);
@@ -898,15 +1064,32 @@ describe('P73: LinkedIn Active Job Root + Semantic Description Extraction', () =
     });
 
     it('Company career page (Generic): detection and description still work', () => {
-      const { doc, body } = createMockDocument({ url: 'https://careers.uber.com/jobs/34567-software-engineer' });
+      const { doc, body } = createMockDocument({
+        url: 'https://careers.uber.com/jobs/34567-software-engineer',
+      });
       body.children.push(
         createMockElement('H1', {}, 'Software Engineer - Rider Experience'),
         createMockElement('DIV', { class: 'company' }, 'Uber'),
-        createMockElement('SECTION', { class: 'job-description' }, 'Join Uber Rider team to engineer next-generation micro-mobility platforms and real-time dispatch systems.'.repeat(2))
+        createMockElement(
+          'SECTION',
+          { class: 'job-description' },
+          'Join Uber Rider team to engineer next-generation micro-mobility platforms and real-time dispatch systems.'.repeat(
+            2
+          )
+        )
       );
 
-      assert.equal(GenericCareerPageAdapter.canHandle(doc, 'https://careers.uber.com/jobs/34567-software-engineer'), true);
-      const payload = GenericCareerPageAdapter.extract(doc, 'https://careers.uber.com/jobs/34567-software-engineer');
+      assert.equal(
+        GenericCareerPageAdapter.canHandle(
+          doc,
+          'https://careers.uber.com/jobs/34567-software-engineer'
+        ),
+        true
+      );
+      const payload = GenericCareerPageAdapter.extract(
+        doc,
+        'https://careers.uber.com/jobs/34567-software-engineer'
+      );
       assert.equal(payload.title, 'Software Engineer');
       assert.ok(payload.description.length >= 50);
       assert.equal(payload.isReady, true);

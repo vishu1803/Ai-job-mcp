@@ -116,12 +116,7 @@ export function buildForbiddenPiiTokens(candidateProfile = {}) {
   }
 
   // 2. Emails
-  const rawEmails = [
-    cand.email,
-    userCustom.email,
-    meta.email,
-    cand.candidateEmail,
-  ].filter(Boolean);
+  const rawEmails = [cand.email, userCustom.email, meta.email, cand.candidateEmail].filter(Boolean);
 
   for (const e of rawEmails) {
     const trimmed = String(e).trim().toLowerCase();
@@ -232,13 +227,9 @@ export function buildForbiddenPiiTokens(candidateProfile = {}) {
   }
 
   // 6. Internal IDs
-  const rawIds = [
-    cand.id,
-    cand.candidateId,
-    cand.tenantId,
-    cand.userId,
-    cand.applicationId,
-  ].filter(Boolean);
+  const rawIds = [cand.id, cand.candidateId, cand.tenantId, cand.userId, cand.applicationId].filter(
+    Boolean
+  );
 
   for (const id of rawIds) {
     const trimmed = String(id).trim();
@@ -438,13 +429,15 @@ export function buildResumeAiContext({
   taskType = 'RESUME_SUMMARY_SYNTHESIS',
 }) {
   const forbidden = buildForbiddenPiiTokens(candidateProfile);
-  const additionalScrubTokens = [
-    ...forbidden.names,
-    ...forbidden.locations,
-  ];
+  const additionalScrubTokens = [...forbidden.names, ...forbidden.locations];
 
   const targetTitle = String(job.title || job.targetRole || 'Software Engineer').trim();
-  const targetDesc = scrubTextPii(String(job.description || '').trim().slice(0, 3000), additionalScrubTokens);
+  const targetDesc = scrubTextPii(
+    String(job.description || '')
+      .trim()
+      .slice(0, 3000),
+    additionalScrubTokens
+  );
   const targetReqs = (Array.isArray(job.requirements) ? job.requirements : [])
     .map((r) => (typeof r === 'string' ? r : r.text || r.concept || ''))
     .filter(Boolean)
@@ -539,7 +532,9 @@ export function buildResumeAiContext({
   if (taskType === 'RESUME_ACCOMPLISHMENT_SYNTHESIS') {
     // Project-scoped context: send ONLY selected project name, technologies, and grounded facts
     const proj = selectedProjects[0] || {};
-    const sanitizedProjName = sanitizeProjectName(proj.displayName || proj.name || proj.title || 'Engineering Project');
+    const sanitizedProjName = sanitizeProjectName(
+      proj.displayName || proj.name || proj.title || 'Engineering Project'
+    );
 
     const rawFacts = Array.isArray(factInventory) ? factInventory : [];
     const sanitizedFacts = rawFacts.slice(0, 10).map((f) => {
@@ -550,7 +545,9 @@ export function buildResumeAiContext({
       return {
         factId: tId,
         text,
-        technologies: (f.technologies || proj.technologies || []).map((t) => scrubTextPii(t, additionalScrubTokens)),
+        technologies: (f.technologies || proj.technologies || []).map((t) =>
+          scrubTextPii(t, additionalScrubTokens)
+        ),
         metrics: f.metrics || [],
       };
     });

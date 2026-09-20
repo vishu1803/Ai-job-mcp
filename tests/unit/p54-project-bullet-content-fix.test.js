@@ -91,7 +91,8 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
 
   const sampleJob = {
     title: 'Senior Backend Engineer — Python & Node.js',
-    description: 'Design and build high-performance APIs and scalable data architectures with Python, FastAPI, and PostgreSQL.',
+    description:
+      'Design and build high-performance APIs and scalable data architectures with Python, FastAPI, and PostgreSQL.',
     requirements: ['Python', 'FastAPI', 'Node.js', 'PostgreSQL', 'REST APIs'],
   };
 
@@ -121,7 +122,10 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
       candidateProfile: mockCandidateProfile,
       targetJobPosting: sampleJob,
       projectFacts: [
-        { text: 'Intelligent automated code review system integrating OpenAI API and FastAPI webhooks.', factType: 'feature-description' },
+        {
+          text: 'Intelligent automated code review system integrating OpenAI API and FastAPI webhooks.',
+          factType: 'feature-description',
+        },
         ...proj.bullets.map((text, idx) => ({
           factId: `f-${idx + 1}`,
           text,
@@ -133,11 +137,17 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
     });
 
     assert.ok(Array.isArray(bullets), 'Must return an array of bullets');
-    assert.strictEqual(bullets.length, 3, 'Must return exactly 3 bullets per the 3-bullet contract');
+    assert.strictEqual(
+      bullets.length,
+      3,
+      'Must return exactly 3 bullets per the 3-bullet contract'
+    );
 
     for (const b of bullets) {
-      assert.ok(!b.text.includes('Intelligent automated code review system integrating'),
-        'Fragment description must NOT be included in generated bullets');
+      assert.ok(
+        !b.text.includes('Intelligent automated code review system integrating'),
+        'Fragment description must NOT be included in generated bullets'
+      );
       assert.ok(b.text.endsWith('.'), `Bullet must end with period: "${b.text}"`);
       assert.ok(/^[A-Z][a-z]+/.test(b.text), `Bullet must start capitalized: "${b.text}"`);
     }
@@ -145,7 +155,8 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
 
   it('2. Enforces complete sentence structure and action verb openers via ResumeClaimValidationService', () => {
     const validator = new ResumeClaimValidationService();
-    const factText = 'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations, ensuring high concurrency and application availability.';
+    const factText =
+      'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations, ensuring high concurrency and application availability.';
     const context = {
       sectionOwnerType: 'PROJECT',
       sectionOwnerId: projCodeReviewId,
@@ -165,7 +176,10 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
 
     // Fragment test
     const fragmentResult = validator.validateClaim(
-      { text: 'Intelligent automated code review system integrating OpenAI API and FastAPI webhooks.', factIds: ['f-1'] },
+      {
+        text: 'Intelligent automated code review system integrating OpenAI API and FastAPI webhooks.',
+        factIds: ['f-1'],
+      },
       context
     );
     assert.ok(!fragmentResult.valid, 'Fragment bullet must fail validation');
@@ -176,7 +190,10 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
 
     // Missing period test
     const missingPeriodResult = validator.validateClaim(
-      { text: 'Engineered asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations', factIds: ['f-1'] },
+      {
+        text: 'Engineered asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations',
+        factIds: ['f-1'],
+      },
       context
     );
     assert.ok(!missingPeriodResult.valid, 'Bullet without ending punctuation must fail validation');
@@ -186,11 +203,11 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
     );
 
     // Valid complete sentence accomplishment test
-    const validResult = validator.validateClaim(
-      { text: factText, factIds: ['f-1'] },
-      context
+    const validResult = validator.validateClaim({ text: factText, factIds: ['f-1'] }, context);
+    assert.ok(
+      validResult.valid,
+      `Valid bullet must pass validation, got: ${JSON.stringify(validResult.violations)}`
     );
-    assert.ok(validResult.valid, `Valid bullet must pass validation, got: ${JSON.stringify(validResult.violations)}`);
   });
 
   it('3. Fails closed with INSUFFICIENT_SOURCE_EVIDENCE if project has < 3 grounded facts', async () => {
@@ -198,9 +215,7 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
       id: 'thin-proj-1',
       name: 'Thin Project',
       technologies: ['Python'],
-      bullets: [
-        'Engineered a minimal Python CLI utility for file conversions.',
-      ],
+      bullets: ['Engineered a minimal Python CLI utility for file conversions.'],
     };
 
     await assert.rejects(
@@ -214,7 +229,10 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
         });
       },
       (err) => {
-        return err.code === 'INSUFFICIENT_SOURCE_EVIDENCE' || /INSUFFICIENT_SOURCE_EVIDENCE/.test(err.message);
+        return (
+          err.code === 'INSUFFICIENT_SOURCE_EVIDENCE' ||
+          /INSUFFICIENT_SOURCE_EVIDENCE/.test(err.message)
+        );
       },
       'Must throw INSUFFICIENT_SOURCE_EVIDENCE error when project has < 3 facts'
     );
@@ -241,11 +259,17 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
     };
 
     const awsBulletResult = validator.validateClaim(
-      { text: 'Deployed collaborative task manager on AWS ECS with RDS PostgreSQL.', factIds: ['f-task-1'] },
+      {
+        text: 'Deployed collaborative task manager on AWS ECS with RDS PostgreSQL.',
+        factIds: ['f-task-1'],
+      },
       context
     );
 
-    assert.ok(!awsBulletResult.valid, 'Project bullet claiming ungrounded AWS must fail validation');
+    assert.ok(
+      !awsBulletResult.valid,
+      'Project bullet claiming ungrounded AWS must fail validation'
+    );
     assert.ok(
       awsBulletResult.violations.some((v) => v.code === 'UNAUTHORIZED_TECHNOLOGY'),
       'Must record UNAUTHORIZED_TECHNOLOGY for project bullet claiming AWS'
@@ -304,24 +328,36 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
       },
       summary: { text: 'Engineered robust software solutions across full-stack applications.' },
       skillsByCategory: {
-        'Languages': [{ name: 'TypeScript' }, { name: 'Python' }],
-        'Databases': [{ name: 'PostgreSQL' }],
+        Languages: [{ name: 'TypeScript' }, { name: 'Python' }],
+        Databases: [{ name: 'PostgreSQL' }],
       },
       projects: [
         {
           name: 'Collaborative Task Manager',
           bullets: [
-            { text: 'Built a secure, full-stack task management platform with JWT-based authentication and RBAC.' },
-            { text: 'Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM.' },
-            { text: 'Optimized complex PostgreSQL queries to support real-time multi-user task updates.' },
+            {
+              text: 'Built a secure, full-stack task management platform with JWT-based authentication and RBAC.',
+            },
+            {
+              text: 'Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM.',
+            },
+            {
+              text: 'Optimized complex PostgreSQL queries to support real-time multi-user task updates.',
+            },
           ],
         },
         {
           name: 'AI-Powered Code Review Assistant',
           bullets: [
-            { text: 'Developed an automated code review system by integrating OpenAI API to analyze pull requests.' },
-            { text: 'Engineered a Flask backend with asynchronous FastAPI endpoints to handle webhook events.' },
-            { text: 'Reduced manual review turnaround time by automating code style and syntax evaluations.' },
+            {
+              text: 'Developed an automated code review system by integrating OpenAI API to analyze pull requests.',
+            },
+            {
+              text: 'Engineered a Flask backend with asynchronous FastAPI endpoints to handle webhook events.',
+            },
+            {
+              text: 'Reduced manual review turnaround time by automating code style and syntax evaluations.',
+            },
           ],
         },
       ],
@@ -336,7 +372,9 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
     }).texContent;
 
     // Count \item entries in the Technical Projects section
-    const projSectionMatch = latex.match(/\\atssection\{Technical Projects\}([\s\S]*?)(?:\\atssection|$)/);
+    const projSectionMatch = latex.match(
+      /\\atssection\{Technical Projects\}([\s\S]*?)(?:\\atssection|$)/
+    );
     assert.ok(projSectionMatch, 'Must generate Technical Projects section');
     const itemMatches = projSectionMatch[1].match(/\\item\s/g) || [];
     assert.strictEqual(
@@ -360,15 +398,22 @@ describe('Part 54: Minimal Project-Bullet Content Fix', () => {
 
     let totalBullets = 0;
     for (const p of renderedProjects) {
-      assert.ok(p.bullets.length >= 3, `Project "${p.name}" must have >= 3 bullets, got ${p.bullets.length}`);
+      assert.ok(
+        p.bullets.length >= 3,
+        `Project "${p.name}" must have >= 3 bullets, got ${p.bullets.length}`
+      );
       totalBullets += p.bullets.length;
 
       for (const b of p.bullets) {
         const text = typeof b === 'string' ? b : b.text;
-        assert.ok(!text.includes('Intelligent automated code review system integrating'),
-          'Fragment description must NOT appear in final resume bullets');
-        assert.ok(!text.includes('Real-time collaborative task manager built with'),
-          'Fragment description must NOT appear in final resume bullets');
+        assert.ok(
+          !text.includes('Intelligent automated code review system integrating'),
+          'Fragment description must NOT appear in final resume bullets'
+        );
+        assert.ok(
+          !text.includes('Real-time collaborative task manager built with'),
+          'Fragment description must NOT appear in final resume bullets'
+        );
         assert.ok(text.endsWith('.'), `Bullet must end with period: "${text}"`);
       }
     }

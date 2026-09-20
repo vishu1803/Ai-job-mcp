@@ -6,15 +6,19 @@ const profileDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-c
 const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const port = 9333;
 
-const p = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'chrome://extensions'
-], { detached: false, stdio: 'ignore' });
+const p = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'chrome://extensions',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 async function cdpSend(ws, method, params = {}) {
   const id = Math.floor(Math.random() * 1000000);
@@ -35,14 +39,14 @@ async function cdpSend(ws, method, params = {}) {
 async function run() {
   await sleep(3000);
   const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-  const extPage = list.find(t => t.url.includes('chrome://extensions'));
+  const extPage = list.find((t) => t.url.includes('chrome://extensions'));
   if (!extPage) {
     console.log('chrome://extensions tab not found, targets:', list);
     p.kill('SIGKILL');
     return;
   }
   const ws = new WebSocket(extPage.webSocketDebuggerUrl);
-  await new Promise(r => ws.addEventListener('open', r));
+  await new Promise((r) => ws.addEventListener('open', r));
   await cdpSend(ws, 'Runtime.enable');
   await sleep(1000);
 
@@ -63,10 +67,13 @@ async function run() {
       }
       return result;
     })()`,
-    returnByValue: true
+    returnByValue: true,
   });
   console.log('Loaded extensions:', JSON.stringify(evalRes.result?.value, null, 2));
   p.kill('SIGKILL');
 }
 
-run().catch(e => { console.error(e); p.kill('SIGKILL'); });
+run().catch((e) => {
+  console.error(e);
+  p.kill('SIGKILL');
+});

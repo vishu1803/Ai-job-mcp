@@ -16,7 +16,11 @@ async function seed() {
   let inserted = 0;
   for (const entry of SKILL_CATALOG_SEED) {
     try {
-      const existing = await db.select({ id: skillCatalog.id }).from(skillCatalog).where(sql`slug = ${entry.slug}`).limit(1);
+      const existing = await db
+        .select({ id: skillCatalog.id })
+        .from(skillCatalog)
+        .where(sql`slug = ${entry.slug}`)
+        .limit(1);
       if (existing.length === 0) {
         await db.insert(skillCatalog).values({
           canonicalName: entry.canonicalName,
@@ -43,4 +47,7 @@ async function seed() {
   await closeDatabase(pool);
 }
 
-seed().catch(err => { console.error(err); process.exit(1); });
+seed().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

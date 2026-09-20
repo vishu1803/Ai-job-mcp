@@ -467,9 +467,11 @@ export class ResumeParserService {
       for (const c of group) {
         if (lineText.length > 0 && prevEndX !== null && c.x !== undefined) {
           const gap = c.x - prevEndX;
-          if (gap > Math.max(MIN_GAP_PT, prevGapThreshold * GAP_RATIO) &&
-              !/\s$/.test(lineText) &&
-              !/^\s/.test(c.text)) {
+          if (
+            gap > Math.max(MIN_GAP_PT, prevGapThreshold * GAP_RATIO) &&
+            !/\s$/.test(lineText) &&
+            !/^\s/.test(c.text)
+          ) {
             lineText += ' ';
           }
         }
@@ -484,24 +486,26 @@ export class ResumeParserService {
       return lineText;
     };
 
-    return lines
-      .map(({ group }) =>
-        joinRuns(group)
-          .replace(/\u0000/g, '')
-          .replace(/[ \t]+/g, ' ')
-          .trim()
-      )
-      .filter((l) => l && !/^[-–—\s._]{4,}$/.test(l))
-      .join('\n')
-      // Phase 9b safety net: normalize any residual ligature codepoints that
-      // survive from producers outside the canonical renderer (legacy uploads,
-      // third-party PDFs). The canonical renderer already prevents ligature
-      // formation at the source via Ligatures=NoCommon.
-      .replace(/[\uFB00]/g, 'ff')
-      .replace(/[\uFB01]/g, 'fi')
-      .replace(/[\uFB02]/g, 'fl')
-      .replace(/[\uFB03]/g, 'ffi')
-      .replace(/[\uFB04]/g, 'ffl');
+    return (
+      lines
+        .map(({ group }) =>
+          joinRuns(group)
+            .replace(/\u0000/g, '')
+            .replace(/[ \t]+/g, ' ')
+            .trim()
+        )
+        .filter((l) => l && !/^[-–—\s._]{4,}$/.test(l))
+        .join('\n')
+        // Phase 9b safety net: normalize any residual ligature codepoints that
+        // survive from producers outside the canonical renderer (legacy uploads,
+        // third-party PDFs). The canonical renderer already prevents ligature
+        // formation at the source via Ligatures=NoCommon.
+        .replace(/[\uFB00]/g, 'ff')
+        .replace(/[\uFB01]/g, 'fi')
+        .replace(/[\uFB02]/g, 'fl')
+        .replace(/[\uFB03]/g, 'ffi')
+        .replace(/[\uFB04]/g, 'ffl')
+    );
   }
 
   /**

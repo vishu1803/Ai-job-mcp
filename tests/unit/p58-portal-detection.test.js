@@ -12,7 +12,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AdapterRegistry, KNOWN_PORTAL_CAPABILITIES } from '../../extension/job-detection/adapter-registry.js';
+import {
+  AdapterRegistry,
+  KNOWN_PORTAL_CAPABILITIES,
+} from '../../extension/job-detection/adapter-registry.js';
 import { JobPageDetector } from '../../extension/job-detection/job-page-detector.js';
 import { JobDetectionEngine } from '../../extension/job-detection/detection-engine.js';
 import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin.adapter.js';
@@ -23,12 +26,7 @@ import {
   isSameJobIdentity,
 } from '../../extension/lib/job-identity.js';
 
-function createMockDocument({
-  elements = {},
-  meta = {},
-  scripts = [],
-  bodyText = '',
-} = {}) {
+function createMockDocument({ elements = {}, meta = {}, scripts = [], bodyText = '' } = {}) {
   return {
     body: { textContent: bodyText },
     querySelector(selector) {
@@ -83,7 +81,11 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
 
     const profileRes = AdapterRegistry.resolve(profileDom, profileUrl);
     assert.strictEqual(profileRes.adapterId, 'LINKEDIN');
-    assert.strictEqual(profileRes.isJobPage, false, 'Profile page must NOT be flagged as a job page');
+    assert.strictEqual(
+      profileRes.isJobPage,
+      false,
+      'Profile page must NOT be flagged as a job page'
+    );
 
     const profileDet = JobDetectionEngine.evaluate(profileDom, profileUrl);
     assert.strictEqual(profileDet.detected, false);
@@ -99,7 +101,8 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
     ];
 
     const descNode = {
-      textContent: 'About the role: We are hiring a Senior Python Engineer to build scalable microservices. Requirements include Python, FastAPI, and Docker. Apply now to join our team.',
+      textContent:
+        'About the role: We are hiring a Senior Python Engineer to build scalable microservices. Requirements include Python, FastAPI, and Docker. Apply now to join our team.',
       querySelectorAll(selector) {
         if (selector === 'li') return mockList;
         return [];
@@ -144,7 +147,8 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
     ];
 
     const descNode = {
-      textContent: 'We are seeking a Staff Infrastructure Engineer to lead our Kubernetes platform. Apply now to join our high-scale team.',
+      textContent:
+        'We are seeking a Staff Infrastructure Engineer to lead our Kubernetes platform. Apply now to join our high-scale team.',
       querySelectorAll(selector) {
         if (selector === 'li') return mockList;
         return [];
@@ -153,7 +157,9 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
 
     const dom = createMockDocument({
       elements: {
-        '.job-details-jobs-unified-top-card__job-title': { textContent: 'Staff Infrastructure Engineer' },
+        '.job-details-jobs-unified-top-card__job-title': {
+          textContent: 'Staff Infrastructure Engineer',
+        },
         '.job-details-jobs-unified-top-card__company-name': { textContent: 'DataScale Systems' },
         '.job-details-jobs-unified-top-card__bullet': { textContent: 'New York, NY · Hybrid' },
         '#job-details': descNode,
@@ -173,16 +179,24 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
   });
 
   it('4. Preserves LinkedIn currentJobId across SPA route changes and derives distinct fingerprints', () => {
-    const jobAUrl = 'https://www.linkedin.com/jobs/search/?currentJobId=4111111111&refId=abc&trackingId=xyz';
-    const jobBUrl = 'https://www.linkedin.com/jobs/search/?currentJobId=4222222222&refId=def&trackingId=uvw';
+    const jobAUrl =
+      'https://www.linkedin.com/jobs/search/?currentJobId=4111111111&refId=abc&trackingId=xyz';
+    const jobBUrl =
+      'https://www.linkedin.com/jobs/search/?currentJobId=4222222222&refId=def&trackingId=uvw';
 
     const cleanA = normalizeJobPostingUrl(jobAUrl);
     const cleanB = normalizeJobPostingUrl(jobBUrl);
 
     // currentJobId must be preserved; tracking params (refId, trackingId) stripped
-    assert.ok(cleanA.includes('currentJobId=4111111111'), 'currentJobId must be preserved in cleanA');
+    assert.ok(
+      cleanA.includes('currentJobId=4111111111'),
+      'currentJobId must be preserved in cleanA'
+    );
     assert.ok(!cleanA.includes('trackingId'), 'trackingId must be stripped');
-    assert.ok(cleanB.includes('currentJobId=4222222222'), 'currentJobId must be preserved in cleanB');
+    assert.ok(
+      cleanB.includes('currentJobId=4222222222'),
+      'currentJobId must be preserved in cleanB'
+    );
     assert.notStrictEqual(cleanA, cleanB, 'Clean URLs must not collapse to the same search root');
 
     const jobA = {
@@ -249,14 +263,29 @@ describe('P58 Portal Identity & Job Detection Engine', () => {
   });
 
   it('6. Generic adapter strictly rejects known specialized portal domains', () => {
-    assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://www.linkedin.com/feed/'), false);
-    assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://boards.greenhouse.io/'), false);
+    assert.strictEqual(
+      GenericCareerPageAdapter.canHandle(null, 'https://www.linkedin.com/feed/'),
+      false
+    );
+    assert.strictEqual(
+      GenericCareerPageAdapter.canHandle(null, 'https://boards.greenhouse.io/'),
+      false
+    );
     assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://jobs.lever.co/'), false);
-    assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://company.myworkdayjobs.com/'), false);
+    assert.strictEqual(
+      GenericCareerPageAdapter.canHandle(null, 'https://company.myworkdayjobs.com/'),
+      false
+    );
     assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://www.indeed.com/'), false);
 
     // Generic adapter handles real third-party career portals
-    assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://jobs.ashbyhq.com/startup/123'), true);
-    assert.strictEqual(GenericCareerPageAdapter.canHandle(null, 'https://company.bamboohr.com/careers/456'), true);
+    assert.strictEqual(
+      GenericCareerPageAdapter.canHandle(null, 'https://jobs.ashbyhq.com/startup/123'),
+      true
+    );
+    assert.strictEqual(
+      GenericCareerPageAdapter.canHandle(null, 'https://company.bamboohr.com/careers/456'),
+      true
+    );
   });
 });

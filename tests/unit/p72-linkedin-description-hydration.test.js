@@ -214,7 +214,11 @@ function createMockController(options = {}) {
   let analyzeCalls = 0;
   controller.backendClient = {
     getHealth: async () => ({ status: 'ok' }),
-    getAuthStatus: async () => ({ authenticated: true, status: 'AUTHENTICATED', user: { id: 'u1' } }),
+    getAuthStatus: async () => ({
+      authenticated: true,
+      status: 'AUTHENTICATED',
+      user: { id: 'u1' },
+    }),
     analyzeJob: async () => {
       analyzeCalls++;
       return { success: true };
@@ -331,9 +335,13 @@ async function getContentScriptHydration() {
     };
     globalThis.chrome = globalThis.chrome || {};
     globalThis.chrome.runtime = globalThis.chrome.runtime || {};
-    globalThis.chrome.runtime.onMessage = globalThis.chrome.runtime.onMessage || { addListener: () => {} };
-    globalThis.chrome.runtime.sendMessage = globalThis.chrome.runtime.sendMessage || (async () => ({ success: true }));
-    globalThis.chrome.runtime.getURL = (rel) => pathToFileURL(path.resolve(rootDir, 'extension', rel)).href;
+    globalThis.chrome.runtime.onMessage = globalThis.chrome.runtime.onMessage || {
+      addListener: () => {},
+    };
+    globalThis.chrome.runtime.sendMessage =
+      globalThis.chrome.runtime.sendMessage || (async () => ({ success: true }));
+    globalThis.chrome.runtime.getURL = (rel) =>
+      pathToFileURL(path.resolve(rootDir, 'extension', rel)).href;
     await import('../../extension/content/content-script.js');
   }
   return globalThis.window.__aicareershub_hydration;
@@ -418,7 +426,11 @@ describe('P72: Separation of JOB_DETECTED and ANALYSIS_READY', () => {
     const result = JobDetectionEngine.evaluate(doc, url);
 
     assert.strictEqual(result.detected, true, 'Job must be detected with valid title and company');
-    assert.strictEqual(result.analysisReady, false, 'analysisReady must be false when description is missing');
+    assert.strictEqual(
+      result.analysisReady,
+      false,
+      'analysisReady must be false when description is missing'
+    );
     assert.strictEqual(result.jobData.title, 'Software Engineer');
     assert.strictEqual(result.jobData.company, 'Appinventiv');
     assert.strictEqual(result.jobData.analysisReady, false);
@@ -453,14 +465,23 @@ describe('P72: Separation of JOB_DETECTED and ANALYSIS_READY', () => {
     assert.strictEqual(controller.activeJob.title, 'Software Engineer');
     assert.strictEqual(controller.activeJob.analysisReady, false);
     // Notice must be visible
-    assert.strictEqual(elementState.descriptionLoadingNoticeHidden, false, 'Loading notice must be visible');
+    assert.strictEqual(
+      elementState.descriptionLoadingNoticeHidden,
+      false,
+      'Loading notice must be visible'
+    );
     // Analyze button must be disabled
-    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, true, 'Analyze button must be disabled');
+    assert.strictEqual(
+      controller.elements.analyzeJobBtn.disabled,
+      true,
+      'Analyze button must be disabled'
+    );
   });
 });
 
 describe('P72: Localized LinkedIn Description Selectors (Never document.body)', () => {
-  const substantiveDesc = 'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.';
+  const substantiveDesc =
+    'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.';
 
   const selectors = [
     '.show-more-less-html__markup',
@@ -505,12 +526,17 @@ describe('P72: Localized LinkedIn Description Selectors (Never document.body)', 
     // Document where body has text but no localized description selector exists
     const doc = {
       querySelector: (sel) => {
-        if (sel === 'h1.job-details-jobs-unified-top-card__job-title') return { textContent: 'Software Engineer' };
-        if (sel === '.job-details-jobs-unified-top-card__company-name a') return { textContent: 'Appinventiv' };
+        if (sel === 'h1.job-details-jobs-unified-top-card__job-title')
+          return { textContent: 'Software Engineer' };
+        if (sel === '.job-details-jobs-unified-top-card__company-name a')
+          return { textContent: 'Appinventiv' };
         return null;
       },
       querySelectorAll: () => [],
-      body: { textContent: 'Random text on body that contains lots of words and should never be used as job description.' },
+      body: {
+        textContent:
+          'Random text on body that contains lots of words and should never be used as job description.',
+      },
       title: 'Software Engineer at Appinventiv | LinkedIn',
     };
     const url = 'https://www.linkedin.com/jobs/view/4464770430/';
@@ -533,7 +559,8 @@ describe('P72: Lazy & Expanded Description ("Show more")', () => {
 
     // Expanded state (e.g. after "Show more" click or React hydration)
     const docExpanded = makeLinkedInMockDoc({
-      descText: 'Short clamped snippet... and here is the full comprehensive expanded job description with all details requirements and qualifications.',
+      descText:
+        'Short clamped snippet... and here is the full comprehensive expanded job description with all details requirements and qualifications.',
     });
     const expandedPayload = LinkedInAdapter.extract(docExpanded, url);
     assert.strictEqual(expandedPayload.analysisReady, true);
@@ -549,7 +576,11 @@ describe('P72-FIX: Service Worker Forwarding & Safety', () => {
     let ackResult = null;
     const message = {
       type: 'JOB_DESCRIPTION_HYDRATED',
-      jobData: { title: 'Software Engineer', company: 'Appinventiv', description: 'Detailed job description >= 50 chars' },
+      jobData: {
+        title: 'Software Engineer',
+        company: 'Appinventiv',
+        description: 'Detailed job description >= 50 chars',
+      },
       jobFingerprint: 'fp-appinventiv-123',
     };
     const sender = { tab: { id: 777 } };
@@ -587,7 +618,11 @@ describe('P72-FIX: Service Worker Forwarding & Safety', () => {
     assert.strictEqual(ackResult.success, true);
     const forwarded = sw.getForwarded();
     assert.strictEqual(forwarded.length, 1);
-    assert.strictEqual(forwarded[0].tabId, 888, 'Service worker must use sender.tab.id, never spoofed tabId');
+    assert.strictEqual(
+      forwarded[0].tabId,
+      888,
+      'Service worker must use sender.tab.id, never spoofed tabId'
+    );
   });
 
   it('service worker rejects JOB_DESCRIPTION_HYDRATED when sender.tab.id is missing', async () => {
@@ -614,7 +649,8 @@ describe('P72-FIX: Service Worker Forwarding & Safety', () => {
 
 describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
   it('updates activeJob, enables Analyze button, and hides notice on matching fingerprint and tabId', async () => {
-    const { controller, elementState, dispatchRuntimeMessage, getAnalyzeCalls } = createMockController();
+    const { controller, elementState, dispatchRuntimeMessage, getAnalyzeCalls } =
+      createMockController();
 
     // 1. Initial detection with empty description
     const initialJob = {
@@ -636,8 +672,10 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
     // 2. Simulate JOB_DESCRIPTION_HYDRATED runtime message arriving from service worker
     const hydratedJob = {
       ...initialJob,
-      description: 'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.',
-      rawText: 'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.',
+      description:
+        'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.',
+      rawText:
+        'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.',
       analysisReady: true,
     };
 
@@ -655,8 +693,16 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
     assert.strictEqual(controller.activeJob.analysisReady, true);
     assert.ok(controller.activeJob.description.length >= 50);
     assert.strictEqual(controller.cachedState.jobData.description, hydratedJob.description);
-    assert.strictEqual(elementState.descriptionLoadingNoticeHidden, true, 'Notice must be hidden after hydration');
-    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false, 'Analyze button must be enabled');
+    assert.strictEqual(
+      elementState.descriptionLoadingNoticeHidden,
+      true,
+      'Notice must be hidden after hydration'
+    );
+    assert.strictEqual(
+      controller.elements.analyzeJobBtn.disabled,
+      false,
+      'Analyze button must be enabled'
+    );
     assert.strictEqual(controller.elements.analyzeJobBtn.textContent, 'Analyze Job Match');
 
     // 4. Verify 0 automatic analyze calls
@@ -677,7 +723,8 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
 
     const hydratedJob = {
       ...initialJob,
-      description: 'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
+      description:
+        'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
       analysisReady: true,
     };
     const fp = JobIdentity.deriveJobFingerprint(hydratedJob);
@@ -706,7 +753,8 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
 
     const hydratedJob = {
       ...initialJob,
-      description: 'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
+      description:
+        'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
       analysisReady: true,
     };
     const fp = JobIdentity.deriveJobFingerprint(hydratedJob);
@@ -780,7 +828,8 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
       title: 'Software Engineer',
       company: 'Appinventiv',
       externalJobId: '4464770430',
-      description: 'Hydrated description from background tab that has more than fifty characters of content.',
+      description:
+        'Hydrated description from background tab that has more than fifty characters of content.',
       analysisReady: true,
       provider: 'LINKEDIN',
     };
@@ -859,26 +908,38 @@ describe('P72: Form Detection Independence', () => {
     // 2. Form detected on page (e.g. Easy Apply modal appears)
     const formData = {
       hasForm: true,
-      fields: [{ name: 'fullName', type: 'text' }, { name: 'email', type: 'email' }],
+      fields: [
+        { name: 'fullName', type: 'text' },
+        { name: 'email', type: 'email' },
+      ],
       url: 'https://www.linkedin.com/jobs/view/4464770430/',
     };
     await controller._handleFormDetectedEvent(formData);
 
     assert.strictEqual(controller.cachedState.workflowState, WORKFLOW_STATES.FORM_DETECTED);
     assert.strictEqual(elementState.formCardHidden, false, 'Form card must be rendered');
-    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, true, 'Analyze still disabled (no desc)');
+    assert.strictEqual(
+      controller.elements.analyzeJobBtn.disabled,
+      true,
+      'Analyze still disabled (no desc)'
+    );
 
     // 3. Late description hydration arrives
     const hydratedJob = {
       ...initialJob,
-      description: 'Substantive job description with over fifty characters detailing qualifications and role expectations.',
+      description:
+        'Substantive job description with over fifty characters detailing qualifications and role expectations.',
       analysisReady: true,
     };
     await controller._reconcileDetectedJob(hydratedJob);
 
     // Both form and analyze are now ready
     assert.strictEqual(controller.activeJob.analysisReady, true);
-    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false, 'Analyze button now enabled');
+    assert.strictEqual(
+      controller.elements.analyzeJobBtn.disabled,
+      false,
+      'Analyze button now enabled'
+    );
     assert.strictEqual(elementState.descriptionLoadingNoticeHidden, true, 'Notice hidden');
     assert.strictEqual(controller.cachedState.formData.hasForm, true, 'Form data preserved');
   });
@@ -891,7 +952,8 @@ describe('P72: Form Detection Independence', () => {
       title: 'Software Engineer',
       company: 'Appinventiv',
       externalJobId: '4464770430',
-      description: 'Substantive job description with over fifty characters detailing qualifications and role expectations.',
+      description:
+        'Substantive job description with over fifty characters detailing qualifications and role expectations.',
       analysisReady: true,
       provider: 'LINKEDIN',
     };
@@ -907,7 +969,11 @@ describe('P72: Form Detection Independence', () => {
 
     // Analyze remains enabled and form card is displayed
     assert.strictEqual(controller.activeJob.analysisReady, true);
-    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false, 'Analyze must remain enabled');
+    assert.strictEqual(
+      controller.elements.analyzeJobBtn.disabled,
+      false,
+      'Analyze must remain enabled'
+    );
     assert.strictEqual(elementState.formCardHidden, false, 'Form card visible');
   });
 });
@@ -923,19 +989,29 @@ describe('P72: Description Readiness Invariant', () => {
   it('Easy Apply CTA alone does NOT substitute for description readiness', () => {
     const doc = makeLinkedInMockDoc({ descText: '' });
     doc.querySelector = (sel) => {
-      if (sel === 'h1.job-details-jobs-unified-top-card__job-title') return { textContent: 'Software Engineer' };
-      if (sel === '.job-details-jobs-unified-top-card__company-name a') return { textContent: 'Appinventiv' };
-      if (sel.includes('jobs-apply-button') || sel.includes('Easy Apply')) return { textContent: 'Easy Apply' };
+      if (sel === 'h1.job-details-jobs-unified-top-card__job-title')
+        return { textContent: 'Software Engineer' };
+      if (sel === '.job-details-jobs-unified-top-card__company-name a')
+        return { textContent: 'Appinventiv' };
+      if (sel.includes('jobs-apply-button') || sel.includes('Easy Apply'))
+        return { textContent: 'Easy Apply' };
       return null;
     };
 
     const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/123/');
     assert.strictEqual(payload.hasApplyCta, true);
-    assert.strictEqual(payload.analysisReady, false, 'Easy Apply CTA must NOT make analysisReady true');
+    assert.strictEqual(
+      payload.analysisReady,
+      false,
+      'Easy Apply CTA must NOT make analysisReady true'
+    );
   });
 
   it('job title alone does NOT substitute for description readiness', () => {
-    const doc = makeLinkedInMockDoc({ title: 'Principal Distributed Systems Architect', descText: '' });
+    const doc = makeLinkedInMockDoc({
+      title: 'Principal Distributed Systems Architect',
+      descText: '',
+    });
     const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/123/');
 
     assert.strictEqual(payload.analysisReady, false);
@@ -943,7 +1019,10 @@ describe('P72: Description Readiness Invariant', () => {
 
   it('URL alone does NOT substitute for description readiness', () => {
     const doc = makeLinkedInMockDoc({ descText: '' });
-    const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/999999999999/');
+    const payload = LinkedInAdapter.extract(
+      doc,
+      'https://www.linkedin.com/jobs/view/999999999999/'
+    );
 
     assert.strictEqual(payload.analysisReady, false);
   });
@@ -1081,4 +1160,3 @@ describe('P72-FIX: Content Script startJobHydration Concurrency & Invariants', (
     assert.strictEqual(hydratedEvents[0].hydratedJob.analysisReady, true);
   });
 });
-

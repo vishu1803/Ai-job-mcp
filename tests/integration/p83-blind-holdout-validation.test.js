@@ -26,9 +26,7 @@ import {
   HOLDOUT_JOB_SECURITY,
 } from '../../src/domain/career/calibration/holdout-dataset.js';
 
-import {
-  CALIBRATION_DATASET,
-} from '../../src/domain/career/calibration/calibration-dataset.js';
+import { CALIBRATION_DATASET } from '../../src/domain/career/calibration/calibration-dataset.js';
 
 import {
   SCORING_POLICIES,
@@ -114,7 +112,7 @@ function evaluateCorpusSample(sample, scoreVersion = DEFAULT_SCORE_VERSION) {
 
   const jobMatchReport = {
     jobMatchScore,
-    confidence: 0.90,
+    confidence: 0.9,
   };
 
   return generateUnifiedQualityReport({
@@ -183,7 +181,10 @@ describe('P83: Blind Holdout Validation & Defensible Empirical Benchmark', () =>
     for (const sample of HOLDOUT_DATASET) {
       assert.ok(sample.reviewers, `${sample.id} must have reviewers object`);
       assert.ok(sample.reviewers.reviewer1, `${sample.id} must have Reviewer 1 (Hiring Manager)`);
-      assert.ok(sample.reviewers.reviewer2, `${sample.id} must have Reviewer 2 (Technical Recruiter)`);
+      assert.ok(
+        sample.reviewers.reviewer2,
+        `${sample.id} must have Reviewer 2 (Technical Recruiter)`
+      );
       assert.ok(sample.reviewers.reviewer3, `${sample.id} must have Reviewer 3 (Tech Lead)`);
 
       for (const [key, rev] of Object.entries(sample.reviewers)) {
@@ -206,21 +207,21 @@ describe('P83: Blind Holdout Validation & Defensible Empirical Benchmark', () =>
 
     // Pairwise correlations
     assert.ok(
-      interRater.pairwise['reviewer1_vs_reviewer2'].pearsonR >= 0.90,
+      interRater.pairwise['reviewer1_vs_reviewer2'].pearsonR >= 0.9,
       `Reviewer 1 vs 2 Pearson r must be >= 0.90 (got ${interRater.pairwise['reviewer1_vs_reviewer2'].pearsonR})`
     );
     assert.ok(
-      interRater.pairwise['reviewer1_vs_reviewer3'].pearsonR >= 0.90,
+      interRater.pairwise['reviewer1_vs_reviewer3'].pearsonR >= 0.9,
       `Reviewer 1 vs 3 Pearson r must be >= 0.90 (got ${interRater.pairwise['reviewer1_vs_reviewer3'].pearsonR})`
     );
     assert.ok(
-      interRater.pairwise['reviewer2_vs_reviewer3'].pearsonR >= 0.90,
+      interRater.pairwise['reviewer2_vs_reviewer3'].pearsonR >= 0.9,
       `Reviewer 2 vs 3 Pearson r must be >= 0.90 (got ${interRater.pairwise['reviewer2_vs_reviewer3'].pearsonR})`
     );
 
     // Mean correlations & binary consensus agreement
     assert.ok(
-      interRater.meanPearsonR >= 0.80,
+      interRater.meanPearsonR >= 0.8,
       `Mean human Pearson r must be >= 0.80 (got ${interRater.meanPearsonR})`
     );
     assert.ok(
@@ -240,9 +241,9 @@ describe('P83: Blind Holdout Validation & Defensible Empirical Benchmark', () =>
     // 1. Verify frozen policy attributes
     assert.equal(policy.version, 'p82.0');
     assert.equal(DEFAULT_SCORE_VERSION, 'p82.0');
-    assert.equal(policy.weights.atsParseability, 0.30);
-    assert.equal(policy.weights.jobMatch, 0.40);
-    assert.equal(policy.weights.contentQuality, 0.30);
+    assert.equal(policy.weights.atsParseability, 0.3);
+    assert.equal(policy.weights.jobMatch, 0.4);
+    assert.equal(policy.weights.contentQuality, 0.3);
     assert.equal(policy.weights.keywordCoverage, 0.0);
 
     // 2. Verify immutability of policy and weights objects
@@ -253,21 +254,21 @@ describe('P83: Blind Holdout Validation & Defensible Empirical Benchmark', () =>
     // 3. Proves attempting to mutate weights throws or does not modify
     assert.throws(
       () => {
-        policy.weights.jobMatch = 0.50;
+        policy.weights.jobMatch = 0.5;
       },
       /Cannot assign to read only property|TypeError/,
       'Attempting to mutate frozen scoring weights must throw'
     );
-    assert.equal(policy.weights.jobMatch, 0.40, 'Weights must remain strictly 0.40');
+    assert.equal(policy.weights.jobMatch, 0.4, 'Weights must remain strictly 0.40');
 
     // 4. Run sample evaluation and assert scoreVersion stamping
     const sample = HOLDOUT_DATASET[0];
     const report = evaluateCorpusSample(sample, 'p82.0');
     assert.equal(report.scoreVersion, 'p82.0');
     assert.equal(report.provenance.scoreVersion, 'p82.0');
-    assert.equal(report.provenance.weights.atsParseability, 0.30);
-    assert.equal(report.provenance.weights.jobMatch, 0.40);
-    assert.equal(report.provenance.weights.contentQuality, 0.30);
+    assert.equal(report.provenance.weights.atsParseability, 0.3);
+    assert.equal(report.provenance.weights.jobMatch, 0.4);
+    assert.equal(report.provenance.weights.contentQuality, 0.3);
   });
 
   // ── Branch 7: Engine vs. Human Comparison ──────────────────────────────────
@@ -340,7 +341,7 @@ describe('P83: Blind Holdout Validation & Defensible Empirical Benchmark', () =>
       `Generalization must be preserved across holdout dataset (delta rho = ${comparison.deltaSpearmanRho})`
     );
     assert.ok(
-      Math.abs(comparison.deltaSpearmanRho) <= 0.10,
+      Math.abs(comparison.deltaSpearmanRho) <= 0.1,
       `Delta Spearman rho must be within +/-0.10 (got delta = ${comparison.deltaSpearmanRho})`
     );
     assert.ok(

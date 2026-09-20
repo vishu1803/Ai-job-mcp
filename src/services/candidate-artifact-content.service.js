@@ -1501,10 +1501,10 @@ export class CandidateArtifactContentService {
     );
     const hasCorroboratedProblemSolving = Boolean(
       (leetcodeLinkObj?.url && isRealUrl(leetcodeLinkObj.url)) ||
-        hasDsaSkill ||
-        hasDsaCoursework ||
-        userCustom.problemSolving?.hasSection ||
-        metadata.problemSolving?.hasSection
+      hasDsaSkill ||
+      hasDsaCoursework ||
+      userCustom.problemSolving?.hasSection ||
+      metadata.problemSolving?.hasSection
     );
     // P19: DSA bullets must come strictly from candidate-authored stored data.
     // A LeetCode URL proves a URL. Coursework proves coursework. A DSA skill
@@ -1847,7 +1847,8 @@ export class CandidateArtifactContentService {
         if (roleRelevance === 0) roleRelevance = 5;
       } else if (isMobileRole) {
         let mobileSignals = 0;
-        if (/swift|swiftui|kotlin|android|ios|react native|flutter/i.test(techText)) mobileSignals += 20;
+        if (/swift|swiftui|kotlin|android|ios|react native|flutter/i.test(techText))
+          mobileSignals += 20;
         roleRelevance = Math.min(30, mobileSignals);
       } else {
         roleRelevance = 20;
@@ -2439,7 +2440,9 @@ export class CandidateArtifactContentService {
 
     const sortedScoredSkills = scoredSkills
       .slice()
-      .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.evidenceCount || 0) - (a.evidenceCount || 0));
+      .sort(
+        (a, b) => (b.score || 0) - (a.score || 0) || (b.evidenceCount || 0) - (a.evidenceCount || 0)
+      );
 
     for (const s of sortedScoredSkills) {
       const isNoise =
@@ -2546,10 +2549,15 @@ export class CandidateArtifactContentService {
     // Derive category priority dynamically based on top skill relevance scores and direct matches
     const categoryScores = {};
     for (const [cat, list] of Object.entries(categoryGroups)) {
-      const topSkills = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+      const topSkills = list
+        .slice()
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 3);
       const topSum = topSkills.reduce((sum, s) => sum + (s.score || 0), 0);
       const maxScore = topSkills[0]?.score || 0;
-      const directMatches = list.filter((s) => s.isDirectMatch || (s.score && s.score >= 35)).length;
+      const directMatches = list.filter(
+        (s) => s.isDirectMatch || (s.score && s.score >= 35)
+      ).length;
       categoryScores[cat] = maxScore * 2 + topSum + directMatches * 25;
     }
 

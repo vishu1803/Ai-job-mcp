@@ -153,7 +153,9 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
         headline: 'Full-Stack Software Engineer',
         profileMetadata: {
           problemSolving: {
-            bullets: ['Solved 500+ algorithmic problems across dynamic programming, trees, and graphs on LeetCode.'],
+            bullets: [
+              'Solved 500+ algorithmic problems across dynamic programming, trees, and graphs on LeetCode.',
+            ],
             leetcodeUrl: 'https://leetcode.com/u/vishwanatnishad',
           },
           userCustom: {
@@ -291,7 +293,8 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       title: 'Senior Software Engineer - Cloud Platform',
       location: 'Remote',
       workplaceType: 'REMOTE',
-      description: 'Build fast cloud infrastructure using Node.js, TypeScript, and distributed systems.',
+      description:
+        'Build fast cloud infrastructure using Node.js, TypeScript, and distributed systems.',
       responsibilities: ['Architect serverless systems', 'Scale global edge deployment'],
       requirements: ['Node.js', 'TypeScript', 'Distributed systems'],
       skills: ['Node.js', 'TypeScript'],
@@ -384,10 +387,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(rows.length, 1, 'Exactly one application row in DB');
     assert.strictEqual(rows[0].id, vercelApplicationId);
@@ -435,10 +435,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(rows.length, 1, 'Application row count must remain exactly 1');
   });
@@ -504,10 +501,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(rows.length, 1);
   });
@@ -523,7 +517,8 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       answers: {
         workAuth: 'Authorized',
         relocationPreference: 'Candidate is open to relocating to New York or San Francisco.',
-        customCoverLetterNote: 'Dedicated platform engineering experience focusing on high-concurrency systems.',
+        customCoverLetterNote:
+          'Dedicated platform engineering experience focusing on high-concurrency systems.',
       },
     });
 
@@ -543,10 +538,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(appRows.length, 1, 'Application row count must remain 1');
 
@@ -580,10 +572,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
         metadata: { externalSubmissionState: 'SUBMITTED' },
       })
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.id, vercelApplicationId)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.id, vercelApplicationId))
       );
 
     // 2. Attempt to prepare/mutate the submitted application
@@ -764,10 +753,7 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
       .select()
       .from(jobApplications)
       .where(
-        and(
-          eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
-        )
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
       );
     assert.strictEqual(allCandidateApps.length, 2, 'Candidate must have exactly 2 applications');
     const appIds = allCandidateApps.map((a) => a.id);
@@ -802,17 +788,26 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
     // Audit get_application_package
     const getPkgTool = tools.find((t) => t.name === 'get_application_package');
     assert.ok(getPkgTool, 'get_application_package must be registered');
-    assert.ok(getPkgTool.inputSchema.properties.applicationId, 'applicationId must be in inputSchema');
+    assert.ok(
+      getPkgTool.inputSchema.properties.applicationId,
+      'applicationId must be in inputSchema'
+    );
     assert.ok(
       getPkgTool.inputSchema.required?.includes('applicationId'),
       'applicationId must be required in get_application_package'
     );
-    assert.ok(getPkgTool.inputSchema.properties.packageVersion, 'packageVersion must be in inputSchema');
+    assert.ok(
+      getPkgTool.inputSchema.properties.packageVersion,
+      'packageVersion must be in inputSchema'
+    );
 
     // Audit prepare_job_application
     const prepTool = tools.find((t) => t.name === 'prepare_job_application');
     assert.ok(prepTool, 'prepare_job_application must be registered');
-    assert.ok(prepTool.inputSchema.properties.applicationId, 'applicationId must be in inputSchema');
+    assert.ok(
+      prepTool.inputSchema.properties.applicationId,
+      'applicationId must be in inputSchema'
+    );
     assert.ok(
       !prepTool.inputSchema.required?.includes('applicationId'),
       'applicationId must be optional in prepare_job_application'

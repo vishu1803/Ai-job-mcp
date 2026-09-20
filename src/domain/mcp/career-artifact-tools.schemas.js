@@ -371,12 +371,7 @@ export const GenerateTailoredResumeInputSchema = z
       .max(255)
       .optional()
       .describe('Optional hiring company name (e.g., "Vercel / NextStack").'),
-    company: z
-      .string()
-      .trim()
-      .max(255)
-      .optional()
-      .describe('Optional hiring company name alias.'),
+    company: z.string().trim().max(255).optional().describe('Optional hiring company name alias.'),
     requirements: z
       .array(z.string().trim())
       .optional()
@@ -542,7 +537,10 @@ export const GenerateTailoredResumeOutputSchema = z
         certifications: z.array(z.record(z.any())).default([]),
       })
       .strict(),
-    structuredResume: z.record(z.any()).optional().describe('Canonical structured resume snapshot consumed from the workflow.'),
+    structuredResume: z
+      .record(z.any())
+      .optional()
+      .describe('Canonical structured resume snapshot consumed from the workflow.'),
     warnings: z.array(z.string()).default([]),
     _meta: z
       .object({

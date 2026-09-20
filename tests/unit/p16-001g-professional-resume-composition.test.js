@@ -33,9 +33,7 @@ import {
   polishProfessionalSummary,
   ensureCandidateSectionIntegrity,
 } from '../../src/services/resume-professional-composition.service.js';
-import {
-  StructuredResumeDocumentSchema,
-} from '../../src/domain/career/resume.schemas.js';
+import { StructuredResumeDocumentSchema } from '../../src/domain/career/resume.schemas.js';
 import {
   buildStructuredResumeDocument,
   buildStructuredResumeSnapshot,
@@ -50,8 +48,20 @@ import { LatexDocumentGenerator } from '../../src/services/latex-document-genera
 
 /** Builds a full structured resume document from a realistic fresher profile. */
 const RANKINGS = [
-  { projectId: 'proj-1', projectName: 'ecommerce-platform', relevanceScore: 62.5, relevanceBand: 'HIGH', matchedRequirementIds: ['req-fullstack', 'req-payments'] },
-  { projectId: 'proj-2', projectName: 'task-manager-app', relevanceScore: 41.0, relevanceBand: 'MEDIUM', matchedRequirementIds: ['req-realtime'] },
+  {
+    projectId: 'proj-1',
+    projectName: 'ecommerce-platform',
+    relevanceScore: 62.5,
+    relevanceBand: 'HIGH',
+    matchedRequirementIds: ['req-fullstack', 'req-payments'],
+  },
+  {
+    projectId: 'proj-2',
+    projectName: 'task-manager-app',
+    relevanceScore: 41.0,
+    relevanceBand: 'MEDIUM',
+    matchedRequirementIds: ['req-realtime'],
+  },
 ];
 
 function buildRichStructuredDoc() {
@@ -64,11 +74,31 @@ function buildRichStructuredDoc() {
     location: 'San Francisco, CA',
     careerStatus: 'FRESHER',
     skills: [
-      { name: 'JavaScript', slug: 'javascript', provenanceStatus: 'VERIFIED', evidenceId: crypto.randomUUID() },
+      {
+        name: 'JavaScript',
+        slug: 'javascript',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: crypto.randomUUID(),
+      },
       { name: 'Python', slug: 'python', provenanceStatus: 'USER_PROVIDED', evidenceId: null },
-      { name: 'React', slug: 'react', provenanceStatus: 'VERIFIED', evidenceId: crypto.randomUUID() },
-      { name: 'Node.js', slug: 'nodejs', provenanceStatus: 'VERIFIED', evidenceId: crypto.randomUUID() },
-      { name: 'PostgreSQL', slug: 'postgresql', provenanceStatus: 'VERIFIED', evidenceId: crypto.randomUUID() },
+      {
+        name: 'React',
+        slug: 'react',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: crypto.randomUUID(),
+      },
+      {
+        name: 'Node.js',
+        slug: 'nodejs',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: crypto.randomUUID(),
+      },
+      {
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        provenanceStatus: 'VERIFIED',
+        evidenceId: crypto.randomUUID(),
+      },
       // deliberate duplicate (same slug, weaker provenance listed second)
       { name: 'JavaScript', slug: 'javascript', provenanceStatus: 'CLAIMED', evidenceId: null },
     ],
@@ -83,19 +113,37 @@ function buildRichStructuredDoc() {
         bullets: [
           {
             text: 'Built a full-stack e-commerce application with React frontend and Node.js backend supporting order workflows.',
-            evidenceRefs: [{ sourceType: 'VERIFIED', evidenceId: crypto.randomUUID(), commitSha: 'a1b2c3d4e5f6' }],
+            evidenceRefs: [
+              {
+                sourceType: 'VERIFIED',
+                evidenceId: crypto.randomUUID(),
+                commitSha: 'a1b2c3d4e5f6',
+              },
+            ],
             matchedRequirementIds: ['req-fullstack', 'req-db'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Implemented payment processing integration with Stripe and PayPal APIs supporting multiple currencies.',
-            evidenceRefs: [{ sourceType: 'VERIFIED', evidenceId: crypto.randomUUID(), commitSha: 'f3e2d1c0b9a8' }],
+            evidenceRefs: [
+              {
+                sourceType: 'VERIFIED',
+                evidenceId: crypto.randomUUID(),
+                commitSha: 'f3e2d1c0b9a8',
+              },
+            ],
             matchedRequirementIds: ['req-payments'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Optimized database queries through proper indexing in order to reduce response times.',
-            evidenceRefs: [{ sourceType: 'VERIFIED', evidenceId: crypto.randomUUID(), commitSha: 'b4c5d6e7f8a9' }],
+            evidenceRefs: [
+              {
+                sourceType: 'VERIFIED',
+                evidenceId: crypto.randomUUID(),
+                commitSha: 'b4c5d6e7f8a9',
+              },
+            ],
             matchedRequirementIds: ['req-performance'],
             provenanceStatus: 'VERIFIED',
           },
@@ -111,7 +159,13 @@ function buildRichStructuredDoc() {
         bullets: [
           {
             text: 'Created a collaborative task management application with real-time updates using WebSocket connections.',
-            evidenceRefs: [{ sourceType: 'VERIFIED', evidenceId: crypto.randomUUID(), commitSha: 'c7d8e9f0a1b2' }],
+            evidenceRefs: [
+              {
+                sourceType: 'VERIFIED',
+                evidenceId: crypto.randomUUID(),
+                commitSha: 'c7d8e9f0a1b2',
+              },
+            ],
             matchedRequirementIds: ['req-realtime'],
             provenanceStatus: 'VERIFIED',
           },
@@ -142,7 +196,15 @@ function buildRichStructuredDoc() {
         startDate: '2020-09-01',
         endDate: '2024-06-15',
         grade: '3.7 GPA',
-        coursework: ['Data Structures', 'Algorithms', 'Database Systems', 'Operating Systems', 'Networks', 'Machine Learning', 'Distributed Systems'],
+        coursework: [
+          'Data Structures',
+          'Algorithms',
+          'Database Systems',
+          'Operating Systems',
+          'Networks',
+          'Machine Learning',
+          'Distributed Systems',
+        ],
       },
     ],
     certifications: [
@@ -207,7 +269,16 @@ function makeMinimalStructuredDoc() {
         {
           categoryName: 'Core Competencies',
           skills: [
-            { name: 'JavaScript', slug: 'javascript', provenanceStatus: 'VERIFIED', evidenceId: null, sourceSkillId: null, confidenceScore: 1, relevanceScore: 10, matchedRequirementId: null },
+            {
+              name: 'JavaScript',
+              slug: 'javascript',
+              provenanceStatus: 'VERIFIED',
+              evidenceId: null,
+              sourceSkillId: null,
+              confidenceScore: 1,
+              relevanceScore: 10,
+              matchedRequirementId: null,
+            },
           ],
         },
       ],
@@ -221,7 +292,12 @@ function makeMinimalStructuredDoc() {
         liveUrl: null,
         technologies: ['JavaScript'],
         bullets: [
-          { text: 'Built a feature.', evidenceRefs: [], matchedRequirementIds: [], provenanceStatus: 'VERIFIED' },
+          {
+            text: 'Built a feature.',
+            evidenceRefs: [],
+            matchedRequirementIds: [],
+            provenanceStatus: 'VERIFIED',
+          },
         ],
         relevanceScore: 40,
         rank: 1,
@@ -255,7 +331,13 @@ function makeMinimalStructuredDoc() {
     ],
     certifications: [],
     dsa: null,
-    optionalSections: { coursework: [], publications: [], achievements: [], additionalSkills: [], awards: [] },
+    optionalSections: {
+      coursework: [],
+      publications: [],
+      achievements: [],
+      additionalSkills: [],
+      awards: [],
+    },
     tailoringPlan: {
       targetRoleTitle: 'Software Engineer',
       sectionOrder: ['HEADER', 'SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION'],
@@ -278,7 +360,7 @@ describe('P16-001G: Professional Resume Composition', () => {
     it('rewrites generated boilerplate while preserving factual content', () => {
       const polished = polishProfessionalSummary(
         'Backend Software Engineer specializing in scalable API design and backend architecture using Node.js, PostgreSQL. ' +
-        'Demonstrated practical execution in Product Data Explorer alongside evidence-backed database and modular service implementation.'
+          'Demonstrated practical execution in Product Data Explorer alongside evidence-backed database and modular service implementation.'
       );
       assert.doesNotMatch(polished, /Demonstrated practical execution/i);
       assert.match(polished, /Product Data Explorer/, 'project reference must survive');
@@ -307,26 +389,47 @@ describe('P16-001G: Professional Resume Composition', () => {
   // ---------------------------------------------------------------------------
   describe('B. Deterministic Bullet Compression', () => {
     it('compresses weak phrases identically across repeated runs', () => {
-      const input = 'Built the ingestion pipeline in order to process data, utilizing streaming validation.';
+      const input =
+        'Built the ingestion pipeline in order to process data, utilizing streaming validation.';
       assert.equal(compressProfessionalBullet(input), compressProfessionalBullet(input));
-      assert.equal(compressProfessionalBullet(input), 'Built the ingestion pipeline to process data, using streaming validation.');
+      assert.equal(
+        compressProfessionalBullet(input),
+        'Built the ingestion pipeline to process data, using streaming validation.'
+      );
     });
 
     it('capitalizes sentence-initial replacements naturally', () => {
-      assert.equal(compressProfessionalBullet('In order to ship faster, automated the checks.'), 'To ship faster, automated the checks.');
-      assert.equal(compressProfessionalBullet('Made use of Docker for reproducible builds.'), 'Used Docker for reproducible builds.');
+      assert.equal(
+        compressProfessionalBullet('In order to ship faster, automated the checks.'),
+        'To ship faster, automated the checks.'
+      );
+      assert.equal(
+        compressProfessionalBullet('Made use of Docker for reproducible builds.'),
+        'Used Docker for reproducible builds.'
+      );
     });
 
     it('leaves clean bullets unchanged', () => {
-      const clean = 'Implemented CSV ingestion pipeline with streaming row-level validation using Node.js.';
+      const clean =
+        'Implemented CSV ingestion pipeline with streaming row-level validation using Node.js.';
       assert.equal(compressProfessionalBullet(clean), clean);
     });
 
     it('composition compresses project bullets without changing bullet count', () => {
       const doc = makeMinimalStructuredDoc();
       doc.projects[0].bullets = [
-        { text: 'Built the feature in order to process data.', evidenceRefs: [], matchedRequirementIds: [], provenanceStatus: 'VERIFIED' },
-        { text: 'Built another feature.', evidenceRefs: [], matchedRequirementIds: [], provenanceStatus: 'VERIFIED' },
+        {
+          text: 'Built the feature in order to process data.',
+          evidenceRefs: [],
+          matchedRequirementIds: [],
+          provenanceStatus: 'VERIFIED',
+        },
+        {
+          text: 'Built another feature.',
+          evidenceRefs: [],
+          matchedRequirementIds: [],
+          provenanceStatus: 'VERIFIED',
+        },
       ];
       const composed = composeStructuredResumeDocument(doc);
       assert.equal(composed.projects[0].bullets.length, 2);
@@ -387,8 +490,18 @@ describe('P16-001G: Professional Resume Composition', () => {
   // ---------------------------------------------------------------------------
   describe('E. No Technology Fabrication', () => {
     it('compression never introduces a technology absent from the source bullet', () => {
-      const before = compressProfessionalBullet('Built the service layer in order to handle requests.');
-      const knownTech = [/kubernetes/i, /docker/i, /kafka/i, /redis/i, /graphql/i, /aws/i, /react/i];
+      const before = compressProfessionalBullet(
+        'Built the service layer in order to handle requests.'
+      );
+      const knownTech = [
+        /kubernetes/i,
+        /docker/i,
+        /kafka/i,
+        /redis/i,
+        /graphql/i,
+        /aws/i,
+        /react/i,
+      ];
       for (const pattern of knownTech) {
         assert.doesNotMatch(before, pattern);
       }
@@ -404,7 +517,10 @@ describe('P16-001G: Professional Resume Composition', () => {
       };
       const composed = composeStructuredResumeDocument(doc);
       // Compression is safe here; assert the result still contains only source technologies.
-      assert.match(composed.projects[0].bullets[0].text, /^Built the ingestion job to move files\.$/);
+      assert.match(
+        composed.projects[0].bullets[0].text,
+        /^Built the ingestion job to move files\.$/
+      );
     });
   });
 
@@ -421,7 +537,11 @@ describe('P16-001G: Professional Resume Composition', () => {
         for (let b = 0; b < doc.projects[p].bullets.length; b++) {
           const orig = doc.projects[p].bullets[b];
           const comp = composed.projects[p].bullets[b];
-          assert.deepEqual(comp.evidenceRefs, orig.evidenceRefs, `project ${p} bullet ${b} evidenceRefs`);
+          assert.deepEqual(
+            comp.evidenceRefs,
+            orig.evidenceRefs,
+            `project ${p} bullet ${b} evidenceRefs`
+          );
           assert.deepEqual(comp.matchedRequirementIds, orig.matchedRequirementIds);
           assert.equal(comp.provenanceStatus, orig.provenanceStatus);
         }
@@ -448,7 +568,10 @@ describe('P16-001G: Professional Resume Composition', () => {
         composed.projects.map((p) => p.projectId),
         doc.projects.map((p) => p.projectId)
       );
-      assert.deepEqual(composed.projects.map((p) => p.rank), doc.projects.map((p) => p.rank));
+      assert.deepEqual(
+        composed.projects.map((p) => p.rank),
+        doc.projects.map((p) => p.rank)
+      );
       assert.deepEqual(
         composed.projects.map((p) => p.relevanceScore),
         doc.projects.map((p) => p.relevanceScore)
@@ -518,8 +641,13 @@ describe('P16-001G: Professional Resume Composition', () => {
       doc.sectionOrder = ['HEADER', 'SUMMARY', 'SKILLS', 'PROJECTS', 'EDUCATION']; // EXPERIENCE dropped
       doc.tailoringPlan.sectionOrder = [...doc.sectionOrder];
       const composed = composeStructuredResumeDocument(doc);
-      assert.ok(composed.sectionOrder.includes('EXPERIENCE'), 'populated EXPERIENCE must be restored');
-      assert.ok(composed.sectionOrder.indexOf('PROJECTS') < composed.sectionOrder.indexOf('EXPERIENCE'));
+      assert.ok(
+        composed.sectionOrder.includes('EXPERIENCE'),
+        'populated EXPERIENCE must be restored'
+      );
+      assert.ok(
+        composed.sectionOrder.indexOf('PROJECTS') < composed.sectionOrder.indexOf('EXPERIENCE')
+      );
       assert.deepEqual(composed.tailoringPlan.sectionOrder, composed.sectionOrder);
     });
 
@@ -550,7 +678,10 @@ describe('P16-001G: Professional Resume Composition', () => {
       doc.certifications = [];
       const composed = composeStructuredResumeDocument(doc);
       assert.ok(!composed.sectionOrder.includes('DSA'), 'no DSA token without DSA data');
-      assert.ok(!composed.sectionOrder.includes('CERTIFICATIONS'), 'no CERTIFICATIONS token without certs');
+      assert.ok(
+        !composed.sectionOrder.includes('CERTIFICATIONS'),
+        'no CERTIFICATIONS token without certs'
+      );
     });
 
     it('does not create empty skill categories', () => {
@@ -588,14 +719,39 @@ describe('P16-001G: Professional Resume Composition', () => {
             repositoryUrl: 'https://github.com/x/pipeline',
           },
         ],
-        experience: [{ id: 'e-1', company: 'Co', title: 'Intern', startDate: '2024-02-01', endDate: null, bullets: ['Assisted with tooling.'] }],
-        education: [{ id: 'ed-1', institution: 'Inst', degree: 'B.Tech', startDate: '2020-02-01', endDate: '2024-02-28' }],
-        problemSolving: { hasSection: true, profileUrl: 'https://leetcode.com/snap', bullets: ['Practiced 200 problems.'] },
+        experience: [
+          {
+            id: 'e-1',
+            company: 'Co',
+            title: 'Intern',
+            startDate: '2024-02-01',
+            endDate: null,
+            bullets: ['Assisted with tooling.'],
+          },
+        ],
+        education: [
+          {
+            id: 'ed-1',
+            institution: 'Inst',
+            degree: 'B.Tech',
+            startDate: '2020-02-01',
+            endDate: '2024-02-28',
+          },
+        ],
+        problemSolving: {
+          hasSection: true,
+          profileUrl: 'https://leetcode.com/snap',
+          bullets: ['Practiced 200 problems.'],
+        },
       };
       const before = JSON.stringify(candidateProfile);
       buildStructuredResumeSnapshot({
         candidateProfile,
-        jobPosting: { title: 'Software Engineer', company: 'C', description: 'Node.js backend services.' },
+        jobPosting: {
+          title: 'Software Engineer',
+          company: 'C',
+          description: 'Node.js backend services.',
+        },
       });
       assert.equal(JSON.stringify(candidateProfile), before);
     });
@@ -611,8 +767,10 @@ describe('P16-001G: Professional Resume Composition', () => {
       const composedA = composeStructuredResumeDocument(docA);
       const composedB = composeStructuredResumeDocument(docB);
       // Compare everything except documentId/createdAt which carry build-time entropy.
-      delete composedA.documentId; delete composedB.documentId;
-      delete composedA.createdAt; delete composedB.createdAt;
+      delete composedA.documentId;
+      delete composedB.documentId;
+      delete composedA.createdAt;
+      delete composedB.createdAt;
       assert.equal(JSON.stringify(composedA), JSON.stringify(composedB));
     });
   });
@@ -634,19 +792,33 @@ describe('P16-001G: Professional Resume Composition', () => {
       const spacing = layoutProfile.spacing;
 
       // Spacing-hierarchy invariant holds for EVERY density classification.
-      assert.ok(spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] > spacing[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY]);
-      assert.ok(spacing[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] > spacing[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT]);
-      assert.ok(spacing[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] > spacing[SPACING_RELATIONSHIPS.BULLET_TO_BULLET]);
+      assert.ok(
+        spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] >
+          spacing[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY]
+      );
+      assert.ok(
+        spacing[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] >
+          spacing[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT]
+      );
+      assert.ok(
+        spacing[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] >
+          spacing[SPACING_RELATIONSHIPS.BULLET_TO_BULLET]
+      );
 
       if (density === DENSITY_CLASSIFICATION.TOO_SPARSE) {
         // Bounded expansion (no gigantic gaps)
         assert.ok(
-          spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] <= BASE_SPACING_TOKENS[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] + 6.5,
+          spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] <=
+            BASE_SPACING_TOKENS[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] + 6.5,
           'TOO_SPARSE section gap expansion must stay bounded'
         );
       } else {
         assert.ok(
-          [DENSITY_CLASSIFICATION.BALANCED, DENSITY_CLASSIFICATION.DENSE, DENSITY_CLASSIFICATION.OVERFULL].includes(density),
+          [
+            DENSITY_CLASSIFICATION.BALANCED,
+            DENSITY_CLASSIFICATION.DENSE,
+            DENSITY_CLASSIFICATION.OVERFULL,
+          ].includes(density),
           `unexpected density classification: ${density}`
         );
       }
@@ -657,8 +829,18 @@ describe('P16-001G: Professional Resume Composition', () => {
       const doc = buildRichStructuredDoc();
       // Pad with more content to push density up while staying one-page plausible.
       doc.projects[0].bullets.push(
-        { text: 'Automated release verification with scripted checks in order to catch regressions early.', evidenceRefs: doc.projects[0].bullets[0].evidenceRefs, matchedRequirementIds: [], provenanceStatus: 'VERIFIED' },
-        { text: 'Containerized the application for consistent local and production environments.', evidenceRefs: doc.projects[0].bullets[0].evidenceRefs, matchedRequirementIds: [], provenanceStatus: 'VERIFIED' }
+        {
+          text: 'Automated release verification with scripted checks in order to catch regressions early.',
+          evidenceRefs: doc.projects[0].bullets[0].evidenceRefs,
+          matchedRequirementIds: [],
+          provenanceStatus: 'VERIFIED',
+        },
+        {
+          text: 'Containerized the application for consistent local and production environments.',
+          evidenceRefs: doc.projects[0].bullets[0].evidenceRefs,
+          matchedRequirementIds: [],
+          provenanceStatus: 'VERIFIED',
+        }
       );
       const composed = composeStructuredResumeDocument(doc);
       const { layoutProfile, density, pageStrategy, budget } = layoutFor(composed);
@@ -667,7 +849,8 @@ describe('P16-001G: Professional Resume Composition', () => {
       if (density === DENSITY_CLASSIFICATION.DENSE || density === DENSITY_CLASSIFICATION.OVERFULL) {
         // Compressed spacing must be tighter than base tokens
         assert.ok(
-          layoutProfile.spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] <= BASE_SPACING_TOKENS[SPACING_RELATIONSHIPS.SECTION_TO_SECTION],
+          layoutProfile.spacing[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] <=
+            BASE_SPACING_TOKENS[SPACING_RELATIONSHIPS.SECTION_TO_SECTION],
           'DENSE spacing must not exceed base tokens'
         );
         assert.ok(layoutProfile.maxBulletsPerProject <= 3);
@@ -711,7 +894,11 @@ describe('P16-001G: Professional Resume Composition', () => {
       assert.match(texContent, /github\.com\/alexdev\/ecommerce-platform/, 'repo link preserved');
       assert.match(texContent, /ecommerce\.alexdev\.dev/, 'live link preserved');
       assert.match(texContent, /leetcode\.com\/alexdev/, 'DSA profile link preserved');
-      assert.match(texContent, /Relevant Coursework: Data Structures, Algorithms, Database Systems, Operating Systems, Networks, Machine Learning, Distributed Systems/, 'full coursework rendered (no slice cap)');
+      assert.match(
+        texContent,
+        /Relevant Coursework: Data Structures, Algorithms, Database Systems, Operating Systems, Networks, Machine Learning, Distributed Systems/,
+        'full coursework rendered (no slice cap)'
+      );
     });
 
     it('snapshot integration: buildStructuredResumeSnapshot emits composed output with receipt PASS', () => {
@@ -731,12 +918,41 @@ describe('P16-001G: Professional Resume Composition', () => {
               repositoryUrl: 'https://github.com/x/service',
             },
           ],
-          experience: [{ id: 'e-9', company: 'Co', title: 'Intern', startDate: '2024-03-01', endDate: null, bullets: ['Assisted with QA automation.'] }],
-          education: [{ id: 'ed-9', institution: 'Inst', degree: 'B.Tech', startDate: '2020-03-01', endDate: '2024-03-31' }],
+          experience: [
+            {
+              id: 'e-9',
+              company: 'Co',
+              title: 'Intern',
+              startDate: '2024-03-01',
+              endDate: null,
+              bullets: ['Assisted with QA automation.'],
+            },
+          ],
+          education: [
+            {
+              id: 'ed-9',
+              institution: 'Inst',
+              degree: 'B.Tech',
+              startDate: '2020-03-01',
+              endDate: '2024-03-31',
+            },
+          ],
         },
-        jobPosting: { title: 'Software Engineer', company: 'C', description: 'Node.js engineering role.' },
+        jobPosting: {
+          title: 'Software Engineer',
+          company: 'C',
+          description: 'Node.js engineering role.',
+        },
         options: {
-          projectRankings: [{ projectId: 'p-9', projectName: 'Service', relevanceScore: 48.0, relevanceBand: 'MEDIUM', matchedRequirementIds: ['req-node'] }],
+          projectRankings: [
+            {
+              projectId: 'p-9',
+              projectName: 'Service',
+              relevanceScore: 48.0,
+              relevanceBand: 'MEDIUM',
+              matchedRequirementIds: ['req-node'],
+            },
+          ],
         },
       });
 

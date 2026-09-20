@@ -48,15 +48,19 @@ async function loadSnapshot(urlLike, fallbackUrlLike) {
     ORDER BY created_at DESC
     LIMIT 1
   `);
-  const row = primary.rows[0] || (fallbackUrlLike
-    ? (await db.execute(sql`
+  const row =
+    primary.rows[0] ||
+    (fallbackUrlLike
+      ? (
+          await db.execute(sql`
         SELECT id, canonical_job_id, normalized_job_url, project_rankings, match_analysis, overall_fit
         FROM job_analysis_snapshots
         WHERE normalized_job_url LIKE ${fallbackUrlLike}
         ORDER BY created_at DESC
         LIMIT 1
-      `)).rows[0]
-    : null);
+      `)
+        ).rows[0]
+      : null);
   return row || null;
 }
 
@@ -69,10 +73,15 @@ const jobA = {
   canonicalJobId: snapA.canonical_job_id,
   company: 'Cloudflare',
   title: 'Systems & Infrastructure Engineer',
-  description: 'Infrastructure, distributed systems, telemetry, high throughput, networking, Linux, Rust, Go, Python.',
+  description:
+    'Infrastructure, distributed systems, telemetry, high throughput, networking, Linux, Rust, Go, Python.',
   requirements: ['Distributed Systems', 'Rust', 'Linux', 'High Concurrency', 'Telemetry'],
   projectRankings: snapA.project_rankings,
-  jobFitAnalysis: { projectRankings: snapA.project_rankings, matchAnalysis: snapA.match_analysis, overallFit: snapA.overall_fit },
+  jobFitAnalysis: {
+    projectRankings: snapA.project_rankings,
+    matchAnalysis: snapA.match_analysis,
+    overallFit: snapA.overall_fit,
+  },
 };
 
 const jobB = {
@@ -80,10 +89,15 @@ const jobB = {
   canonicalJobId: snapB.canonical_job_id,
   company: 'Vercel',
   title: 'Software Engineer, Backend',
-  description: 'Serverless infrastructure, Node.js, Next.js, Edge compute, TypeScript, PostgreSQL, scalable APIs.',
+  description:
+    'Serverless infrastructure, Node.js, Next.js, Edge compute, TypeScript, PostgreSQL, scalable APIs.',
   requirements: ['Node.js', 'Next.js', 'TypeScript', 'PostgreSQL', 'APIs'],
   projectRankings: snapB.project_rankings,
-  jobFitAnalysis: { projectRankings: snapB.project_rankings, matchAnalysis: snapB.match_analysis, overallFit: snapB.overall_fit },
+  jobFitAnalysis: {
+    projectRankings: snapB.project_rankings,
+    matchAnalysis: snapB.match_analysis,
+    overallFit: snapB.overall_fit,
+  },
 };
 
 const jobC = {
@@ -91,10 +105,15 @@ const jobC = {
   canonicalJobId: snapC.canonical_job_id,
   company: 'Crunchyroll',
   title: 'Python AI & Backend Systems Engineer',
-  description: 'AI model evaluation pipelines, Python, FastAPI, Flask, PostgreSQL, LLM integration, OpenAI API, high concurrency.',
+  description:
+    'AI model evaluation pipelines, Python, FastAPI, Flask, PostgreSQL, LLM integration, OpenAI API, high concurrency.',
   requirements: ['Python', 'FastAPI', 'LLM', 'PostgreSQL', 'OpenAI API'],
   projectRankings: snapC.project_rankings,
-  jobFitAnalysis: { projectRankings: snapC.project_rankings, matchAnalysis: snapC.match_analysis, overallFit: snapC.overall_fit },
+  jobFitAnalysis: {
+    projectRankings: snapC.project_rankings,
+    matchAnalysis: snapC.match_analysis,
+    overallFit: snapC.overall_fit,
+  },
 };
 
 const JOBS = [
@@ -118,7 +137,12 @@ function extractPdfText(pdfBuffer) {
 
 /** Renders + compiles with the current implementation through the P16-008 optimizer. */
 async function generateCurrent(job) {
-  const candData = await svc.buildCandidateData({ tenantId: TENANT, userId: candRow.user_id, candidateId: CAND, jobPosting: job });
+  const candData = await svc.buildCandidateData({
+    tenantId: TENANT,
+    userId: candRow.user_id,
+    candidateId: CAND,
+    jobPosting: job,
+  });
   const opt = await optimizer.optimize({
     candidateProfile: candData,
     jobPosting: job,
@@ -133,7 +157,12 @@ async function generateCurrent(job) {
 
 /** Renders + compiles with the P16-009 implementation when available. */
 async function generateP16009(job) {
-  const candData = await svc.buildCandidateData({ tenantId: TENANT, userId: candRow.user_id, candidateId: CAND, jobPosting: job });
+  const candData = await svc.buildCandidateData({
+    tenantId: TENANT,
+    userId: candRow.user_id,
+    candidateId: CAND,
+    jobPosting: job,
+  });
   const opt = await optimizer.optimize({
     candidateProfile: candData,
     jobPosting: job,
@@ -194,7 +223,9 @@ for (const { key, label, job } of JOBS) {
   report.jobs.push(entry);
 }
 
-report.comparison = report.jobs.some((j) => j.comparison) ? { note: 'See per-job comparison blocks' } : undefined;
+report.comparison = report.jobs.some((j) => j.comparison)
+  ? { note: 'See per-job comparison blocks' }
+  : undefined;
 fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
 console.log(`\nReport written to ${path.join(OUT_DIR, 'report.json')}`);
 printHumanReport(report);
@@ -211,9 +242,14 @@ function summarize(key, opt, extractedText, quality) {
     projects: (sr.projects || []).map((p) => ({
       name: p.name || p.displayName,
       bulletCount: Array.isArray(p.bullets) ? p.bullets.length : 0,
-      bullets: (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || '')),
+      bullets: (Array.isArray(p.bullets) ? p.bullets : []).map((b) =>
+        typeof b === 'string' ? b : b?.text || ''
+      ),
     })),
-    experienceBullets: (sr.experience || []).reduce((n, e) => n + (Array.isArray(e.bullets) ? e.bullets.length : 0), 0),
+    experienceBullets: (sr.experience || []).reduce(
+      (n, e) => n + (Array.isArray(e.bullets) ? e.bullets.length : 0),
+      0
+    ),
     dsaRendered: Boolean(sr.dsa?.hasSection),
     dsaBullets: Array.isArray(sr.dsa?.bullets) ? sr.dsa.bullets.length : 0,
     factsAvailable: am.factUtilization?.distinctFactsAvailable ?? null,
@@ -234,7 +270,9 @@ function compareSummaries(a, b) {
   return {
     sectionsAdded: (b.sections || []).filter((s) => !(a.sections || []).includes(s)),
     sectionsRemoved: (a.sections || []).filter((s) => !(b.sections || []).includes(s)),
-    bulletsAdded: (b.projects || []).reduce((n, p) => n + p.bulletCount, 0) - (a.projects || []).reduce((n, p) => n + p.bulletCount, 0),
+    bulletsAdded:
+      (b.projects || []).reduce((n, p) => n + p.bulletCount, 0) -
+      (a.projects || []).reduce((n, p) => n + p.bulletCount, 0),
     factsNewlyUtilized: Math.max(0, (b.factsRendered ?? 0) - (a.factsRendered ?? 0)),
     factsLost: Math.max(0, (a.factsRendered ?? 0) - (b.factsRendered ?? 0)),
     occupancyChangePct: (b.occupancyPercent ?? 0) - (a.occupancyPercent ?? 0),
@@ -252,8 +290,13 @@ function printHumanReport(report) {
     for (const variant of ['current', 'p16_009']) {
       const s = j[variant];
       if (!s) continue;
-      console.log(`  ${variant.padEnd(10)} pages=${s.pageCount} occupancy=${s.occupancyPercent}% bottomWS=${s.bottomWhitespacePt}pt facts=${s.factsRendered}/${s.factsAvailable} dsa=${s.dsaRendered ? 'ON' : 'off'} projects=${(s.projects || []).map((p) => p.bulletCount).join('/')} expBullets=${s.experienceBullets} qa=${s.qaScore} quality=${s.qualityScore}`);
+      console.log(
+        `  ${variant.padEnd(10)} pages=${s.pageCount} occupancy=${s.occupancyPercent}% bottomWS=${s.bottomWhitespacePt}pt facts=${s.factsRendered}/${s.factsAvailable} dsa=${s.dsaRendered ? 'ON' : 'off'} projects=${(s.projects || []).map((p) => p.bulletCount).join('/')} expBullets=${s.experienceBullets} qa=${s.qaScore} quality=${s.qualityScore}`
+      );
     }
-    if (j.comparison) console.log(`  Δ quality=${j.comparison.qualityScoreChange} occupancy=${j.comparison.occupancyChangePct}% bullets=${j.comparison.bulletsAdded}`);
+    if (j.comparison)
+      console.log(
+        `  Δ quality=${j.comparison.qualityScoreChange} occupancy=${j.comparison.occupancyChangePct}% bullets=${j.comparison.bulletsAdded}`
+      );
   }
 }

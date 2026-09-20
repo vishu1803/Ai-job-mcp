@@ -333,7 +333,9 @@ class SidebarController {
     if (this.stateMachine?.state === WORKFLOW_STATES.APPLICATION_PREPARING) {
       return 'PREPARING';
     }
-    const hasHandoff = Boolean(state?.handoffData && (state?.applicationId || state?.handoffData?.applicationId));
+    const hasHandoff = Boolean(
+      state?.handoffData && (state?.applicationId || state?.handoffData?.applicationId)
+    );
     if (hasHandoff) {
       return 'EXISTING';
     }
@@ -377,7 +379,10 @@ class SidebarController {
           if (this.pinnedTabId && message.tabId !== this.pinnedTabId) {
             return;
           }
-          if (message.tabId === this.activeTabId && (message.status === 'complete' || message.url)) {
+          if (
+            message.tabId === this.activeTabId &&
+            (message.status === 'complete' || message.url)
+          ) {
             (async () => {
               await this._requestDetectionFromTab();
             })();
@@ -395,10 +400,18 @@ class SidebarController {
           if (sender?.tab?.id && sender.tab.id !== this.activeTabId) {
             return;
           }
-          if (!this.activeJobFingerprint || !message.jobFingerprint || message.jobFingerprint !== this.activeJobFingerprint) {
+          if (
+            !this.activeJobFingerprint ||
+            !message.jobFingerprint ||
+            message.jobFingerprint !== this.activeJobFingerprint
+          ) {
             return;
           }
-          if (!message.jobData || !message.jobData.title || message.jobData.title === 'Untitled Role') {
+          if (
+            !message.jobData ||
+            !message.jobData.title ||
+            message.jobData.title === 'Untitled Role'
+          ) {
             return;
           }
           (async () => {
@@ -414,7 +427,10 @@ class SidebarController {
           if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
             return;
           }
-          if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
+          if (
+            message.generation !== undefined &&
+            this.cachedState?.workflowGeneration !== undefined
+          ) {
             if (message.generation < this.cachedState.workflowGeneration) {
               return;
             }
@@ -710,7 +726,10 @@ class SidebarController {
       const existingDesc = (this.activeJob?.description || '').trim();
       const newDesc = (jobData.description || '').trim();
       if (newDesc.length >= 50 && (existingDesc.length < 50 || !this.activeJob?.analysisReady)) {
-        return this._handleHydratedDescription(jobData, decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint);
+        return this._handleHydratedDescription(
+          jobData,
+          decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint
+        );
       }
       return;
     }
@@ -738,11 +757,17 @@ class SidebarController {
     const isStale = (resp = null) => {
       if (this._detectionRequestId !== requestId) return true;
       if (this.activeTabId !== requestTabId) return true;
-      if (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration) return true;
+      if (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration)
+        return true;
       if (resp) {
         if (resp.requestId !== undefined && resp.requestId !== requestId) return true;
         if (resp.tabId !== undefined && resp.tabId !== requestTabId) return true;
-        if (!isExplicitRescan && resp.generation !== undefined && (this.cachedState?.workflowGeneration || 0) > resp.generation) return true;
+        if (
+          !isExplicitRescan &&
+          resp.generation !== undefined &&
+          (this.cachedState?.workflowGeneration || 0) > resp.generation
+        )
+          return true;
       }
       return false;
     };
@@ -752,7 +777,9 @@ class SidebarController {
       const sendWithTimeout = (promise, ms = DETECTION_REQUEST_TIMEOUT_MS) =>
         Promise.race([
           promise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Detection request timed out')), ms)
+          ),
         ]);
 
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
@@ -851,7 +878,8 @@ class SidebarController {
             if (this.elements.descriptionLoadingNotice) {
               this.elements.descriptionLoadingNotice.classList.remove('hidden');
               if (this.elements.descriptionLoadingText) {
-                this.elements.descriptionLoadingText.textContent = 'Detection still loading — click Rescan to retry';
+                this.elements.descriptionLoadingText.textContent =
+                  'Detection still loading — click Rescan to retry';
               }
             }
           }
@@ -888,7 +916,8 @@ class SidebarController {
           if (this.elements.descriptionLoadingNotice) {
             this.elements.descriptionLoadingNotice.classList.remove('hidden');
             if (this.elements.descriptionLoadingText) {
-              this.elements.descriptionLoadingText.textContent = 'Detection still loading — click Rescan to retry';
+              this.elements.descriptionLoadingText.textContent =
+                'Detection still loading — click Rescan to retry';
             }
           }
         }
@@ -910,7 +939,6 @@ class SidebarController {
 
     await this._requestDetectionFromTab(true);
   }
-
 
   async _switchToJob(newJob) {
     if (!newJob || !newJob.title) return;
@@ -1052,8 +1080,13 @@ class SidebarController {
   }
 
   _renderAllFromState(state = null) {
-    if (!state) state = this.cachedState || { jobData: this.activeJob, workflowState: this.stateMachine?.state };
-    const isLocked = this.isWorkflowLocked() || state.lockState === 'LOCKED' || state.isLocked === true;
+    if (!state)
+      state = this.cachedState || {
+        jobData: this.activeJob,
+        workflowState: this.stateMachine?.state,
+      };
+    const isLocked =
+      this.isWorkflowLocked() || state.lockState === 'LOCKED' || state.isLocked === true;
 
     this._renderWorkflowStatus(state.workflowState, isLocked);
     this._renderPortalCard(state.portalMetadata || state.jobData?.portalMetadata);
@@ -1087,12 +1120,17 @@ class SidebarController {
     if (this.elements.analyzeJobBtn) {
       const isAnalyzing = this._isAnalyzing || state.workflowState === WORKFLOW_STATES.ANALYZING;
       const isPreparing = state.workflowState === WORKFLOW_STATES.APPLICATION_PREPARING;
-      const canAnalyze = hasValidJob && isAnalysisReady && this.isAuthenticated && !isAnalyzing && !isPreparing;
+      const canAnalyze =
+        hasValidJob && isAnalysisReady && this.isAuthenticated && !isAnalyzing && !isPreparing;
 
       this.elements.analyzeJobBtn.disabled = !canAnalyze;
       if (isAnalyzing) {
         this.elements.analyzeJobBtn.textContent = 'Analyzing Match...';
-      } else if (state.fitAnalysis || state.workflowState === WORKFLOW_STATES.APPLICATION_READY || isLocked) {
+      } else if (
+        state.fitAnalysis ||
+        state.workflowState === WORKFLOW_STATES.APPLICATION_READY ||
+        isLocked
+      ) {
         this.elements.analyzeJobBtn.textContent = 'Analyze Again';
       } else {
         this.elements.analyzeJobBtn.textContent = 'Analyze Job Match';
@@ -1136,7 +1174,7 @@ class SidebarController {
       [WORKFLOW_STATES.APPLICATION_PREPARING]: 'Preparing handoff...',
       [WORKFLOW_STATES.APPLICATION_READY]: 'Application ready',
       [WORKFLOW_STATES.FORM_DETECTED]: 'Form detected',
-      'NO_JOB_DETECTED': 'Ready',
+      NO_JOB_DETECTED: 'Ready',
     };
 
     const displayText = friendlyLabels[stateName] || stateName || 'Ready';
@@ -1168,7 +1206,8 @@ class SidebarController {
 
     // Keep raw diagnostic and capability badges hidden
     this.elements.confidenceBadge?.classList?.add('hidden');
-    const portalCapsEl = typeof document !== 'undefined' ? document.getElementById('portalCapabilities') : null;
+    const portalCapsEl =
+      typeof document !== 'undefined' ? document.getElementById('portalCapabilities') : null;
     portalCapsEl?.classList?.add('hidden');
   }
 
@@ -1211,12 +1250,16 @@ class SidebarController {
     this.elements.jobNotDetectedState?.classList.add('hidden');
     this.elements.jobDetectedState?.classList.remove('hidden');
 
-    if (this.elements.jobTitle) this.elements.jobTitle.textContent = jobData.title || 'Untitled Role';
+    if (this.elements.jobTitle)
+      this.elements.jobTitle.textContent = jobData.title || 'Untitled Role';
     if (this.elements.jobCompany) {
-      this.elements.jobCompany.textContent = jobData.company && jobData.company !== 'Company' ? jobData.company : '—';
+      this.elements.jobCompany.textContent =
+        jobData.company && jobData.company !== 'Company' ? jobData.company : '—';
     }
-    if (this.elements.jobLocation) this.elements.jobLocation.textContent = jobData.location || 'Remote';
-    if (this.elements.jobType) this.elements.jobType.textContent = jobData.employmentType || 'Full-time';
+    if (this.elements.jobLocation)
+      this.elements.jobLocation.textContent = jobData.location || 'Remote';
+    if (this.elements.jobType)
+      this.elements.jobType.textContent = jobData.employmentType || 'Full-time';
 
     const shortId = (this.activeJobFingerprint || 'unknown').substring(0, 8);
     if (this.elements.jobIdTag) this.elements.jobIdTag.textContent = `ID: ${shortId}`;
@@ -1235,10 +1278,10 @@ class SidebarController {
     }
 
     const band = isScoreNull
-      ? (fitAnalysis.grade || 'INSUFFICIENT_DATA')
-      : (fitAnalysis.recommendationBand ||
+      ? fitAnalysis.grade || 'INSUFFICIENT_DATA'
+      : fitAnalysis.recommendationBand ||
         fitAnalysis.grade ||
-        (score >= 70 ? 'RECOMMENDED' : 'CONDITIONAL'));
+        (score >= 70 ? 'RECOMMENDED' : 'CONDITIONAL');
     if (this.elements.matchBandBadge) {
       this.elements.matchBandBadge.textContent = band;
     }
@@ -1246,8 +1289,10 @@ class SidebarController {
     const matched = fitAnalysis.matchedSkills || fitAnalysis.topMatchedSkills || [];
     const missing = fitAnalysis.missingSkills || fitAnalysis.topMissingSkills || [];
 
-    if (this.elements.matchedSkillsCount) this.elements.matchedSkillsCount.textContent = matched.length;
-    if (this.elements.missingSkillsCount) this.elements.missingSkillsCount.textContent = missing.length;
+    if (this.elements.matchedSkillsCount)
+      this.elements.matchedSkillsCount.textContent = matched.length;
+    if (this.elements.missingSkillsCount)
+      this.elements.missingSkillsCount.textContent = missing.length;
 
     let expFitText = 'Not Specified';
     if (typeof fitAnalysis.experienceFit === 'string') {
@@ -1257,7 +1302,8 @@ class SidebarController {
       if (status === 'ELIGIBLE' || status === 'MATCHED') expFitText = 'Eligible';
       else if (status === 'NOT_ELIGIBLE' || status === 'MISSING') expFitText = 'Not Eligible';
       else if (status === 'PARTIAL') expFitText = 'Partial';
-      else if (status === 'NOT_SPECIFIED' || status === 'NOT_APPLICABLE') expFitText = 'Not Specified';
+      else if (status === 'NOT_SPECIFIED' || status === 'NOT_APPLICABLE')
+        expFitText = 'Not Specified';
       else expFitText = status || 'Unknown';
     }
     if (this.elements.experienceFitVal) {
@@ -1350,7 +1396,11 @@ class SidebarController {
 
     const handoffData = state.handoffData;
     const appId = state.applicationId || handoffData?.applicationId;
-    const locked = isLocked || this.isWorkflowLocked() || state.lockState === 'LOCKED' || state.isLocked === true;
+    const locked =
+      isLocked ||
+      this.isWorkflowLocked() ||
+      state.lockState === 'LOCKED' ||
+      state.isLocked === true;
 
     if (locked) {
       this.elements.workflowLockBanner?.classList.remove('hidden');
@@ -1368,7 +1418,9 @@ class SidebarController {
       }
       if (this.elements.handoffPackageMeta) {
         const pkgVer = handoffData.packageVersion || 1;
-        const pkgHash = handoffData.packageHash ? handoffData.packageHash.substring(0, 8) : 'unknown';
+        const pkgHash = handoffData.packageHash
+          ? handoffData.packageHash.substring(0, 8)
+          : 'unknown';
         const pkgStatus = handoffData.packageStatus || 'SAVED';
         this.elements.handoffPackageMeta.textContent = `v${pkgVer} • ${pkgHash} (${pkgStatus})`;
       }
@@ -1412,7 +1464,8 @@ class SidebarController {
       this.elements.stepIndicator.textContent = `Step ${formData.step || 1} of ${formData.totalSteps || 1}`;
     }
     if (this.elements.formStatusMessage) {
-      this.elements.formStatusMessage.textContent = formData.statusMessage || 'Application form fields detected.';
+      this.elements.formStatusMessage.textContent =
+        formData.statusMessage || 'Application form fields detected.';
     }
 
     if (this.elements.formFieldsSummary) {
@@ -1491,8 +1544,13 @@ class SidebarController {
           },
           {
             type: SIGNAL_TYPES.ANALYZE_COMPLETE,
-            detectedJob: result.canonicalJob || result.jobData || (result.title ? result : this.activeJob),
-            existingHandoff: result.existingHandoff || (this.cachedState?.handoffData && this.cachedState?.applicationId ? this.cachedState.handoffData : null),
+            detectedJob:
+              result.canonicalJob || result.jobData || (result.title ? result : this.activeJob),
+            existingHandoff:
+              result.existingHandoff ||
+              (this.cachedState?.handoffData && this.cachedState?.applicationId
+                ? this.cachedState.handoffData
+                : null),
             existingApplication: result.existingApplication || null,
           }
         );
@@ -1503,10 +1561,14 @@ class SidebarController {
           this.cachedState.jobIdentity = {
             title: decision.activeJob.title,
             company: decision.activeJob.company || '',
-            jobFingerprint: decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+            jobFingerprint:
+              decision.canonicalIdentity?.fingerprint ||
+              this.activeJobFingerprint ||
+              this.cachedState?.jobFingerprint,
           };
         }
-        this.cachedState.jobFingerprint = decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
+        this.cachedState.jobFingerprint =
+          decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
 
         // Update state in durable store
         this.cachedState.fitAnalysis = fitAnalysis;
@@ -1522,7 +1584,8 @@ class SidebarController {
         if (existingHandoff && (existingHandoff.applicationId || result.existingApplication?.id)) {
           // Canonical application handoff kit already exists! Re-use without preparing/regenerating.
           this.cachedState.handoffData = existingHandoff;
-          this.cachedState.applicationId = existingHandoff.applicationId || result.existingApplication.id;
+          this.cachedState.applicationId =
+            existingHandoff.applicationId || result.existingApplication.id;
           if (this.currentUser?.id) {
             this.cachedState.userId = this.currentUser.id;
           }
@@ -1552,17 +1615,24 @@ class SidebarController {
         this._handleSessionExpired();
       } else {
         this.stateMachine.state = WORKFLOW_STATES.JOB_CONFIRMED;
-        this._showAnalysisError(err.message || 'Analysis failed. Please check connection and retry.');
+        this._showAnalysisError(
+          err.message || 'Analysis failed. Please check connection and retry.'
+        );
       }
     } finally {
       this._isAnalyzing = false;
       if (this.elements.analyzeJobBtn) {
         const hasExistingAnalysis = Boolean(this.cachedState?.fitAnalysis);
         const currentDesc = (this.activeJob?.description || this.activeJob?.rawText || '').trim();
-        const hasValidJob = Boolean(this.activeJob?.title && this.activeJob.title !== 'Untitled Role');
-        const isAnalysisReady = hasValidJob && (this.activeJob?.analysisReady === true || currentDesc.length >= 50);
+        const hasValidJob = Boolean(
+          this.activeJob?.title && this.activeJob.title !== 'Untitled Role'
+        );
+        const isAnalysisReady =
+          hasValidJob && (this.activeJob?.analysisReady === true || currentDesc.length >= 50);
         this.elements.analyzeJobBtn.disabled = !isAnalysisReady || !this.isAuthenticated;
-        this.elements.analyzeJobBtn.textContent = hasExistingAnalysis ? 'Analyze Again' : 'Analyze Job Match';
+        this.elements.analyzeJobBtn.textContent = hasExistingAnalysis
+          ? 'Analyze Again'
+          : 'Analyze Job Match';
       }
     }
   }
@@ -1590,7 +1660,9 @@ class SidebarController {
     if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = true;
     this.elements.prepareSpinner?.classList.remove('hidden');
     if (this.elements.prepareBtnText) {
-      this.elements.prepareBtnText.textContent = isRegen ? 'Regenerating Handoff Kit...' : 'Preparing Handoff Kit...';
+      this.elements.prepareBtnText.textContent = isRegen
+        ? 'Regenerating Handoff Kit...'
+        : 'Preparing Handoff Kit...';
     }
     this.elements.handoffErrorBanner?.classList.add('hidden');
 
@@ -1631,8 +1703,10 @@ class SidebarController {
           },
           {
             type: SIGNAL_TYPES.HANDOFF_PREPARED,
-            targetJob: result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
-            detectedJob: result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
+            targetJob:
+              result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
+            detectedJob:
+              result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
           }
         );
 
@@ -1642,10 +1716,14 @@ class SidebarController {
           this.cachedState.jobIdentity = {
             title: decision.activeJob.title,
             company: decision.activeJob.company || '',
-            jobFingerprint: decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+            jobFingerprint:
+              decision.canonicalIdentity?.fingerprint ||
+              this.activeJobFingerprint ||
+              this.cachedState?.jobFingerprint,
           };
         }
-        this.cachedState.jobFingerprint = decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
+        this.cachedState.jobFingerprint =
+          decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
 
         this.cachedState.workflowState = decision.targetWorkflowState;
         this.cachedState.lockState = decision.targetLockState;
@@ -1661,9 +1739,10 @@ class SidebarController {
       if (err.status === 401 || err.code === 'UNAUTHENTICATED') {
         this._handleSessionExpired();
       } else {
-        const prevState = (this.cachedState?.handoffData && this.cachedState?.applicationId)
-          ? WORKFLOW_STATES.APPLICATION_READY
-          : WORKFLOW_STATES.ANALYSIS_READY;
+        const prevState =
+          this.cachedState?.handoffData && this.cachedState?.applicationId
+            ? WORKFLOW_STATES.APPLICATION_READY
+            : WORKFLOW_STATES.ANALYSIS_READY;
         this.stateMachine.state = prevState;
         this._showHandoffError(err.message || 'Failed to prepare handoff kit. Please retry.');
       }
@@ -1672,8 +1751,12 @@ class SidebarController {
       if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = false;
       this.elements.prepareSpinner?.classList.add('hidden');
       if (this.elements.prepareBtnText) {
-        const isExisting = Boolean(this.cachedState?.handoffData && this.cachedState?.applicationId);
-        this.elements.prepareBtnText.textContent = isExisting ? 'View Handoff Kit' : 'Prepare Handoff Kit';
+        const isExisting = Boolean(
+          this.cachedState?.handoffData && this.cachedState?.applicationId
+        );
+        this.elements.prepareBtnText.textContent = isExisting
+          ? 'View Handoff Kit'
+          : 'Prepare Handoff Kit';
       }
     }
   }
@@ -1696,9 +1779,7 @@ class SidebarController {
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
     const candidateName =
-      this.cachedState?.handoffData?.candidateName ||
-      this.currentUser?.displayName ||
-      'Candidate';
+      this.cachedState?.handoffData?.candidateName || this.currentUser?.displayName || 'Candidate';
     const jobTitle = this.activeJob?.title || 'Target Role';
 
     const filename = buildApplicationArtifactFilename({
@@ -1862,10 +1943,15 @@ class SidebarController {
     this._showAssistantResponse('Analyzing job page and responsibilities...');
     try {
       const explanation = await this.backendClient.explainJob(this.activeJob);
-      const resps = (explanation.responsibilities || []).slice(0, 3).map((r) => `• ${r}`).join('\n');
+      const resps = (explanation.responsibilities || [])
+        .slice(0, 3)
+        .map((r) => `• ${r}`)
+        .join('\n');
       this._showAssistantResponse(`**${explanation.summary}**\n\nCore responsibilities:\n${resps}`);
     } catch (err) {
-      this._showAssistantResponse(`Could not generate AI explanation. Job details: ${this.activeJob.title} at ${this.activeJob.company}.`);
+      this._showAssistantResponse(
+        `Could not generate AI explanation. Job details: ${this.activeJob.title} at ${this.activeJob.company}.`
+      );
     }
   }
 
@@ -1882,9 +1968,13 @@ class SidebarController {
           ? `✓ ${m.requirement}: Satisfied (verified in profile)`
           : `✗ ${m.requirement}: Not available in your verified profile.`
       );
-      this._showAssistantResponse(`**Requirement Analysis** (${comp.satisfiedCount}/${comp.totalRequirements} verified)\n\n${matchLines.join('\n')}`);
+      this._showAssistantResponse(
+        `**Requirement Analysis** (${comp.satisfiedCount}/${comp.totalRequirements} verified)\n\n${matchLines.join('\n')}`
+      );
     } catch (err) {
-      this._showAssistantResponse('Requirement comparison failed. Please check your profile connection.');
+      this._showAssistantResponse(
+        'Requirement comparison failed. Please check your profile connection.'
+      );
     }
   }
 
@@ -1905,7 +1995,9 @@ class SidebarController {
           ? `✓ ${f.label}: "${f.value}" [${f.source}]${f.requiresConfirmation ? ' (Confirmation required)' : ''}`
           : `✗ ${f.label}: Not available in your verified profile.`
       );
-      this._showAssistantResponse(`**Safe Autofill Plan** (${plan.fillableCount} fillable, ${plan.sensitiveCount} sensitive)\n\n${items.join('\n')}`);
+      this._showAssistantResponse(
+        `**Safe Autofill Plan** (${plan.fillableCount} fillable, ${plan.sensitiveCount} sensitive)\n\n${items.join('\n')}`
+      );
     } catch (err) {
       this._showAssistantResponse('Could not generate autofill plan.');
     }
@@ -1925,7 +2017,9 @@ class SidebarController {
       const response = await this.backendClient.askAssistant(query, this.activeJob);
       this._showAssistantResponse(response.content || response.message || 'Response received.');
     } catch (err) {
-      this._showAssistantResponse('The AI assistant is temporarily unavailable. The extension remains fully functional.');
+      this._showAssistantResponse(
+        'The AI assistant is temporarily unavailable. The extension remains fully functional.'
+      );
     }
   }
 

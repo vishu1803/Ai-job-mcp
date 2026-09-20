@@ -18,15 +18,13 @@ import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin
 import { JobDetectionEngine } from '../../extension/job-detection/detection-engine.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
 
-function createMockDocument({
-  elements = {},
-  meta = {},
-  scripts = [],
-  bodyText = '',
-} = {}) {
+function createMockDocument({ elements = {}, meta = {}, scripts = [], bodyText = '' } = {}) {
   const doc = {
     body: { textContent: bodyText },
     querySelector(selector) {
@@ -65,7 +63,9 @@ function createMockDocument({
       }
       const cleanSelector = selector.replace(/\s+i\]/g, ']');
       if (elements[cleanSelector]) {
-        return Array.isArray(elements[cleanSelector]) ? elements[cleanSelector] : [elements[cleanSelector]];
+        return Array.isArray(elements[cleanSelector])
+          ? elements[cleanSelector]
+          : [elements[cleanSelector]];
       }
       return [];
     },
@@ -118,7 +118,8 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
         local: {
           _map: new Map(),
           get: async (key) => {
-            if (typeof key === 'string') return { [key]: global.chrome.storage.local._map.get(key) };
+            if (typeof key === 'string')
+              return { [key]: global.chrome.storage.local._map.get(key) };
             return Object.fromEntries(global.chrome.storage.local._map.entries());
           },
           set: async (items) => {
@@ -174,9 +175,15 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       pendingJobNotification: {
         _hidden: true,
         classList: {
-          add(c) { if (c === 'hidden') controller.elements.pendingJobNotification._hidden = true; },
-          remove(c) { if (c === 'hidden') controller.elements.pendingJobNotification._hidden = false; },
-          contains(c) { return c === 'hidden' ? controller.elements.pendingJobNotification._hidden : false; },
+          add(c) {
+            if (c === 'hidden') controller.elements.pendingJobNotification._hidden = true;
+          },
+          remove(c) {
+            if (c === 'hidden') controller.elements.pendingJobNotification._hidden = false;
+          },
+          contains(c) {
+            return c === 'hidden' ? controller.elements.pendingJobNotification._hidden : false;
+          },
         },
       },
       pendingJobTitle: { textContent: '' },
@@ -240,8 +247,15 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       await controller._reconcileDetectedJob(jobB);
 
       assert.strictEqual(controller.activeJob.title, jobA.title, 'Active job must be preserved');
-      assert.strictEqual(controller.pendingDetectedJob.title, jobB.title, 'Job B must be stored as pending');
-      assert.strictEqual(controller.elements.pendingJobNotification.classList.contains('hidden'), false);
+      assert.strictEqual(
+        controller.pendingDetectedJob.title,
+        jobB.title,
+        'Job B must be stored as pending'
+      );
+      assert.strictEqual(
+        controller.elements.pendingJobNotification.classList.contains('hidden'),
+        false
+      );
       assert.strictEqual(analyzeCalls, 0, 'No analyze call on pending detection');
     });
   });
@@ -413,7 +427,8 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
             textContent: 'Apex Cloud Solutions',
           },
           'article.jobs-description__container': {
-            textContent: 'We are seeking a Staff Architect to scale our cloud platforms. Responsibilities include architecture, mentoring, and technical leadership across all services.',
+            textContent:
+              'We are seeking a Staff Architect to scale our cloud platforms. Responsibilities include architecture, mentoring, and technical leadership across all services.',
             querySelectorAll: () => [{ textContent: '10+ years backend experience' }],
           },
         },
@@ -468,7 +483,7 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       for (const url of nonJobUrls) {
         const dom = createMockDocument({
           elements: {
-            'h1': { textContent: 'Welcome to Feed' },
+            h1: { textContent: 'Welcome to Feed' },
           },
         });
         assert.strictEqual(LinkedInAdapter.canHandle(dom, url), false, `Should reject ${url}`);
@@ -484,7 +499,8 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
         title: 'Distributed Systems Engineer',
         company: 'CloudScale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
-        description: 'We are looking for a senior distributed systems engineer to join our infrastructure team and build resilient services.',
+        description:
+          'We are looking for a senior distributed systems engineer to join our infrastructure team and build resilient services.',
         analysisReady: true,
       };
 
@@ -536,7 +552,11 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       await detectionPromise;
 
       // Tab 102 must NOT adopt Tab 101's stale job
-      assert.strictEqual(controller.activeJob, null, 'Tab 101 result must be discarded for Tab 102');
+      assert.strictEqual(
+        controller.activeJob,
+        null,
+        'Tab 101 result must be discarded for Tab 102'
+      );
       assert.strictEqual(analyzeCalls, 0);
     });
   });

@@ -18,7 +18,10 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin.adapter.js';
@@ -42,9 +45,15 @@ function createMockElement(id = '', defaultText = '') {
     children: [],
     classList: {
       _set: new Set(['hidden']),
-      add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
-      contains(c) { return this._set.has(c); },
+      add(c) {
+        this._set.add(c);
+      },
+      remove(c) {
+        this._set.delete(c);
+      },
+      contains(c) {
+        return this._set.has(c);
+      },
       toggle(c, force) {
         if (force === true) this._set.add(c);
         else if (force === false) this._set.delete(c);
@@ -70,29 +79,89 @@ function createMockElement(id = '', defaultText = '') {
 function setupMockDocument() {
   const elements = new Map();
   const elementIds = [
-    'connectionBadge', 'connectionText', 'refreshBtn', 'rescanBtn',
-    'pendingJobNotification', 'pendingJobTitle', 'rescanPendingBtn',
-    'authBar', 'authUnauthenticatedState', 'authAuthenticatedState',
-    'loginBtn', 'logoutBtn', 'userName', 'userEmail', 'userAvatar',
-    'sessionExpiredNotice', 'reauthBtn', 'workflowStatusBar', 'workflowStateText',
-    'workflowLockedBadge', 'syncIndicator', 'portalCard', 'portalName',
-    'confidenceBadge', 'capJob', 'capApp', 'capForm', 'capAutofill',
-    'jobCard', 'reanalyzeBtn', 'jobNotDetectedState', 'jobDetectedState',
-    'jobTitle', 'jobCompany', 'jobLocation', 'jobType', 'jobIdTag',
-    'analyzeJobBtn', 'descriptionLoadingNotice', 'descriptionLoadingText',
-    'analysisErrorBanner', 'analysisErrorMessage', 'retryAnalysisBtn',
-    'analysisCard', 'matchBandBadge', 'scoreValue', 'matchedSkillsCount',
-    'missingSkillsCount', 'experienceFitVal', 'matchedSkillsList', 'missingSkillsList',
-    'analysisNextActionBox', 'projectsCard', 'recommendedProjectsList',
-    'handoffCard', 'handoffStatusBadge', 'handoffTelemetryRow', 'handoffAppId',
-    'handoffPackageMeta', 'workflowLockBanner', 'resetWorkflowBtn',
-    'handoffErrorBanner', 'handoffErrorMessage', 'retryHandoffBtn',
-    'prepareHandoffBtn', 'prepareSpinner', 'prepareBtnText',
-    'regenerateHandoffBtn', 'regenerateConfirmBox', 'cancelRegenerateBtn',
-    'confirmRegenerateBtn', 'artifactsContainer', 'reviewResumeBtn',
-    'downloadResumeBtn', 'reviewCoverLetterBtn', 'downloadCoverLetterBtn',
-    'downloadBundleBtn', 'viewAppDashboardLink', 'formDetectionCard',
-    'stepIndicator', 'formStatusMessage', 'formFieldsSummary', 'autofillFormBtn',
+    'connectionBadge',
+    'connectionText',
+    'refreshBtn',
+    'rescanBtn',
+    'pendingJobNotification',
+    'pendingJobTitle',
+    'rescanPendingBtn',
+    'authBar',
+    'authUnauthenticatedState',
+    'authAuthenticatedState',
+    'loginBtn',
+    'logoutBtn',
+    'userName',
+    'userEmail',
+    'userAvatar',
+    'sessionExpiredNotice',
+    'reauthBtn',
+    'workflowStatusBar',
+    'workflowStateText',
+    'workflowLockedBadge',
+    'syncIndicator',
+    'portalCard',
+    'portalName',
+    'confidenceBadge',
+    'capJob',
+    'capApp',
+    'capForm',
+    'capAutofill',
+    'jobCard',
+    'reanalyzeBtn',
+    'jobNotDetectedState',
+    'jobDetectedState',
+    'jobTitle',
+    'jobCompany',
+    'jobLocation',
+    'jobType',
+    'jobIdTag',
+    'analyzeJobBtn',
+    'descriptionLoadingNotice',
+    'descriptionLoadingText',
+    'analysisErrorBanner',
+    'analysisErrorMessage',
+    'retryAnalysisBtn',
+    'analysisCard',
+    'matchBandBadge',
+    'scoreValue',
+    'matchedSkillsCount',
+    'missingSkillsCount',
+    'experienceFitVal',
+    'matchedSkillsList',
+    'missingSkillsList',
+    'analysisNextActionBox',
+    'projectsCard',
+    'recommendedProjectsList',
+    'handoffCard',
+    'handoffStatusBadge',
+    'handoffTelemetryRow',
+    'handoffAppId',
+    'handoffPackageMeta',
+    'workflowLockBanner',
+    'resetWorkflowBtn',
+    'handoffErrorBanner',
+    'handoffErrorMessage',
+    'retryHandoffBtn',
+    'prepareHandoffBtn',
+    'prepareSpinner',
+    'prepareBtnText',
+    'regenerateHandoffBtn',
+    'regenerateConfirmBox',
+    'cancelRegenerateBtn',
+    'confirmRegenerateBtn',
+    'artifactsContainer',
+    'reviewResumeBtn',
+    'downloadResumeBtn',
+    'reviewCoverLetterBtn',
+    'downloadCoverLetterBtn',
+    'downloadBundleBtn',
+    'viewAppDashboardLink',
+    'formDetectionCard',
+    'stepIndicator',
+    'formStatusMessage',
+    'formFieldsSummary',
+    'autofillFormBtn',
   ];
 
   for (const id of elementIds) {
@@ -135,7 +204,12 @@ function setupMockDocument() {
     tabs: {
       _currentActiveTabId: 101,
       query: async (queryInfo) => {
-        return [{ id: global.chrome.tabs._currentActiveTabId, url: 'https://www.linkedin.com/jobs/view/4466448213/' }];
+        return [
+          {
+            id: global.chrome.tabs._currentActiveTabId,
+            url: 'https://www.linkedin.com/jobs/view/4466448213/',
+          },
+        ];
       },
       sendMessage: async (_tabId, msg) => {
         return { success: true };
@@ -186,7 +260,8 @@ const sampleQuikHireJob = {
   provider: 'LINKEDIN',
   externalJobId: '4466448213',
   sourceUrl: 'https://www.linkedin.com/jobs/view/4466448213/',
-  description: 'We are seeking a seasoned Backend Software Engineer with Node.js, TypeScript, PostgreSQL, and scalable microservices architecture experience to join Quik Hire Staffing.',
+  description:
+    'We are seeking a seasoned Backend Software Engineer with Node.js, TypeScript, PostgreSQL, and scalable microservices architecture experience to join Quik Hire Staffing.',
   descriptionLength: 154,
   descriptionSource: 'SELECTOR',
   jobRootSource: '.details',
@@ -210,7 +285,8 @@ const sampleAppinventivJob = {
   provider: 'LINKEDIN',
   externalJobId: '4464770430',
   sourceUrl: 'https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430',
-  description: 'Appinventiv is hiring a Software Engineer skilled in JavaScript, React, Node.js, and API architecture with 2-4 years experience.',
+  description:
+    'Appinventiv is hiring a Software Engineer skilled in JavaScript, React, Node.js, and API architecture with 2-4 years experience.',
   descriptionLength: 114,
   descriptionSource: 'SELECTOR',
   jobRootSource: '[data-view-name="job-details"]',
@@ -267,7 +343,11 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
 
     global.chrome.tabs.sendMessage = async (tabId, msg) => {
       if (msg?.type === 'DETECT_JOB_PAGE') {
-        const resp = tabMockResponses.get(tabId) || { success: true, detected: false, jobData: null };
+        const resp = tabMockResponses.get(tabId) || {
+          success: true,
+          detected: false,
+          jobData: null,
+        };
         return {
           ...resp,
           requestId: msg.requestId,
@@ -289,7 +369,12 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
         user: controller.currentUser,
       }),
       analyzeJob: async () => ({
-        fitAnalysis: { overallScore: 85, recommendationBand: 'RECOMMENDED', matchedSkills: [], missingSkills: [] },
+        fitAnalysis: {
+          overallScore: 85,
+          recommendationBand: 'RECOMMENDED',
+          matchedSkills: [],
+          missingSkills: [],
+        },
         recommendedProjects: [],
         analysisSnapshotId: 'snap-p75',
       }),
@@ -336,7 +421,10 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
       await controller.init();
 
       assert.strictEqual(controller.activeTabId, 101);
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Backend Software Engineer (Remote)');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Backend Software Engineer (Remote)'
+      );
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Quik Hire Staffing');
       const fpA = JobIdentity.deriveJobFingerprint(sampleQuikHireJob);
       assert.strictEqual(controller.activeJobFingerprint, fpA);
@@ -371,7 +459,10 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
       await new Promise((r) => setTimeout(r, 10));
 
       assert.strictEqual(controller.activeTabId, 101);
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Backend Software Engineer (Remote)');
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Backend Software Engineer (Remote)'
+      );
       assert.strictEqual(domElements.get('jobCompany').textContent, 'Quik Hire Staffing');
       assert.strictEqual(controller.activeJobFingerprint, fpA);
       assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.JOB_DETECTED);
@@ -473,8 +564,15 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
 
       await new Promise((r) => setTimeout(r, 10));
 
-      assert.strictEqual(freshDetectionDispatched, true, 'Fresh content-script detection must be dispatched');
-      assert.ok(recordedRequestId > initialRequestId, 'Detection request ID must increment on reload');
+      assert.strictEqual(
+        freshDetectionDispatched,
+        true,
+        'Fresh content-script detection must be dispatched'
+      );
+      assert.ok(
+        recordedRequestId > initialRequestId,
+        'Detection request ID must increment on reload'
+      );
       assert.strictEqual(controller.activeJob.title, 'Backend Software Engineer (Remote)');
     });
 
@@ -504,7 +602,11 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
       await new Promise((r) => setTimeout(r, 10));
 
       // Sidebar must NOT pass on durable state alone; fresh detection reported false so job cleared
-      assert.strictEqual(controller.activeJob, null, 'Stale durable state must NOT keep job active when fresh detection reports false');
+      assert.strictEqual(
+        controller.activeJob,
+        null,
+        'Stale durable state must NOT keep job active when fresh detection reports false'
+      );
       assert.strictEqual(domElements.get('jobTitle').textContent, '—');
     });
   });
@@ -523,7 +625,11 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
       ];
 
       for (const forbidden of forbiddenTitles) {
-        assert.notStrictEqual(sampleQuikHireJob.title, forbidden, `Title must never match marketing heading: "${forbidden}"`);
+        assert.notStrictEqual(
+          sampleQuikHireJob.title,
+          forbidden,
+          `Title must never match marketing heading: "${forbidden}"`
+        );
       }
 
       assert.strictEqual(sampleQuikHireJob.title, 'Backend Software Engineer (Remote)');
@@ -581,7 +687,10 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
 
       assert.strictEqual(controller.activeJob.title, 'Software Engineer');
       assert.strictEqual(controller.activeJob.company, 'Appinventiv');
-      assert.strictEqual(controller.activeJobFingerprint, JobIdentity.deriveJobFingerprint(sampleAppinventivJob));
+      assert.strictEqual(
+        controller.activeJobFingerprint,
+        JobIdentity.deriveJobFingerprint(sampleAppinventivJob)
+      );
 
       // User navigates back in same Tab 101 to Job A (Quik Hire)
       tabMockResponses.set(101, {
@@ -596,7 +705,10 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
 
       assert.strictEqual(controller.activeJob.title, 'Backend Software Engineer (Remote)');
       assert.strictEqual(controller.activeJob.company, 'Quik Hire Staffing');
-      assert.strictEqual(controller.activeJobFingerprint, JobIdentity.deriveJobFingerprint(sampleQuikHireJob));
+      assert.strictEqual(
+        controller.activeJobFingerprint,
+        JobIdentity.deriveJobFingerprint(sampleQuikHireJob)
+      );
     });
   });
 
@@ -619,8 +731,15 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
 
       await controller.rescan();
 
-      assert.strictEqual(rescanRequested, true, 'Rescan must dispatch DETECT_JOB_PAGE to active tab');
-      assert.strictEqual(domElements.get('jobTitle').textContent, 'Backend Software Engineer (Remote)');
+      assert.strictEqual(
+        rescanRequested,
+        true,
+        'Rescan must dispatch DETECT_JOB_PAGE to active tab'
+      );
+      assert.strictEqual(
+        domElements.get('jobTitle').textContent,
+        'Backend Software Engineer (Remote)'
+      );
     });
   });
 
@@ -685,7 +804,11 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
           detected: true,
           confidence: 'HIGH',
           jobData: p.jobData,
-          portalMetadata: { portalName: p.portalName, isPortalRecognized: true, confidence: 'HIGH' },
+          portalMetadata: {
+            portalName: p.portalName,
+            isPortalRecognized: true,
+            confidence: 'HIGH',
+          },
         });
 
         global.chrome.tabs._currentActiveTabId = p.tabId;

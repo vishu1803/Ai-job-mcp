@@ -59,7 +59,11 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
 
     assert.equal(result.length, 1);
     assert.equal(result[0].projectId, 'proj-uuid-1');
-    assert.equal(result[0].name, 'task-runner', 'Namespace prefix must be stripped from clean name');
+    assert.equal(
+      result[0].name,
+      'task-runner',
+      'Namespace prefix must be stripped from clean name'
+    );
     assert.equal(result[0].displayName, 'vishu1803/task-runner');
     assert.deepEqual(result[0].technologies, ['TypeScript', 'Node.js', 'PostgreSQL']);
     assert.equal(result[0].relevanceScore, 88.5);
@@ -95,7 +99,10 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
     assert.equal(result[0].name, 'code-reviewer');
     assert.deepEqual(result[0].technologies, ['Python', 'FastAPI', 'Docker']);
     assert.equal(result[0].relevanceScore, 74.2);
-    assert.deepEqual(result[0].matchedRequirements, ['FastAPI microservices', 'Docker containerization']);
+    assert.deepEqual(result[0].matchedRequirements, [
+      'FastAPI microservices',
+      'Docker containerization',
+    ]);
     assert.equal(result[0].verificationStatus, 'VERIFIED');
   });
 
@@ -171,7 +178,9 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
     const serverNormalized = normalizeRecommendedProjectsForExtension({
       portfolioRecommendations: backendPayload.portfolioRecommendations,
       fitAnalysis: null,
-      candidateProjects: [{ id: canonicalId, name: 'vishu1803/task-runner', technologies: ['TypeScript'] }],
+      candidateProjects: [
+        { id: canonicalId, name: 'vishu1803/task-runner', technologies: ['TypeScript'] },
+      ],
     });
 
     const client = new BackendClient();

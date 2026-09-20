@@ -19,14 +19,15 @@ export const ScoringWeightsSchema = z
     keywordCoverage: z.number().min(0).max(1).default(0.0),
   })
   .refine(
-    (w) => Math.abs(w.atsParseability + w.jobMatch + w.contentQuality + w.keywordCoverage - 1.0) < 0.001,
+    (w) =>
+      Math.abs(w.atsParseability + w.jobMatch + w.contentQuality + w.keywordCoverage - 1.0) < 0.001,
     { message: 'Scoring weights must sum exactly to 1.0' }
   );
 
 export const ScoringThresholdsSchema = z.object({
   qualificationCutoff: z.number().min(0).max(100).default(70),
   integrityGateRequired: z.boolean().default(true),
-  minConfidenceCutoff: z.number().min(0).max(1).default(0.70),
+  minConfidenceCutoff: z.number().min(0).max(1).default(0.7),
 });
 
 export const ScoringPolicySchema = z.object({
@@ -38,8 +39,8 @@ export const ScoringPolicySchema = z.object({
   confidenceWeights: z.object({
     pdfExtraction: z.number().min(0).max(1).default(0.35),
     reqExtraction: z.number().min(0).max(1).default(0.25),
-    taxonomyResolution: z.number().min(0).max(1).default(0.20),
-    evidenceCoverage: z.number().min(0).max(1).default(0.20),
+    taxonomyResolution: z.number().min(0).max(1).default(0.2),
+    evidenceCoverage: z.number().min(0).max(1).default(0.2),
   }),
 });
 
@@ -51,23 +52,24 @@ export const SCORING_POLICIES = Object.freeze({
   'p81.0': Object.freeze({
     version: 'p81.0',
     name: 'P81 Hardened Baseline Policy',
-    description: 'Baseline 35/35/30 model with fail-closed evidence integrity gate and Rule 36 monotonicity.',
+    description:
+      'Baseline 35/35/30 model with fail-closed evidence integrity gate and Rule 36 monotonicity.',
     weights: Object.freeze({
       atsParseability: 0.35,
       jobMatch: 0.35,
-      contentQuality: 0.30,
+      contentQuality: 0.3,
       keywordCoverage: 0.0,
     }),
     thresholds: Object.freeze({
       qualificationCutoff: 70,
       integrityGateRequired: true,
-      minConfidenceCutoff: 0.70,
+      minConfidenceCutoff: 0.7,
     }),
     confidenceWeights: Object.freeze({
       pdfExtraction: 0.35,
       reqExtraction: 0.25,
-      taxonomyResolution: 0.20,
-      evidenceCoverage: 0.20,
+      taxonomyResolution: 0.2,
+      evidenceCoverage: 0.2,
     }),
   }),
 
@@ -77,21 +79,21 @@ export const SCORING_POLICIES = Object.freeze({
     description:
       'Empirically calibrated 30/40/30 model prioritizing job match to eliminate formatting-over-content false positives while preserving zero fraud tolerance.',
     weights: Object.freeze({
-      atsParseability: 0.30,
-      jobMatch: 0.40,
-      contentQuality: 0.30,
+      atsParseability: 0.3,
+      jobMatch: 0.4,
+      contentQuality: 0.3,
       keywordCoverage: 0.0,
     }),
     thresholds: Object.freeze({
       qualificationCutoff: 70,
       integrityGateRequired: true,
-      minConfidenceCutoff: 0.70,
+      minConfidenceCutoff: 0.7,
     }),
     confidenceWeights: Object.freeze({
       pdfExtraction: 0.35,
       reqExtraction: 0.25,
-      taxonomyResolution: 0.20,
-      evidenceCoverage: 0.20,
+      taxonomyResolution: 0.2,
+      evidenceCoverage: 0.2,
     }),
   }),
 });

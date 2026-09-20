@@ -227,7 +227,9 @@ export function evaluateResumeWritingQuality({
     let parScore = 0;
     if (isAction) parScore += 25;
     if (textTrimmed.length >= 35) parScore += 25;
-    const hasMethodOrTech = /\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(textTrimmed);
+    const hasMethodOrTech = /\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(
+      textTrimmed
+    );
     if (hasMethodOrTech) parScore += 25;
     const hasResultOrPurpose = RESULT_PURPOSE_MARKERS.some((p) => p.test(textTrimmed));
     if (hasResultOrPurpose) parScore += 25;
@@ -282,7 +284,13 @@ export function evaluateResumeWritingQuality({
         const cClass = f.contributionClass || '';
         return (
           cClass.includes('CANDIDATE_') ||
-          ['ACCOMPLISHMENT', 'IMPLEMENTATION', 'DESIGN_DECISION', 'OPTIMIZATION', 'PERFORMANCE'].includes(role)
+          [
+            'ACCOMPLISHMENT',
+            'IMPLEMENTATION',
+            'DESIGN_DECISION',
+            'OPTIMIZATION',
+            'PERFORMANCE',
+          ].includes(role)
         );
       });
 
@@ -373,7 +381,8 @@ export function evaluateResumeWritingQuality({
         const bulletContributingFacts = inventoryFacts.filter(
           (f) =>
             (b.composedFromFactIds && b.composedFromFactIds.includes(f.id)) ||
-            (b.evidenceRefs && b.evidenceRefs.some((er) => er.id === f.id || er.resourceId === f.id))
+            (b.evidenceRefs &&
+              b.evidenceRefs.some((er) => er.id === f.id || er.resourceId === f.id))
         );
 
         if (bulletContributingFacts.length > 0) {
@@ -387,8 +396,7 @@ export function evaluateResumeWritingQuality({
               bulletIndex: i,
               text: b.text.slice(0, 100),
               message: `Bullet contains metric "${metricStr}" which is not authorized by canonical candidate facts`,
-              recommendation:
-                'Remove or substantiate metric with canonical candidate facts',
+              recommendation: 'Remove or substantiate metric with canonical candidate facts',
             });
           }
         } else {
@@ -415,9 +423,7 @@ export function evaluateResumeWritingQuality({
   let authenticMetricScore = 100; // unpenalized baseline when candidate lacks metrics
   if (candidateHasMetrics) {
     if (bulletsWithMetrics > 0) {
-      authenticMetricScore = Math.round(
-        (verifiedMetricBulletCount / bulletsWithMetrics) * 100
-      );
+      authenticMetricScore = Math.round((verifiedMetricBulletCount / bulletsWithMetrics) * 100);
       if (verifiedMetricBulletCount > 0) {
         strengths.push('Authentic quantitative metrics utilized effectively');
       }
@@ -586,8 +592,7 @@ export function evaluateResumeWritingQuality({
   let summaryQuality = 0;
   if (summaryLength > 0) {
     const lengthScore = Math.min(50, Math.round((summaryLength / 120) * 50));
-    const sentenceScore =
-      summarySentenceCount >= 1 && summarySentenceCount <= 4 ? 50 : 25;
+    const sentenceScore = summarySentenceCount >= 1 && summarySentenceCount <= 4 ? 50 : 25;
     summaryQuality = lengthScore + sentenceScore;
   }
 

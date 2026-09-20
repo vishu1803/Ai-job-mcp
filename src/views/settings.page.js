@@ -15,12 +15,13 @@ import { escapeHtml } from '../utils/html-escaper.js';
  */
 export function renderSettingsPage({ user, tenant }) {
   const displayName = user.displayName || user.email?.split('@')[0] || 'User';
-  const initials = displayName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('') || 'U';
+  const initials =
+    displayName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join('') || 'U';
 
   const content = `
     <div class="container" style="max-width:760px; margin: 28px auto 72px; padding: 0 16px;">

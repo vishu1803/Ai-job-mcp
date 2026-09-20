@@ -46,10 +46,9 @@ export class BackendClient {
       }
     }
     const defaultValidation = validateBackendUrl(this.defaultBaseUrl);
-    this._cachedBaseUrl = (defaultValidation.valid ? defaultValidation.url : this.defaultBaseUrl).replace(
-      /\/+$/,
-      ''
-    );
+    this._cachedBaseUrl = (
+      defaultValidation.valid ? defaultValidation.url : this.defaultBaseUrl
+    ).replace(/\/+$/, '');
     return this._cachedBaseUrl;
   }
 
@@ -93,7 +92,9 @@ export class BackendClient {
       }
 
       if (!response.ok) {
-        const error = new Error(data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`);
+        const error = new Error(
+          data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`
+        );
         error.status = response.status;
         error.code = data?.code || 'API_ERROR';
         error.data = data;
@@ -103,7 +104,9 @@ export class BackendClient {
       return data;
     } catch (err) {
       if (err.name === 'TypeError' && err.message?.includes('Failed to fetch')) {
-        const connError = new Error(`Cannot connect to AI Careers Hub at ${baseUrl}. Ensure the application is running.`);
+        const connError = new Error(
+          `Cannot connect to AI Careers Hub at ${baseUrl}. Ensure the application is running.`
+        );
         connError.code = 'NETWORK_UNREACHABLE';
         throw connError;
       }
@@ -202,19 +205,26 @@ export class BackendClient {
       return data;
     }
     const fallback =
-      (Array.isArray(data.portfolioRecommendations?.featuredProjects) && data.portfolioRecommendations.featuredProjects.length > 0)
+      Array.isArray(data.portfolioRecommendations?.featuredProjects) &&
+      data.portfolioRecommendations.featuredProjects.length > 0
         ? data.portfolioRecommendations.featuredProjects
-        : (Array.isArray(data.fitAnalysis?.topRelevantProjects) && data.fitAnalysis.topRelevantProjects.length > 0)
+        : Array.isArray(data.fitAnalysis?.topRelevantProjects) &&
+            data.fitAnalysis.topRelevantProjects.length > 0
           ? data.fitAnalysis.topRelevantProjects
           : [];
 
     data.recommendedProjects = fallback.map((p, idx) => ({
       projectId: p.projectId || p.id || `proj-${idx + 1}`,
-      name: String(p.name || p.displayName || p.projectName || 'Project').replace(/^[a-zA-Z0-9_-]+\//, ''),
+      name: String(p.name || p.displayName || p.projectName || 'Project').replace(
+        /^[a-zA-Z0-9_-]+\//,
+        ''
+      ),
       displayName: p.displayName || p.name || p.projectName || 'Project',
       technologies: Array.isArray(p.technologies)
         ? p.technologies
-        : (Array.isArray(p.primarySignals) ? p.primarySignals : []),
+        : Array.isArray(p.primarySignals)
+          ? p.primarySignals
+          : [],
       relevanceScore: Number(p.relevanceScore ?? p.score ?? 50),
       relevanceBand: p.relevanceBand || 'MEDIUM',
       matchedRequirements: Array.isArray(p.matchedRequirements) ? p.matchedRequirements : [],

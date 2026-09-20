@@ -28,8 +28,14 @@ import {
   AI_PROVIDERS,
 } from '../../src/clients/ai/ai-provider-factory.js';
 import { AiProvider } from '../../src/clients/ai/ai-provider.interface.js';
-import { GeminiVertexAdapter, defaultVertexAdapter } from '../../src/clients/vertex/vertex-adapter.js';
-import { GeminiProviderAdapter, defaultGeminiAdapter } from '../../src/clients/gemini/gemini-adapter.js';
+import {
+  GeminiVertexAdapter,
+  defaultVertexAdapter,
+} from '../../src/clients/vertex/vertex-adapter.js';
+import {
+  GeminiProviderAdapter,
+  defaultGeminiAdapter,
+} from '../../src/clients/gemini/gemini-adapter.js';
 import {
   ModelRegistry,
   defaultModelRegistry,
@@ -38,10 +44,7 @@ import {
 import { AiCareerAssistantService } from '../../src/services/ai-career-assistant.service.js';
 import { AiResumeContentGeneratorService } from '../../src/services/ai-resume-content-generator.service.js';
 import { ExtensionAssistantService } from '../../src/services/extension-assistant.service.js';
-import {
-  AiRateLimitedError,
-  AiAuthenticationError,
-} from '../../src/errors/ai.errors.js';
+import { AiRateLimitedError, AiAuthenticationError } from '../../src/errors/ai.errors.js';
 
 describe('P89 AI Provider Architecture & Transport Hardening', () => {
   const originalAiProviderEnv = process.env.AI_PROVIDER;
@@ -187,7 +190,13 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
       targetJobPosting: {
         title: 'Senior Backend Engineer',
       },
-      factInventory: [{ id: 'fact-1', factId: 'fact-1', text: 'Experienced distributed systems engineer in cloud scale.' }],
+      factInventory: [
+        {
+          id: 'fact-1',
+          factId: 'fact-1',
+          text: 'Experienced distributed systems engineer in cloud scale.',
+        },
+      ],
     });
 
     assert.ok(result);
@@ -238,13 +247,17 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
       job: {
         title: 'Backend Engineer',
         company: 'Cloud Corp',
-        description: 'Seeking a backend engineer to design scalable Go microservices and distributed database systems for global users.',
+        description:
+          'Seeking a backend engineer to design scalable Go microservices and distributed database systems for global users.',
         requirements: ['Go', 'PostgreSQL'],
       },
     });
 
     assert.ok(result);
-    assert.strictEqual(result.summary, 'This role focuses on building scalable Go backend microservices.');
+    assert.strictEqual(
+      result.summary,
+      'This role focuses on building scalable Go backend microservices.'
+    );
     assert.strictEqual(result.aiAvailable, true);
   });
 

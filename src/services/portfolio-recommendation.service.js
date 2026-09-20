@@ -178,7 +178,7 @@ export class PortfolioRecommendationService {
 
       const rawName = (project.name || '').includes('/')
         ? project.name.split('/').pop()
-        : (project.name || project.slug || project.displayName || project.id || 'project');
+        : project.name || project.slug || project.displayName || project.id || 'project';
       const canonicalKey = SkillTaxonomyEngine.generateSafeSlug(rawName);
       if (seenProjectKeys.has(canonicalKey)) continue;
       seenProjectKeys.add(canonicalKey);

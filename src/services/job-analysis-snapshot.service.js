@@ -97,8 +97,10 @@ export class JobAnalysisSnapshotService {
   }) {
     if (!tenantId) throw new ValidationError('tenantId is required for snapshot persistence');
     if (!candidateId) throw new ValidationError('candidateId is required for snapshot persistence');
-    if (!canonicalJobId) throw new ValidationError('canonicalJobId is required for snapshot persistence');
-    if (!jobContentHash) throw new ValidationError('jobContentHash is required for snapshot persistence');
+    if (!canonicalJobId)
+      throw new ValidationError('canonicalJobId is required for snapshot persistence');
+    if (!jobContentHash)
+      throw new ValidationError('jobContentHash is required for snapshot persistence');
 
     await this._ensureTable();
 
@@ -326,7 +328,10 @@ export class JobAnalysisSnapshotService {
     // 4. Contract Version Gate ('P16-001F')
     if (snapshot.contractVersion !== ANALYSIS_SNAPSHOT_CONTRACT_VERSION) {
       logger.warn(
-        { snapshotVersion: snapshot.contractVersion, expectedVersion: ANALYSIS_SNAPSHOT_CONTRACT_VERSION },
+        {
+          snapshotVersion: snapshot.contractVersion,
+          expectedVersion: ANALYSIS_SNAPSHOT_CONTRACT_VERSION,
+        },
         'Snapshot contract version mismatch — rejecting stale snapshot'
       );
       return { valid: false, reason: 'CONTRACT_VERSION_MISMATCH', snapshot };
@@ -365,9 +370,10 @@ export class JobAnalysisSnapshotService {
     if (!snapshot) return null;
 
     const rankings = Array.isArray(snapshot.projectRankings) ? snapshot.projectRankings : [];
-    const topProjects = Array.isArray(snapshot.topRelevantProjects) && snapshot.topRelevantProjects.length > 0
-      ? snapshot.topRelevantProjects
-      : rankings;
+    const topProjects =
+      Array.isArray(snapshot.topRelevantProjects) && snapshot.topRelevantProjects.length > 0
+        ? snapshot.topRelevantProjects
+        : rankings;
 
     return {
       snapshotId: snapshot.id,

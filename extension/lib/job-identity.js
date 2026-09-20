@@ -22,7 +22,8 @@ const TRACKING_QUERY_PARAMS = new Set([
   'refId',
 ]);
 
-const APPLICATION_ROUTE_REGEX = /\/(?:apply(?:ing)?|step[-_]?[0-9]+|application(?:s)?(?:\/new)?|form|candidate[-_]profile)\/?$/i;
+const APPLICATION_ROUTE_REGEX =
+  /\/(?:apply(?:ing)?|step[-_]?[0-9]+|application(?:s)?(?:\/new)?|form|candidate[-_]profile)\/?$/i;
 
 /**
  * Normalizes a URL by stripping tracking parameters, hashes, and trailing route suffixes.
@@ -107,7 +108,7 @@ function sha256Hex(ascii) {
   words[words[lengthProperty]] = (asciiBitLength / maxWord) | 0;
   words[words[lengthProperty]] = asciiBitLength;
 
-  for (j = 0; j < words[lengthProperty]; ) {
+  for (j = 0; j < words[lengthProperty];) {
     const w = words.slice(j, (j += 16));
     const oldHash = hash;
     hash = hash.slice(0, 8);
@@ -189,8 +190,12 @@ export function deriveJobFingerprint(params = {}) {
   } else if (provider && externalJobId) {
     rawKey = `${String(provider).toLowerCase()}::${String(externalJobId).toLowerCase()}`;
   } else {
-    const cleanTitle = String(title).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const cleanCompany = String(company).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanTitle = String(title)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const cleanCompany = String(company)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
     const cleanUrl = normalizeJobPostingUrl(url || sourceUrl || normalizedUrl || '');
 
     if (cleanCompany && cleanTitle) {
@@ -243,17 +248,29 @@ export function isSameJobIdentity(jobA, jobB) {
   }
 
   // Normalized URL match
-  const urlA = normalizeJobPostingUrl(jobA.sourceUrl || jobA.url || jobA.normalizedUrl || jobA.normalizedJobUrl);
-  const urlB = normalizeJobPostingUrl(jobB.sourceUrl || jobB.url || jobB.normalizedUrl || jobB.normalizedJobUrl);
+  const urlA = normalizeJobPostingUrl(
+    jobA.sourceUrl || jobA.url || jobA.normalizedUrl || jobA.normalizedJobUrl
+  );
+  const urlB = normalizeJobPostingUrl(
+    jobB.sourceUrl || jobB.url || jobB.normalizedUrl || jobB.normalizedJobUrl
+  );
   if (urlA && urlB && urlA === urlB) {
     return true;
   }
 
   // Company and title match
-  const titleA = String(jobA.title || '').trim().toLowerCase();
-  const titleB = String(jobB.title || '').trim().toLowerCase();
-  const compA = String(jobA.company || '').trim().toLowerCase();
-  const compB = String(jobB.company || '').trim().toLowerCase();
+  const titleA = String(jobA.title || '')
+    .trim()
+    .toLowerCase();
+  const titleB = String(jobB.title || '')
+    .trim()
+    .toLowerCase();
+  const compA = String(jobA.company || '')
+    .trim()
+    .toLowerCase();
+  const compB = String(jobB.company || '')
+    .trim()
+    .toLowerCase();
 
   return Boolean(titleA && titleB && compA && compB && titleA === titleB && compA === compB);
 }
@@ -272,6 +289,3 @@ export const JobIdentity = {
   deriveJobFingerprint,
   isSameJobIdentity,
 };
-
-
-

@@ -35,11 +35,7 @@ import {
 import { GetCandidateProfileOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
 import { renderProfilePage } from '../../src/views/profile.page.js';
 import { NotFoundError } from '../../src/errors/index.js';
-import {
-  projectResources,
-  candidateSkills,
-  evidenceItems,
-} from '../../src/db/schema.js';
+import { projectResources, candidateSkills, evidenceItems } from '../../src/db/schema.js';
 
 describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit Tests', () => {
   const tenantA = 'a0000000-0000-4000-a000-000000000001';

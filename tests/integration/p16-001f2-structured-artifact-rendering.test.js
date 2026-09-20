@@ -143,7 +143,9 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
       problemSolving: {
         hasSection: true,
         profileUrl: 'https://leetcode.com/u/morganharper',
-        bullets: ['Solved algorithmic optimization challenges in dynamic programming and graph traversal.'],
+        bullets: [
+          'Solved algorithmic optimization challenges in dynamic programming and graph traversal.',
+        ],
         provenanceStatus: 'CLAIMED',
       },
       portfolioLinks: [
@@ -289,7 +291,10 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
     assert.strictEqual(structuredResume.candidateIdentity.phone, '+1-555-0199');
     assert.strictEqual(structuredResume.candidateIdentity.location, 'San Francisco, CA');
     assert.strictEqual(structuredResume.experience[0].company, 'Nexus Cloud Infrastructure');
-    assert.strictEqual(structuredResume.education[0].institution, 'University of California, Berkeley');
+    assert.strictEqual(
+      structuredResume.education[0].institution,
+      'University of California, Berkeley'
+    );
     assert.strictEqual(
       structuredResume.certifications[0].name,
       'AWS Certified Solutions Architect - Professional'
@@ -380,20 +385,68 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
     });
 
     // Original values must be present
-    assert.match(resumeLatex.texContent, /\+1-555-0199/, 'Original phone must be in rendered LaTeX');
-    assert.match(resumeLatex.texContent, /San Francisco, CA/, 'Original location must be in rendered LaTeX');
-    assert.match(resumeLatex.texContent, /Nexus Cloud Infrastructure/, 'Original company must be in rendered LaTeX');
-    assert.match(resumeLatex.texContent, /University of California, Berkeley/, 'Original school must be in rendered LaTeX');
-    assert.match(resumeLatex.texContent, /AWS Certified Solutions Architect/, 'Original certification must be in rendered LaTeX');
-    assert.match(resumeLatex.texContent, /github\.com\/morganharper/, 'Original GitHub link must be in rendered LaTeX');
+    assert.match(
+      resumeLatex.texContent,
+      /\+1-555-0199/,
+      'Original phone must be in rendered LaTeX'
+    );
+    assert.match(
+      resumeLatex.texContent,
+      /San Francisco, CA/,
+      'Original location must be in rendered LaTeX'
+    );
+    assert.match(
+      resumeLatex.texContent,
+      /Nexus Cloud Infrastructure/,
+      'Original company must be in rendered LaTeX'
+    );
+    assert.match(
+      resumeLatex.texContent,
+      /University of California, Berkeley/,
+      'Original school must be in rendered LaTeX'
+    );
+    assert.match(
+      resumeLatex.texContent,
+      /AWS Certified Solutions Architect/,
+      'Original certification must be in rendered LaTeX'
+    );
+    assert.match(
+      resumeLatex.texContent,
+      /github\.com\/morganharper/,
+      'Original GitHub link must be in rendered LaTeX'
+    );
 
     // 6. Verify NO new live profile values appear
-    assert.doesNotMatch(resumeLatex.texContent, /\+1-999-888-7777/, 'Tampered phone must NOT appear');
-    assert.doesNotMatch(resumeLatex.texContent, /Adversarial Tampered City/, 'Tampered location must NOT appear');
-    assert.doesNotMatch(resumeLatex.texContent, /Hacked Corporation/, 'Tampered company must NOT appear');
-    assert.doesNotMatch(resumeLatex.texContent, /Fake Diploma Mill/, 'Tampered school must NOT appear');
-    assert.doesNotMatch(resumeLatex.texContent, /tampered-account-xyz/, 'Tampered GitHub must NOT appear');
-    assert.doesNotMatch(resumeLatex.texContent, /Tampered Hacker Name/, 'Tampered candidate name must NOT appear');
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /\+1-999-888-7777/,
+      'Tampered phone must NOT appear'
+    );
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /Adversarial Tampered City/,
+      'Tampered location must NOT appear'
+    );
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /Hacked Corporation/,
+      'Tampered company must NOT appear'
+    );
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /Fake Diploma Mill/,
+      'Tampered school must NOT appear'
+    );
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /tampered-account-xyz/,
+      'Tampered GitHub must NOT appear'
+    );
+    assert.doesNotMatch(
+      resumeLatex.texContent,
+      /Tampered Hacker Name/,
+      'Tampered candidate name must NOT appear'
+    );
 
     // 7. Verify PDF compilation succeeds
     const compiler = new LatexCompilerService();
@@ -401,12 +454,18 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
       texContent: resumeLatex.texContent,
       jobName: 'p16f2-integration-verify',
     });
-    assert.ok(compileResult.pdfBuffer && compileResult.pdfBuffer.length > 0, 'PDF compilation must succeed');
+    assert.ok(
+      compileResult.pdfBuffer && compileResult.pdfBuffer.length > 0,
+      'PDF compilation must succeed'
+    );
 
     // 8. Verify geometry and ATS QA remain valid in the kit
     assert.ok(kit.resume.qaAudit, 'Resume QA audit must be present');
     assert.strictEqual(kit.resume.qaAudit.passed, true, 'Resume QA audit must pass');
-    assert.ok(kit.resume.layoutDiagnostics, 'Layout diagnostics must be present from geometry analyzer');
+    assert.ok(
+      kit.resume.layoutDiagnostics,
+      'Layout diagnostics must be present from geometry analyzer'
+    );
     assert.strictEqual(kit.resume.layoutDiagnostics.pageCount, 1, 'Resume must be exactly 1 page');
   });
 
@@ -434,7 +493,10 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
 
     assert.ok(kit, 'Must build handoff kit despite throwing profile service');
     assert.strictEqual(kit.packageHash, preparedPackage.packageHash);
-    assert.ok(kit.resume && kit.resume.fileSizeBytes > 0, 'Resume PDF must be successfully compiled');
+    assert.ok(
+      kit.resume && kit.resume.fileSizeBytes > 0,
+      'Resume PDF must be successfully compiled'
+    );
     assert.strictEqual(kit.resume.qaAudit.passed, true, 'Resume QA audit must pass');
   });
 });

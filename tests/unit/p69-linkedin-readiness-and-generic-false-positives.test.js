@@ -63,10 +63,22 @@ function createMockDocument({
         found = elements[selector];
       } else {
         for (const [key, el] of Object.entries(elements)) {
-          if (key === selector) { found = el; break; }
-          if (selector.includes(key)) { found = el; break; }
-          if (key.startsWith('.') && selector.includes(`class*="${key.slice(1)}"`)) { found = el; break; }
-          if (key.startsWith('#') && selector.includes(`id*="${key.slice(1)}"`)) { found = el; break; }
+          if (key === selector) {
+            found = el;
+            break;
+          }
+          if (selector.includes(key)) {
+            found = el;
+            break;
+          }
+          if (key.startsWith('.') && selector.includes(`class*="${key.slice(1)}"`)) {
+            found = el;
+            break;
+          }
+          if (key.startsWith('#') && selector.includes(`id*="${key.slice(1)}"`)) {
+            found = el;
+            break;
+          }
         }
       }
       if (found) {
@@ -101,8 +113,12 @@ function setupMockDOM() {
     runtime: {
       onMessage: {
         _listeners: listeners,
-        addListener(fn) { this._listeners.push(fn); },
-        dispatch(msg, sender = {}) { for (const l of this._listeners) l(msg, sender); },
+        addListener(fn) {
+          this._listeners.push(fn);
+        },
+        dispatch(msg, sender = {}) {
+          for (const l of this._listeners) l(msg, sender);
+        },
       },
       sendMessage: async () => ({ success: true }),
     },
@@ -163,9 +179,15 @@ function setupMockDOM() {
     className: '',
     classList: {
       _classes: new Set(['hidden']),
-      add(cls) { this._classes.add(cls); },
-      remove(cls) { this._classes.delete(cls); },
-      contains(cls) { return this._classes.has(cls); },
+      add(cls) {
+        this._classes.add(cls);
+      },
+      remove(cls) {
+        this._classes.delete(cls);
+      },
+      contains(cls) {
+        return this._classes.has(cls);
+      },
     },
     disabled: false,
     innerHTML: '',
@@ -218,13 +240,13 @@ function setupMockDOM() {
 }
 
 describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives', () => {
-
   describe('1. Four-Stage Resolution & Adapter Registry Separation', () => {
     it('Ordinary web page resolves to adapterId: NONE, isJobPage: false, portalName: Web Page', () => {
       const doc = createMockDocument({
         url: 'https://chatgpt.com/c/some-conversation-id',
         title: 'ChatGPT - Career Advice & Resume Building',
-        bodyText: 'Here is a job description for a Senior Software Engineer. Requirements include 5 years Go and Kubernetes.',
+        bodyText:
+          'Here is a job description for a Senior Software Engineer. Requirements include 5 years Go and Kubernetes.',
       });
 
       const resolved = AdapterRegistry.resolve(doc, 'https://chatgpt.com/c/some-conversation-id');
@@ -232,7 +254,10 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
       assert.equal(resolved.isJobPage, false);
       assert.equal(resolved.metadata.portalName, 'Web Page');
 
-      const evaluation = JobDetectionEngine.evaluate(doc, 'https://chatgpt.com/c/some-conversation-id');
+      const evaluation = JobDetectionEngine.evaluate(
+        doc,
+        'https://chatgpt.com/c/some-conversation-id'
+      );
       assert.equal(evaluation.detected, false);
       assert.equal(evaluation.ready, false);
       assert.equal(evaluation.jobData, null);
@@ -261,19 +286,28 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
       const doc = createMockDocument({
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
         elements: {
-          '.job-details-jobs-unified-top-card__job-title': { textContent: 'Senior Software Engineer' },
+          '.job-details-jobs-unified-top-card__job-title': {
+            textContent: 'Senior Software Engineer',
+          },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'General Motors' },
           '.jobs-description__content': {
-            textContent: 'We are seeking a Senior Software Engineer with Go and Kubernetes experience. Responsibilities include building distributed services.',
+            textContent:
+              'We are seeking a Senior Software Engineer with Go and Kubernetes experience. Responsibilities include building distributed services.',
           },
         },
       });
 
-      const resolved = AdapterRegistry.resolve(doc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const resolved = AdapterRegistry.resolve(
+        doc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(resolved.adapterId, 'LINKEDIN');
       assert.equal(resolved.isJobPage, true);
 
-      const evaluation = JobDetectionEngine.evaluate(doc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const evaluation = JobDetectionEngine.evaluate(
+        doc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(evaluation.detected, true);
       assert.equal(evaluation.ready, true);
       assert.equal(evaluation.jobData.title, 'Senior Software Engineer');
@@ -289,12 +323,16 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
         title: 'Senior Software Engineer | General Motors | LinkedIn',
         elements: {
           '.jobs-description__content': {
-            textContent: 'General Motors is seeking a Senior Software Engineer with Go expertise. Responsibilities include building backend systems and testing services.',
+            textContent:
+              'General Motors is seeking a Senior Software Engineer with Go expertise. Responsibilities include building backend systems and testing services.',
           },
         },
       });
 
-      const payload = LinkedInAdapter.extract(doc, 'https://www.linkedin.com/jobs/view/4419969671/');
+      const payload = LinkedInAdapter.extract(
+        doc,
+        'https://www.linkedin.com/jobs/view/4419969671/'
+      );
       assert.equal(payload.title, 'Senior Software Engineer');
       assert.equal(payload.company, 'General Motors');
       assert.equal(payload.isReady, true);
@@ -305,17 +343,23 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
         url: 'https://www.linkedin.com/jobs/view/4198273641/',
         title: 'Software Engineer | Appinventiv | LinkedIn',
         elements: {
-          'h1': { textContent: 'Software Engineer' },
+          h1: { textContent: 'Software Engineer' },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Appinventiv' },
-          '.job-details-jobs-unified-top-card__primary-description-container': { textContent: 'Noida, Uttar Pradesh, India · Reposted 2 days ago · 45 applicants' },
+          '.job-details-jobs-unified-top-card__primary-description-container': {
+            textContent: 'Noida, Uttar Pradesh, India · Reposted 2 days ago · 45 applicants',
+          },
           '.jobs-apply-button': { textContent: 'Easy Apply' },
           '.show-more-less-html__markup': {
-            textContent: 'Appinventiv is hiring a Software Engineer with expertise in Node.js, TypeScript, and microservices architecture. Requirements: 3+ years experience with cloud native systems.',
+            textContent:
+              'Appinventiv is hiring a Software Engineer with expertise in Node.js, TypeScript, and microservices architecture. Requirements: 3+ years experience with cloud native systems.',
           },
         },
       });
 
-      const evaluation = JobDetectionEngine.evaluate(doc, 'https://www.linkedin.com/jobs/view/4198273641/');
+      const evaluation = JobDetectionEngine.evaluate(
+        doc,
+        'https://www.linkedin.com/jobs/view/4198273641/'
+      );
       assert.equal(evaluation.detected, true);
       assert.equal(evaluation.ready, true);
       assert.equal(evaluation.jobData.title, 'Software Engineer');
@@ -331,7 +375,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
           '.job-details-jobs-unified-top-card__job-title': { textContent: 'Full Stack Engineer' },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Acme Corp' },
           '#job-details': {
-            textContent: 'Join our engineering team to build scalable web applications. Requirements: React, Node.js, and SQL experience. Full-time position.',
+            textContent:
+              'Join our engineering team to build scalable web applications. Requirements: React, Node.js, and SQL experience. Full-time position.',
           },
         },
       });
@@ -357,7 +402,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
           '.job-details-jobs-unified-top-card__job-title': { textContent: 'Backend Developer' },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Stripe' },
           '.jobs-description__content': {
-            textContent: 'Stripe is hiring a Backend Developer to support global payment infrastructure. Requirements: API design, distributed systems, and Go/Java.',
+            textContent:
+              'Stripe is hiring a Backend Developer to support global payment infrastructure. Requirements: API design, distributed systems, and Go/Java.',
           },
         },
       });
@@ -373,10 +419,13 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
       const doc = createMockDocument({
         url: 'https://www.linkedin.com/jobs/featured-role/',
         elements: {
-          '.job-details-jobs-unified-top-card__job-title': { textContent: 'Staff Infrastructure Engineer' },
+          '.job-details-jobs-unified-top-card__job-title': {
+            textContent: 'Staff Infrastructure Engineer',
+          },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Netflix' },
           '.jobs-description__content': {
-            textContent: 'Netflix seeks a Staff Infrastructure Engineer to design cloud infrastructure for streaming millions of concurrent video streams. Requirements include Kubernetes and Linux.',
+            textContent:
+              'Netflix seeks a Staff Infrastructure Engineer to design cloud infrastructure for streaming millions of concurrent video streams. Requirements include Kubernetes and Linux.',
           },
         },
       });
@@ -399,7 +448,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Microsoft' },
           '.jobs-apply-button': { textContent: 'Apply on company website' },
           '.jobs-description__content': {
-            textContent: 'Microsoft is looking for a Platform Architect to design enterprise cloud architectures. Requirements: 10+ years experience in distributed cloud computing.',
+            textContent:
+              'Microsoft is looking for a Platform Architect to design enterprise cloud architectures. Requirements: 10+ years experience in distributed cloud computing.',
           },
         },
       });
@@ -417,9 +467,12 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
       const doc = createMockDocument({
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
         elements: {
-          '.job-details-jobs-unified-top-card__job-title': { textContent: 'Rust Systems Programmer' },
+          '.job-details-jobs-unified-top-card__job-title': {
+            textContent: 'Rust Systems Programmer',
+          },
           '.jobs-description__content': {
-            textContent: 'We are hiring a Rust Systems Programmer to build ultra-low-latency financial trade execution engines. Requirements: Rust, concurrency, performance tuning.',
+            textContent:
+              'We are hiring a Rust Systems Programmer to build ultra-low-latency financial trade execution engines. Requirements: Rust, concurrency, performance tuning.',
           },
         },
       });
@@ -442,7 +495,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
           '.job-details-jobs-unified-top-card__job-title': { textContent: 'Data Engineer' },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Company' },
           '.jobs-description__content': {
-            textContent: 'Data engineering team looking for a specialist in Apache Spark, Kafka, and data lake architectures.',
+            textContent:
+              'Data engineering team looking for a specialist in Apache Spark, Kafka, and data lake architectures.',
           },
         },
       });
@@ -454,7 +508,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
     it('Strictly does NOT use doc.body.textContent fallback on LinkedIn', () => {
       const doc = createMockDocument({
         url: 'https://www.linkedin.com/jobs/view/4419969671/',
-        bodyText: 'Some huge unrelated text in the body of the page including header, footer, ads, and random comments.',
+        bodyText:
+          'Some huge unrelated text in the body of the page including header, footer, ads, and random comments.',
         elements: {
           '.job-details-jobs-unified-top-card__job-title': { textContent: 'DevOps Engineer' },
           // No localized description element provided
@@ -549,7 +604,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
           '.app-title': { textContent: 'Software Engineer - Infrastructure' },
           '.company-name': { textContent: 'Stripe' },
           '#content': {
-            textContent: 'We are seeking an Infrastructure Engineer to help scale our payment networks. Requirements include Go, distributed storage, and zero-downtime deployments.',
+            textContent:
+              'We are seeking an Infrastructure Engineer to help scale our payment networks. Requirements include Go, distributed storage, and zero-downtime deployments.',
           },
         },
       });
@@ -576,7 +632,8 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
             title: 'Senior Backend Engineer',
             hiringOrganization: { name: 'Uber Technologies' },
             jobLocation: { address: { addressLocality: 'San Francisco, CA' } },
-            description: 'Uber is hiring a Senior Backend Engineer to power our core dispatch services. Requirements: 5+ years Go/Java experience, distributed databases, high throughput microservices.',
+            description:
+              'Uber is hiring a Senior Backend Engineer to power our core dispatch services. Requirements: 5+ years Go/Java experience, distributed databases, high throughput microservices.',
             employmentType: 'FULL_TIME',
           },
         ],
@@ -595,9 +652,10 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
         url: 'https://wellfound.com/jobs/321456-founding-engineer',
         title: 'Founding Engineer at Stealth AI | Wellfound',
         elements: {
-          'h1': { textContent: 'Founding Engineer' },
+          h1: { textContent: 'Founding Engineer' },
           '.job-description': {
-            textContent: 'Join our early-stage founding team building next-generation developer tooling. Requirements: TypeScript, Rust, WebAssembly, and obsession with fast developer loops.',
+            textContent:
+              'Join our early-stage founding team building next-generation developer tooling. Requirements: TypeScript, Rust, WebAssembly, and obsession with fast developer loops.',
           },
         },
       });
@@ -683,5 +741,4 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
       assert.equal(analyzeCalls, 0);
     });
   });
-
 });

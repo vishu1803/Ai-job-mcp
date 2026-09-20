@@ -159,7 +159,8 @@ export class ApplicationTrackingService {
       if (!matchedExisting) {
         const companyMatches = activeRows.filter(
           (row) =>
-            row.companyName.trim().toLowerCase() === validatedInput.companyName.trim().toLowerCase() &&
+            row.companyName.trim().toLowerCase() ===
+              validatedInput.companyName.trim().toLowerCase() &&
             row.jobTitle.trim().toLowerCase() === validatedInput.jobTitle.trim().toLowerCase()
         );
 
@@ -704,10 +705,7 @@ export class ApplicationTrackingService {
         .select()
         .from(jobApplications)
         .where(
-          and(
-            eq(jobApplications.tenantId, tenantId),
-            eq(jobApplications.id, explicitApplicationId)
-          )
+          and(eq(jobApplications.tenantId, tenantId), eq(jobApplications.id, explicitApplicationId))
         );
 
       if (!app) {
@@ -721,7 +719,8 @@ export class ApplicationTrackingService {
       }
 
       // Verify application belongs to canonical target job
-      const appCanonical = app.canonicalJobId || app.metadata?.canonicalJobId || app.metadata?.jobId;
+      const appCanonical =
+        app.canonicalJobId || app.metadata?.canonicalJobId || app.metadata?.jobId;
       if (appCanonical && canonicalJobId && appCanonical !== canonicalJobId) {
         throw new ConflictError(
           `[APPLICATION_JOB_MISMATCH] Application ${explicitApplicationId} belongs to job ${appCanonical}, not requested target job ${canonicalJobId}`,
@@ -817,7 +816,8 @@ export class ApplicationTrackingService {
       }
       const updates = {};
       if (!matched.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
-      if (!matched.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
+      if (!matched.normalizedJobUrl && normalizedJobUrl)
+        updates.normalizedJobUrl = normalizedJobUrl;
       if (Object.keys(updates).length > 0) {
         const [updated] = await this.db
           .update(jobApplications)
@@ -1041,7 +1041,8 @@ export class ApplicationTrackingService {
         },
       });
 
-      const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+      const structuredResume =
+        pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
       const generationContractVersion =
         pkg?.generationContractVersion ||
         pkg?.tailoredResume?.generationContractVersion ||
@@ -1351,7 +1352,8 @@ export class ApplicationTrackingService {
 
     return packages.map((row) => {
       const pkg = row.packagePayload;
-      const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+      const structuredResume =
+        pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
       const generationContractVersion =
         pkg?.generationContractVersion ||
         pkg?.tailoredResume?.generationContractVersion ||

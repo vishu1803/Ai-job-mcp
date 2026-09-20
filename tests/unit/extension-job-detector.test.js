@@ -12,20 +12,18 @@ const JOB_POSTING_JSONLD = JSON.stringify({
   '@type': 'JobPosting',
   title: 'Staff Platform Engineer',
   hiringOrganization: { '@type': 'Organization', name: 'Structured Co' },
-  jobLocation: { address: { addressLocality: 'Austin', addressRegion: 'TX', addressCountry: 'US' } },
-  description: '<p>We are hiring! Apply now to join our team. Responsibilities include distributed systems work. 5+ years of experience required.</p>',
+  jobLocation: {
+    address: { addressLocality: 'Austin', addressRegion: 'TX', addressCountry: 'US' },
+  },
+  description:
+    '<p>We are hiring! Apply now to join our team. Responsibilities include distributed systems work. 5+ years of experience required.</p>',
   employmentType: 'FULL_TIME',
 });
 
 /**
  * Creates a lightweight mock Document for node test execution.
  */
-function createMockDocument({
-  elements = {},
-  meta = {},
-  scripts = [],
-  bodyText = '',
-} = {}) {
+function createMockDocument({ elements = {}, meta = {}, scripts = [], bodyText = '' } = {}) {
   return {
     body: { textContent: bodyText },
     querySelector(selector) {
@@ -120,8 +118,11 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
           '[data-automation-id="companyName"]': { textContent: 'Target' },
           '[data-automation-id="locations"]': { textContent: 'Minneapolis, MN' },
           '[data-automation-id="jobDescription"]': {
-            textContent: 'Architect enterprise cloud solutions. Requirements include Kubernetes and Terraform.',
-            querySelectorAll: () => [{ textContent: 'Extensive multi-cloud architecture experience' }],
+            textContent:
+              'Architect enterprise cloud solutions. Requirements include Kubernetes and Terraform.',
+            querySelectorAll: () => [
+              { textContent: 'Extensive multi-cloud architecture experience' },
+            ],
           },
         },
       });
@@ -142,9 +143,13 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
       const doc = createMockDocument({
         elements: {
           '.job-details-jobs-unified-top-card': { textContent: 'Top card' },
-          '.job-details-jobs-unified-top-card__job-title': { textContent: 'Machine Learning Engineer' },
+          '.job-details-jobs-unified-top-card__job-title': {
+            textContent: 'Machine Learning Engineer',
+          },
           '.job-details-jobs-unified-top-card__company-name': { textContent: 'Anthropic' },
-          '.job-details-jobs-unified-top-card__bullet': { textContent: 'San Francisco, CA (Hybrid)' },
+          '.job-details-jobs-unified-top-card__bullet': {
+            textContent: 'San Francisco, CA (Hybrid)',
+          },
           '#job-details': {
             textContent: 'Train safety-aligned models.',
             querySelectorAll: () => [{ textContent: 'Strong Python and PyTorch proficiency' }],
@@ -262,7 +267,8 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
         elements: {
           h1: { textContent: 'Staff Software Engineer' },
           main: {
-            textContent: 'A comprehensive job description with more than 50 characters describing role responsibilities.',
+            textContent:
+              'A comprehensive job description with more than 50 characters describing role responsibilities.',
             querySelectorAll: () => [],
           },
         },
@@ -287,7 +293,11 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
       });
 
       const payload = JobPageDetector.detect(doc, url);
-      assert.equal(payload.isConfident, false, 'Generic DOM fallback must not report confidence without job signals');
+      assert.equal(
+        payload.isConfident,
+        false,
+        'Generic DOM fallback must not report confidence without job signals'
+      );
     });
 
     it('flags confident extraction on generic pages with real job signals', () => {
@@ -310,11 +320,36 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
 
   describe('ATS adapter JSON-LD fallback (P15-002 Batch 3)', () => {
     const cases = [
-      { Adapter: GreenhouseAdapter, name: 'Greenhouse', provider: 'GREENHOUSE', url: 'https://boards.greenhouse.io/acme/jobs/1' },
-      { Adapter: LeverAdapter, name: 'Lever', provider: 'LEVER', url: 'https://jobs.lever.co/acme/123' },
-      { Adapter: WorkdayAdapter, name: 'Workday', provider: 'WORKDAY', url: 'https://acme.wd5.myworkdayjobs.com/careers/1' },
-      { Adapter: LinkedInAdapter, name: 'LinkedIn', provider: 'LINKEDIN', url: 'https://www.linkedin.com/jobs/view/123' },
-      { Adapter: IndeedAdapter, name: 'Indeed', provider: 'INDEED', url: 'https://www.indeed.com/viewjob?jk=abc' },
+      {
+        Adapter: GreenhouseAdapter,
+        name: 'Greenhouse',
+        provider: 'GREENHOUSE',
+        url: 'https://boards.greenhouse.io/acme/jobs/1',
+      },
+      {
+        Adapter: LeverAdapter,
+        name: 'Lever',
+        provider: 'LEVER',
+        url: 'https://jobs.lever.co/acme/123',
+      },
+      {
+        Adapter: WorkdayAdapter,
+        name: 'Workday',
+        provider: 'WORKDAY',
+        url: 'https://acme.wd5.myworkdayjobs.com/careers/1',
+      },
+      {
+        Adapter: LinkedInAdapter,
+        name: 'LinkedIn',
+        provider: 'LINKEDIN',
+        url: 'https://www.linkedin.com/jobs/view/123',
+      },
+      {
+        Adapter: IndeedAdapter,
+        name: 'Indeed',
+        provider: 'INDEED',
+        url: 'https://www.indeed.com/viewjob?jk=abc',
+      },
     ];
 
     for (const { Adapter, name, provider, url } of cases) {
@@ -325,7 +360,8 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
           },
           meta: { 'og:site_name': 'DOM Co' },
           scripts: [],
-          bodyText: 'We are hiring. Apply now. Responsibilities include systems engineering. Full-time role.',
+          bodyText:
+            'We are hiring. Apply now. Responsibilities include systems engineering. Full-time role.',
         });
         const payload = Adapter.extract(doc, url);
         assert.equal(payload.provider, provider);
@@ -341,7 +377,11 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
           bodyText: '',
         });
         const payload = Adapter.extract(doc, url);
-        assert.equal(payload.provider, provider, 'provider identity must NOT become GENERIC_JSONLD');
+        assert.equal(
+          payload.provider,
+          provider,
+          'provider identity must NOT become GENERIC_JSONLD'
+        );
         assert.equal(payload.title, 'Staff Platform Engineer');
         assert.equal(payload.company, 'Structured Co');
         assert.equal(payload.location, 'Austin, TX, US');
@@ -349,14 +389,24 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
       });
 
       it(`${name}: neither DOM nor JSON-LD yields no confident detection`, () => {
-        const doc = createMockDocument({ elements: {}, meta: {}, scripts: [], bodyText: 'unrelated content' });
+        const doc = createMockDocument({
+          elements: {},
+          meta: {},
+          scripts: [],
+          bodyText: 'unrelated content',
+        });
         const result = JobPageDetector.detect(doc, url);
         assert.equal(result.isConfident, false);
       });
     }
 
     it('generic adapter behavior unchanged: JSON-LD path reports GENERIC_JSONLD', () => {
-      const doc = createMockDocument({ elements: {}, meta: {}, scripts: [JOB_POSTING_JSONLD], bodyText: '' });
+      const doc = createMockDocument({
+        elements: {},
+        meta: {},
+        scripts: [JOB_POSTING_JSONLD],
+        bodyText: '',
+      });
       const payload = GenericCareerPageAdapter.extract(doc, 'https://example.com/careers/role');
       assert.equal(payload.provider, 'GENERIC_JSONLD');
       assert.equal(payload.title, 'Staff Platform Engineer');

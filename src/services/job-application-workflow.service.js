@@ -87,10 +87,7 @@ async function persistPreparedPackage({
     const context = { tenantId, userId, role: 'MEMBER' };
     const targetJob = preparedPackage.targetJob || {};
     const directUrl =
-      targetJob.directPortalUrl ||
-      targetJob.applicationUrl ||
-      targetJob.sourceUrl ||
-      null;
+      targetJob.directPortalUrl || targetJob.applicationUrl || targetJob.sourceUrl || null;
     const normalizedUrl = directUrl ? normalizeJobUrl(directUrl) : null;
     const resolvedCanonicalJobId =
       canonicalJobId ||
@@ -274,7 +271,12 @@ import {
   isValidEmailFormat,
 } from '../utils/candidate-email-resolver.js';
 
-export { isSyntheticEmail, resolveCandidateEmail, evaluateCandidateEmailStatus, isValidEmailFormat };
+export {
+  isSyntheticEmail,
+  resolveCandidateEmail,
+  evaluateCandidateEmailStatus,
+  isValidEmailFormat,
+};
 
 /**
  * Detects the ATS/portal provider from destination URL.
@@ -355,12 +357,14 @@ export class JobApplicationWorkflowService {
       const candidateFit = targetJobPosting.jobFitAnalysis;
       const hasRankings =
         (Array.isArray(candidateFit.projectRankings) && candidateFit.projectRankings.length > 0) ||
-        (Array.isArray(candidateFit.topRelevantProjects) && candidateFit.topRelevantProjects.length > 0);
+        (Array.isArray(candidateFit.topRelevantProjects) &&
+          candidateFit.topRelevantProjects.length > 0);
       if (hasRankings) {
         return {
           ...candidateFit,
           projectRankings: candidateFit.projectRankings || candidateFit.topRelevantProjects || [],
-          topRelevantProjects: candidateFit.topRelevantProjects || candidateFit.projectRankings || [],
+          topRelevantProjects:
+            candidateFit.topRelevantProjects || candidateFit.projectRankings || [],
           source: candidateFit.source || 'authoritative_analyze_snapshot',
         };
       }
@@ -384,10 +388,12 @@ export class JobApplicationWorkflowService {
       typeof targetJobPosting.overallFit.atsScore === 'number'
     ) {
       resolvedFit = { overallFit: targetJobPosting.overallFit, source: 'analyze_job_fit' };
-    } else if (targetJobPosting?.atsFitSnapshot && typeof targetJobPosting.atsFitSnapshot === 'object') {
+    } else if (
+      targetJobPosting?.atsFitSnapshot &&
+      typeof targetJobPosting.atsFitSnapshot === 'object'
+    ) {
       const atsScore =
-        targetJobPosting.atsFitSnapshot.overallScore ??
-        targetJobPosting.atsFitSnapshot.atsScore;
+        targetJobPosting.atsFitSnapshot.overallScore ?? targetJobPosting.atsFitSnapshot.atsScore;
       if (typeof atsScore === 'number') {
         resolvedFit = {
           overallFit: {
@@ -407,8 +413,7 @@ export class JobApplicationWorkflowService {
       ) {
         resolvedFit = answers.jobFitAnalysis;
       } else if (answers?.atsFitSnapshot && typeof answers.atsFitSnapshot === 'object') {
-        const atsScore =
-          answers.atsFitSnapshot.overallScore ?? answers.atsFitSnapshot.atsScore;
+        const atsScore = answers.atsFitSnapshot.overallScore ?? answers.atsFitSnapshot.atsScore;
         if (typeof atsScore === 'number') {
           resolvedFit = {
             overallFit: {
@@ -440,8 +445,7 @@ export class JobApplicationWorkflowService {
 
         if (existingApp?.atsFitSnapshot && typeof existingApp.atsFitSnapshot === 'object') {
           const atsScore =
-            existingApp.atsFitSnapshot.overallScore ??
-            existingApp.atsFitSnapshot.atsScore;
+            existingApp.atsFitSnapshot.overallScore ?? existingApp.atsFitSnapshot.atsScore;
           if (typeof atsScore === 'number') {
             resolvedFit = {
               overallFit: {
@@ -461,7 +465,8 @@ export class JobApplicationWorkflowService {
     if (
       resolvedFit &&
       ((Array.isArray(resolvedFit.projectRankings) && resolvedFit.projectRankings.length > 0) ||
-        (Array.isArray(resolvedFit.topRelevantProjects) && resolvedFit.topRelevantProjects.length > 0))
+        (Array.isArray(resolvedFit.topRelevantProjects) &&
+          resolvedFit.topRelevantProjects.length > 0))
     ) {
       return resolvedFit;
     }
@@ -500,19 +505,23 @@ export class JobApplicationWorkflowService {
         const canonical = normalizeJobInput(targetJobPosting);
         const isJobIdUuid =
           targetJobPosting.id &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            targetJobPosting.id
+          );
         const jobId = isJobIdUuid ? targetJobPosting.id : crypto.randomUUID();
 
         extractedRequirements = canonical.normalizedRequirements.map((r) => {
           const isTech = r.class === 'TECHNOLOGY' || r.category === 'SKILL';
-          const normSkill = (isTech && r.normalizedConcept)
-            ? SkillTaxonomyEngine.normalizeSkill(r.normalizedConcept)
-            : null;
-          const safeSlug = (normSkill && !normSkill.isNoise)
-            ? normSkill.canonicalSlug
-            : (isTech && r.normalizedConcept && r.normalizedConcept.split(/\s+/).length <= 4)
-              ? SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept)
+          const normSkill =
+            isTech && r.normalizedConcept
+              ? SkillTaxonomyEngine.normalizeSkill(r.normalizedConcept)
               : null;
+          const safeSlug =
+            normSkill && !normSkill.isNoise
+              ? normSkill.canonicalSlug
+              : isTech && r.normalizedConcept && r.normalizedConcept.split(/\s+/).length <= 4
+                ? SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept)
+                : null;
           return {
             id: r.id,
             requirementId: r.id,
@@ -546,10 +555,7 @@ export class JobApplicationWorkflowService {
           id: jobId,
           tenantId: context.tenantId,
           title: targetJobPosting.title || canonical.role?.rawTitle || 'Target Role',
-          companyName:
-            targetJobPosting.company ||
-            targetJobPosting.companyName ||
-            'Target Company',
+          companyName: targetJobPosting.company || targetJobPosting.companyName || 'Target Company',
           level: targetJobPosting.level || 'MID',
           requirements: extractedRequirements,
           skills:
@@ -600,11 +606,11 @@ export class JobApplicationWorkflowService {
         const atsScore =
           fitScoreAnalysis && typeof fitScoreAnalysis.overallScore === 'number'
             ? fitScoreAnalysis.overallScore
-            : resolvedFit?.overallFit?.atsScore ?? 85;
+            : (resolvedFit?.overallFit?.atsScore ?? 85);
         const fitBand =
           fitScoreAnalysis && fitScoreAnalysis.fitBand
             ? fitScoreAnalysis.fitBand
-            : resolvedFit?.overallFit?.fitBand ?? 'MODERATE';
+            : (resolvedFit?.overallFit?.fitBand ?? 'MODERATE');
 
         return {
           overallFit: {
@@ -741,22 +747,15 @@ export class JobApplicationWorkflowService {
           skills: profileView.skills || [],
           projects: profileView.projects || [],
           experience:
-            profileView.candidate?.profileMetadata?.experience ||
-            profileView.experience ||
-            [],
+            profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
           education:
-            profileView.candidate?.profileMetadata?.education ||
-            profileView.education ||
-            [],
+            profileView.candidate?.profileMetadata?.education || profileView.education || [],
           certifications:
             profileView.candidate?.profileMetadata?.certifications ||
             profileView.certifications ||
             [],
           dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
-          links:
-            profileView.links ||
-            profileView.candidate?.profileMetadata?.portfolioLinks ||
-            [],
+          links: profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
           portfolioLinks:
             profileView.portfolioLinks ||
             profileView.candidate?.profileMetadata?.portfolioLinks ||
@@ -797,7 +796,8 @@ export class JobApplicationWorkflowService {
       canonicalJobId: jobPosting?.canonicalJobId || jobPosting?.id,
       source: jobPosting?.source || 'MANUAL',
       provider: jobPosting?.provider || jobPosting?.source || 'MANUAL',
-      applicationUrl: jobPosting?.applicationUrl || jobPosting?.sourceUrl || 'https://example.com/apply',
+      applicationUrl:
+        jobPosting?.applicationUrl || jobPosting?.sourceUrl || 'https://example.com/apply',
       retrievedAt: jobPosting?.retrievedAt || new Date().toISOString(),
       location: jobPosting?.location || 'Remote',
       workplaceType: jobPosting?.workplaceType || jobPosting?.workplace || 'REMOTE',
@@ -840,9 +840,7 @@ export class JobApplicationWorkflowService {
     const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name || p.title);
 
     targetJobPosting.recommendedProjects =
-      jobPosting?.recommendedProjects ||
-      answers?.recommendedProjects ||
-      derivedRecommended;
+      jobPosting?.recommendedProjects || answers?.recommendedProjects || derivedRecommended;
     targetJobPosting.projectRankings = authoritativeRankings;
     targetJobPosting.jobFitAnalysis = jobFitAnalysis;
 
@@ -954,9 +952,8 @@ export class JobApplicationWorkflowService {
 
     // Generate AI-conditioned Professional Summary and Project Bullets (Content Generation Quality)
     const candidateProjects = candidateProfileInput.projects || cand.projects || [];
-    const topProjectIdentifiers = (authoritativeRankings.length > 0
-      ? authoritativeRankings
-      : selectedProjectsList
+    const topProjectIdentifiers = (
+      authoritativeRankings.length > 0 ? authoritativeRankings : selectedProjectsList
     ).slice(0, 2);
     const topSelectedProjects = topProjectIdentifiers.map((item) => {
       const pId = item.id || item.projectId;
@@ -980,7 +977,10 @@ export class JobApplicationWorkflowService {
         aiProvider: this.aiProvider,
       });
     } catch (aiErr) {
-      this.logger.warn({ error: aiErr.message }, 'AI resume content generation failed; falling back to deterministic baseline');
+      this.logger.warn(
+        { error: aiErr.message },
+        'AI resume content generation failed; falling back to deterministic baseline'
+      );
       aiContent = null;
     }
 
@@ -1011,7 +1011,9 @@ export class JobApplicationWorkflowService {
 
     const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
     const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
-    const safeEvidenceReceipt = JSON.parse(JSON.stringify(structuredSnapshot.evidenceValidationReceipt));
+    const safeEvidenceReceipt = JSON.parse(
+      JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
+    );
 
     // 6. Build Unhashed Package
     const preparedPackage = {
@@ -1036,7 +1038,8 @@ export class JobApplicationWorkflowService {
         contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
         fitScore: effectiveFitScore,
         selectedProjects: selectedProjectsList,
-        selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+        selectedSections:
+          tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
         sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
         structuredResume: safeStructuredResume,
         tailoringPlan: safeTailoringPlan,
@@ -1055,7 +1058,8 @@ export class JobApplicationWorkflowService {
       verifiedSkills,
       claimedSkills,
       portfolioLinks,
-      selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+      selectedSections:
+        tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
       answers: answers || {},
       jobFitAnalysis: jobFitAnalysis || undefined,
@@ -1525,12 +1529,21 @@ export class JobApplicationWorkflowService {
             ...profileView.candidate,
             skills: profileView.skills || [],
             projects: profileView.projects || [],
-            experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
-            education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
-            certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
+            experience:
+              profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
+            education:
+              profileView.candidate?.profileMetadata?.education || profileView.education || [],
+            certifications:
+              profileView.candidate?.profileMetadata?.certifications ||
+              profileView.certifications ||
+              [],
             dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
-            links: profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
-            portfolioLinks: profileView.portfolioLinks || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            links:
+              profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            portfolioLinks:
+              profileView.portfolioLinks ||
+              profileView.candidate?.profileMetadata?.portfolioLinks ||
+              [],
             resumeSections: profileView.resumeSections || [],
             profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
           };
@@ -1560,9 +1573,8 @@ export class JobApplicationWorkflowService {
       [];
 
     const candidateProjectsForRegen = candidateProfileInput.projects || cand.projects || [];
-    const topDraftIdentifiers = (authoritativeDraftRankings.length > 0
-      ? authoritativeDraftRankings
-      : selectedProjectsList
+    const topDraftIdentifiers = (
+      authoritativeDraftRankings.length > 0 ? authoritativeDraftRankings : selectedProjectsList
     ).slice(0, 2);
     const topDraftSelectedProjects = topDraftIdentifiers.map((item) => {
       const pId = item.id || item.projectId;
@@ -1586,7 +1598,10 @@ export class JobApplicationWorkflowService {
         aiProvider: this.aiProvider,
       });
     } catch (aiErr) {
-      this.logger.warn({ error: aiErr.message }, 'AI resume content generation failed during regeneration; falling back to deterministic baseline');
+      this.logger.warn(
+        { error: aiErr.message },
+        'AI resume content generation failed during regeneration; falling back to deterministic baseline'
+      );
       aiContent = null;
     }
 
@@ -1616,7 +1631,9 @@ export class JobApplicationWorkflowService {
 
     const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
     const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
-    const safeEvidenceReceipt = JSON.parse(JSON.stringify(structuredSnapshot.evidenceValidationReceipt));
+    const safeEvidenceReceipt = JSON.parse(
+      JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
+    );
 
     const preparedPackage = {
       candidateId,
@@ -1632,7 +1649,8 @@ export class JobApplicationWorkflowService {
         contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
         fitScore: tailoredResumeResult.fitScore || 85,
         selectedProjects: selectedProjectsList,
-        selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+        selectedSections:
+          tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
         sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
         structuredResume: safeStructuredResume,
         tailoringPlan: safeTailoringPlan,
@@ -1651,7 +1669,8 @@ export class JobApplicationWorkflowService {
       verifiedSkills,
       claimedSkills,
       portfolioLinks,
-      selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+      selectedSections:
+        tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
       answers,
       structuredResume: safeStructuredResume,
@@ -1771,7 +1790,9 @@ export class JobApplicationWorkflowService {
     } else if (emailStatus.state === 'INVALID_EMAIL') {
       errors.push(`Candidate email "${validatedPkg.candidateEmail}" has an invalid format.`);
     } else if (isSyntheticEmail(validatedPkg.candidateEmail)) {
-      warnings.push(`Candidate email "${validatedPkg.candidateEmail}" uses a synthetic or placeholder domain.`);
+      warnings.push(
+        `Candidate email "${validatedPkg.candidateEmail}" uses a synthetic or placeholder domain.`
+      );
     }
     if (!validatedPkg.candidateName) {
       missingFields.push('candidateName');
@@ -1925,7 +1946,7 @@ export class JobApplicationWorkflowService {
     const hasMarkdown = Boolean(validatedPkg.tailoredResume?.markdownContent?.trim());
     const hasPdfArtifact = Boolean(
       validatedPkg.tailoredResume?.artifact?.downloadUrl ||
-        validatedPkg.tailoredResume?.artifact?.viewUrl
+      validatedPkg.tailoredResume?.artifact?.viewUrl
     );
     const qaPassed = Boolean(validatedPkg.tailoredResume?.artifact?.qaPassed ?? false);
 

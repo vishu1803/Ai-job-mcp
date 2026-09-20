@@ -217,10 +217,15 @@ export default async function authRoutes(app, opts = {}) {
         maxAge: cookieOpts.maxAge,
       });
 
-      const isIncomplete = result.isNewUser || (result.onboardingState && result.onboardingState !== 'COMPLETED');
+      const isIncomplete =
+        result.isNewUser || (result.onboardingState && result.onboardingState !== 'COMPLETED');
 
       // If a validated returnTo URL was stored in transit state, follow it (unless it's default /dashboard for an incomplete candidate)
-      if (result.returnTo && isValidReturnTo(result.returnTo) && (!isIncomplete || (result.returnTo !== '/dashboard' && result.returnTo !== '/'))) {
+      if (
+        result.returnTo &&
+        isValidReturnTo(result.returnTo) &&
+        (!isIncomplete || (result.returnTo !== '/dashboard' && result.returnTo !== '/'))
+      ) {
         return reply.redirect(result.returnTo);
       }
 
@@ -421,11 +426,7 @@ export default async function authRoutes(app, opts = {}) {
       }
 
       if (!user) {
-        [user] = await database
-          .select()
-          .from(users)
-          .where(eq(users.status, 'ACTIVE'))
-          .limit(1);
+        [user] = await database.select().from(users).where(eq(users.status, 'ACTIVE')).limit(1);
       }
 
       // Dev-only E2E override (?e2e=1): authenticate as the dedicated, disposable
@@ -434,15 +435,12 @@ export default async function authRoutes(app, opts = {}) {
       // of falling back to the real development candidate.
       if (req.query?.e2e === '1') {
         const e2eEmail = process.env.E2E_TEST_USER_EMAIL || 'e2e-fixture@careerhub.test';
-        [user] = await database
-          .select()
-          .from(users)
-          .where(eq(users.email, e2eEmail))
-          .limit(1);
+        [user] = await database.select().from(users).where(eq(users.email, e2eEmail)).limit(1);
         if (!user) {
-          return reply
-            .status(404)
-            .send({ error: 'E2E fixture user not found. Run tests/helpers/e2e-fixture.js (ensureE2eFixture) first.' });
+          return reply.status(404).send({
+            error:
+              'E2E fixture user not found. Run tests/helpers/e2e-fixture.js (ensureE2eFixture) first.',
+          });
         }
       }
 

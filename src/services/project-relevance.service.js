@@ -254,13 +254,7 @@ const ARCHITECTURAL_DIMENSION_CONFIG = Object.freeze({
       'server-sent-events',
       'pub-sub',
     ]),
-    filePatterns: [
-      /sockets?\//i,
-      /events?\//i,
-      /realtime\//i,
-      /gateway\//i,
-      /channels?\//i,
-    ],
+    filePatterns: [/sockets?\//i, /events?\//i, /realtime\//i, /gateway\//i, /channels?\//i],
     weight: 2.5,
   },
   MODULAR_ARCHITECTURE: {
@@ -547,7 +541,14 @@ export class ProjectRelevanceService {
     const allFilePaths = new Set();
 
     for (const ev of rawEvidence) {
-      const skillIden = ev.skillSlug || ev.skillName || ev.metadata?.rawImport || ev.metadata?.keywordMatched || ev.metadata?.derivedFromPackage || ev.id || '';
+      const skillIden =
+        ev.skillSlug ||
+        ev.skillName ||
+        ev.metadata?.rawImport ||
+        ev.metadata?.keywordMatched ||
+        ev.metadata?.derivedFromPackage ||
+        ev.id ||
+        '';
       const fp = `${ev.evidenceType}:${skillIden}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
       if (!evidenceByFingerprint.has(fp)) {
         evidenceByFingerprint.set(fp, ev);
@@ -560,7 +561,14 @@ export class ProjectRelevanceService {
     for (const res of resources) {
       if (Array.isArray(res.evidence)) {
         for (const ev of res.evidence) {
-          const skillIden = ev.skillSlug || ev.skillName || ev.metadata?.rawImport || ev.metadata?.keywordMatched || ev.metadata?.derivedFromPackage || ev.id || '';
+          const skillIden =
+            ev.skillSlug ||
+            ev.skillName ||
+            ev.metadata?.rawImport ||
+            ev.metadata?.keywordMatched ||
+            ev.metadata?.derivedFromPackage ||
+            ev.id ||
+            '';
           const fp = `${ev.evidenceType}:${skillIden}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
           if (!evidenceByFingerprint.has(fp)) {
             evidenceByFingerprint.set(fp, ev);

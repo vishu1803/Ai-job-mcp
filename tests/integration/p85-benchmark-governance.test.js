@@ -23,9 +23,7 @@ import {
   P85_PROMPT_DIGEST,
 } from '../../src/domain/career/calibration/fixtures/p84-multimodel-fixtures.js';
 
-import {
-  buildCanonicalEvaluatorPackage,
-} from '../../src/domain/career/calibration/evaluator-provenance.service.js';
+import { buildCanonicalEvaluatorPackage } from '../../src/domain/career/calibration/evaluator-provenance.service.js';
 
 import {
   buildBlindEvaluatorPayload,
@@ -39,9 +37,7 @@ import {
   auditFindingAgainstEvidence,
 } from '../../src/domain/career/calibration/semantic-finding-normalizer.js';
 
-import {
-  validateEvaluatorResponse,
-} from '../../src/domain/career/calibration/evaluator-output-validator.js';
+import { validateEvaluatorResponse } from '../../src/domain/career/calibration/evaluator-output-validator.js';
 
 import {
   buildBenchmarkGovernanceReport,
@@ -68,7 +64,11 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
       email: 'vishwanath@candidate.io',
       phone: '+91 9876543210',
       links: [
-        { platform: 'LINKEDIN', label: 'LinkedIn', url: 'https://linkedin.com/in/vishwanath-nishad' },
+        {
+          platform: 'LINKEDIN',
+          label: 'LinkedIn',
+          url: 'https://linkedin.com/in/vishwanath-nishad',
+        },
         { platform: 'GITHUB', label: 'GitHub', url: 'https://github.com/vishwanath' },
         { platform: 'PORTFOLIO', label: 'Portfolio', url: 'https://vishwanath.dev' },
         { platform: 'LEETCODE', label: 'LeetCode', url: 'https://leetcode.com/vishwanath' },
@@ -81,7 +81,12 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
       categories: [
         {
           categoryName: 'Languages & Core Systems',
-          skills: [{ name: 'Python' }, { name: 'TypeScript' }, { name: 'JavaScript' }, { name: 'SQL' }],
+          skills: [
+            { name: 'Python' },
+            { name: 'TypeScript' },
+            { name: 'JavaScript' },
+            { name: 'SQL' },
+          ],
         },
         {
           categoryName: 'Frontend Development',
@@ -93,7 +98,12 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
         },
         {
           categoryName: 'Databases & Tools',
-          skills: [{ name: 'PostgreSQL' }, { name: 'Redis' }, { name: 'Prisma ORM' }, { name: 'Git' }],
+          skills: [
+            { name: 'PostgreSQL' },
+            { name: 'Redis' },
+            { name: 'Prisma ORM' },
+            { name: 'Git' },
+          ],
         },
       ],
     },
@@ -103,9 +113,15 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
         displayName: 'Collaborative Task Manager',
         technologies: ['TypeScript', 'Next.js', 'Express.js', 'PostgreSQL', 'Prisma'],
         bullets: [
-          { text: 'Architected responsive task management platform using Next.js and TypeScript with server-side rendering.' },
-          { text: 'Implemented RESTful CRUD APIs with Node.js, Express.js, and Prisma ORM backed by PostgreSQL.' },
-          { text: 'Engineered role-based access control and JWT authentication for secure session management.' },
+          {
+            text: 'Architected responsive task management platform using Next.js and TypeScript with server-side rendering.',
+          },
+          {
+            text: 'Implemented RESTful CRUD APIs with Node.js, Express.js, and Prisma ORM backed by PostgreSQL.',
+          },
+          {
+            text: 'Engineered role-based access control and JWT authentication for secure session management.',
+          },
         ],
       },
       {
@@ -113,9 +129,15 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
         displayName: 'AI-Powered Code Review Assistant',
         technologies: ['Python', 'FastAPI', 'Redis', 'Next.js'],
         bullets: [
-          { text: 'Built automated code review service integrating OpenAI API with asynchronous FastAPI endpoints for pull request diff evaluations.' },
-          { text: 'Integrated Redis caching cluster to eliminate duplicate diff evaluations and optimize response latencies.' },
-          { text: 'Deployed full-stack application with responsive Next.js frontend and secure webhook verification.' },
+          {
+            text: 'Built automated code review service integrating OpenAI API with asynchronous FastAPI endpoints for pull request diff evaluations.',
+          },
+          {
+            text: 'Integrated Redis caching cluster to eliminate duplicate diff evaluations and optimize response latencies.',
+          },
+          {
+            text: 'Deployed full-stack application with responsive Next.js frontend and secure webhook verification.',
+          },
         ],
       },
     ],
@@ -126,9 +148,15 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
         startDate: '2024-06',
         endDate: '2024-09',
         bullets: [
-          { text: 'Designed and implemented modular RESTful APIs for core scheduling and customer management operations.' },
-          { text: 'Optimized critical backend database queries, resulting in a 40% reduction in page load time.' },
-          { text: 'Built secure role-based access control (RBAC) middleware for multi-tenant branch authentication.' },
+          {
+            text: 'Designed and implemented modular RESTful APIs for core scheduling and customer management operations.',
+          },
+          {
+            text: 'Optimized critical backend database queries, resulting in a 40% reduction in page load time.',
+          },
+          {
+            text: 'Built secure role-based access control (RBAC) middleware for multi-tenant branch authentication.',
+          },
         ],
       },
     ],
@@ -192,7 +220,7 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
       scoreVersion: 'p82.0',
       expectedScore: 90,
       threshold: 70,
-      weights: { jobMatch: 0.40 },
+      weights: { jobMatch: 0.4 },
       metadata: {
         engine: {
           internalScore: 95,
@@ -244,7 +272,7 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
 
     const jobMatchReport = {
       jobMatchScore: 78,
-      confidence: 0.90,
+      confidence: 0.9,
     };
 
     const engineReport = generateUnifiedQualityReport({
@@ -287,22 +315,32 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
     assert.equal(governanceReport.benchmarkVersion, 'p85.0');
     assert.equal(governanceReport.blindnessStatus, 'VERIFIED_ISOLATED');
     assert.equal(governanceReport.productionScoreImmutabilityStatus, 'VERIFIED_IMMUTABLE');
-    assert.equal(governanceReport.evaluatorReliability.humanRecruiterClaimStatus, 'SYNTHETIC_PROXY_ONLY');
+    assert.equal(
+      governanceReport.evaluatorReliability.humanRecruiterClaimStatus,
+      'SYNTHETIC_PROXY_ONLY'
+    );
 
     // Conflict check on Redis vs NoSQL
-    const nosqlFinding = governanceReport.semanticConsensusFindings.find((f) => f.subject === 'NOSQL_DATABASE');
+    const nosqlFinding = governanceReport.semanticConsensusFindings.find(
+      (f) => f.subject === 'NOSQL_DATABASE'
+    );
     assert.ok(nosqlFinding);
     assert.equal(nosqlFinding.classification, 'CONFLICTING');
     assert.equal(nosqlFinding.action, 'NO_AUTO_ACTION');
 
     // Unbacked AWS blocked
-    const cloudFinding = governanceReport.semanticConsensusFindings.find((f) => f.subject === 'CLOUD_PLATFORM');
+    const cloudFinding = governanceReport.semanticConsensusFindings.find(
+      (f) => f.subject === 'CLOUD_PLATFORM'
+    );
     assert.ok(cloudFinding);
     assert.equal(cloudFinding.action, 'UNSAFE_FABRICATION');
 
     // Honest governance verdict
     assert.equal(governanceReport.governanceVerdict.implementationPass, true);
-    assert.equal(governanceReport.governanceVerdict.calibrationEvidence, 'INSUFFICIENT_FOR_REAL_WORLD_MARKET_CLAIM');
+    assert.equal(
+      governanceReport.governanceVerdict.calibrationEvidence,
+      'INSUFFICIENT_FOR_REAL_WORLD_MARKET_CLAIM'
+    );
     assert.equal(governanceReport.governanceVerdict.humanValidation, 'NOT_ESTABLISHED');
   });
 
@@ -344,10 +382,19 @@ describe('P85 Integration: Benchmark Governance & Evaluation Integrity', () => {
     });
 
     // Replay assertions (excluding runtime evaluatedAt timestamp)
-    assert.equal(report1.overallStatistics.external_model_mean, report2.overallStatistics.external_model_mean);
-    assert.equal(report1.overallStatistics.external_model_median, report2.overallStatistics.external_model_median);
+    assert.equal(
+      report1.overallStatistics.external_model_mean,
+      report2.overallStatistics.external_model_mean
+    );
+    assert.equal(
+      report1.overallStatistics.external_model_median,
+      report2.overallStatistics.external_model_median
+    );
     assert.equal(report1.blindnessStatus, report2.blindnessStatus);
-    assert.equal(report1.productionScoreImmutabilityStatus, report2.productionScoreImmutabilityStatus);
+    assert.equal(
+      report1.productionScoreImmutabilityStatus,
+      report2.productionScoreImmutabilityStatus
+    );
     assert.deepEqual(report1.semanticConsensusFindings, report2.semanticConsensusFindings);
     assert.deepEqual(report1.governanceVerdict, report2.governanceVerdict);
   });

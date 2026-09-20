@@ -3,9 +3,13 @@ import assert from 'node:assert/strict';
 
 describe('Issue 2: Evidence quality weights — source code outranks package manifests', () => {
   it('EVIDENCE_TYPE_QUALITY_WEIGHTS in ats-fit-score: CODE_USAGE (1.0) > PACKAGE_MANIFEST (0.75)', async () => {
-    const { EVIDENCE_TYPE_QUALITY_WEIGHTS } = await import('../../src/services/ats-fit-score.service.js');
-    assert.ok(EVIDENCE_TYPE_QUALITY_WEIGHTS.CODE_USAGE > EVIDENCE_TYPE_QUALITY_WEIGHTS.PACKAGE_MANIFEST_DEPENDENCY,
-      `CODE_USAGE (${EVIDENCE_TYPE_QUALITY_WEIGHTS.CODE_USAGE}) should be > PACKAGE_MANIFEST_DEPENDENCY (${EVIDENCE_TYPE_QUALITY_WEIGHTS.PACKAGE_MANIFEST_DEPENDENCY})`);
+    const { EVIDENCE_TYPE_QUALITY_WEIGHTS } =
+      await import('../../src/services/ats-fit-score.service.js');
+    assert.ok(
+      EVIDENCE_TYPE_QUALITY_WEIGHTS.CODE_USAGE >
+        EVIDENCE_TYPE_QUALITY_WEIGHTS.PACKAGE_MANIFEST_DEPENDENCY,
+      `CODE_USAGE (${EVIDENCE_TYPE_QUALITY_WEIGHTS.CODE_USAGE}) should be > PACKAGE_MANIFEST_DEPENDENCY (${EVIDENCE_TYPE_QUALITY_WEIGHTS.PACKAGE_MANIFEST_DEPENDENCY})`
+    );
     assert.equal(EVIDENCE_TYPE_QUALITY_WEIGHTS.CODE_USAGE, 1.0);
     assert.equal(EVIDENCE_TYPE_QUALITY_WEIGHTS.PACKAGE_MANIFEST_DEPENDENCY, 0.75);
   });
@@ -26,7 +30,8 @@ describe('Issue 2: Evidence quality weights — source code outranks package man
   });
 
   it('PrimaryEvidenceSelector still prefers source-level over manifest for primary selection', async () => {
-    const { PrimaryEvidenceSelector } = await import('../../src/services/evidence/primary-evidence-selector.js');
+    const { PrimaryEvidenceSelector } =
+      await import('../../src/services/evidence/primary-evidence-selector.js');
 
     const manifestEvidence = {
       id: 'a',
@@ -62,14 +67,17 @@ describe('Issue 2: Evidence quality weights — source code outranks package man
     const sourceScore = MAX_SCORE * CODE_WEIGHT;
     const manifestScore = MAX_SCORE * MANIFEST_WEIGHT;
 
-    assert.ok(sourceScore > manifestScore,
-      `Source score (${sourceScore}) should be > manifest score (${manifestScore})`);
+    assert.ok(
+      sourceScore > manifestScore,
+      `Source score (${sourceScore}) should be > manifest score (${manifestScore})`
+    );
     assert.equal(sourceScore, 15.0);
     assert.equal(manifestScore, 11.25);
   });
 
   it('UI helper packages remain excluded by isSkillWorthyEvidence', async () => {
-    const { isSkillWorthyEvidence } = await import('../../src/services/project-relevance.service.js');
+    const { isSkillWorthyEvidence } =
+      await import('../../src/services/project-relevance.service.js');
 
     const helperPackages = [
       { evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', excerpt: '@heroicons/react' },
@@ -81,23 +89,34 @@ describe('Issue 2: Evidence quality weights — source code outranks package man
     ];
 
     for (const pkg of helperPackages) {
-      assert.equal(isSkillWorthyEvidence(pkg), false,
-        `${pkg.excerpt} should NOT be skill-worthy`);
+      assert.equal(isSkillWorthyEvidence(pkg), false, `${pkg.excerpt} should NOT be skill-worthy`);
     }
   });
 
   it('source code evidence is skill-worthy', async () => {
-    const { isSkillWorthyEvidence } = await import('../../src/services/project-relevance.service.js');
+    const { isSkillWorthyEvidence } =
+      await import('../../src/services/project-relevance.service.js');
 
     const sourceEvidence = [
-      { evidenceType: 'CODE_USAGE', excerpt: 'import Fastify from "fastify"', sourceLocation: { filePath: 'src/server.js' } },
-      { evidenceType: 'CODE_IMPORT_USAGE', excerpt: 'require("pg")', sourceLocation: { filePath: 'src/db.js' } },
-      { evidenceType: 'CONFIG_SYNTAX_DECLARATION', excerpt: '"type": "module"', sourceLocation: { filePath: 'package.json' } },
+      {
+        evidenceType: 'CODE_USAGE',
+        excerpt: 'import Fastify from "fastify"',
+        sourceLocation: { filePath: 'src/server.js' },
+      },
+      {
+        evidenceType: 'CODE_IMPORT_USAGE',
+        excerpt: 'require("pg")',
+        sourceLocation: { filePath: 'src/db.js' },
+      },
+      {
+        evidenceType: 'CONFIG_SYNTAX_DECLARATION',
+        excerpt: '"type": "module"',
+        sourceLocation: { filePath: 'package.json' },
+      },
     ];
 
     for (const ev of sourceEvidence) {
-      assert.equal(isSkillWorthyEvidence(ev), true,
-        `${ev.evidenceType} should be skill-worthy`);
+      assert.equal(isSkillWorthyEvidence(ev), true, `${ev.evidenceType} should be skill-worthy`);
     }
   });
 });

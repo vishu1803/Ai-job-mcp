@@ -31,7 +31,11 @@ export class DownloadManager {
     if (typeof chrome !== 'undefined' && chrome.downloads?.download) {
       const downloadId = await chrome.downloads.download({
         url: downloadUrl,
-        filename: filename || (artifactType === 'bundle' ? `handoff-kit-${applicationId.slice(0, 8)}.zip` : `${artifactType}.pdf`),
+        filename:
+          filename ||
+          (artifactType === 'bundle'
+            ? `handoff-kit-${applicationId.slice(0, 8)}.zip`
+            : `${artifactType}.pdf`),
         saveAs: false,
       });
 
@@ -62,7 +66,11 @@ export class DownloadManager {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = filename || (artifactType === 'bundle' ? `handoff-kit-${applicationId.slice(0, 8)}.zip` : `${artifactType}.pdf`);
+    a.download =
+      filename ||
+      (artifactType === 'bundle'
+        ? `handoff-kit-${applicationId.slice(0, 8)}.zip`
+        : `${artifactType}.pdf`);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -98,7 +106,7 @@ export class DownloadManager {
       }
       const servedAppId = probe.headers.get('x-application-id');
       if (applicationId && servedAppId && servedAppId !== applicationId) {
-        return { verified: false, reason: 'APPLICATION_ID_MISMATCH' }
+        return { verified: false, reason: 'APPLICATION_ID_MISMATCH' };
       }
       return { verified: true, reason: null };
     } catch {

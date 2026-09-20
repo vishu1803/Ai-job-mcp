@@ -56,10 +56,16 @@ export function buildBlindEvaluatorPayload(source) {
 
   const resumeText = typeof source.resumeText === 'string' ? source.resumeText : '';
   const pdfText = typeof source.pdfText === 'string' ? source.pdfText : null;
-  const evaluationRubric = typeof source.evaluationRubric === 'string' ? source.evaluationRubric : '';
-  const evaluatorInstructions = typeof source.evaluatorInstructions === 'string' ? source.evaluatorInstructions : '';
-  const anonymousCandidateId = typeof source.anonymousCandidateId === 'string' ? source.anonymousCandidateId : 'candidate-anon-001';
-  const anonymousJobId = typeof source.anonymousJobId === 'string' ? source.anonymousJobId : 'job-anon-001';
+  const evaluationRubric =
+    typeof source.evaluationRubric === 'string' ? source.evaluationRubric : '';
+  const evaluatorInstructions =
+    typeof source.evaluatorInstructions === 'string' ? source.evaluatorInstructions : '';
+  const anonymousCandidateId =
+    typeof source.anonymousCandidateId === 'string'
+      ? source.anonymousCandidateId
+      : 'candidate-anon-001';
+  const anonymousJobId =
+    typeof source.anonymousJobId === 'string' ? source.anonymousJobId : 'job-anon-001';
 
   // Explicit whitelist construction - NO spreading of source
   const payload = {
@@ -118,9 +124,10 @@ export function computeCanonicalInputHashes(params) {
     throw new Error('resumeText string is required');
   }
 
-  const jdCanonical = typeof jobDescription === 'string'
-    ? jobDescription
-    : JSON.stringify(canonicalizeJson(jobDescription));
+  const jdCanonical =
+    typeof jobDescription === 'string'
+      ? jobDescription
+      : JSON.stringify(canonicalizeJson(jobDescription));
 
   const inputJobDescriptionSha256 = computeSha256(jdCanonical);
   const inputResumeSha256 = computeSha256(resumeText);

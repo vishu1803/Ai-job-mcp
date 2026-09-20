@@ -105,51 +105,37 @@ export default async function skillRoutes(fastify, opts = {}) {
    * GET /skills/additional
    * Lists the authenticated candidate's additional (self-declared) skills.
    */
-  fastify.get(
-    '/additional',
-    { preHandler: [authenticate] },
-    async (request, reply) => {
-      const tenantId = request.auth.tenantId;
-      const userId = request.auth.userId;
+  fastify.get('/additional', { preHandler: [authenticate] }, async (request, reply) => {
+    const tenantId = request.auth.tenantId;
+    const userId = request.auth.userId;
 
-      const candidateId = await _resolveCandidateId(database, tenantId, userId);
+    const candidateId = await _resolveCandidateId(database, tenantId, userId);
 
-      const skills = await additionalSkillsService.listAdditionalSkills(
-        { tenantId },
-        candidateId
-      );
+    const skills = await additionalSkillsService.listAdditionalSkills({ tenantId }, candidateId);
 
-      return reply.status(200).send({
-        success: true,
-        data: skills,
-      });
-    }
-  );
+    return reply.status(200).send({
+      success: true,
+      data: skills,
+    });
+  });
 
   /**
    * GET /skills/combined
    * Returns the combined skill view: evidence-backed + additional + learning.
    */
-  fastify.get(
-    '/combined',
-    { preHandler: [authenticate] },
-    async (request, reply) => {
-      const tenantId = request.auth.tenantId;
-      const userId = request.auth.userId;
+  fastify.get('/combined', { preHandler: [authenticate] }, async (request, reply) => {
+    const tenantId = request.auth.tenantId;
+    const userId = request.auth.userId;
 
-      const candidateId = await _resolveCandidateId(database, tenantId, userId);
+    const candidateId = await _resolveCandidateId(database, tenantId, userId);
 
-      const view = await additionalSkillsService.getCombinedSkillView(
-        { tenantId },
-        candidateId
-      );
+    const view = await additionalSkillsService.getCombinedSkillView({ tenantId }, candidateId);
 
-      return reply.status(200).send({
-        success: true,
-        data: view,
-      });
-    }
-  );
+    return reply.status(200).send({
+      success: true,
+      data: view,
+    });
+  });
 
   /**
    * POST /skills/additional
@@ -169,17 +155,13 @@ export default async function skillRoutes(fastify, opts = {}) {
         throw new ValidationError('catalogSkillId is required');
       }
 
-      const result = await additionalSkillsService.addAdditionalSkill(
-        { tenantId },
-        candidateId,
-        {
-          catalogSkillId: body.catalogSkillId,
-          proficiency: body.proficiency || 'WORKING_KNOWLEDGE',
-          usageContext: body.usageContext || null,
-          yearsExperience: body.yearsExperience || null,
-          notes: body.notes || null,
-        }
-      );
+      const result = await additionalSkillsService.addAdditionalSkill({ tenantId }, candidateId, {
+        catalogSkillId: body.catalogSkillId,
+        proficiency: body.proficiency || 'WORKING_KNOWLEDGE',
+        usageContext: body.usageContext || null,
+        yearsExperience: body.yearsExperience || null,
+        notes: body.notes || null,
+      });
 
       return reply.status(201).send({
         success: true,
@@ -230,11 +212,7 @@ export default async function skillRoutes(fastify, opts = {}) {
 
       const candidateId = await _resolveCandidateId(database, tenantId, userId);
 
-      await additionalSkillsService.removeAdditionalSkill(
-        { tenantId },
-        candidateId,
-        skillId
-      );
+      await additionalSkillsService.removeAdditionalSkill({ tenantId }, candidateId, skillId);
 
       return reply.status(200).send({
         success: true,

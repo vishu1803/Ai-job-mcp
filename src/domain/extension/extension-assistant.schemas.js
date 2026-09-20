@@ -11,8 +11,7 @@
 
 import { z } from 'zod';
 
-export const UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE =
-  'Not available in your verified profile.';
+export const UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE = 'Not available in your verified profile.';
 
 export const AutofillSourceEnum = z.enum([
   'CANONICAL_PROFILE_IDENTITY',
@@ -153,25 +152,29 @@ export const CompactExtensionAssistantContextSchema = z.object({
     profileComplete: z.boolean(),
     summary: z.string(),
   }),
-  missingInformation: z.array(
-    z.object({
-      field: z.string(),
-      label: z.string(),
-      status: z.string(),
-      notes: z.string(),
-      profileAnchor: z.string().optional(),
-    })
-  ).default([]),
-  conflicts: z.array(
-    z.object({
-      field: z.string(),
-      fieldLabel: z.string(),
-      profileValue: z.any(),
-      applicationValue: z.any(),
-      notes: z.string(),
-      resolutionOptions: z.array(z.string()).default([]),
-    })
-  ).default([]),
+  missingInformation: z
+    .array(
+      z.object({
+        field: z.string(),
+        label: z.string(),
+        status: z.string(),
+        notes: z.string(),
+        profileAnchor: z.string().optional(),
+      })
+    )
+    .default([]),
+  conflicts: z
+    .array(
+      z.object({
+        field: z.string(),
+        fieldLabel: z.string(),
+        profileValue: z.any(),
+        applicationValue: z.any(),
+        notes: z.string(),
+        resolutionOptions: z.array(z.string()).default([]),
+      })
+    )
+    .default([]),
   aiHelp: z.object({
     available: z.boolean(),
     overview: z.string(),

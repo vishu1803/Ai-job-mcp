@@ -554,14 +554,28 @@ export class AtsFitScoreService {
       2
     );
     const totalPossiblePoints = round(
-      reqPossible + prefPossible + projPossible + expPossible + eduPossible + locPossible + evPossible,
+      reqPossible +
+        prefPossible +
+        projPossible +
+        expPossible +
+        eduPossible +
+        locPossible +
+        evPossible,
       2
     );
 
     const denominatorAudit = {
       requiredSkills: { earnedPoints: reqEarned, possiblePoints: reqPossible, status: reqStatus },
-      preferredSkills: { earnedPoints: prefEarned, possiblePoints: prefPossible, status: prefStatus },
-      projectRelevance: { earnedPoints: projEarned, possiblePoints: projPossible, status: projStatus },
+      preferredSkills: {
+        earnedPoints: prefEarned,
+        possiblePoints: prefPossible,
+        status: prefStatus,
+      },
+      projectRelevance: {
+        earnedPoints: projEarned,
+        possiblePoints: projPossible,
+        status: projStatus,
+      },
       experience: { earnedPoints: expEarned, possiblePoints: expPossible, status: expStatus },
       education: { earnedPoints: eduEarned, possiblePoints: eduPossible, status: eduStatus },
       location: { earnedPoints: locEarned, possiblePoints: locPossible, status: locStatus },

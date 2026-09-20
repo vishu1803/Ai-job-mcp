@@ -33,9 +33,7 @@ import {
   isAccomplishmentCandidate,
   isProjectDescriptionFact,
 } from './candidate-fact-inventory.service.js';
-import {
-  CONTRIBUTION_CLASSES,
-} from './resume-composition-primitives.js';
+import { CONTRIBUTION_CLASSES } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
 /**
@@ -447,7 +445,11 @@ export class ResumeClaimPlannerService {
 
         if (globallyUsedFactIds.has(f.factId)) {
           reason = OMISSION_REASONS.SEMANTIC_DUPLICATE;
-        } else if (f.agencyLevel === 'AGENCY_NOT_AUTHORIZED' || f.agencyLevel === 'NONE' || f.agency?.level === 'NONE') {
+        } else if (
+          f.agencyLevel === 'AGENCY_NOT_AUTHORIZED' ||
+          f.agencyLevel === 'NONE' ||
+          f.agency?.level === 'NONE'
+        ) {
           if (isProjectDescriptionFact(f)) {
             reason = OMISSION_REASONS.DESCRIPTION_ONLY;
           } else {
@@ -765,12 +767,28 @@ export class ResumeClaimPlannerService {
 
   _normalizeCoverageKey(dim) {
     if (!dim) return 'implementation';
-    const clean = String(dim).toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const clean = String(dim)
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
     if (clean.includes('arch') || clean.includes('design')) return 'architecture';
-    if (clean.includes('relia') || clean.includes('secu') || clean.includes('telemet')) return 'reliability';
-    if (clean.includes('perf') || clean.includes('outc') || clean.includes('opti') || clean.includes('metric')) return 'performance_outcome';
-    if (clean.includes('integ') || clean.includes('api') || clean.includes('proto')) return 'integration_api';
-    if (clean.includes('tool') || clean.includes('infra') || clean.includes('ci') || clean.includes('cd')) return 'tooling_automation';
+    if (clean.includes('relia') || clean.includes('secu') || clean.includes('telemet'))
+      return 'reliability';
+    if (
+      clean.includes('perf') ||
+      clean.includes('outc') ||
+      clean.includes('opti') ||
+      clean.includes('metric')
+    )
+      return 'performance_outcome';
+    if (clean.includes('integ') || clean.includes('api') || clean.includes('proto'))
+      return 'integration_api';
+    if (
+      clean.includes('tool') ||
+      clean.includes('infra') ||
+      clean.includes('ci') ||
+      clean.includes('cd')
+    )
+      return 'tooling_automation';
     return 'implementation';
   }
 

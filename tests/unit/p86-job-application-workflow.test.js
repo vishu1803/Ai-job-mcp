@@ -36,7 +36,8 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
       select: () => ({
         from: (table) => ({
           where: (_cond) => {
-            const tableName = table[Symbol.for('drizzle:Name')] || table._?.name || 'job_applications';
+            const tableName =
+              table[Symbol.for('drizzle:Name')] || table._?.name || 'job_applications';
             if (tableName === 'job_applications' || tableName === 'jobApplications') {
               return Array.from(appMap.values());
             }
@@ -117,7 +118,11 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
     });
 
     assert.ok(flowState.readyToApply.length >= 6);
-    assert.equal(flowState.needsAttention.length, 0, 'Complete profile should have 0 items needing attention');
+    assert.equal(
+      flowState.needsAttention.length,
+      0,
+      'Complete profile should have 0 items needing attention'
+    );
     assert.equal(flowState.semantics.canSubmit, true);
 
     const readyKeys = flowState.readyToApply.map((i) => i.key);
@@ -181,7 +186,11 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
     const conflictItem = flowState.needsAttention.find((i) => i.field === 'noticePeriod');
     assert.ok(conflictItem, 'Notice period conflict must be detected');
     assert.equal(conflictItem.type, 'CONFLICT');
-    assert.ok(conflictItem.prompt.includes('Your profile says 30 days, but this application says immediate availability.'));
+    assert.ok(
+      conflictItem.prompt.includes(
+        'Your profile says 30 days, but this application says immediate availability.'
+      )
+    );
     assert.equal(conflictItem.choices.length, 3);
     assert.equal(conflictItem.choices[0].action, 'KEEP_PROFILE');
     assert.ok(conflictItem.choices[0].label.includes('Keep 30 days'));
@@ -303,7 +312,11 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
     });
 
     assert.equal(answers.employerEligibilityQuestion, 'Legally eligible and verified');
-    assert.equal(profileUpdated, false, 'Permanent candidate profile must not be mutated by application-specific answer');
+    assert.equal(
+      profileUpdated,
+      false,
+      'Permanent candidate profile must not be mutated by application-specific answer'
+    );
   });
 
   it('8. submission blocked when required data is missing -> throws ValidationError', async () => {
@@ -336,7 +349,9 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
       },
       (err) => {
         assert.ok(err instanceof ValidationError);
-        assert.ok(err.message.includes('Cannot submit application with unresolved readiness issues'));
+        assert.ok(
+          err.message.includes('Cannot submit application with unresolved readiness issues')
+        );
         return true;
       }
     );
@@ -411,7 +426,11 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
     });
 
     const html = renderApplyPage({
-      user: { id: 'user-001', displayName: 'Vishwanath Nishad', email: 'vishwanatnishad@gmail.com' },
+      user: {
+        id: 'user-001',
+        displayName: 'Vishwanath Nishad',
+        email: 'vishwanatnishad@gmail.com',
+      },
       application: sampleApplication,
       flowState,
       reviewSnapshot,

@@ -123,8 +123,10 @@ export function normalizeNoticePeriod(val) {
   if (typeof val !== 'string') return null;
   const s = val.trim().toLowerCase();
   if (/^(immediate|immediately|now|asap|none)$/i.test(s)) return 'IMMEDIATE';
-  if (/^(less than 1 week|< 1 week|<1 week|under a week|less_than_1_week)$/i.test(s)) return 'LESS_THAN_1_WEEK';
-  if (/^(1-2 weeks|1–2 weeks|1 to 2 weeks|2 weeks|two weeks|14 days|1_to_2_weeks)$/i.test(s)) return '1_TO_2_WEEKS';
+  if (/^(less than 1 week|< 1 week|<1 week|under a week|less_than_1_week)$/i.test(s))
+    return 'LESS_THAN_1_WEEK';
+  if (/^(1-2 weeks|1–2 weeks|1 to 2 weeks|2 weeks|two weeks|14 days|1_to_2_weeks)$/i.test(s))
+    return '1_TO_2_WEEKS';
   if (/^(30 days|1 month|one month|4 weeks|30_days)$/i.test(s)) return '30_DAYS';
   if (/^(60 days|2 months|two months|8 weeks|60_days)$/i.test(s)) return '60_DAYS';
   if (/^(90 days|3 months|three months|12 weeks|90_days)$/i.test(s)) return '90_DAYS';
@@ -168,7 +170,8 @@ export function normalizeRelocationPreference(val) {
   if (!val || (typeof val === 'string' && !val.trim())) return null;
   if (typeof val !== 'string') return null;
   const s = val.trim().toLowerCase();
-  if (/^(willing_to_relocate|willing to relocate|will_relocate|will relocate|yes)$/i.test(s)) return 'WILLING_TO_RELOCATE';
+  if (/^(willing_to_relocate|willing to relocate|will_relocate|will relocate|yes)$/i.test(s))
+    return 'WILLING_TO_RELOCATE';
   if (/^(open_to_relocation|open to relocation|open)$/i.test(s)) return 'OPEN_TO_RELOCATION';
   if (/^(not_willing|not willing|no)$/i.test(s)) return 'NOT_WILLING';
   if (/^(remote_only|remote only|remote)$/i.test(s)) return 'REMOTE_ONLY';
@@ -211,7 +214,8 @@ export function normalizeCompensationType(val) {
   if (typeof val !== 'string') return null;
   const s = val.trim().toLowerCase();
   if (/^(base_only|base only|base|base_salary|base salary)$/i.test(s)) return 'BASE_ONLY';
-  if (/^(total_comp|total comp|total|total_compensation|total compensation)$/i.test(s)) return 'TOTAL_COMP';
+  if (/^(total_comp|total comp|total|total_compensation|total compensation)$/i.test(s))
+    return 'TOTAL_COMP';
   if (/^(base_plus_bonus|base plus bonus|base \+ bonus)$/i.test(s)) return 'BASE_PLUS_BONUS';
   if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
   if (/^(not_set|not set|none)$/i.test(s)) return 'NOT_SET';
@@ -253,7 +257,10 @@ export function normalizeEmploymentTypes(val) {
   const list = Array.isArray(val)
     ? val
     : typeof val === 'string'
-      ? val.split(',').map((s) => s.trim()).filter(Boolean)
+      ? val
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
       : [];
   return list.map(normalizeEmploymentType).filter(Boolean);
 }
@@ -272,7 +279,8 @@ export function normalizeVisaSponsorship(val) {
   const s = val.trim().toUpperCase();
   if (s === 'YES' || s === 'TRUE' || s === 'REQUIRED') return 'YES';
   if (s === 'NO' || s === 'FALSE' || s === 'NOT_REQUIRED') return 'NO';
-  if (s === 'UNKNOWN' || s === 'UNCERTAIN' || s === 'DEPENDS' || s === 'CASE_BY_CASE') return 'UNKNOWN';
+  if (s === 'UNKNOWN' || s === 'UNCERTAIN' || s === 'DEPENDS' || s === 'CASE_BY_CASE')
+    return 'UNKNOWN';
   if (s === 'NOT_SET') return 'NOT_SET';
   return null;
 }
@@ -290,7 +298,8 @@ export function normalizeCareerStatus(val) {
   if (/^(employed|employed_full_time)$/i.test(s)) return 'EMPLOYED';
   if (/^(unemployed|open_to_work)$/i.test(s)) return 'UNEMPLOYED';
   if (/^(student)$/i.test(s)) return 'STUDENT';
-  if (/^(fresher|early_career|early career|entry_level|entry level|junior)$/i.test(s)) return 'FRESHER';
+  if (/^(fresher|early_career|early career|entry_level|entry level|junior)$/i.test(s))
+    return 'FRESHER';
   if (/^(freelance|freelancer)$/i.test(s)) return 'FREELANCE';
   if (/^(contractor|contract)$/i.test(s)) return 'CONTRACTOR';
   if (/^(mid_level|mid level|mid)$/i.test(s)) return 'MID_LEVEL';

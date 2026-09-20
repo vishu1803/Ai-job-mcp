@@ -59,8 +59,7 @@ export class IimjobsAdapter {
       doc.querySelector('a[href*="/company/"]');
 
     const locationEl =
-      doc.querySelector('[class*="location"]') ||
-      doc.querySelector('.job-location');
+      doc.querySelector('[class*="location"]') || doc.querySelector('.job-location');
 
     const descEl =
       doc.querySelector('.job-description') ||

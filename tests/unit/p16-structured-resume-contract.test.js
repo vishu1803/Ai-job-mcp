@@ -147,9 +147,7 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
             endDate: '2020-02-28',
             isCurrent: false,
             location: 'New York, NY',
-            bullets: [
-              'Engineered multi-currency ledger engine handling $500M daily turnover.',
-            ],
+            bullets: ['Engineered multi-currency ledger engine handling $500M daily turnover.'],
           },
         ],
         education: [
@@ -178,9 +176,7 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
         dsa: {
           hasSection: true,
           profileUrl: 'https://leetcode.com/u/janearchitect',
-          bullets: [
-            'Solved 750+ algorithmic problems focusing on graphs, DP, and trees.',
-          ],
+          bullets: ['Solved 750+ algorithmic problems focusing on graphs, DP, and trees.'],
         },
         projects: [
           {
@@ -250,14 +246,20 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
       assert.equal(structuredDoc.experience[0].startDate, '2020-03-01');
       assert.equal(structuredDoc.experience[0].endDate, null);
       assert.equal(structuredDoc.experience[0].isCurrent, true);
-      assert.deepEqual(structuredDoc.experience[0].bullets, frozenCandidate.profileMetadata.experience[0].bullets);
+      assert.deepEqual(
+        structuredDoc.experience[0].bullets,
+        frozenCandidate.profileMetadata.experience[0].bullets
+      );
 
       assert.equal(structuredDoc.education.length, 1);
       assert.equal(structuredDoc.education[0].institution, 'University of Washington');
       assert.equal(structuredDoc.education[0].degree, 'Master of Science in Computer Engineering');
 
       assert.equal(structuredDoc.certifications.length, 1);
-      assert.equal(structuredDoc.certifications[0].name, 'AWS Certified Solutions Architect - Professional');
+      assert.equal(
+        structuredDoc.certifications[0].name,
+        'AWS Certified Solutions Architect - Professional'
+      );
       assert.equal(structuredDoc.certifications[0].issuingOrganization, 'Amazon Web Services');
 
       assert.equal(structuredDoc.dsa.hasSection, true);
@@ -279,7 +281,11 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
       });
 
       const snapshotAfter = JSON.stringify(candidateCopy);
-      assert.equal(snapshotBefore, snapshotAfter, 'Candidate object was mutated during buildStructuredResumeDocument');
+      assert.equal(
+        snapshotBefore,
+        snapshotAfter,
+        'Candidate object was mutated during buildStructuredResumeDocument'
+      );
     });
   });
 
@@ -401,19 +407,19 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
               company: 'Acme Corp',
               title: 'Engineer',
               startDate: '2022-01-01', // Forbidden synthetic default
-              endDate: '2024-01-01',   // Forbidden synthetic default
+              endDate: '2024-01-01', // Forbidden synthetic default
               bullets: ['Built APIs.'],
             },
           ],
           education: [
             {
-              institution: 'University',            // Forbidden synthetic default
-              degree: 'Bachelor of Science',        // Forbidden synthetic default
+              institution: 'University', // Forbidden synthetic default
+              degree: 'Bachelor of Science', // Forbidden synthetic default
             },
           ],
           certifications: [
             {
-              name: 'Professional Certification',   // Forbidden synthetic default
+              name: 'Professional Certification', // Forbidden synthetic default
               issuingOrganization: 'Issuing Authority', // Forbidden synthetic default
             },
           ],
@@ -457,7 +463,11 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
         canonicalEmail: 'snapshot@example.com',
         profileMetadata: {
           experience: [
-            { company: 'Cloud Storage Co', title: 'Architect', bullets: ['Engineered storage tier.'] },
+            {
+              company: 'Cloud Storage Co',
+              title: 'Architect',
+              bullets: ['Engineered storage tier.'],
+            },
           ],
         },
       };
@@ -480,7 +490,9 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
       assert.equal(reParsedDoc.targetRole, 'Senior Cloud Architect');
       assert.equal(reParsedDoc.candidateIdentity.displayName, 'Snapshot Candidate');
 
-      const reParsedReceipt = EvidenceValidationReceiptSchema.parse(deserialized.evidenceValidationReceipt);
+      const reParsedReceipt = EvidenceValidationReceiptSchema.parse(
+        deserialized.evidenceValidationReceipt
+      );
       assert.equal(reParsedReceipt.overallStatus, 'PASS');
     });
 
@@ -491,7 +503,12 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
         canonicalEmail: 'det@example.com',
         profileMetadata: {
           experience: [
-            { id: 'exp-1', company: 'Fast Corp', title: 'Lead', bullets: ['High velocity backend.'] },
+            {
+              id: 'exp-1',
+              company: 'Fast Corp',
+              title: 'Lead',
+              bullets: ['High velocity backend.'],
+            },
           ],
         },
       };
@@ -505,8 +522,14 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
         skillCategoryOrder: [],
       };
 
-      const doc1 = buildStructuredResumeDocument({ candidateProfile: candidate, tailoringPlan: plan });
-      const doc2 = buildStructuredResumeDocument({ candidateProfile: candidate, tailoringPlan: plan });
+      const doc1 = buildStructuredResumeDocument({
+        candidateProfile: candidate,
+        tailoringPlan: plan,
+      });
+      const doc2 = buildStructuredResumeDocument({
+        candidateProfile: candidate,
+        tailoringPlan: plan,
+      });
 
       // Core content must be identical
       assert.deepEqual(doc1.experience, doc2.experience);

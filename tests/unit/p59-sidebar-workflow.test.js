@@ -200,7 +200,8 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
     employmentType: 'Full-time',
     sourceUrl: 'https://www.linkedin.com/jobs/view/999888777/',
     provider: 'LINKEDIN',
-    description: 'Looking for a Senior Backend Engineer with Node.js, TypeScript, PostgreSQL, and AWS experience.',
+    description:
+      'Looking for a Senior Backend Engineer with Node.js, TypeScript, PostgreSQL, and AWS experience.',
   };
 
   beforeEach(() => {
@@ -219,8 +220,14 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
       const isAuth = await controller._checkAuthStatus();
       assert.strictEqual(isAuth, false);
       assert.strictEqual(controller.isAuthenticated, false);
-      assert.strictEqual(domElements.get('authUnauthenticatedState').classList.contains('hidden'), false);
-      assert.strictEqual(domElements.get('authAuthenticatedState').classList.contains('hidden'), true);
+      assert.strictEqual(
+        domElements.get('authUnauthenticatedState').classList.contains('hidden'),
+        false
+      );
+      assert.strictEqual(
+        domElements.get('authAuthenticatedState').classList.contains('hidden'),
+        true
+      );
     });
 
     it('renders authenticated state with candidate profile when session is valid', async () => {
@@ -228,14 +235,24 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         status: 'AUTHENTICATED',
         authenticated: true,
         user: { id: 'u-1', email: 'vishwanath@example.com', displayName: 'Vishwanath' },
-        candidate: { id: 'c-1', canonicalEmail: 'vishwanath@example.com', displayName: 'Vishwanath Nishad' },
+        candidate: {
+          id: 'c-1',
+          canonicalEmail: 'vishwanath@example.com',
+          displayName: 'Vishwanath Nishad',
+        },
       });
 
       const isAuth = await controller._checkAuthStatus();
       assert.strictEqual(isAuth, true);
       assert.strictEqual(controller.isAuthenticated, true);
-      assert.strictEqual(domElements.get('authUnauthenticatedState').classList.contains('hidden'), true);
-      assert.strictEqual(domElements.get('authAuthenticatedState').classList.contains('hidden'), false);
+      assert.strictEqual(
+        domElements.get('authUnauthenticatedState').classList.contains('hidden'),
+        true
+      );
+      assert.strictEqual(
+        domElements.get('authAuthenticatedState').classList.contains('hidden'),
+        false
+      );
       assert.strictEqual(domElements.get('userName').textContent, 'Vishwanath Nishad');
       assert.strictEqual(domElements.get('userEmail').textContent, 'vishwanath@example.com');
     });
@@ -260,7 +277,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
 
       assert.strictEqual(logoutCalled, true);
       assert.strictEqual(controller.isAuthenticated, false);
-      assert.strictEqual(domElements.get('authUnauthenticatedState').classList.contains('hidden'), false);
+      assert.strictEqual(
+        domElements.get('authUnauthenticatedState').classList.contains('hidden'),
+        false
+      );
       // State is preserved!
       assert.deepStrictEqual(controller.activeJob, sampleJob);
       assert.strictEqual(controller.cachedState.applicationId, 'app-existing-123');
@@ -279,7 +299,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
       controller._handleSessionExpired();
 
       assert.strictEqual(controller.isAuthenticated, false);
-      assert.strictEqual(domElements.get('sessionExpiredNotice').classList.contains('hidden'), false);
+      assert.strictEqual(
+        domElements.get('sessionExpiredNotice').classList.contains('hidden'),
+        false
+      );
       // All job and application data remains intact!
       assert.strictEqual(controller.cachedState.applicationId, 'app-999');
       assert.strictEqual(controller.cachedState.fitAnalysis.overallScore, 85);
@@ -308,7 +331,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
       assert.strictEqual(domElements.get('analysisCard').classList.contains('hidden'), false);
 
       // Primary Next Action CTA inside analysis card is visible
-      assert.strictEqual(domElements.get('analysisNextActionBox').classList.contains('hidden'), false);
+      assert.strictEqual(
+        domElements.get('analysisNextActionBox').classList.contains('hidden'),
+        false
+      );
 
       // Handoff Card is visible even though handoffData is null!
       assert.strictEqual(domElements.get('handoffCard').classList.contains('hidden'), false);
@@ -348,7 +374,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         stateName: 'IDLE / NO_JOB_DETECTED',
         setup: () => controller._renderEmptyJobState(),
         verify: () => {
-          assert.strictEqual(domElements.get('jobNotDetectedState').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('jobNotDetectedState').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('reanalyzeBtn').disabled, false);
         },
       },
@@ -356,7 +385,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         stateName: 'JOB_DETECTED',
         setup: () => controller._renderJobCard(sampleJob),
         verify: () => {
-          assert.strictEqual(domElements.get('jobDetectedState').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('jobDetectedState').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('analyzeJobBtn').disabled, false);
         },
       },
@@ -369,7 +401,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
             fitAnalysis: { overallScore: 80, grade: 'RECOMMENDED' },
           }),
         verify: () => {
-          assert.strictEqual(domElements.get('analysisNextActionBox').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('analysisNextActionBox').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('handoffCard').classList.contains('hidden'), false);
           assert.strictEqual(domElements.get('prepareHandoffBtn').disabled, false);
         },
@@ -390,7 +425,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
             },
           }),
         verify: () => {
-          assert.strictEqual(domElements.get('artifactsContainer').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('artifactsContainer').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('downloadResumeBtn').disabled, false);
           assert.strictEqual(domElements.get('downloadCoverLetterBtn').disabled, false);
           assert.strictEqual(domElements.get('downloadBundleBtn').disabled, false);
@@ -401,7 +439,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         stateName: 'Analysis Error',
         setup: () => controller._showAnalysisError('Service unavailable'),
         verify: () => {
-          assert.strictEqual(domElements.get('analysisErrorBanner').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('analysisErrorBanner').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('retryAnalysisBtn').disabled, false);
         },
       },
@@ -409,7 +450,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         stateName: 'Handoff Error',
         setup: () => controller._showHandoffError('LaTeX compilation failed'),
         verify: () => {
-          assert.strictEqual(domElements.get('handoffErrorBanner').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('handoffErrorBanner').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('retryHandoffBtn').disabled, false);
         },
       },
@@ -417,7 +461,10 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
         stateName: 'Auth Expired',
         setup: () => controller._handleSessionExpired(),
         verify: () => {
-          assert.strictEqual(domElements.get('sessionExpiredNotice').classList.contains('hidden'), false);
+          assert.strictEqual(
+            domElements.get('sessionExpiredNotice').classList.contains('hidden'),
+            false
+          );
           assert.strictEqual(domElements.get('reauthBtn').disabled, false);
         },
       },
@@ -506,8 +553,16 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
       // Call 2 (User clicks prepare again / retry / reload)
       await controller.runPrepareHandoff();
       assert.strictEqual(calls.length, 2);
-      assert.strictEqual(calls[1].appId, 'app-first-id-001', 'Must reuse the exact existing applicationId!');
-      assert.strictEqual(controller.cachedState.applicationId, 'app-first-id-001', 'Must not generate a second ID');
+      assert.strictEqual(
+        calls[1].appId,
+        'app-first-id-001',
+        'Must reuse the exact existing applicationId!'
+      );
+      assert.strictEqual(
+        controller.cachedState.applicationId,
+        'app-first-id-001',
+        'Must not generate a second ID'
+      );
     });
 
     it('surfaces application ID, package hash, and package status in the UI', async () => {

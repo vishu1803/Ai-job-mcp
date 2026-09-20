@@ -59,10 +59,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p61-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
 const CDP_PORT = 9336;
 const FIXTURE_PORT = 3098;
 
@@ -311,11 +313,17 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // 2. Query target real user and candidate
-  const users = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const users = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   const targetUser = users[0];
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
 
-  const candidates = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const candidates = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const targetCandidate = candidates[0];
   if (!targetCandidate) throw new Error('Target candidate not found');
 
@@ -369,7 +377,9 @@ async function run() {
   let extensionId = null;
   for (let i = 0; i < 20; i++) {
     const targetsRes = await browserCdp.send('Target.getTargets');
-    const swTarget = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+    const swTarget = targetsRes.targetInfos.find(
+      (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+    );
     if (swTarget) {
       const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
       if (m) extensionId = m[1];
@@ -411,7 +421,9 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEPS 1 & 2: Authenticate & Verify Canonical User Identity ---');
     const simulatedTabId = 5001;
-    sidebarTab = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`);
+    sidebarTab = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`
+    );
     await sleep(1000);
 
     // Set real session cookie
@@ -427,8 +439,12 @@ async function run() {
     await sleep(500);
 
     const isAuth = await sidebarTab.evaluate(`window.__sidebarController.isAuthenticated`);
-    const displayedName = await sidebarTab.evaluate(`document.getElementById('userName').textContent`);
-    const displayedEmail = await sidebarTab.evaluate(`document.getElementById('userEmail').textContent`);
+    const displayedName = await sidebarTab.evaluate(
+      `document.getElementById('userName').textContent`
+    );
+    const displayedEmail = await sidebarTab.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
 
     console.log(`   [Check] Authenticated: ${isAuth}`);
     console.log(`   [Check] Displayed Name: "${displayedName}"`);
@@ -436,7 +452,9 @@ async function run() {
 
     if (!isAuth) throw new Error('Authentication failed in sidebar');
     if (displayedEmail !== targetUser.email) {
-      throw new Error(`Canonical email mismatch! Expected "${targetUser.email}", got "${displayedEmail}"`);
+      throw new Error(
+        `Canonical email mismatch! Expected "${targetUser.email}", got "${displayedEmail}"`
+      );
     }
     console.log('   >>> STEPS 1 & 2 VERIFIED: Canonical user identity verified <<<');
     await sidebarTab.captureScreenshot('p61-01-canonical-identity.png');
@@ -455,18 +473,28 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: `http://127.0.0.1:${FIXTURE_PORT}/job-a`,
       provider: 'LINKEDIN',
-      description: 'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems.',
+      description:
+        'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems.',
       portalMetadata: {
         portalName: 'LinkedIn',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
-    await sidebarTab.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`);
+    await sidebarTab.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
-    const detectedTitleA = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
+    const detectedTitleA = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Check] Detected Job A: "${detectedTitleA}"`);
     if (!detectedTitleA.includes('Senior Backend Engineer')) {
       throw new Error('Failed to detect Job A in sidebar');
@@ -496,16 +524,24 @@ async function run() {
     }
 
     const stateCheck = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const errorMsg = await sidebarTab.evaluate(`document.getElementById('handoffErrorMessage')?.textContent`);
-    const errorVis = await sidebarTab.evaluate(`!document.getElementById('handoffErrorBanner')?.classList.contains('hidden')`);
-    console.log(`   [Debug] State: ${stateCheck}, Error Visible: ${errorVis}, Error: "${errorMsg}"`);
+    const errorMsg = await sidebarTab.evaluate(
+      `document.getElementById('handoffErrorMessage')?.textContent`
+    );
+    const errorVis = await sidebarTab.evaluate(
+      `!document.getElementById('handoffErrorBanner')?.classList.contains('hidden')`
+    );
+    console.log(
+      `   [Debug] State: ${stateCheck}, Error Visible: ${errorVis}, Error: "${errorMsg}"`
+    );
 
     const appAId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
     const isLockedA = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
     console.log(`   [Check] Application A ID: "${appAId}", Locked: ${isLockedA}`);
 
     // PART 26: Capture exact baseline identifiers for Application A
-    const appARow = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
+    const appARow = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
     if (!appARow) throw new Error(`Application ${appAId} not found in DB!`);
 
     const handoffPkg = appARow.metadata?.handoffPackage || appARow.metadata || {};
@@ -515,12 +551,18 @@ async function run() {
     console.log(`      - Cover Letter: ${handoffPkg.coverLetter?.filename || 'generated'}`);
 
     // Verify authenticated download endpoint returns canonical filename header
-    const dlRes = await fetch(`http://localhost:3000/api/applications/${appAId}/artifacts/resume/download?hash=${handoffPkg.packageHash || ''}`, {
-      headers: { Cookie: `career_hub_session=${realSession.rawToken}` },
-    });
+    const dlRes = await fetch(
+      `http://localhost:3000/api/applications/${appAId}/artifacts/resume/download?hash=${handoffPkg.packageHash || ''}`,
+      {
+        headers: { Cookie: `career_hub_session=${realSession.rawToken}` },
+      }
+    );
     const contentDisp = dlRes.headers.get('content-disposition') || '';
-    console.log(`   [Download Header] Resume status: ${dlRes.status}, Content-Disposition: "${contentDisp}"`);
-    if (dlRes.status !== 200) throw new Error(`Artifact download endpoint returned HTTP ${dlRes.status}`);
+    console.log(
+      `   [Download Header] Resume status: ${dlRes.status}, Content-Disposition: "${contentDisp}"`
+    );
+    if (dlRes.status !== 200)
+      throw new Error(`Artifact download endpoint returned HTTP ${dlRes.status}`);
 
     await sidebarTab.captureScreenshot('p61-03-application-ready.png');
     console.log('   >>> STEPS 6, 7, 8 VERIFIED: Application A ready with canonical artifacts <<<');
@@ -528,7 +570,9 @@ async function run() {
     // -------------------------------------------------------------
     // STEPS 9-17: Navigate to Job B -> Background Detection & Pending Job
     // -------------------------------------------------------------
-    console.log('\n--- STEPS 9-17: Navigate to Job B -> Minimal Notification & Rescan Available ---');
+    console.log(
+      '\n--- STEPS 9-17: Navigate to Job B -> Minimal Notification & Rescan Available ---'
+    );
     await jobTab.conn.send('Page.navigate', { url: `http://127.0.0.1:${FIXTURE_PORT}/job-b` });
     await sleep(1000);
 
@@ -550,11 +594,19 @@ async function run() {
     await sleep(500);
 
     // 11. Job A remains active workflow
-    const currentJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const currentAppId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const currentScore = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
+    const currentJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const currentAppId = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const currentScore = await sidebarTab.evaluate(
+      `document.getElementById('scoreValue').textContent`
+    );
 
-    console.log(`   [Check] Active Job Title: "${currentJobTitle}" (Expected: Senior Backend Engineer)`);
+    console.log(
+      `   [Check] Active Job Title: "${currentJobTitle}" (Expected: Senior Backend Engineer)`
+    );
     console.log(`   [Check] Active App ID: "${currentAppId}" (Expected: ${appAId})`);
     console.log(`   [Check] Active Match Score: "${currentScore}" (Expected: ${scoreVal})`);
 
@@ -566,9 +618,15 @@ async function run() {
     }
 
     // 16. Verify minimal "New job detected" notification appears
-    const isPendingNotificationVisible = await sidebarTab.evaluate(`!document.getElementById('pendingJobNotification').classList.contains('hidden')`);
-    const pendingText = await sidebarTab.evaluate(`document.getElementById('pendingJobTitle').textContent`);
-    console.log(`   [Check] Pending Notification Visible: ${isPendingNotificationVisible}, Text: "${pendingText}"`);
+    const isPendingNotificationVisible = await sidebarTab.evaluate(
+      `!document.getElementById('pendingJobNotification').classList.contains('hidden')`
+    );
+    const pendingText = await sidebarTab.evaluate(
+      `document.getElementById('pendingJobTitle').textContent`
+    );
+    console.log(
+      `   [Check] Pending Notification Visible: ${isPendingNotificationVisible}, Text: "${pendingText}"`
+    );
 
     if (!isPendingNotificationVisible) {
       throw new Error('Minimal pending job notification is not visible!');
@@ -578,11 +636,15 @@ async function run() {
     }
 
     // 17. Verify Rescan is visible
-    const isRescanBtnPresent = await sidebarTab.evaluate(`Boolean(document.getElementById('rescanBtn'))`);
+    const isRescanBtnPresent = await sidebarTab.evaluate(
+      `Boolean(document.getElementById('rescanBtn'))`
+    );
     console.log(`   [Check] Persistent Rescan Button Present: ${isRescanBtnPresent}`);
 
     await sidebarTab.captureScreenshot('p61-04-pending-new-job-notification.png');
-    console.log('   >>> STEPS 9-17 VERIFIED: Background detection calm, Job A preserved, minimal banner <<<');
+    console.log(
+      '   >>> STEPS 9-17 VERIFIED: Background detection calm, Job A preserved, minimal banner <<<'
+    );
 
     // -------------------------------------------------------------
     // STEPS 18-21: Click Rescan -> Switch to Job B & Analyze Job B
@@ -591,12 +653,20 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController.rescan()`);
     await sleep(500);
 
-    const activeJobAfterRescan = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const stateAfterRescan = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const isPendingBannerHidden = await sidebarTab.evaluate(`document.getElementById('pendingJobNotification').classList.contains('hidden')`);
+    const activeJobAfterRescan = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const stateAfterRescan = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const isPendingBannerHidden = await sidebarTab.evaluate(
+      `document.getElementById('pendingJobNotification').classList.contains('hidden')`
+    );
 
     console.log(`   [Check] Active Job after Rescan: "${activeJobAfterRescan}"`);
-    console.log(`   [Check] Workflow state: ${stateAfterRescan}, Pending banner hidden: ${isPendingBannerHidden}`);
+    console.log(
+      `   [Check] Workflow state: ${stateAfterRescan}, Pending banner hidden: ${isPendingBannerHidden}`
+    );
 
     if (!activeJobAfterRescan.includes('Staff Platform Architect')) {
       throw new Error(`Failed to switch active workflow to Job B! Got: ${activeJobAfterRescan}`);
@@ -609,7 +679,9 @@ async function run() {
     }
 
     // 20. Verify Application A remains intact in DB
-    const appACheck = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
+    const appACheck = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
     if (!appACheck) throw new Error('Application A was deleted by Rescan!');
     console.log(`   [DB Integrity] Application A remains completely intact: ${appACheck.id}`);
 
@@ -625,7 +697,9 @@ async function run() {
     }
     const scoreB = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
     console.log(`   [Check] Job B Analyzed! Match Score: ${scoreB}`);
-    console.log('   >>> STEPS 18-21 VERIFIED: Rescan cleanly switched workflow, Application A safe <<<');
+    console.log(
+      '   >>> STEPS 18-21 VERIFIED: Rescan cleanly switched workflow, Application A safe <<<'
+    );
 
     // -------------------------------------------------------------
     // STEPS 22-25: Close/Reopen Sidebar -> Restore Job B
@@ -635,40 +709,59 @@ async function run() {
     await sleep(1000);
 
     // Reopen sidebar tab with same simulatedTabId
-    sidebarTab = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`);
+    sidebarTab = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`
+    );
     await sleep(1000);
 
     await sidebarTab.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(500);
 
-    const restoredJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const restoredScore = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
+    const restoredJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const restoredScore = await sidebarTab.evaluate(
+      `document.getElementById('scoreValue').textContent`
+    );
     console.log(`   [Check] Restored Job Title: "${restoredJobTitle}", Score: "${restoredScore}"`);
 
     if (!restoredJobTitle.includes('Staff Platform Architect')) {
-      throw new Error(`Job B workflow was not restored after sidebar reopen! Got: "${restoredJobTitle}"`);
+      throw new Error(
+        `Job B workflow was not restored after sidebar reopen! Got: "${restoredJobTitle}"`
+      );
     }
     console.log('   >>> STEPS 22-25 VERIFIED: Persistence across sidebar reload working <<<');
 
     // -------------------------------------------------------------
     // STEPS 26-33: Reset Workflow -> IDLE, Application A & B Preserved
     // -------------------------------------------------------------
-    console.log('\n--- STEPS 26-33: Reset Workflow -> IDLE State & Verification of Non-Destruction ---');
+    console.log(
+      '\n--- STEPS 26-33: Reset Workflow -> IDLE State & Verification of Non-Destruction ---'
+    );
     await sidebarTab.evaluate(`window.__sidebarController.resetWorkflow()`);
     await sleep(500);
 
-    const stateAfterReset = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const isJobDetectedHidden = await sidebarTab.evaluate(`document.getElementById('jobDetectedState').classList.contains('hidden')`);
-    console.log(`   [Check] Workflow state after Reset: ${stateAfterReset}, JobDetectedState hidden: ${isJobDetectedHidden}`);
+    const stateAfterReset = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const isJobDetectedHidden = await sidebarTab.evaluate(
+      `document.getElementById('jobDetectedState').classList.contains('hidden')`
+    );
+    console.log(
+      `   [Check] Workflow state after Reset: ${stateAfterReset}, JobDetectedState hidden: ${isJobDetectedHidden}`
+    );
 
     if (stateAfterReset !== 'IDLE') {
       throw new Error(`Expected IDLE state after Reset, got ${stateAfterReset}`);
     }
 
     // PART 26 Integrity Audit after Reset:
-    const appAAfterReset = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
+    const appAAfterReset = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
     if (!appAAfterReset) throw new Error('Application A missing after Reset!');
-    const handoffPkgAfterReset = appAAfterReset.metadata?.handoffPackage || appAAfterReset.metadata || {};
+    const handoffPkgAfterReset =
+      appAAfterReset.metadata?.handoffPackage || appAAfterReset.metadata || {};
 
     console.log(`   [DB Integrity] Verified Application A survives Reset without data loss:`);
     console.log(`      ID: ${appAAfterReset.id}, Status: ${appAAfterReset.status}`);
@@ -676,7 +769,9 @@ async function run() {
     console.log(`      Cover Letter: ${handoffPkgAfterReset.coverLetter?.filename || 'intact'}`);
 
     await sidebarTab.captureScreenshot('p61-06-reset-idle-state.png');
-    console.log('   >>> STEPS 26-33 VERIFIED: Reset returns to IDLE, ZERO deletion of previous records <<<');
+    console.log(
+      '   >>> STEPS 26-33 VERIFIED: Reset returns to IDLE, ZERO deletion of previous records <<<'
+    );
 
     // -------------------------------------------------------------
     // STEPS 34-36: Fresh Detection of Job C -> Independent New Workflow
@@ -690,7 +785,9 @@ async function run() {
       sourceUrl: `http://127.0.0.1:${FIXTURE_PORT}/job-c`,
     };
 
-    await sidebarTab.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobCData)})`);
+    await sidebarTab.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobCData)})`
+    );
     await sleep(500);
 
     const jobCTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
@@ -702,10 +799,16 @@ async function run() {
     }
 
     // Verify Application A is still untouched in DB
-    const finalAppACheck = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
+    const finalAppACheck = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
     if (!finalAppACheck) throw new Error('Application A compromised after Job C detection!');
-    console.log(`   [DB Integrity] Application A definitively verified intact: ${finalAppACheck.id}`);
-    console.log('   >>> STEPS 34-36 VERIFIED: Job C starts independent fresh workflow, previous apps untouched <<<');
+    console.log(
+      `   [DB Integrity] Application A definitively verified intact: ${finalAppACheck.id}`
+    );
+    console.log(
+      '   >>> STEPS 34-36 VERIFIED: Job C starts independent fresh workflow, previous apps untouched <<<'
+    );
 
     console.log('\n================================================================');
     console.log('  ALL PART 61 REAL CHROME ACCEPTANCE VERIFICATIONS PASSED 100%');
@@ -713,11 +816,19 @@ async function run() {
   } finally {
     if (sidebarTab) await sidebarTab.close().catch(() => {});
     if (jobTab) await jobTab.close().catch(() => {});
-    try { browserCdp.close(); } catch {}
-    try { chromeProcess.kill(); } catch {}
-    try { fixtureServer.close(); } catch {}
+    try {
+      browserCdp.close();
+    } catch {}
+    try {
+      chromeProcess.kill();
+    } catch {}
+    try {
+      fixtureServer.close();
+    } catch {}
     await sleep(1000);
-    try { fs.rmSync(PROFILE_DIR, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(PROFILE_DIR, { recursive: true, force: true });
+    } catch {}
   }
 }
 

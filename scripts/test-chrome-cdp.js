@@ -7,15 +7,19 @@ const extensionDir = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\exte
 const port = 9333;
 
 console.log('Spawning Chrome...');
-const chromeProcess = spawn(chromePath, [
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profileDir}`,
-  `--load-extension=${extensionDir}`,
-  `--disable-extensions-except=${extensionDir}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  'about:blank'
-], { detached: false, stdio: 'ignore' });
+const chromeProcess = spawn(
+  chromePath,
+  [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--load-extension=${extensionDir}`,
+    `--disable-extensions-except=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    'about:blank',
+  ],
+  { detached: false, stdio: 'ignore' }
+);
 
 chromeProcess.on('error', (err) => {
   console.error('Failed to spawn Chrome:', err);
@@ -46,7 +50,10 @@ async function main() {
 
   const listRes = await fetch(`http://127.0.0.1:${port}/json/list`);
   const targets = await listRes.json();
-  console.log('Targets:', targets.map(t => ({ type: t.type, title: t.title, url: t.url })));
+  console.log(
+    'Targets:',
+    targets.map((t) => ({ type: t.type, title: t.title, url: t.url }))
+  );
 
   chromeProcess.kill('SIGKILL');
   console.log('Cleaned up Chrome.');

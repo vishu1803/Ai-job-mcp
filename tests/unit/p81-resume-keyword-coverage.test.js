@@ -360,6 +360,6 @@ describe('P81: Resume Keyword Coverage Engine', () => {
       pdfBuffer: Buffer.alloc(100, 0),
     });
     assert.ok(reportPdf.confidenceFactors.pdfExtractionQuality >= 0.88);
-    assert.ok(reportPdf.confidence >= 0.90);
+    assert.ok(reportPdf.confidence >= 0.9);
   });
 });

@@ -39,22 +39,137 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     email: 'morgan.chen@example.com',
     headline: 'Senior Full-Stack Software Engineer',
     skills: [
-      { id: 'sk-1', name: 'Python', slug: 'python', category: 'Languages', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-      { id: 'sk-2', name: 'TypeScript', slug: 'typescript', category: 'Languages', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
-      { id: 'sk-3', name: 'FastAPI', slug: 'fastapi', category: 'Backend & APIs', provenanceStatus: 'VERIFIED', evidenceCount: 8, evidenceId: skillEvidenceIdFastAPI },
-      { id: 'sk-4', name: 'Node.js', slug: 'node-js', category: 'Backend & APIs', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
-      { id: 'sk-5', name: 'PostgreSQL', slug: 'postgresql', category: 'Databases & ORMs', provenanceStatus: 'VERIFIED', evidenceCount: 7, evidenceId: skillEvidenceIdPostgres },
-      { id: 'sk-6', name: 'Prisma ORM', slug: 'prisma-orm', category: 'Databases & ORMs', provenanceStatus: 'VERIFIED', evidenceCount: 4 },
-      { id: 'sk-7', name: 'Docker', slug: 'docker', category: 'Cloud, DevOps & Systems', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
-      { id: 'sk-8', name: 'React', slug: 'react', category: 'Frontend & Web', provenanceStatus: 'VERIFIED', evidenceCount: 9 },
-      { id: 'sk-9', name: 'Next.js', slug: 'next-js', category: 'Frontend & Web', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
-      { id: 'sk-10', name: 'Tailwind CSS', slug: 'tailwind-css', category: 'Frontend & Web', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
-      { id: 'sk-11', name: 'Django', slug: 'django', category: 'Backend & APIs', provenanceStatus: 'CLAIMED', evidenceCount: 0 },
-      { id: 'sk-12', name: 'Flask', slug: 'flask', category: 'Backend & APIs', provenanceStatus: 'VERIFIED', evidenceCount: 4, evidenceId: skillEvidenceIdFlask },
-      { id: 'sk-13', name: 'AWS', slug: 'aws', category: 'Cloud, DevOps & Systems', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
-      { id: 'sk-14', name: 'ESLint', slug: 'eslint', category: 'Developer Tooling', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
-      { id: 'sk-15', name: 'Cypress', slug: 'cypress', category: 'Developer Tooling', provenanceStatus: 'VERIFIED', evidenceCount: 3 },
-      { id: 'sk-16', name: 'Vite', slug: 'vite', category: 'Developer Tooling', provenanceStatus: 'VERIFIED', evidenceCount: 7 },
+      {
+        id: 'sk-1',
+        name: 'Python',
+        slug: 'python',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 10,
+      },
+      {
+        id: 'sk-2',
+        name: 'TypeScript',
+        slug: 'typescript',
+        category: 'Languages',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 12,
+      },
+      {
+        id: 'sk-3',
+        name: 'FastAPI',
+        slug: 'fastapi',
+        category: 'Backend & APIs',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 8,
+        evidenceId: skillEvidenceIdFastAPI,
+      },
+      {
+        id: 'sk-4',
+        name: 'Node.js',
+        slug: 'node-js',
+        category: 'Backend & APIs',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 6,
+      },
+      {
+        id: 'sk-5',
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'Databases & ORMs',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 7,
+        evidenceId: skillEvidenceIdPostgres,
+      },
+      {
+        id: 'sk-6',
+        name: 'Prisma ORM',
+        slug: 'prisma-orm',
+        category: 'Databases & ORMs',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 4,
+      },
+      {
+        id: 'sk-7',
+        name: 'Docker',
+        slug: 'docker',
+        category: 'Cloud, DevOps & Systems',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 5,
+      },
+      {
+        id: 'sk-8',
+        name: 'React',
+        slug: 'react',
+        category: 'Frontend & Web',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 9,
+      },
+      {
+        id: 'sk-9',
+        name: 'Next.js',
+        slug: 'next-js',
+        category: 'Frontend & Web',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 5,
+      },
+      {
+        id: 'sk-10',
+        name: 'Tailwind CSS',
+        slug: 'tailwind-css',
+        category: 'Frontend & Web',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 6,
+      },
+      {
+        id: 'sk-11',
+        name: 'Django',
+        slug: 'django',
+        category: 'Backend & APIs',
+        provenanceStatus: 'CLAIMED',
+        evidenceCount: 0,
+      },
+      {
+        id: 'sk-12',
+        name: 'Flask',
+        slug: 'flask',
+        category: 'Backend & APIs',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 4,
+        evidenceId: skillEvidenceIdFlask,
+      },
+      {
+        id: 'sk-13',
+        name: 'AWS',
+        slug: 'aws',
+        category: 'Cloud, DevOps & Systems',
+        provenanceStatus: 'SELF_DECLARED',
+        evidenceCount: 0,
+      },
+      {
+        id: 'sk-14',
+        name: 'ESLint',
+        slug: 'eslint',
+        category: 'Developer Tooling',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 15,
+      },
+      {
+        id: 'sk-15',
+        name: 'Cypress',
+        slug: 'cypress',
+        category: 'Developer Tooling',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 3,
+      },
+      {
+        id: 'sk-16',
+        name: 'Vite',
+        slug: 'vite',
+        category: 'Developer Tooling',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 7,
+      },
     ],
     projects: [
       {
@@ -79,7 +194,8 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     id: 'job-backend-101',
     title: 'Senior Backend Engineer, Distributed Platforms',
     company: 'CloudScale Inc',
-    description: 'Seeking a Backend Engineer to build resilient distributed services using Python, FastAPI, and PostgreSQL.',
+    description:
+      'Seeking a Backend Engineer to build resilient distributed services using Python, FastAPI, and PostgreSQL.',
     requirements: [
       'Extensive experience building RESTful backend microservices in Python using FastAPI.',
       'Strong relational database design and query optimization with PostgreSQL.',
@@ -93,7 +209,8 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     id: 'job-frontend-202',
     title: 'Senior Frontend Engineer, Web Platform',
     company: 'Vercel',
-    description: 'Seeking a Frontend Engineer to architect responsive user interfaces using React, Next.js, and TypeScript.',
+    description:
+      'Seeking a Frontend Engineer to architect responsive user interfaces using React, Next.js, and TypeScript.',
     requirements: [
       'Advanced frontend architecture using React and Next.js.',
       'Deep fluency with modern TypeScript and responsive UI with Tailwind CSS.',
@@ -181,11 +298,19 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     const djangoAudit = skillAudit.find((s) => s.skill === 'Django');
     assert.ok(djangoAudit, 'Django must be audited');
-    assert.equal(djangoAudit.provenance, 'CLAIMED', 'Django must remain CLAIMED even when requested by job');
+    assert.equal(
+      djangoAudit.provenance,
+      'CLAIMED',
+      'Django must remain CLAIMED even when requested by job'
+    );
 
     const djangoSkill = selectedSkills.find((s) => s.name === 'Django');
     if (djangoSkill) {
-      assert.notEqual(djangoSkill.provenanceStatus, 'VERIFIED', 'CLAIMED skill must never become VERIFIED');
+      assert.notEqual(
+        djangoSkill.provenanceStatus,
+        'VERIFIED',
+        'CLAIMED skill must never become VERIFIED'
+      );
     }
   });
 
@@ -231,15 +356,24 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     const frontendIdxInBackend = backendCatOrder.indexOf('Frontend & Web');
     assert.ok(backendIdx !== -1, 'Backend & APIs must be in category order for backend job');
     if (frontendIdxInBackend !== -1) {
-      assert.ok(backendIdx < frontendIdxInBackend, 'Backend & APIs must precede Frontend & Web for backend job');
+      assert.ok(
+        backendIdx < frontendIdxInBackend,
+        'Backend & APIs must precede Frontend & Web for backend job'
+      );
     }
 
     // In Frontend job, Frontend & Web must appear before Backend & APIs
     const frontendIdxInFrontend = frontendCatOrder.indexOf('Frontend & Web');
     const backendIdxInFrontend = frontendCatOrder.indexOf('Backend & APIs');
-    assert.ok(frontendIdxInFrontend !== -1, 'Frontend & Web must be in category order for frontend job');
+    assert.ok(
+      frontendIdxInFrontend !== -1,
+      'Frontend & Web must be in category order for frontend job'
+    );
     if (backendIdxInFrontend !== -1) {
-      assert.ok(frontendIdxInFrontend < backendIdxInFrontend, 'Frontend & Web must precede Backend & APIs for frontend job');
+      assert.ok(
+        frontendIdxInFrontend < backendIdxInFrontend,
+        'Frontend & Web must precede Backend & APIs for frontend job'
+      );
     }
   });
 
@@ -254,13 +388,20 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     );
 
     // In backend job, FastAPI ranks high; in frontend job, React ranks high
-    const fastApiBackendRank = backendResult.selectedSkills.find((s) => s.name === 'FastAPI')?.order || 999;
-    const reactBackendRank = backendResult.selectedSkills.find((s) => s.name === 'React')?.order || 999;
+    const fastApiBackendRank =
+      backendResult.selectedSkills.find((s) => s.name === 'FastAPI')?.order || 999;
+    const reactBackendRank =
+      backendResult.selectedSkills.find((s) => s.name === 'React')?.order || 999;
     assert.ok(fastApiBackendRank < reactBackendRank, 'FastAPI must outrank React for backend role');
 
-    const reactFrontendRank = frontendResult.selectedSkills.find((s) => s.name === 'React')?.order || 999;
-    const fastApiFrontendRank = frontendResult.selectedSkills.find((s) => s.name === 'FastAPI')?.order || 999;
-    assert.ok(reactFrontendRank < fastApiFrontendRank, 'React must outrank FastAPI for frontend role');
+    const reactFrontendRank =
+      frontendResult.selectedSkills.find((s) => s.name === 'React')?.order || 999;
+    const fastApiFrontendRank =
+      frontendResult.selectedSkills.find((s) => s.name === 'FastAPI')?.order || 999;
+    assert.ok(
+      reactFrontendRank < fastApiFrontendRank,
+      'React must outrank FastAPI for frontend role'
+    );
   });
 
   it('Test I: hardcoded Flask exclusion no longer controls production behavior', () => {
@@ -280,7 +421,11 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     const flaskAudit = skillAudit.find((s) => s.skill === 'Flask');
     assert.ok(flaskAudit, 'Flask must be audited');
     assert.equal(flaskAudit.provenance, 'VERIFIED');
-    assert.equal(flaskAudit.status, 'SELECTED', 'Verified Flask must be SELECTED when requested by job');
+    assert.equal(
+      flaskAudit.status,
+      'SELECTED',
+      'Verified Flask must be SELECTED when requested by job'
+    );
 
     const backendSkills = categorizedSkills['Backend & APIs'] || [];
     assert.ok(backendSkills.includes('Flask'), 'Flask must be present in Backend & APIs');
@@ -302,7 +447,8 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     const wideBackendJob = {
       title: 'Senior Backend Architect',
-      description: 'Broad backend architecture requiring FastAPI, Node.js, Express, NestJS, and GraphQL.',
+      description:
+        'Broad backend architecture requiring FastAPI, Node.js, Express, NestJS, and GraphQL.',
       requirements: ['FastAPI', 'Node.js', 'Express.js', 'NestJS', 'GraphQL'],
       skills: ['FastAPI', 'Node.js', 'Express.js', 'NestJS', 'GraphQL'],
     };
@@ -315,7 +461,10 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     const backendSkills = categorizedSkills['Backend & APIs'] || [];
     // Previously hardcoded cap was 4. Now 5 skills can survive.
-    assert.ok(backendSkills.length >= 5, `Expected at least 5 backend skills, received ${backendSkills.length}`);
+    assert.ok(
+      backendSkills.length >= 5,
+      `Expected at least 5 backend skills, received ${backendSkills.length}`
+    );
     assert.ok(backendSkills.includes('GraphQL'));
   });
 
@@ -381,13 +530,21 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     // Verify document category order strictly matches tailoring plan skillCategoryOrder
     for (let i = 0; i < docCategories.length; i++) {
-      assert.equal(docCategories[i], plan.skillCategoryOrder[i], `Category at index ${i} must match plan`);
+      assert.equal(
+        docCategories[i],
+        plan.skillCategoryOrder[i],
+        `Category at index ${i} must match plan`
+      );
     }
 
     // Verify skills within categories are ordered consistently with plan.selectedSkills
     const allDocSkills = doc.skills.categories.flatMap((c) => c.skills.map((s) => s.slug));
     const allPlanSkills = plan.selectedSkills.map((s) => s.slug);
 
-    assert.deepEqual(allDocSkills, allPlanSkills, 'Document skill slugs must match tailoring plan slugs in exact order');
+    assert.deepEqual(
+      allDocSkills,
+      allPlanSkills,
+      'Document skill slugs must match tailoring plan slugs in exact order'
+    );
   });
 });

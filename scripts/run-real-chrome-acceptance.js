@@ -30,11 +30,13 @@ import { createSession } from '../src/security/session.service.js';
 
 import os from 'node:os';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
 const DOWNLOAD_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\.tmp-downloads';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\a789c68e-737f-4844-bcf5-3784465634bd';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\a789c68e-737f-4844-bcf5-3784465634bd';
 const CDP_PORT = 9333;
 const FIXTURE_PORT = 3099;
 
@@ -139,7 +141,10 @@ class CDPConnection {
       returnByValue: true,
     });
     if (res.exceptionDetails) {
-      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || JSON.stringify(res.exceptionDetails);
+      const desc =
+        res.exceptionDetails.exception?.description ||
+        res.exceptionDetails.text ||
+        JSON.stringify(res.exceptionDetails);
       throw new Error(`Eval error: ${desc}`);
     }
     return res.result?.value;
@@ -212,7 +217,9 @@ async function main() {
       break;
     } catch (err) {
       if (attempt === 3) throw err;
-      console.log(`[Setup] DB connection attempt ${attempt} failed (${err.message}), retrying in 2s...`);
+      console.log(
+        `[Setup] DB connection attempt ${attempt} failed (${err.message}), retrying in 2s...`
+      );
       await sleep(2000);
     }
   }
@@ -220,18 +227,30 @@ async function main() {
   console.log(`[Setup] Target User: ${targetUser.displayName} (${targetUser.email})`);
   console.log(`[Setup] Candidate ID: ${targetCand.id}`);
   const sessionToken = activeSession.rawToken;
-  console.log(`[Setup] Active Session Created: ${activeSession.sessionId} (token length: ${sessionToken.length})`);
+  console.log(
+    `[Setup] Active Session Created: ${activeSession.sessionId} (token length: ${sessionToken.length})`
+  );
 
   // 4. Ensure no lingering Chrome on CDP port
   try {
     const existing = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`).catch(() => null);
     if (existing && existing.ok) {
-      console.log('[Setup] Detected pre-existing Chrome on CDP port, terminating before fresh launch...');
+      console.log(
+        '[Setup] Detected pre-existing Chrome on CDP port, terminating before fresh launch...'
+      );
       const { execSync } = await import('node:child_process');
-      try { execSync(`powershell -Command "Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force"`); } catch { /* best-effort cleanup */ }
+      try {
+        execSync(
+          `powershell -Command "Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force"`
+        );
+      } catch {
+        /* best-effort cleanup */
+      }
       await sleep(1500);
     }
-  } catch { /* no pre-existing Chrome */ }
+  } catch {
+    /* no pre-existing Chrome */
+  }
 
   // Launch real Google Chrome
   console.log(`[Setup] Spawning Google Chrome with extension loaded...`);
@@ -276,12 +295,16 @@ async function main() {
   let swTarget = null;
   for (let i = 0; i < 20; i++) {
     const targetsRes = await browserCdp.send('Target.getTargets');
-    swTarget = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('background/service-worker.js'));
+    swTarget = targetsRes.targetInfos.find(
+      (t) => t.type === 'service_worker' && t.url.includes('background/service-worker.js')
+    );
     if (swTarget) break;
     await sleep(500);
   }
   if (!swTarget) {
-    throw new Error('Extension Service Worker (background/service-worker.js) not registered in Chrome');
+    throw new Error(
+      'Extension Service Worker (background/service-worker.js) not registered in Chrome'
+    );
   }
 
   const extensionIdMatch = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
@@ -309,7 +332,9 @@ async function main() {
     const currentUrl = await tab.evaluate(`window.location.href`).catch(() => 'unknown');
     const title = await tab.evaluate(`document.title`).catch(() => 'unknown');
     const readyState = await tab.evaluate(`document.readyState`).catch(() => 'unknown');
-    throw new Error(`Timed out waiting for '${selector}' on ${currentUrl} (title: "${title}", readyState: "${readyState}")`);
+    throw new Error(
+      `Timed out waiting for '${selector}' on ${currentUrl} (title: "${title}", readyState: "${readyState}")`
+    );
   }
 
   // Helper to open tab and attach CDP
@@ -327,13 +352,21 @@ async function main() {
       try {
         const data = JSON.parse(event.data.toString());
         if (data.method === 'Runtime.consoleAPICalled') {
-          const args = (data.params?.args || []).map((a) => a.value ?? a.description ?? '').join(' ');
+          const args = (data.params?.args || [])
+            .map((a) => a.value ?? a.description ?? '')
+            .join(' ');
           console.log(`   [TabConsole ${data.params?.type || 'log'}] ${args}`);
         }
         if (data.method === 'Runtime.exceptionThrown') {
-          console.error(`   [TabException]`, data.params?.exceptionDetails?.text, data.params?.exceptionDetails?.exception?.description);
+          console.error(
+            `   [TabException]`,
+            data.params?.exceptionDetails?.text,
+            data.params?.exceptionDetails?.exception?.description
+          );
         }
-      } catch { /* ignore console relay errors */ }
+      } catch {
+        /* ignore console relay errors */
+      }
     });
 
     return {
@@ -356,11 +389,16 @@ async function main() {
       try {
         let tabs = null;
         const targetsRes = await browserCdp.send('Target.getTargets');
-        const swInfo = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+        const swInfo = targetsRes.targetInfos.find(
+          (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+        );
 
         if (swInfo) {
           try {
-            const { sessionId } = await browserCdp.send('Target.attachToTarget', { targetId: swInfo.targetId, flatten: true });
+            const { sessionId } = await browserCdp.send('Target.attachToTarget', {
+              targetId: swInfo.targetId,
+              flatten: true,
+            });
             const evalRes = await browserCdp.send(
               'Runtime.evaluate',
               {
@@ -374,24 +412,37 @@ async function main() {
             if (Array.isArray(evalRes?.result?.value)) {
               tabs = evalRes.result.value;
             }
-          } catch { /* fall through to extension page fallback */ }
+          } catch {
+            /* fall through to extension page fallback */
+          }
         }
 
         // If SW wasn't found or evaluate failed, query tabs through a quick extension page
         if (!tabs && extensionId) {
           try {
             const extTab = await openTab(`chrome-extension://${extensionId}/popup/popup.html`);
-            tabs = await extTab.evaluate(`chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))`, true);
+            tabs = await extTab.evaluate(
+              `chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))`,
+              true
+            );
             await extTab.close();
           } catch (err) {
-            console.warn(`[resolveNumericTabId] Extension page query error on attempt ${attempt}: ${err.message}`);
+            console.warn(
+              `[resolveNumericTabId] Extension page query error on attempt ${attempt}: ${err.message}`
+            );
           }
         }
 
         if (Array.isArray(tabs)) {
-          const match = tabs.find((t) => (t.url && t.url.includes(urlFragment)) || (t.title && t.title.toLowerCase().includes(urlFragment.toLowerCase())));
+          const match = tabs.find(
+            (t) =>
+              (t.url && t.url.includes(urlFragment)) ||
+              (t.title && t.title.toLowerCase().includes(urlFragment.toLowerCase()))
+          );
           if (match) {
-            console.log(`[resolveNumericTabId] Resolved tab ID ${match.id} for "${urlFragment}" (url: ${match.url}) on attempt ${attempt}`);
+            console.log(
+              `[resolveNumericTabId] Resolved tab ID ${match.id} for "${urlFragment}" (url: ${match.url}) on attempt ${attempt}`
+            );
             return match.id;
           } else if (attempt === maxAttempts) {
             console.warn(`[resolveNumericTabId] No tab matched "${urlFragment}" among:`, tabs);
@@ -411,20 +462,31 @@ async function main() {
 
   // Helper: wait for job detection to complete in popup after triggering retryDetectBtn.
   // Handles SPA hydration timing — retries extraction up to maxRetries times.
-  async function waitForJobDetection(tab, { expectDetected = true, maxRetries = 3, label = '' } = {}) {
+  async function waitForJobDetection(
+    tab,
+    { expectDetected = true, maxRetries = 3, label = '' } = {}
+  ) {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       for (let i = 0; i < 20; i++) {
-        const isDetected = await tab.evaluate(`!document.getElementById('stateDetected')?.classList?.contains('hidden')`);
-        const isNoJob = await tab.evaluate(`!document.getElementById('stateNoJob')?.classList?.contains('hidden')`);
+        const isDetected = await tab.evaluate(
+          `!document.getElementById('stateDetected')?.classList?.contains('hidden')`
+        );
+        const isNoJob = await tab.evaluate(
+          `!document.getElementById('stateNoJob')?.classList?.contains('hidden')`
+        );
         if (expectDetected && isDetected) return true;
         if (!expectDetected && isNoJob) return true;
         if (isDetected || isNoJob) break; // Wrong state, will retry
         await sleep(500);
       }
       // Check final state
-      const isDetected = await tab.evaluate(`!document.getElementById('stateDetected')?.classList?.contains('hidden')`);
+      const isDetected = await tab.evaluate(
+        `!document.getElementById('stateDetected')?.classList?.contains('hidden')`
+      );
       if (expectDetected && isDetected) return true;
-      const isNoJob = await tab.evaluate(`!document.getElementById('stateNoJob')?.classList?.contains('hidden')`);
+      const isNoJob = await tab.evaluate(
+        `!document.getElementById('stateNoJob')?.classList?.contains('hidden')`
+      );
       if (!expectDetected && isNoJob) return true;
 
       const visibleStates = await tab.evaluate(`
@@ -432,7 +494,9 @@ async function main() {
           .filter(id => !document.getElementById(id)?.classList?.contains('hidden'))
       `);
       const debug = await tab.evaluate(`window._lastDetectionDebug || null`);
-      console.log(`   [${label} Attempt ${attempt}] Visible states: ${JSON.stringify(visibleStates)}, debug: ${JSON.stringify(debug)}`);
+      console.log(
+        `   [${label} Attempt ${attempt}] Visible states: ${JSON.stringify(visibleStates)}, debug: ${JSON.stringify(debug)}`
+      );
 
       if (attempt < maxRetries) {
         console.log(`   [${label} Retry ${attempt + 1}/${maxRetries}] Re-triggering detection...`);
@@ -507,27 +571,39 @@ async function main() {
     // substring heuristics, so this must resolve or the test cannot run.
     const jobTabNumericId = await resolveNumericTabId('greenhouse.io');
     if (!jobTabNumericId) {
-      throw new Error('Could not resolve numeric tab ID for the Greenhouse job tab (tabId targeting is required)');
+      throw new Error(
+        'Could not resolve numeric tab ID for the Greenhouse job tab (tabId targeting is required)'
+      );
     }
     const popupUrl = `chrome-extension://${extensionId}/popup/popup.html?tabId=${jobTabNumericId}`;
-    console.log(`2. Opening aicareershub popup for job tab ${jobTab.targetId} (numericTabId: ${jobTabNumericId})...`);
+    console.log(
+      `2. Opening aicareershub popup for job tab ${jobTab.targetId} (numericTabId: ${jobTabNumericId})...`
+    );
     const popupTab = await openTab(popupUrl);
-    
+
     await waitForSelector(popupTab, '#authStatusText');
     const curUrl = await popupTab.evaluate(`window.location.href`);
     console.log(`[Popup Loaded] URL: ${curUrl}`);
 
     // Wait until auth verification concludes (either 'Connected', 'Sign In', or 'Expired')
     for (let i = 0; i < 20; i++) {
-      const text = await popupTab.evaluate(`document.getElementById('authStatusText')?.textContent?.trim() || ''`);
+      const text = await popupTab.evaluate(
+        `document.getElementById('authStatusText')?.textContent?.trim() || ''`
+      );
       if (text && text !== 'Checking...') break;
       await sleep(250);
     }
 
     // 3. Verify authenticated session recognizes existing user
-    const authStatus = await popupTab.evaluate(`document.getElementById('authStatusText')?.textContent?.trim() || ''`);
-    const candidateLabel = await popupTab.evaluate(`document.getElementById('candidateStatusLabel')?.textContent?.trim() || ''`);
-    const loginPromptVisible = await popupTab.evaluate(`!document.getElementById('stateNotAuth')?.classList?.contains('hidden')`);
+    const authStatus = await popupTab.evaluate(
+      `document.getElementById('authStatusText')?.textContent?.trim() || ''`
+    );
+    const candidateLabel = await popupTab.evaluate(
+      `document.getElementById('candidateStatusLabel')?.textContent?.trim() || ''`
+    );
+    const loginPromptVisible = await popupTab.evaluate(
+      `!document.getElementById('stateNotAuth')?.classList?.contains('hidden')`
+    );
 
     console.log(`3. Auth Status Pill: "${authStatus}" (Expected: "Connected")`);
     console.log(`4. Login Prompt Visible: ${loginPromptVisible} (Expected: false)`);
@@ -546,9 +622,16 @@ async function main() {
     let jobDetected = false;
     while (detectionAttempts < maxRetries && !jobDetected) {
       for (let i = 0; i < 30; i++) {
-        const isDetected = await popupTab.evaluate(`!document.getElementById('stateDetected')?.classList?.contains('hidden')`);
-        if (isDetected) { jobDetected = true; break; }
-        const isNoJob = await popupTab.evaluate(`!document.getElementById('stateNoJob')?.classList?.contains('hidden')`);
+        const isDetected = await popupTab.evaluate(
+          `!document.getElementById('stateDetected')?.classList?.contains('hidden')`
+        );
+        if (isDetected) {
+          jobDetected = true;
+          break;
+        }
+        const isNoJob = await popupTab.evaluate(
+          `!document.getElementById('stateNoJob')?.classList?.contains('hidden')`
+        );
         if (isNoJob) break;
         await sleep(500);
       }
@@ -557,7 +640,9 @@ async function main() {
         const debugInfo = await popupTab.evaluate(`window._lastDetectionDebug || null`);
         console.log(`   [Detection Debug]`, JSON.stringify(debugInfo));
         if (detectionAttempts < maxRetries) {
-          console.log(`   [Retry ${detectionAttempts}/${maxRetries - 1}] stateNoJob shown — waiting 3s and retrying...`);
+          console.log(
+            `   [Retry ${detectionAttempts}/${maxRetries - 1}] stateNoJob shown — waiting 3s and retrying...`
+          );
           await sleep(3000);
           await popupTab.evaluate(`document.getElementById('retryDetectBtn').click()`);
           await sleep(1500);
@@ -566,10 +651,18 @@ async function main() {
     }
 
     // 6. Verify visible job information extracted
-    const extractedTitle = await popupTab.evaluate(`document.getElementById('jobTitle').textContent.trim()`);
-    const extractedCompany = await popupTab.evaluate(`document.getElementById('jobCompany').textContent.trim()`);
-    const extractedLocation = await popupTab.evaluate(`document.getElementById('jobLocation').textContent.trim()`);
-    const extractedProvider = await popupTab.evaluate(`document.getElementById('jobProviderBadge').textContent.trim()`);
+    const extractedTitle = await popupTab.evaluate(
+      `document.getElementById('jobTitle').textContent.trim()`
+    );
+    const extractedCompany = await popupTab.evaluate(
+      `document.getElementById('jobCompany').textContent.trim()`
+    );
+    const extractedLocation = await popupTab.evaluate(
+      `document.getElementById('jobLocation').textContent.trim()`
+    );
+    const extractedProvider = await popupTab.evaluate(
+      `document.getElementById('jobProviderBadge').textContent.trim()`
+    );
 
     console.log('7. Extracted Visible Job Data:');
     console.log(`   - Title: "${extractedTitle}"`);
@@ -577,7 +670,11 @@ async function main() {
     console.log(`   - Location: "${extractedLocation}"`);
     console.log(`   - Provider: "${extractedProvider}"`);
 
-    if (!extractedTitle.includes('Software Engineer') || extractedCompany !== 'Cloudflare' || extractedProvider !== 'GREENHOUSE') {
+    if (
+      !extractedTitle.includes('Software Engineer') ||
+      extractedCompany !== 'Cloudflare' ||
+      extractedProvider !== 'GREENHOUSE'
+    ) {
       throw new Error(`TEST 1 Failed: Incorrect job extraction for Cloudflare Greenhouse`);
     }
 
@@ -592,33 +689,53 @@ async function main() {
     let analysisReady = false;
     for (let i = 0; i < 45; i++) {
       await sleep(1000);
-      const isVisible = await popupTab.evaluate(`!document.getElementById('stateAnalysis').classList.contains('hidden')`);
+      const isVisible = await popupTab.evaluate(
+        `!document.getElementById('stateAnalysis').classList.contains('hidden')`
+      );
       if (isVisible) {
         analysisReady = true;
         break;
       }
       if (i % 10 === 9) {
-        const alertText = await popupTab.evaluate(`document.getElementById('alertMessage')?.textContent?.trim() || ''`);
-        if (alertText) console.log(`   [Analysis Alert at ${(i + 1)}s]: "${alertText}"`);
+        const alertText = await popupTab.evaluate(
+          `document.getElementById('alertMessage')?.textContent?.trim() || ''`
+        );
+        if (alertText) console.log(`   [Analysis Alert at ${i + 1}s]: "${alertText}"`);
       }
     }
 
     if (!analysisReady) {
-      const alertText = await popupTab.evaluate(`document.getElementById('alertMessage')?.textContent?.trim() || ''`);
+      const alertText = await popupTab.evaluate(
+        `document.getElementById('alertMessage')?.textContent?.trim() || ''`
+      );
       const visibleStates = await popupTab.evaluate(`
         ['stateLoading','stateNotAuth','stateNoJob','stateDetected','stateAnalysis','stateHandoffReady']
           .filter(id => !document.getElementById(id)?.classList?.contains('hidden'))
       `);
-      throw new Error(`TEST 1 Failed: Timed out waiting for job fit analysis (45s). Visible: ${JSON.stringify(visibleStates)}, Alert: "${alertText}"`);
+      throw new Error(
+        `TEST 1 Failed: Timed out waiting for job fit analysis (45s). Visible: ${JSON.stringify(visibleStates)}, Alert: "${alertText}"`
+      );
     }
 
-    const fitScore = await popupTab.evaluate(`document.getElementById('fitScoreNum').textContent.trim()`);
-    const fitGrade = await popupTab.evaluate(`document.getElementById('fitGradeBadge').textContent.trim()`);
-    const recommendation = await popupTab.evaluate(`document.getElementById('fitRecommendationText').textContent.trim()`);
-    const matchedCount = await popupTab.evaluate(`document.getElementById('matchedItems').children.length`);
-    const projectsCount = await popupTab.evaluate(`document.getElementById('featuredProjectsList').children.length`);
+    const fitScore = await popupTab.evaluate(
+      `document.getElementById('fitScoreNum').textContent.trim()`
+    );
+    const fitGrade = await popupTab.evaluate(
+      `document.getElementById('fitGradeBadge').textContent.trim()`
+    );
+    const recommendation = await popupTab.evaluate(
+      `document.getElementById('fitRecommendationText').textContent.trim()`
+    );
+    const matchedCount = await popupTab.evaluate(
+      `document.getElementById('matchedItems').children.length`
+    );
+    const projectsCount = await popupTab.evaluate(
+      `document.getElementById('featuredProjectsList').children.length`
+    );
 
-    console.log(`9. Fit Result: Score=${fitScore}, Grade=${fitGrade}, MatchedCount=${matchedCount}`);
+    console.log(
+      `9. Fit Result: Score=${fitScore}, Grade=${fitGrade}, MatchedCount=${matchedCount}`
+    );
     console.log(`10. Recommendation: "${recommendation.slice(0, 80)}..."`);
     console.log(`    Recommended Projects: ${projectsCount}`);
 
@@ -626,14 +743,18 @@ async function main() {
     await popupTab.captureScreenshot('popup-02-analysis-recommendation.png');
 
     // 11. Click Prepare Handoff Kit
-    console.log('11. Clicking "Prepare Handoff Kit" button (authoritative LaTeX generation & compilation)...');
+    console.log(
+      '11. Clicking "Prepare Handoff Kit" button (authoritative LaTeX generation & compilation)...'
+    );
     await popupTab.evaluate(`document.getElementById('prepareHandoffBtn').click()`);
 
     // Wait for Handoff Kit READY state (LaTeX compilation can take 60-90s)
     let handoffReady = false;
     for (let i = 0; i < 60; i++) {
       await sleep(2000);
-      const isVisible = await popupTab.evaluate(`!document.getElementById('stateHandoffReady').classList.contains('hidden')`);
+      const isVisible = await popupTab.evaluate(
+        `!document.getElementById('stateHandoffReady').classList.contains('hidden')`
+      );
       if (isVisible) {
         handoffReady = true;
         break;
@@ -644,8 +765,12 @@ async function main() {
           ['stateLoading','stateNotAuth','stateNoJob','stateDetected','stateAnalysis','stateHandoffReady']
             .filter(id => !document.getElementById(id)?.classList?.contains('hidden'))
         `);
-        const alertText = await popupTab.evaluate(`document.getElementById('alertMessage')?.textContent?.trim() || ''`);
-        console.log(`   [Handoff Wait ${(i + 1) * 2}s] Visible states: ${JSON.stringify(visibleStates)}, Alert: "${alertText}"`);
+        const alertText = await popupTab.evaluate(
+          `document.getElementById('alertMessage')?.textContent?.trim() || ''`
+        );
+        console.log(
+          `   [Handoff Wait ${(i + 1) * 2}s] Visible states: ${JSON.stringify(visibleStates)}, Alert: "${alertText}"`
+        );
       }
     }
 
@@ -654,26 +779,56 @@ async function main() {
         ['stateLoading','stateNotAuth','stateNoJob','stateDetected','stateAnalysis','stateHandoffReady']
           .filter(id => !document.getElementById(id)?.classList?.contains('hidden'))
       `);
-      const alertText = await popupTab.evaluate(`document.getElementById('alertMessage')?.textContent?.trim() || ''`);
+      const alertText = await popupTab.evaluate(
+        `document.getElementById('alertMessage')?.textContent?.trim() || ''`
+      );
       await popupTab.captureScreenshot('popup-handoff-timeout-debug.png');
-      throw new Error(`TEST 1 Failed: Timed out waiting for Handoff Kit (120s). Visible: ${JSON.stringify(finalStates)}, Alert: "${alertText}"`);
+      throw new Error(
+        `TEST 1 Failed: Timed out waiting for Handoff Kit (120s). Visible: ${JSON.stringify(finalStates)}, Alert: "${alertText}"`
+      );
     }
 
-    const lifecycleAction = await popupTab.evaluate(`document.getElementById('lifecycleActionBadge').textContent.trim()`);
-    const validationStatus = await popupTab.evaluate(`document.getElementById('statusValidationBadge').textContent.trim()`);
-    const resumeStatus = await popupTab.evaluate(`document.getElementById('statusResumeBadge').textContent.trim()`);
-    const clStatus = await popupTab.evaluate(`document.getElementById('statusCoverLetterBadge').textContent.trim()`);
-    const parseability = await popupTab.evaluate(`document.getElementById('telParseability').textContent.trim()`);
-    const jobMatch = await popupTab.evaluate(`document.getElementById('telJobMatch').textContent.trim()`);
-    const evidenceCoverage = await popupTab.evaluate(`document.getElementById('telEvidenceCoverage').textContent.trim()`);
-    const layoutProfile = await popupTab.evaluate(`document.getElementById('telLayoutProfile').textContent.trim()`);
+    const lifecycleAction = await popupTab.evaluate(
+      `document.getElementById('lifecycleActionBadge').textContent.trim()`
+    );
+    const validationStatus = await popupTab.evaluate(
+      `document.getElementById('statusValidationBadge').textContent.trim()`
+    );
+    const resumeStatus = await popupTab.evaluate(
+      `document.getElementById('statusResumeBadge').textContent.trim()`
+    );
+    const clStatus = await popupTab.evaluate(
+      `document.getElementById('statusCoverLetterBadge').textContent.trim()`
+    );
+    const parseability = await popupTab.evaluate(
+      `document.getElementById('telParseability').textContent.trim()`
+    );
+    const jobMatch = await popupTab.evaluate(
+      `document.getElementById('telJobMatch').textContent.trim()`
+    );
+    const evidenceCoverage = await popupTab.evaluate(
+      `document.getElementById('telEvidenceCoverage').textContent.trim()`
+    );
+    const layoutProfile = await popupTab.evaluate(
+      `document.getElementById('telLayoutProfile').textContent.trim()`
+    );
 
     console.log(`12. Validation Status: ${validationStatus}`);
-    console.log(`13. Preview & Telemetry: Parseability=${parseability}, Match=${jobMatch}, Evidence=${evidenceCoverage}, Layout=${layoutProfile}`);
-    console.log(`14. Handoff Ready State: Action=${lifecycleAction}, Resume=${resumeStatus}, CoverLetter=${clStatus}`);
+    console.log(
+      `13. Preview & Telemetry: Parseability=${parseability}, Match=${jobMatch}, Evidence=${evidenceCoverage}, Layout=${layoutProfile}`
+    );
+    console.log(
+      `14. Handoff Ready State: Action=${lifecycleAction}, Resume=${resumeStatus}, CoverLetter=${clStatus}`
+    );
 
-    if (!['PASS', 'PASSED'].includes(validationStatus) || resumeStatus !== 'READY' || clStatus !== 'READY') {
-      throw new Error(`TEST 1 Failed: Handoff kit not in expected READY state (validation=${validationStatus}, resume=${resumeStatus}, cl=${clStatus})`);
+    if (
+      !['PASS', 'PASSED'].includes(validationStatus) ||
+      resumeStatus !== 'READY' ||
+      clStatus !== 'READY'
+    ) {
+      throw new Error(
+        `TEST 1 Failed: Handoff kit not in expected READY state (validation=${validationStatus}, resume=${resumeStatus}, cl=${clStatus})`
+      );
     }
 
     // Capture Screenshot 3: Handoff Kit Ready
@@ -737,31 +892,53 @@ async function main() {
 
     // Wait until auth verification concludes
     for (let i = 0; i < 20; i++) {
-      const text = await popupTab2.evaluate(`document.getElementById('authStatusText')?.textContent?.trim() || ''`);
+      const text = await popupTab2.evaluate(
+        `document.getElementById('authStatusText')?.textContent?.trim() || ''`
+      );
       if (text && text !== 'Checking...') break;
       await sleep(250);
     }
 
     // Wait until job detection finishes and stateDetected is shown
     for (let i = 0; i < 20; i++) {
-      const isDetected = await popupTab2.evaluate(`!document.getElementById('stateDetected')?.classList?.contains('hidden')`);
+      const isDetected = await popupTab2.evaluate(
+        `!document.getElementById('stateDetected')?.classList?.contains('hidden')`
+      );
       if (isDetected) break;
       await sleep(500);
     }
 
-    const reopenAuth = await popupTab2.evaluate(`document.getElementById('authStatusText').textContent.trim()`);
-    const reopenCandidate = await popupTab2.evaluate(`document.getElementById('candidateStatusLabel').textContent.trim()`);
-    const reopenJobTitle = await popupTab2.evaluate(`document.getElementById('jobTitle').textContent.trim()`);
-    const existingBadgeText = await popupTab2.evaluate(`document.getElementById('existingAppBadge').textContent.trim()`);
-    const existingBadgeHidden = await popupTab2.evaluate(`document.getElementById('existingAppBadge').classList.contains('hidden')`);
+    const reopenAuth = await popupTab2.evaluate(
+      `document.getElementById('authStatusText').textContent.trim()`
+    );
+    const reopenCandidate = await popupTab2.evaluate(
+      `document.getElementById('candidateStatusLabel').textContent.trim()`
+    );
+    const reopenJobTitle = await popupTab2.evaluate(
+      `document.getElementById('jobTitle').textContent.trim()`
+    );
+    const existingBadgeText = await popupTab2.evaluate(
+      `document.getElementById('existingAppBadge').textContent.trim()`
+    );
+    const existingBadgeHidden = await popupTab2.evaluate(
+      `document.getElementById('existingAppBadge').classList.contains('hidden')`
+    );
 
     console.log(`- Reopened Auth Status: "${reopenAuth}" (Expected: "Connected")`);
     console.log(`- Reopened Candidate: "${reopenCandidate}" (Expected: "CONNECTED")`);
     console.log(`- Reopened Canonical Job: "${reopenJobTitle}" (Expected: "${extractedTitle}")`);
-    console.log(`- Existing Application Badge: "${existingBadgeText}", Hidden: ${existingBadgeHidden}`);
+    console.log(
+      `- Existing Application Badge: "${existingBadgeText}", Hidden: ${existingBadgeHidden}`
+    );
 
-    if (reopenAuth !== 'Connected' || reopenCandidate !== 'CONNECTED' || reopenJobTitle !== extractedTitle) {
-      throw new Error('TEST 2 Failed: Reopen did not preserve authenticated session or job context');
+    if (
+      reopenAuth !== 'Connected' ||
+      reopenCandidate !== 'CONNECTED' ||
+      reopenJobTitle !== extractedTitle
+    ) {
+      throw new Error(
+        'TEST 2 Failed: Reopen did not preserve authenticated session or job context'
+      );
     }
 
     reportResults.test2 = {
@@ -786,8 +963,12 @@ async function main() {
     await popupTab2.evaluate(`location.reload()`);
     await sleep(2500);
 
-    const unauthStatus = await popupTab2.evaluate(`document.getElementById('authStatusText').textContent.trim()`);
-    const unauthStateVisible = await popupTab2.evaluate(`!document.getElementById('stateNotAuth').classList.contains('hidden')`);
+    const unauthStatus = await popupTab2.evaluate(
+      `document.getElementById('authStatusText').textContent.trim()`
+    );
+    const unauthStateVisible = await popupTab2.evaluate(
+      `!document.getElementById('stateNotAuth').classList.contains('hidden')`
+    );
 
     console.log(`3. Unauthenticated State Pill: "${unauthStatus}" (Expected: "Sign In")`);
     console.log(`   Unauthenticated State Card Visible: ${unauthStateVisible} (Expected: true)`);
@@ -805,8 +986,12 @@ async function main() {
     await popupTab2.evaluate(`window.dispatchEvent(new Event('focus'))`);
     await sleep(2000);
 
-    const recheckAuth = await popupTab2.evaluate(`document.getElementById('authStatusText').textContent.trim()`);
-    const detectedAfterAuth = await popupTab2.evaluate(`!document.getElementById('stateDetected').classList.contains('hidden')`);
+    const recheckAuth = await popupTab2.evaluate(
+      `document.getElementById('authStatusText').textContent.trim()`
+    );
+    const detectedAfterAuth = await popupTab2.evaluate(
+      `!document.getElementById('stateDetected').classList.contains('hidden')`
+    );
 
     console.log(`6. Detected Auth State: "${recheckAuth}" (Expected: "Connected")`);
     console.log(`7. Transitioned to Detected Job: ${detectedAfterAuth} (Expected: true)`);
@@ -830,21 +1015,37 @@ async function main() {
 
     console.log('Greenhouse extraction verified in Test 1 on live Cloudflare job.');
 
-    console.log(`Navigating job tab to Generic Career Page (JSON-LD JobPosting): http://127.0.0.1:${FIXTURE_PORT}/generic-job.html`);
-    await jobTab.conn.send('Page.navigate', { url: `http://127.0.0.1:${FIXTURE_PORT}/generic-job.html` });
+    console.log(
+      `Navigating job tab to Generic Career Page (JSON-LD JobPosting): http://127.0.0.1:${FIXTURE_PORT}/generic-job.html`
+    );
+    await jobTab.conn.send('Page.navigate', {
+      url: `http://127.0.0.1:${FIXTURE_PORT}/generic-job.html`,
+    });
     await sleep(3000);
 
     console.log('Triggering job detection in popup...');
     await popupTab2.evaluate(`document.getElementById('retryDetectBtn').click()`);
-    const genericDetected = await waitForJobDetection(popupTab2, { expectDetected: true, maxRetries: 3, label: 'Test4-Generic' });
+    const genericDetected = await waitForJobDetection(popupTab2, {
+      expectDetected: true,
+      maxRetries: 3,
+      label: 'Test4-Generic',
+    });
     if (!genericDetected) {
       throw new Error('TEST 4 Failed: Generic career page detection did not reach stateDetected');
     }
 
-    const genericTitle = await popupTab2.evaluate(`document.getElementById('jobTitle').textContent.trim()`);
-    const genericCompany = await popupTab2.evaluate(`document.getElementById('jobCompany').textContent.trim()`);
-    const genericLocation = await popupTab2.evaluate(`document.getElementById('jobLocation').textContent.trim()`);
-    const genericProvider = await popupTab2.evaluate(`document.getElementById('jobProviderBadge').textContent.trim()`);
+    const genericTitle = await popupTab2.evaluate(
+      `document.getElementById('jobTitle').textContent.trim()`
+    );
+    const genericCompany = await popupTab2.evaluate(
+      `document.getElementById('jobCompany').textContent.trim()`
+    );
+    const genericLocation = await popupTab2.evaluate(
+      `document.getElementById('jobLocation').textContent.trim()`
+    );
+    const genericProvider = await popupTab2.evaluate(
+      `document.getElementById('jobProviderBadge').textContent.trim()`
+    );
 
     console.log('Generic Career Page Extracted Fields:');
     console.log(`   - Title: "${genericTitle}"`);
@@ -857,7 +1058,9 @@ async function main() {
       genericCompany !== 'Acme Autonomous Corp' ||
       !['GENERIC', 'GENERIC_JSONLD'].includes(genericProvider)
     ) {
-      throw new Error(`TEST 4 Failed: Generic career page JSON-LD extraction failed (provider was ${genericProvider})`);
+      throw new Error(
+        `TEST 4 Failed: Generic career page JSON-LD extraction failed (provider was ${genericProvider})`
+      );
     }
 
     await popupTab2.captureScreenshot('popup-05-generic-job-detected.png');
@@ -884,8 +1087,13 @@ async function main() {
       .select()
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCand.id));
-    const appRow = candidateApps.find((a) => a.jobUrl && a.jobUrl.includes('greenhouse.io/cloudflare/jobs/8102350'));
-    if (!appRow) throw new Error('No job application found in DB for integrity verification (Cloudflare 8102350)');
+    const appRow = candidateApps.find(
+      (a) => a.jobUrl && a.jobUrl.includes('greenhouse.io/cloudflare/jobs/8102350')
+    );
+    if (!appRow)
+      throw new Error(
+        'No job application found in DB for integrity verification (Cloudflare 8102350)'
+      );
 
     // Current immutable package snapshot lives in application_packages (keyed by applicationId)
     const [pkgRow] = await db
@@ -900,7 +1108,8 @@ async function main() {
       .orderBy(desc(schema.applicationPackages.version))
       .limit(1);
 
-    if (!pkgRow) throw new Error('No current application package found in DB for integrity verification');
+    if (!pkgRow)
+      throw new Error('No current application package found in DB for integrity verification');
 
     console.log(`Application ID: ${appRow.id}`);
     console.log(`Current Package Version: ${pkgRow.version}`);
@@ -918,11 +1127,15 @@ async function main() {
     const bundleBuffer = Buffer.from(await bundleRes.arrayBuffer());
 
     console.log(`Verification Headers:`);
-    console.log(`   - X-Package-Hash: ${xPackageHash} (Matches: ${xPackageHash === pkgRow.packageHash})`);
+    console.log(
+      `   - X-Package-Hash: ${xPackageHash} (Matches: ${xPackageHash === pkgRow.packageHash})`
+    );
     console.log(`   - X-Application-Id: ${xAppId} (Matches: ${xAppId === appRow.id})`);
     console.log(`   - X-Artifact-Type: ${xArtifactType}`);
     console.log(`Bundle Size: ${bundleBuffer.length} bytes`);
-    console.log(`ZIP Magic Bytes (0x50 0x4B 0x03 0x04): ${bundleBuffer[0] === 0x50 && bundleBuffer[1] === 0x4b}`);
+    console.log(
+      `ZIP Magic Bytes (0x50 0x4B 0x03 0x04): ${bundleBuffer[0] === 0x50 && bundleBuffer[1] === 0x4b}`
+    );
 
     // Inspect resume PDF
     const resumeRes = await fetch(
@@ -935,8 +1148,12 @@ async function main() {
 
     // Verify zero exposed secrets
     const bundleText = bundleBuffer.toString('utf-8');
-    const hasSecretPattern = /AIza[0-9A-Za-z-_]{35}|postgres:\/\/.*:.*@|BEGIN PRIVATE KEY/i.test(bundleText);
-    console.log(`Secret Scrubber Check (No raw API keys or connection strings): ${!hasSecretPattern}`);
+    const hasSecretPattern = /AIza[0-9A-Za-z-_]{35}|postgres:\/\/.*:.*@|BEGIN PRIVATE KEY/i.test(
+      bundleText
+    );
+    console.log(
+      `Secret Scrubber Check (No raw API keys or connection strings): ${!hasSecretPattern}`
+    );
 
     if (xPackageHash !== pkgRow.packageHash || !isPdfValid || hasSecretPattern) {
       throw new Error('TEST 5 Failed: Artifact integrity or secret validation failed');
@@ -978,7 +1195,9 @@ async function main() {
       body: JSON.stringify(repeatPayload),
     });
     const firstRepeatData = await firstRepeatRes.json();
-    console.log(`First Repeat: applicationId=${firstRepeatData.applicationId}, action=${firstRepeatData.lifecycleAction}, hash=${firstRepeatData.packageHash}`);
+    console.log(
+      `First Repeat: applicationId=${firstRepeatData.applicationId}, action=${firstRepeatData.lifecycleAction}, hash=${firstRepeatData.packageHash}`
+    );
 
     const repeatRes = await fetch('http://localhost:3000/api/extension/prepare-handoff', {
       method: 'POST',
@@ -991,9 +1210,13 @@ async function main() {
 
     const repeatData = await repeatRes.json();
     console.log('Second Repeat (Idempotency Target):');
-    console.log(`   - Application ID: ${repeatData.applicationId} (Same: ${repeatData.applicationId === firstRepeatData.applicationId})`);
+    console.log(
+      `   - Application ID: ${repeatData.applicationId} (Same: ${repeatData.applicationId === firstRepeatData.applicationId})`
+    );
     console.log(`   - Lifecycle Action: ${repeatData.lifecycleAction} (Expected: "REUSED")`);
-    console.log(`   - Package Hash: ${repeatData.packageHash} (Same: ${repeatData.packageHash === firstRepeatData.packageHash})`);
+    console.log(
+      `   - Package Hash: ${repeatData.packageHash} (Same: ${repeatData.packageHash === firstRepeatData.packageHash})`
+    );
 
     // Query DB count of applications for this job URL
     const allAppsForJob = await db
@@ -1001,8 +1224,12 @@ async function main() {
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCand.id));
 
-    const matchingApps = allAppsForJob.filter((a) => a.canonicalJobId === firstRepeatData.canonicalJobId);
-    console.log(`   - Database Ledger Count for this Canonical Job: ${matchingApps.length} (Expected: 1)`);
+    const matchingApps = allAppsForJob.filter(
+      (a) => a.canonicalJobId === firstRepeatData.canonicalJobId
+    );
+    console.log(
+      `   - Database Ledger Count for this Canonical Job: ${matchingApps.length} (Expected: 1)`
+    );
 
     if (
       repeatData.lifecycleAction !== 'REUSED' ||
@@ -1035,12 +1262,18 @@ async function main() {
 
     console.log('2. Triggering detection on second job...');
     await popupTab2.evaluate(`document.getElementById('retryDetectBtn').click()`);
-    const job2Detected = await waitForJobDetection(popupTab2, { expectDetected: true, maxRetries: 4, label: 'Test7-GH2' });
+    const job2Detected = await waitForJobDetection(popupTab2, {
+      expectDetected: true,
+      maxRetries: 4,
+      label: 'Test7-GH2',
+    });
     if (!job2Detected) {
       throw new Error('TEST 7 Failed: Second Greenhouse job detection did not reach stateDetected');
     }
 
-    const diffTitle = await popupTab2.evaluate(`document.getElementById('jobTitle').textContent.trim()`);
+    const diffTitle = await popupTab2.evaluate(
+      `document.getElementById('jobTitle').textContent.trim()`
+    );
     console.log(`   - Second Job Title: "${diffTitle}"`);
 
     // Run Analyze on second job
@@ -1048,7 +1281,9 @@ async function main() {
     await popupTab2.evaluate(`document.getElementById('analyzeJobBtn').click()`);
     await sleep(3500);
 
-    const diffFitScore = await popupTab2.evaluate(`document.getElementById('fitScoreNum').textContent.trim()`);
+    const diffFitScore = await popupTab2.evaluate(
+      `document.getElementById('fitScoreNum').textContent.trim()`
+    );
     console.log(`   - Second Job Fit Score: ${diffFitScore}`);
 
     // Call analyze-job backend to inspect canonicalJobId
@@ -1071,7 +1306,9 @@ async function main() {
     const diffBackendData = await diffBackendRes.json();
     console.log(`   - Job 1 Canonical ID: ${appRow.canonicalJobId}`);
     console.log(`   - Job 2 Canonical ID: ${diffBackendData.canonicalJobId}`);
-    console.log(`   - Canonical IDs Distinct: ${appRow.canonicalJobId !== diffBackendData.canonicalJobId}`);
+    console.log(
+      `   - Canonical IDs Distinct: ${appRow.canonicalJobId !== diffBackendData.canonicalJobId}`
+    );
 
     if (appRow.canonicalJobId === diffBackendData.canonicalJobId) {
       throw new Error('TEST 7 Failed: Different job reused first job canonical identity');
@@ -1091,16 +1328,28 @@ async function main() {
     console.log(' TEST 8: UNSUPPORTED PAGE (NO FALSE JOB DETECTION)');
     console.log('===============================================================');
 
-    console.log(`Navigating job tab to normal article page: http://127.0.0.1:${FIXTURE_PORT}/unrelated-page.html`);
-    await jobTab.conn.send('Page.navigate', { url: `http://127.0.0.1:${FIXTURE_PORT}/unrelated-page.html` });
+    console.log(
+      `Navigating job tab to normal article page: http://127.0.0.1:${FIXTURE_PORT}/unrelated-page.html`
+    );
+    await jobTab.conn.send('Page.navigate', {
+      url: `http://127.0.0.1:${FIXTURE_PORT}/unrelated-page.html`,
+    });
     await sleep(2000);
 
     console.log('Triggering detection in popup...');
     await popupTab2.evaluate(`document.getElementById('retryDetectBtn').click()`);
-    await waitForJobDetection(popupTab2, { expectDetected: false, maxRetries: 2, label: 'Test8-NoJob' });
+    await waitForJobDetection(popupTab2, {
+      expectDetected: false,
+      maxRetries: 2,
+      label: 'Test8-NoJob',
+    });
 
-    const noJobVisible = await popupTab2.evaluate(`!document.getElementById('stateNoJob').classList.contains('hidden')`);
-    const noJobMessage = await popupTab2.evaluate(`document.querySelector('#stateNoJob p').textContent.trim()`);
+    const noJobVisible = await popupTab2.evaluate(
+      `!document.getElementById('stateNoJob').classList.contains('hidden')`
+    );
+    const noJobMessage = await popupTab2.evaluate(
+      `document.querySelector('#stateNoJob p').textContent.trim()`
+    );
 
     console.log(`- State No-Job Visible: ${noJobVisible} (Expected: true)`);
     console.log(`- Message: "${noJobMessage}"`);
@@ -1150,7 +1399,9 @@ async function main() {
 
     console.log(`   - HTTP Status: ${submittedRes.status} (Expected: 409)`);
     const submittedData = await submittedRes.json();
-    console.log(`   - Error Code: ${submittedData.code} (Expected: "APPLICATION_ALREADY_SUBMITTED")`);
+    console.log(
+      `   - Error Code: ${submittedData.code} (Expected: "APPLICATION_ALREADY_SUBMITTED")`
+    );
 
     // Reset status back to SAVED for cleanliness
     await db
@@ -1179,7 +1430,9 @@ async function main() {
     // 1. Unauthenticated API calls fail
     const unauthSessionRes = await fetch('http://localhost:3000/api/extension/session');
     const unauthSessionData = await unauthSessionRes.json();
-    console.log(`1. Unauthenticated Session Status: ${unauthSessionData.status} (authenticated: ${unauthSessionData.authenticated})`);
+    console.log(
+      `1. Unauthenticated Session Status: ${unauthSessionData.status} (authenticated: ${unauthSessionData.authenticated})`
+    );
 
     // 2. Invalid session fails on protected actions (session check endpoint
     //    intentionally returns 200 + NOT_AUTHENTICATED so the popup can render
@@ -1201,7 +1454,9 @@ async function main() {
       }),
     });
     const invalidTokenData = await invalidTokenRes.json().catch(() => ({}));
-    console.log(`2. Invalid Bearer Token on protected action HTTP: ${invalidTokenRes.status} (Expected: 401), code: ${invalidTokenData.code}`);
+    console.log(
+      `2. Invalid Bearer Token on protected action HTTP: ${invalidTokenRes.status} (Expected: 401), code: ${invalidTokenData.code}`
+    );
 
     // 3. Cross-tenant download denial
     const crossTenantRes = await fetch(
@@ -1212,7 +1467,8 @@ async function main() {
 
     // 4. Check popup DOM for exposed secrets
     const popupHtml = await popupTab2.evaluate(`document.documentElement.outerHTML`);
-    const secretsInDom = /AIza[0-9A-Za-z-_]{35}|postgres:\/\/.*:.*@|sessionToken|career_hub_session/i.test(popupHtml);
+    const secretsInDom =
+      /AIza[0-9A-Za-z-_]{35}|postgres:\/\/.*:.*@|sessionToken|career_hub_session/i.test(popupHtml);
     console.log(`4. Secrets in Popup DOM: ${secretsInDom} (Expected: false)`);
 
     // 5. Check extension bundle for service credentials
@@ -1264,7 +1520,9 @@ async function main() {
     console.log(' - Responsive popup width (380px) and max-height (580px) with custom scrollbar');
     console.log(' - Readable typography (Inter font family, clear heading hierarchy)');
     console.log(' - State transitions animated with smooth opacity and indicator badges');
-    console.log(' - Buttons have distinct active/hover/disabled states and accessible touch targets');
+    console.log(
+      ' - Buttons have distinct active/hover/disabled states and accessible touch targets'
+    );
     console.log(' - 6 high-resolution screenshots generated in brain artifacts directory');
 
     console.log('\n===============================================================');

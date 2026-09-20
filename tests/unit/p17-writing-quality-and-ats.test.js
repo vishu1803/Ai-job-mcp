@@ -1,8 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  evaluateResumeWritingQuality,
-} from '../../src/services/resume-writing-quality.service.js';
+import { evaluateResumeWritingQuality } from '../../src/services/resume-writing-quality.service.js';
 import {
   AtsParseabilityService,
   defaultAtsParseabilityService,
@@ -85,7 +83,10 @@ describe('P17: Writing Quality & Honest ATS Parseability', () => {
     });
 
     assert.ok(report);
-    assert.ok(report.writingQualityScore >= 75, `Expected high score, got ${report.writingQualityScore}`);
+    assert.ok(
+      report.writingQualityScore >= 75,
+      `Expected high score, got ${report.writingQualityScore}`
+    );
     const dims = report.dimensions;
     assert.ok(dims);
 
@@ -131,7 +132,10 @@ describe('P17: Writing Quality & Honest ATS Parseability', () => {
       structuredResume: degradedResume,
     });
 
-    assert.ok(report.writingQualityScore < 70, `Degraded resume must score lower: ${report.writingQualityScore}`);
+    assert.ok(
+      report.writingQualityScore < 70,
+      `Degraded resume must score lower: ${report.writingQualityScore}`
+    );
     assert.ok(report.dimensions.genericLanguage <= 70, 'Clichés must be penalized');
     assert.ok(report.dimensions.passiveVoice < 85, 'Passive voice must be penalized');
     assert.ok(report.dimensions.actionVerbStrength < 50, 'Weak verbs must be penalized');
@@ -143,7 +147,10 @@ describe('P17: Writing Quality & Honest ATS Parseability', () => {
     });
 
     assert.ok(atsResult);
-    assert.ok(atsResult.atsParseabilityScore >= 80, `Expected clean resume >= 80, got ${atsResult.atsParseabilityScore}`);
+    assert.ok(
+      atsResult.atsParseabilityScore >= 80,
+      `Expected clean resume >= 80, got ${atsResult.atsParseabilityScore}`
+    );
     assert.equal(atsResult.passed, true);
     assert.ok(atsResult.checks.length >= 8);
 
@@ -166,7 +173,9 @@ describe('P17: Writing Quality & Honest ATS Parseability', () => {
       structuredResume: incompleteResume,
     });
 
-    assert.ok(atsResult.findings.some((f) => f.dimension === 'contact' || f.message.includes('email')));
+    assert.ok(
+      atsResult.findings.some((f) => f.dimension === 'contact' || f.message.includes('email'))
+    );
     assert.ok(atsResult.atsParseabilityScore <= 85);
   });
 
@@ -182,7 +191,9 @@ tem with zero downtime.
       extractedText: leakedText,
     });
 
-    assert.ok(atsResult.findings.some((f) => f.dimension === 'latexLeakage' || f.message.includes('LaTeX')));
+    assert.ok(
+      atsResult.findings.some((f) => f.dimension === 'latexLeakage' || f.message.includes('LaTeX'))
+    );
     const latexCheck = atsResult.checks.find((c) => c.checkId === 'LATEX_LEAKAGE');
     assert.equal(latexCheck.passed, false);
     assert.ok(atsResult.atsParseabilityScore < 95);

@@ -65,18 +65,30 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
     assert.equal(match.matchStatus, 'PARTIAL', 'Should be PARTIAL, not MATCHED');
-    assert.equal(match.candidateProvenance, 'CLAIMED',
-      'Manifest-only should produce CLAIMED provenance, not VERIFIED/CORROBORATED');
-    assert.equal(match.provenanceTrustClass, 'LOW_TRUST',
-      'Manifest-only should produce LOW_TRUST, not HIGH_TRUST');
-    assert.ok(match.explanation.includes('dependency'),
-      'Explanation should mention dependency/packaging limitation');
-    assert.ok(match.matchConfidence < 0.5,
-      'Match confidence should be low for manifest-only evidence');
+    assert.equal(
+      match.candidateProvenance,
+      'CLAIMED',
+      'Manifest-only should produce CLAIMED provenance, not VERIFIED/CORROBORATED'
+    );
+    assert.equal(
+      match.provenanceTrustClass,
+      'LOW_TRUST',
+      'Manifest-only should produce LOW_TRUST, not HIGH_TRUST'
+    );
+    assert.ok(
+      match.explanation.includes('dependency'),
+      'Explanation should mention dependency/packaging limitation'
+    );
+    assert.ok(
+      match.matchConfidence < 0.5,
+      'Match confidence should be low for manifest-only evidence'
+    );
   });
 
   it('CASE 2: Fastify source implementation -> preserves source-level trust', () => {
@@ -109,16 +121,26 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
     assert.equal(match.matchStatus, 'PARTIAL', 'Should be PARTIAL (0 professional months)');
-    assert.equal(match.candidateProvenance, 'VERIFIED',
-      'Source-level evidence should preserve VERIFIED provenance');
-    assert.equal(match.provenanceTrustClass, 'HIGH_TRUST',
-      'Source-level evidence should produce HIGH_TRUST');
-    assert.ok(match.explanation.includes('verified repository implementations'),
-      'Explanation should mention verified implementations');
+    assert.equal(
+      match.candidateProvenance,
+      'VERIFIED',
+      'Source-level evidence should preserve VERIFIED provenance'
+    );
+    assert.equal(
+      match.provenanceTrustClass,
+      'HIGH_TRUST',
+      'Source-level evidence should produce HIGH_TRUST'
+    );
+    assert.ok(
+      match.explanation.includes('verified repository implementations'),
+      'Explanation should mention verified implementations'
+    );
   });
 
   it('CASE 3: Next.js only -> must not establish standalone Node.js experience', () => {
@@ -151,11 +173,16 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
-    assert.equal(match.matchStatus, 'MISSING',
-      'Next.js alone should NOT satisfy Node.js application development experience');
+    assert.equal(
+      match.matchStatus,
+      'MISSING',
+      'Next.js alone should NOT satisfy Node.js application development experience'
+    );
     assert.equal(match.candidateProvenance, 'NONE');
   });
 
@@ -189,7 +216,9 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
     assert.equal(match.matchStatus, 'PARTIAL', 'Should be PARTIAL (0 professional months)');
@@ -215,7 +244,9 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
     assert.equal(match.matchStatus, 'MISSING');
@@ -259,13 +290,21 @@ describe('Issue 1: EXPERIENCE requirement — manifest-only evidence must not pr
     };
 
     const { match } = EvidenceMatchingService._evaluateExperienceRequirement(
-      baseReq, profile, new Map()
+      baseReq,
+      profile,
+      new Map()
     );
 
     assert.equal(match.matchStatus, 'PARTIAL');
-    assert.equal(match.candidateProvenance, 'VERIFIED',
-      'Mixed evidence with source-level should preserve VERIFIED');
-    assert.equal(match.provenanceTrustClass, 'HIGH_TRUST',
-      'Mixed evidence with source-level should produce HIGH_TRUST');
+    assert.equal(
+      match.candidateProvenance,
+      'VERIFIED',
+      'Mixed evidence with source-level should preserve VERIFIED'
+    );
+    assert.equal(
+      match.provenanceTrustClass,
+      'HIGH_TRUST',
+      'Mixed evidence with source-level should produce HIGH_TRUST'
+    );
   });
 });

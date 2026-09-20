@@ -256,10 +256,7 @@ describe('ISSUE 2 — Passive Manifest Evidence Capping and Source Preference', 
     const job = {
       id: randomUUID(),
       tenantId: TENANT_ID,
-      requirements: [
-        makeRequirement('express', 'Express.js'),
-        makeRequirement('react', 'React'),
-      ],
+      requirements: [makeRequirement('express', 'Express.js'), makeRequirement('react', 'React')],
     };
 
     const project = {
@@ -281,7 +278,7 @@ describe('ISSUE 2 — Passive Manifest Evidence Capping and Source Preference', 
           sourceLocation: { filePath: 'src/App.tsx' },
           excerpt: 'export function App() { return <div>App</div>; }',
           skillSlug: 'react',
-          confidenceScore: 0.90,
+          confidenceScore: 0.9,
         },
         {
           id: randomUUID(),
@@ -289,7 +286,7 @@ describe('ISSUE 2 — Passive Manifest Evidence Capping and Source Preference', 
           sourceLocation: { filePath: 'src/server.ts' },
           excerpt: "import express from 'express';",
           skillSlug: 'express',
-          confidenceScore: 0.90,
+          confidenceScore: 0.9,
         },
       ],
     };
@@ -499,9 +496,7 @@ describe('ISSUE 3 — SOAP Protocol-Specific Guard in PEER IMPLEMENTS', () => {
     const profile = {
       id: randomUUID(),
       tenantId: TENANT_ID,
-      skills: [
-        makeSkill('fastify', 'Fastify', { category: 'FRAMEWORK' }),
-      ],
+      skills: [makeSkill('fastify', 'Fastify', { category: 'FRAMEWORK' })],
       workHistory: [],
       profileMetadata: {},
     };
@@ -571,9 +566,7 @@ describe('ISSUE 4 — Node.js Experience Requirement Evidence/Explanation', () =
       profile
     );
 
-    const nodeExpMatch = result.requirementMatches.find(
-      (m) => m.category === 'EXPERIENCE'
-    );
+    const nodeExpMatch = result.requirementMatches.find((m) => m.category === 'EXPERIENCE');
     assert.ok(nodeExpMatch, 'Experience match must exist');
     assert.equal(
       nodeExpMatch.matchStatus,
@@ -622,9 +615,7 @@ describe('ISSUE 4 — Node.js Experience Requirement Evidence/Explanation', () =
       profile
     );
 
-    const nodeExpMatch = result.requirementMatches.find(
-      (m) => m.category === 'EXPERIENCE'
-    );
+    const nodeExpMatch = result.requirementMatches.find((m) => m.category === 'EXPERIENCE');
     assert.ok(nodeExpMatch, 'Node.js experience match must exist');
     assert.ok(
       ['PARTIAL', 'MATCHED'].includes(nodeExpMatch.matchStatus),
@@ -641,11 +632,7 @@ describe('ISSUE 4 — Node.js Experience Requirement Evidence/Explanation', () =
       'candidateSkills must include Fastify'
     );
     // RelationshipType should be BUILT_ON for fallback match
-    assert.equal(
-      nodeExpMatch.relationshipType,
-      'BUILT_ON',
-      'Fallback match should be BUILT_ON'
-    );
+    assert.equal(nodeExpMatch.relationshipType, 'BUILT_ON', 'Fallback match should be BUILT_ON');
   });
 
   it('3. Next.js alone must NOT prove Node.js application-development experience', () => {
@@ -687,9 +674,7 @@ describe('ISSUE 4 — Node.js Experience Requirement Evidence/Explanation', () =
       profile
     );
 
-    const nodeExpMatch = result.requirementMatches.find(
-      (m) => m.category === 'EXPERIENCE'
-    );
+    const nodeExpMatch = result.requirementMatches.find((m) => m.category === 'EXPERIENCE');
     assert.ok(nodeExpMatch, 'Experience match must exist');
     assert.equal(
       nodeExpMatch.matchStatus,
@@ -737,9 +722,7 @@ describe('ISSUE 4 — Node.js Experience Requirement Evidence/Explanation', () =
       profile
     );
 
-    const nodeExpMatch = result.requirementMatches.find(
-      (m) => m.category === 'EXPERIENCE'
-    );
+    const nodeExpMatch = result.requirementMatches.find((m) => m.category === 'EXPERIENCE');
     assert.ok(nodeExpMatch, 'Direct Node.js match must exist');
     assert.equal(nodeExpMatch.matchStatus, 'MATCHED');
     assert.equal(nodeExpMatch.relationshipType, 'EXACT', 'Direct match must be EXACT');
@@ -757,8 +740,12 @@ describe('ISSUE 5 — isUserClaim Not in Public MCP Contract', () => {
     const verifiedProvenance = 'VERIFIED';
 
     const isClaimLowTrust = ['CLAIMED', 'SELF_DECLARED', 'LEARNING'].includes(claimedProvenance);
-    const isSelfDeclaredLowTrust = ['CLAIMED', 'SELF_DECLARED', 'LEARNING'].includes(selfDeclaredProvenance);
-    const isVerifiedNotLowTrust = !['CLAIMED', 'SELF_DECLARED', 'LEARNING'].includes(verifiedProvenance);
+    const isSelfDeclaredLowTrust = ['CLAIMED', 'SELF_DECLARED', 'LEARNING'].includes(
+      selfDeclaredProvenance
+    );
+    const isVerifiedNotLowTrust = !['CLAIMED', 'SELF_DECLARED', 'LEARNING'].includes(
+      verifiedProvenance
+    );
 
     assert.equal(isClaimLowTrust, true, 'CLAIMED maps to LOW_TRUST');
     assert.equal(isSelfDeclaredLowTrust, true, 'SELF_DECLARED maps to LOW_TRUST');
@@ -815,9 +802,7 @@ describe('REGRESSION GUARDS — Previous Four Fixes Still Pass', () => {
     const profile = {
       id: randomUUID(),
       tenantId: TENANT_ID,
-      skills: [
-        makeSkill('next-js', 'Next.js', { category: 'FRAMEWORK' }),
-      ],
+      skills: [makeSkill('next-js', 'Next.js', { category: 'FRAMEWORK' })],
       workHistory: [],
       profileMetadata: {},
     };

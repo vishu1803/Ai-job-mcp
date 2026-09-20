@@ -11,7 +11,10 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 
@@ -204,7 +207,11 @@ function setupMockDocument() {
       query: async () => [{ id: 101, url: 'https://careers.cloudcorp.com/jobs/8801' }],
       sendMessage: async (_tabId, msg) => {
         if (msg?.type === 'DETECT_JOB_PAGE') {
-          return { success: true, detected: Boolean(lastDetectedJobOnTab), jobData: lastDetectedJobOnTab };
+          return {
+            success: true,
+            detected: Boolean(lastDetectedJobOnTab),
+            jobData: lastDetectedJobOnTab,
+          };
         }
         return { success: true };
       },
@@ -271,19 +278,22 @@ const existingHandoffA = {
     resume: {
       filename: 'Vishwanath Nishad - Senior Infrastructure Engineer.pdf',
       ready: true,
-      downloadUrl: '/api/applications/app-cloudcorp-8801-uuid/artifacts/resume/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
+      downloadUrl:
+        '/api/applications/app-cloudcorp-8801-uuid/artifacts/resume/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
       viewUrl: '/api/applications/app-cloudcorp-8801-uuid/artifacts/resume/view',
     },
     coverLetter: {
       filename: 'Vishwanath Nishad - Senior Infrastructure Engineer - Cover Letter.pdf',
       ready: true,
-      downloadUrl: '/api/applications/app-cloudcorp-8801-uuid/artifacts/cover-letter/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
+      downloadUrl:
+        '/api/applications/app-cloudcorp-8801-uuid/artifacts/cover-letter/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
       viewUrl: '/api/applications/app-cloudcorp-8801-uuid/artifacts/cover-letter/view',
     },
     bundle: {
       filename: 'handoff-kit-app-clou.zip',
       ready: true,
-      downloadUrl: '/api/applications/app-cloudcorp-8801-uuid/artifacts/bundle/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
+      downloadUrl:
+        '/api/applications/app-cloudcorp-8801-uuid/artifacts/bundle/download?packageHash=a1b2c3d4e5f6g7h8i9j0',
     },
   },
 };
@@ -344,7 +354,12 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
             experienceFit: { status: 'ELIGIBLE' },
           },
           recommendedProjects: [
-            { id: 'proj-1', name: 'Multi-Cloud Deployer', relevanceScore: 92, technologies: ['Kubernetes', 'Go'] },
+            {
+              id: 'proj-1',
+              name: 'Multi-Cloud Deployer',
+              relevanceScore: 92,
+              technologies: ['Kubernetes', 'Go'],
+            },
           ],
           analysisSnapshotId: isJobA ? 'snap-8801-uuid' : 'snap-9902-uuid',
           existingApplication: isJobA
@@ -473,7 +488,11 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
       await controller.runAnalyzeJob();
 
       assert.equal(backendCallCounts.analyzeJob, 1);
-      assert.equal(backendCallCounts.prepareHandoff, 0, 'ZERO automatic prepare-handoff calls must occur when reusing existing handoff');
+      assert.equal(
+        backendCallCounts.prepareHandoff,
+        0,
+        'ZERO automatic prepare-handoff calls must occur when reusing existing handoff'
+      );
     });
 
     it('7. Clicking [View Handoff Kit] reveals/scrolls to artifacts container and does NOT trigger generation or network call', async () => {
@@ -492,7 +511,11 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
 
       assert.equal(artifactsContainer.classList.contains('hidden'), false);
       assert.equal(artifactsContainer.scrolledIntoView, true);
-      assert.equal(backendCallCounts.prepareHandoff, 0, 'Clicking View Handoff Kit must never trigger backend prepareHandoff');
+      assert.equal(
+        backendCallCounts.prepareHandoff,
+        0,
+        'Clicking View Handoff Kit must never trigger backend prepareHandoff'
+      );
     });
 
     it('8. Clicking [View Handoff Kit] does not change packageHash, packageVersion, or applicationId', async () => {
@@ -533,7 +556,11 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
       // Re-run analysis on same job
       await controller.runAnalyzeJob();
       assert.equal(backendCallCounts.analyzeJob, 2);
-      assert.equal(backendCallCounts.prepareHandoff, 0, 'Re-analysis must NOT call prepare-handoff');
+      assert.equal(
+        backendCallCounts.prepareHandoff,
+        0,
+        'Re-analysis must NOT call prepare-handoff'
+      );
       assert.equal(controller.stateMachine.state, WORKFLOW_STATES.APPLICATION_READY);
       assert.equal(controller.cachedState.applicationId, 'app-cloudcorp-8801-uuid');
     });
@@ -659,8 +686,16 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
       const regenBtn = domElements.get('regenerateHandoffBtn');
       regenBtn.click();
 
-      assert.equal(confirmBox.classList.contains('hidden'), false, 'Confirmation box must be revealed');
-      assert.equal(backendCallCounts.prepareHandoff, 0, 'Regeneration must NOT trigger on initial button click');
+      assert.equal(
+        confirmBox.classList.contains('hidden'),
+        false,
+        'Confirmation box must be revealed'
+      );
+      assert.equal(
+        backendCallCounts.prepareHandoff,
+        0,
+        'Regeneration must NOT trigger on initial button click'
+      );
     });
 
     it('16. Canceling regeneration leaves existing handoff kit untouched', async () => {
@@ -677,8 +712,16 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
       const cancelBtn = domElements.get('cancelRegenerateBtn');
       cancelBtn.click();
 
-      assert.equal(confirmBox.classList.contains('hidden'), true, 'Confirmation box must be dismissed');
-      assert.equal(backendCallCounts.prepareHandoff, 0, 'Cancelled regeneration must not call backend');
+      assert.equal(
+        confirmBox.classList.contains('hidden'),
+        true,
+        'Confirmation box must be dismissed'
+      );
+      assert.equal(
+        backendCallCounts.prepareHandoff,
+        0,
+        'Cancelled regeneration must not call backend'
+      );
       assert.equal(controller.cachedState.handoffData.packageVersion, 1);
     });
 
@@ -698,7 +741,11 @@ describe('Part 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regener
 
       assert.equal(backendCallCounts.prepareHandoff, 1);
       assert.ok(lastPrepareArgs);
-      assert.equal(lastPrepareArgs.existingAppId, 'app-cloudcorp-8801-uuid', 'Must pass existing applicationId to maintain single canonical application');
+      assert.equal(
+        lastPrepareArgs.existingAppId,
+        'app-cloudcorp-8801-uuid',
+        'Must pass existing applicationId to maintain single canonical application'
+      );
       assert.equal(lastPrepareArgs.snapshotId, 'snap-8801-uuid');
     });
 

@@ -121,7 +121,8 @@ describe('P81: Adversarial Integrity & Unsupported-Claim Defense (Rule 32)', () 
     assert.equal(validation.rejected, true);
     assert.ok(
       validation.violations.some(
-        (v) => v.code === 'UNSUPPORTED_ACTOR_CLAIM' || v.code === 'UNSUPPORTED_LEADERSHIP_IMPLICATION'
+        (v) =>
+          v.code === 'UNSUPPORTED_ACTOR_CLAIM' || v.code === 'UNSUPPORTED_LEADERSHIP_IMPLICATION'
       )
     );
   });
@@ -141,9 +142,7 @@ describe('P81: Adversarial Integrity & Unsupported-Claim Defense (Rule 32)', () 
     });
 
     assert.equal(validation.valid, false);
-    assert.ok(
-      validation.violations.some((v) => v.code === 'CROSS_SECTION_CONTAMINATION')
-    );
+    assert.ok(validation.violations.some((v) => v.code === 'CROSS_SECTION_CONTAMINATION'));
   });
 
   it('Adversarial 5: detects keyword stuffing attempting to artificially game ATS score', () => {
@@ -152,9 +151,7 @@ describe('P81: Adversarial Integrity & Unsupported-Claim Defense (Rule 32)', () 
         text: 'Kubernetes expert building Kubernetes clusters with Kubernetes pods. Highly proficient in Kubernetes orchestration and Kubernetes ingress.',
       },
       skills: {
-        categories: [
-          { categoryName: 'DevOps', skills: [{ name: 'Kubernetes' }] },
-        ],
+        categories: [{ categoryName: 'DevOps', skills: [{ name: 'Kubernetes' }] }],
       },
       projects: [],
       experience: [],

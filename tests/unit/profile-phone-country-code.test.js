@@ -186,7 +186,8 @@ describe('Profile Phone Number Country-Code Selector & Normalization Test Suite'
   it('6. Invalid country codes are rejected with ValidationError', () => {
     assert.throws(
       () => normalizeCountryCode('+99999'),
-      (err) => err instanceof ValidationError && err.message.includes('Invalid country calling code')
+      (err) =>
+        err instanceof ValidationError && err.message.includes('Invalid country calling code')
     );
 
     assert.throws(
@@ -282,7 +283,10 @@ describe('Profile Phone Number Country-Code Selector & Normalization Test Suite'
     });
     assert.ok(texContent.includes('+91 7905087928'), 'LaTeX must contain normalized phone');
     assert.ok(!texContent.includes('🇮🇳'), 'LaTeX must never contain flag emoji');
-    assert.ok(!texContent.includes('contactCountryCodeSelect'), 'LaTeX must not contain UI elements');
+    assert.ok(
+      !texContent.includes('contactCountryCodeSelect'),
+      'LaTeX must not contain UI elements'
+    );
 
     // Verify LaTeX visual structure has not changed: standard header format with \cdot separator
     assert.ok(texContent.includes('$\\cdot$'));
@@ -309,9 +313,7 @@ describe('Profile Phone Number Country-Code Selector & Normalization Test Suite'
 
     // Verify helper resolution across workflow services
     const resolvedPhone =
-      cand.profileMetadata?.userCustom?.phone ||
-      cand.profileMetadata?.phone ||
-      cand.phone;
+      cand.profileMetadata?.userCustom?.phone || cand.profileMetadata?.phone || cand.phone;
 
     assert.equal(resolvedPhone, '+91 7905087928');
 

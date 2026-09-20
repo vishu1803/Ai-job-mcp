@@ -224,11 +224,7 @@ export function evaluateJobSuitability(firstArg, maybeProfile, maybeFit, maybeOp
   }
 
   // 3 & 4. Technical Skill Fit & Evidence Coverage
-  const fitScore =
-    jobFit?.overallFit?.atsScore ??
-    jobFit?.fitScore ??
-    jobPosting?.fitScore ??
-    null;
+  const fitScore = jobFit?.overallFit?.atsScore ?? jobFit?.fitScore ?? jobPosting?.fitScore ?? null;
   let missingRequiredRatio = 0;
 
   if (jobFit?.skillGaps) {

@@ -28,10 +28,12 @@ import * as schema from '../src/db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p59-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\92671582-f9ab-4068-bea1-30da09fd5593';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\92671582-f9ab-4068-bea1-30da09fd5593';
 const CDP_PORT = 9334;
 const FIXTURE_PORT = 3098;
 
@@ -134,7 +136,10 @@ class CDPConnection {
       returnByValue: true,
     });
     if (res.exceptionDetails) {
-      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || JSON.stringify(res.exceptionDetails);
+      const desc =
+        res.exceptionDetails.exception?.description ||
+        res.exceptionDetails.text ||
+        JSON.stringify(res.exceptionDetails);
       throw new Error(`Eval error: ${desc}`);
     }
     return res.result?.value;
@@ -144,7 +149,7 @@ class CDPConnection {
     try {
       const res = await Promise.race([
         this.send('Page.captureScreenshot', { format: 'png' }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Screenshot timeout')), 5000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Screenshot timeout')), 5000)),
       ]);
       const buffer = Buffer.from(res.data, 'base64');
       const outPath = path.join(SCREENSHOT_DIR, filename);
@@ -185,11 +190,17 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // 2. Fetch User & Candidate
-  const users = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const users = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   const targetUser = users[0];
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
 
-  const candidates = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const candidates = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const targetCandidate = candidates[0];
   if (!targetCandidate) throw new Error('Target candidate not found');
 
@@ -250,7 +261,9 @@ async function run() {
   let extensionId = null;
   for (let i = 0; i < 20; i++) {
     const targetsRes = await browserCdp.send('Target.getTargets');
-    const swTarget = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+    const swTarget = targetsRes.targetInfos.find(
+      (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+    );
     if (swTarget) {
       const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
       if (m) extensionId = m[1];
@@ -289,16 +302,26 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- SCENARIO 1: Unauthenticated State & UI Gating ---');
     // Ensure no auth cookie for localhost:3000
-    const sidebarTab = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=9999`);
+    const sidebarTab = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=9999`
+    );
     await sleep(1500);
 
-    const isUnauthVisible = await sidebarTab.evaluate(`!document.getElementById('authUnauthenticatedState').classList.contains('hidden')`);
-    const isAuthHidden = await sidebarTab.evaluate(`document.getElementById('authAuthenticatedState').classList.contains('hidden')`);
+    const isUnauthVisible = await sidebarTab.evaluate(
+      `!document.getElementById('authUnauthenticatedState').classList.contains('hidden')`
+    );
+    const isAuthHidden = await sidebarTab.evaluate(
+      `document.getElementById('authAuthenticatedState').classList.contains('hidden')`
+    );
     const hasLoginBtn = await sidebarTab.evaluate(`!!document.getElementById('loginBtn')`);
 
-    console.log(`   [Check] Unauth UI visible: ${isUnauthVisible}, Auth UI hidden: ${isAuthHidden}, Login button exists: ${hasLoginBtn}`);
+    console.log(
+      `   [Check] Unauth UI visible: ${isUnauthVisible}, Auth UI hidden: ${isAuthHidden}, Login button exists: ${hasLoginBtn}`
+    );
     if (!isUnauthVisible || !isAuthHidden || !hasLoginBtn) {
-      throw new Error('Unauthenticated state check failed: Sidebar did not render unauthenticated UI');
+      throw new Error(
+        'Unauthenticated state check failed: Sidebar did not render unauthenticated UI'
+      );
     }
     await sidebarTab.captureScreenshot('p59-01-unauthenticated.png');
 
@@ -319,13 +342,21 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(1000);
 
-    const isAuthVisibleNow = await sidebarTab.evaluate(`!document.getElementById('authAuthenticatedState').classList.contains('hidden')`);
-    const renderedUserName = await sidebarTab.evaluate(`document.getElementById('userName').textContent`);
+    const isAuthVisibleNow = await sidebarTab.evaluate(
+      `!document.getElementById('authAuthenticatedState').classList.contains('hidden')`
+    );
+    const renderedUserName = await sidebarTab.evaluate(
+      `document.getElementById('userName').textContent`
+    );
     const hasLogoutBtn = await sidebarTab.evaluate(`!!document.getElementById('logoutBtn')`);
 
-    console.log(`   [Check] Auth UI visible: ${isAuthVisibleNow}, User name: "${renderedUserName}", Logout button exists: ${hasLogoutBtn}`);
+    console.log(
+      `   [Check] Auth UI visible: ${isAuthVisibleNow}, User name: "${renderedUserName}", Logout button exists: ${hasLogoutBtn}`
+    );
     if (!isAuthVisibleNow || !renderedUserName.includes('Vishwanath')) {
-      throw new Error(`Authentication check failed: Expected Vishwanath, got "${renderedUserName}"`);
+      throw new Error(
+        `Authentication check failed: Expected Vishwanath, got "${renderedUserName}"`
+      );
     }
     await sidebarTab.captureScreenshot('p59-02-authenticated.png');
 
@@ -343,12 +374,13 @@ async function run() {
       location: 'San Francisco, CA (Hybrid)',
       url: `http://127.0.0.1:${FIXTURE_PORT}/linkedin-job.html`,
       portal: 'LINKEDIN',
-      description: 'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems. Requirements: 3+ years experience with Node.js, TypeScript, PostgreSQL, Docker, and Redis.',
+      description:
+        'TechCorp Global is seeking a Senior Backend Engineer to build high-scale distributed systems. Requirements: 3+ years experience with Node.js, TypeScript, PostgreSQL, Docker, and Redis.',
       rawRequirements: [
         '3+ years experience in backend software engineering with Node.js and TypeScript.',
         'Hands-on experience with PostgreSQL database schema design and performance optimization.',
         'Proficiency with Docker containerization and Redis caching.',
-        'Knowledge of REST APIs and microservice architecture.'
+        'Knowledge of REST APIs and microservice architecture.',
       ],
       skills: ['Node.js', 'TypeScript', 'PostgreSQL', 'Docker', 'Redis'],
     };
@@ -358,9 +390,15 @@ async function run() {
     `);
     await sleep(500);
 
-    const renderedJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const isAnalyzeBtnEnabled = await sidebarTab.evaluate(`!document.getElementById('analyzeJobBtn').disabled`);
-    console.log(`   [Check] Detected job title: "${renderedJobTitle}", Analyze button enabled: ${isAnalyzeBtnEnabled}`);
+    const renderedJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const isAnalyzeBtnEnabled = await sidebarTab.evaluate(
+      `!document.getElementById('analyzeJobBtn').disabled`
+    );
+    console.log(
+      `   [Check] Detected job title: "${renderedJobTitle}", Analyze button enabled: ${isAnalyzeBtnEnabled}`
+    );
     if (!renderedJobTitle.includes('Senior Backend Engineer') || !isAnalyzeBtnEnabled) {
       throw new Error('Job detection rendering failed in sidebar');
     }
@@ -374,17 +412,31 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController.runAnalyzeJob()`);
     await sleep(3500);
 
-    const workflowStateAfterAnalysis = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+    const workflowStateAfterAnalysis = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
     const isAnalysisReady = workflowStateAfterAnalysis === 'ANALYSIS_READY';
-    const isHandoffCardVisible = await sidebarTab.evaluate(`!document.getElementById('handoffCard').classList.contains('hidden')`);
-    const isPrepareCtaBoxVisible = await sidebarTab.evaluate(`!document.getElementById('analysisNextActionBox').classList.contains('hidden')`);
-    const isPrepareCtaBtnVisible = await sidebarTab.evaluate(`!document.getElementById('ctaPrepareHandoffBtn').classList.contains('hidden')`);
+    const isHandoffCardVisible = await sidebarTab.evaluate(
+      `!document.getElementById('handoffCard').classList.contains('hidden')`
+    );
+    const isPrepareCtaBoxVisible = await sidebarTab.evaluate(
+      `!document.getElementById('analysisNextActionBox').classList.contains('hidden')`
+    );
+    const isPrepareCtaBtnVisible = await sidebarTab.evaluate(
+      `!document.getElementById('ctaPrepareHandoffBtn').classList.contains('hidden')`
+    );
 
-    console.log(`   [Check] State: ${workflowStateAfterAnalysis}, Handoff Card Visible: ${isHandoffCardVisible}`);
-    console.log(`   [Check] Analysis Next Action CTA visible: ${isPrepareCtaBoxVisible}, CTA Button visible: ${isPrepareCtaBtnVisible}`);
+    console.log(
+      `   [Check] State: ${workflowStateAfterAnalysis}, Handoff Card Visible: ${isHandoffCardVisible}`
+    );
+    console.log(
+      `   [Check] Analysis Next Action CTA visible: ${isPrepareCtaBoxVisible}, CTA Button visible: ${isPrepareCtaBtnVisible}`
+    );
 
     if (!isAnalysisReady || !isHandoffCardVisible || !isPrepareCtaBtnVisible) {
-      throw new Error('ANALYSIS_READY Dead-End Elimination failed: Handoff CTA was not visible/enabled after analysis!');
+      throw new Error(
+        'ANALYSIS_READY Dead-End Elimination failed: Handoff CTA was not visible/enabled after analysis!'
+      );
     }
     await sidebarTab.captureScreenshot('p59-04-analysis-ready.png');
 
@@ -402,12 +454,20 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(500);
 
-    const isSessionExpiredNoticeVisible = await sidebarTab.evaluate(`!document.getElementById('sessionExpiredNotice').classList.contains('hidden')`);
-    const preservedJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const preservedFitScore = await sidebarTab.evaluate(`document.getElementById('scoreValue').textContent`);
+    const isSessionExpiredNoticeVisible = await sidebarTab.evaluate(
+      `!document.getElementById('sessionExpiredNotice').classList.contains('hidden')`
+    );
+    const preservedJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const preservedFitScore = await sidebarTab.evaluate(
+      `document.getElementById('scoreValue').textContent`
+    );
 
     console.log(`   [Check] Session expired notice visible: ${isSessionExpiredNoticeVisible}`);
-    console.log(`   [Check] Preserved Job Title: "${preservedJobTitle}", Preserved Fit Score: "${preservedFitScore}"`);
+    console.log(
+      `   [Check] Preserved Job Title: "${preservedJobTitle}", Preserved Fit Score: "${preservedFitScore}"`
+    );
 
     if (!isSessionExpiredNoticeVisible || !preservedJobTitle.includes('Senior Backend Engineer')) {
       throw new Error('Session expiry destroyed workflow state! Invariant violated.');
@@ -426,11 +486,19 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController._checkAuthStatus()`);
     await sleep(500);
 
-    const isReauthNoticeHidden = await sidebarTab.evaluate(`document.getElementById('sessionExpiredNotice').classList.contains('hidden')`);
-    const stateAfterReauth = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const isCtaStillAvailable = await sidebarTab.evaluate(`!document.getElementById('ctaPrepareHandoffBtn').disabled`);
+    const isReauthNoticeHidden = await sidebarTab.evaluate(
+      `document.getElementById('sessionExpiredNotice').classList.contains('hidden')`
+    );
+    const stateAfterReauth = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
+    const isCtaStillAvailable = await sidebarTab.evaluate(
+      `!document.getElementById('ctaPrepareHandoffBtn').disabled`
+    );
 
-    console.log(`   [Check] Notice hidden: ${isReauthNoticeHidden}, State: ${stateAfterReauth}, Prepare CTA available: ${isCtaStillAvailable}`);
+    console.log(
+      `   [Check] Notice hidden: ${isReauthNoticeHidden}, State: ${stateAfterReauth}, Prepare CTA available: ${isCtaStillAvailable}`
+    );
     if (!isReauthNoticeHidden || stateAfterReauth !== 'ANALYSIS_READY' || !isCtaStillAvailable) {
       throw new Error('Re-authentication did not restore ANALYSIS_READY workflow state');
     }
@@ -445,11 +513,17 @@ async function run() {
     // Wait for Tectonic compilation and artifact generation (takes ~10-15s)
     let stateAfterHandoff = null;
     for (let i = 0; i < 45; i++) {
-      stateAfterHandoff = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+      stateAfterHandoff = await sidebarTab.evaluate(
+        `window.__sidebarController.stateMachine.state`
+      );
       if (stateAfterHandoff === 'APPLICATION_READY') break;
-      const hasError = await sidebarTab.evaluate(`!document.getElementById('handoffErrorBanner').classList.contains('hidden')`);
+      const hasError = await sidebarTab.evaluate(
+        `!document.getElementById('handoffErrorBanner').classList.contains('hidden')`
+      );
       if (hasError) {
-        const errMsg = await sidebarTab.evaluate(`document.getElementById('handoffErrorMessage').textContent`);
+        const errMsg = await sidebarTab.evaluate(
+          `document.getElementById('handoffErrorMessage').textContent`
+        );
         throw new Error(`Prepare handoff failed with UI error: ${errMsg}`);
       }
       await sleep(1000);
@@ -457,16 +531,28 @@ async function run() {
 
     console.log(`   [Check] Workflow state after handoff preparation: ${stateAfterHandoff}`);
     if (stateAfterHandoff !== 'APPLICATION_READY') {
-      throw new Error(`Prepare handoff did not reach APPLICATION_READY. State: ${stateAfterHandoff}`);
+      throw new Error(
+        `Prepare handoff did not reach APPLICATION_READY. State: ${stateAfterHandoff}`
+      );
     }
 
-    const firstAppId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const firstPackageMeta = await sidebarTab.evaluate(`document.getElementById('handoffPackageMeta').textContent`);
-    const isReviewResumeBtnVisible = await sidebarTab.evaluate(`!document.getElementById('reviewResumeBtn').classList.contains('hidden')`);
-    const isDownloadResumeBtnVisible = await sidebarTab.evaluate(`!document.getElementById('downloadResumeBtn').classList.contains('hidden')`);
+    const firstAppId = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const firstPackageMeta = await sidebarTab.evaluate(
+      `document.getElementById('handoffPackageMeta').textContent`
+    );
+    const isReviewResumeBtnVisible = await sidebarTab.evaluate(
+      `!document.getElementById('reviewResumeBtn').classList.contains('hidden')`
+    );
+    const isDownloadResumeBtnVisible = await sidebarTab.evaluate(
+      `!document.getElementById('downloadResumeBtn').classList.contains('hidden')`
+    );
 
     console.log(`   [Check] Application ID: "${firstAppId}", Package: "${firstPackageMeta}"`);
-    console.log(`   [Check] Review Resume CTA: ${isReviewResumeBtnVisible}, Download Resume CTA: ${isDownloadResumeBtnVisible}`);
+    console.log(
+      `   [Check] Review Resume CTA: ${isReviewResumeBtnVisible}, Download Resume CTA: ${isDownloadResumeBtnVisible}`
+    );
 
     if (!firstAppId || !firstPackageMeta || !isReviewResumeBtnVisible) {
       throw new Error('Handoff telemetry or actions missing from UI');
@@ -478,9 +564,13 @@ async function run() {
       .select()
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCandidate.id));
-    console.log(`   [DB] Total candidate applications in DB now: ${appsAfterFirstHandoff.length} (was ${initialAppCount})`);
+    console.log(
+      `   [DB] Total candidate applications in DB now: ${appsAfterFirstHandoff.length} (was ${initialAppCount})`
+    );
     if (appsAfterFirstHandoff.length !== initialAppCount + 1) {
-      throw new Error(`Expected exactly 1 new application created, but found ${appsAfterFirstHandoff.length - initialAppCount}`);
+      throw new Error(
+        `Expected exactly 1 new application created, but found ${appsAfterFirstHandoff.length - initialAppCount}`
+      );
     }
 
     // -------------------------------------------------------------
@@ -491,17 +581,31 @@ async function run() {
     await sidebarTab.evaluate(`window.location.reload()`);
     await sleep(2000);
 
-    const reloadedJobTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const reloadedAppId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const reloadedPackageMeta = await sidebarTab.evaluate(`document.getElementById('handoffPackageMeta').textContent`);
-    const reloadedState = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
+    const reloadedJobTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const reloadedAppId = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const reloadedPackageMeta = await sidebarTab.evaluate(
+      `document.getElementById('handoffPackageMeta').textContent`
+    );
+    const reloadedState = await sidebarTab.evaluate(
+      `window.__sidebarController.stateMachine.state`
+    );
 
     console.log(`   [Check] Reloaded State: ${reloadedState}`);
-    console.log(`   [Check] Reloaded App ID: "${reloadedAppId}" (Matches original: ${reloadedAppId === firstAppId})`);
-    console.log(`   [Check] Reloaded Package: "${reloadedPackageMeta}" (Matches original: ${reloadedPackageMeta === firstPackageMeta})`);
+    console.log(
+      `   [Check] Reloaded App ID: "${reloadedAppId}" (Matches original: ${reloadedAppId === firstAppId})`
+    );
+    console.log(
+      `   [Check] Reloaded Package: "${reloadedPackageMeta}" (Matches original: ${reloadedPackageMeta === firstPackageMeta})`
+    );
 
     if (reloadedAppId !== firstAppId || reloadedPackageMeta !== firstPackageMeta) {
-      throw new Error('DurableWorkflowStore recovery failed: Reload did not restore exact application state');
+      throw new Error(
+        'DurableWorkflowStore recovery failed: Reload did not restore exact application state'
+      );
     }
     await sidebarTab.captureScreenshot('p59-08-sidebar-reloaded-state-restored.png');
 
@@ -518,13 +622,21 @@ async function run() {
       await sleep(1000);
     }
 
-    const secondAppId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const secondPackageMeta = await sidebarTab.evaluate(`document.getElementById('handoffPackageMeta').textContent`);
-    console.log(`   [Check] Second preparation App ID: "${secondAppId}" (Expected: "${firstAppId}")`);
+    const secondAppId = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const secondPackageMeta = await sidebarTab.evaluate(
+      `document.getElementById('handoffPackageMeta').textContent`
+    );
+    console.log(
+      `   [Check] Second preparation App ID: "${secondAppId}" (Expected: "${firstAppId}")`
+    );
     console.log(`   [Check] Second preparation Package: "${secondPackageMeta}"`);
 
     if (secondAppId !== firstAppId) {
-      throw new Error(`Idempotency violated! Application ID changed from ${firstAppId} to ${secondAppId}`);
+      throw new Error(
+        `Idempotency violated! Application ID changed from ${firstAppId} to ${secondAppId}`
+      );
     }
 
     // Check DB applications count: MUST REMAIN UNCHANGED
@@ -532,9 +644,13 @@ async function run() {
       .select()
       .from(schema.jobApplications)
       .where(eq(schema.jobApplications.candidateId, targetCandidate.id));
-    console.log(`   [DB] Total candidate applications in DB after 2nd click: ${appsAfterSecondHandoff.length}`);
+    console.log(
+      `   [DB] Total candidate applications in DB after 2nd click: ${appsAfterSecondHandoff.length}`
+    );
     if (appsAfterSecondHandoff.length !== appsAfterFirstHandoff.length) {
-      throw new Error(`Idempotency violated! A duplicate application row was created in PostgreSQL!`);
+      throw new Error(
+        `Idempotency violated! A duplicate application row was created in PostgreSQL!`
+      );
     }
     console.log('   >>> IDEMPOTENCY INVARIANT PROVEN: 0 DUPLICATE APPLICATIONS CREATED <<<');
     await sidebarTab.captureScreenshot('p59-09-handoff-idempotent-reused.png');
@@ -563,15 +679,25 @@ async function run() {
     await sidebarTab.evaluate(`window.__sidebarController.logout()`);
     await sleep(500);
 
-    const isLoggedOut = await sidebarTab.evaluate(`!document.getElementById('authUnauthenticatedState').classList.contains('hidden')`);
-    const jobPreservedAfterLogout = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
-    const appPreservedAfterLogout = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
+    const isLoggedOut = await sidebarTab.evaluate(
+      `!document.getElementById('authUnauthenticatedState').classList.contains('hidden')`
+    );
+    const jobPreservedAfterLogout = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
+    const appPreservedAfterLogout = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
 
     console.log(`   [Check] Unauth UI visible: ${isLoggedOut}`);
     console.log(`   [Check] Job title preserved: "${jobPreservedAfterLogout}"`);
     console.log(`   [Check] App ID preserved: "${appPreservedAfterLogout}"`);
 
-    if (!isLoggedOut || !jobPreservedAfterLogout.includes('Senior Backend Engineer') || !appPreservedAfterLogout) {
+    if (
+      !isLoggedOut ||
+      !jobPreservedAfterLogout.includes('Senior Backend Engineer') ||
+      !appPreservedAfterLogout
+    ) {
       throw new Error('Logout destroyed detected job or application state! Invariant violated.');
     }
     await sidebarTab.captureScreenshot('p59-11-logout-state-preserved.png');

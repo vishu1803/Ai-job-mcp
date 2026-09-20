@@ -80,7 +80,9 @@ async function main() {
   if (toRemap.length > 0) {
     console.log('\nSample items to REMAP:');
     for (const item of toRemap.slice(0, 10)) {
-      console.log(`  - ${item.row.skill_slug} -> ${item.parentMappings.map(p => p.parentSlug).join(', ')}`);
+      console.log(
+        `  - ${item.row.skill_slug} -> ${item.parentMappings.map((p) => p.parentSlug).join(', ')}`
+      );
     }
   }
 
@@ -114,9 +116,9 @@ async function main() {
   const backupData = {
     timestamp: new Date().toISOString(),
     totalCandidateSkills: allCandidateSkills.rows.length,
-    purgedSkillIds: toPurge.map(p => p.row.id),
-    remappedSkillIds: toRemap.map(r => r.row.id),
-    purgedRows: toPurge.map(p => p.row),
+    purgedSkillIds: toPurge.map((p) => p.row.id),
+    remappedSkillIds: toRemap.map((r) => r.row.id),
+    purgedRows: toPurge.map((p) => p.row),
   };
   fs.mkdirSync(path.dirname(BACKUP_JSON_PATH), { recursive: true });
   fs.writeFileSync(BACKUP_JSON_PATH, JSON.stringify(backupData, null, 2), 'utf-8');
@@ -157,8 +159,8 @@ async function main() {
 
     // B. Delete contaminated candidate_skills and their evidence items
     if (toPurge.length > 0) {
-      const purgeIds = toPurge.map(p => p.row.id);
-      const purgeSkillIds = Array.from(new Set(toPurge.map(p => p.row.skill_id)));
+      const purgeIds = toPurge.map((p) => p.row.id);
+      const purgeSkillIds = Array.from(new Set(toPurge.map((p) => p.row.skill_id)));
 
       // Delete evidence_items linked to purged non-skills
       if (purgeSkillIds.length > 0) {
@@ -186,7 +188,9 @@ async function main() {
   const verifyResult = await db.execute(sql`
     SELECT count(*) as remaining_count FROM candidate_skills
   `);
-  console.log(`\nVerification: ${verifyResult.rows[0].remaining_count} clean candidate_skills remaining.`);
+  console.log(
+    `\nVerification: ${verifyResult.rows[0].remaining_count} clean candidate_skills remaining.`
+  );
   console.log('✅ TAXONOMY CLEANUP COMPLETED SUCCESSFULLY.');
 
   await closeDatabase();

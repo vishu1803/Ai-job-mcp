@@ -77,12 +77,9 @@ describe('P85: Score Sovereignty & Immutability', () => {
 
     // Attempt mutation (should fail or throw because weights are frozen)
     assert.ok(Object.isFrozen(policyP82.weights));
-    assert.throws(
-      () => {
-        policyP82.weights.jobMatch = 0.99;
-      },
-      /Cannot assign to read only property/
-    );
+    assert.throws(() => {
+      policyP82.weights.jobMatch = 0.99;
+    }, /Cannot assign to read only property/);
 
     const weightsAfter = JSON.stringify(policyP82.weights);
     assert.equal(weightsBefore, weightsAfter);

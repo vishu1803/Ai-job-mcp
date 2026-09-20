@@ -86,9 +86,7 @@ describe('Application Document Pipeline Defect Fixes & Integrity', () => {
       {
         name: 'Collaborative-task-manager',
         technologies: ['Node.js', 'Express', 'Socket.io', 'PostgreSQL'],
-        evidence: [
-          { skillName: 'Socket.io', sourceLocation: { filePath: 'src/server.ts' } },
-        ],
+        evidence: [{ skillName: 'Socket.io', sourceLocation: { filePath: 'src/server.ts' } }],
         bullets: [
           'Built a collaborative task management platform using Node.js and Express.',
           'Integrated real-time updates, reducing team coordination overhead by 35% and improving team productivity.',
@@ -225,8 +223,14 @@ Full-stack engineer.
       });
 
       assert.ok(result.texContent.includes('Product-Data-Explorer'), 'Project 1 must be present');
-      assert.ok(result.texContent.includes('Collaborative-task-manager'), 'Project 2 must be present');
-      assert.ok(result.texContent.includes('Ai-powered-code-review-assistant'), 'Project 3 must be present');
+      assert.ok(
+        result.texContent.includes('Collaborative-task-manager'),
+        'Project 2 must be present'
+      );
+      assert.ok(
+        result.texContent.includes('Ai-powered-code-review-assistant'),
+        'Project 3 must be present'
+      );
       assert.ok(result.texContent.includes('FTV Saloon'), 'Experience must be present');
     });
 
@@ -286,7 +290,12 @@ Full-stack engineer.
           title: 'Resume',
           markdownContent: '## Summary\nEngineer.',
           selectedProjects: [],
-          selectedSections: ['TECHNICAL_SKILLS', 'PROJECTS', 'PROFESSIONAL_EXPERIENCE', 'EDUCATION'],
+          selectedSections: [
+            'TECHNICAL_SKILLS',
+            'PROJECTS',
+            'PROFESSIONAL_EXPERIENCE',
+            'EDUCATION',
+          ],
         },
       };
 
@@ -314,7 +323,12 @@ Full-stack engineer.
           markdownContent:
             '## Summary\nEngineer.\n\n## Problem Solving & Algorithmic Practice\n### LeetCode Profile · Candidate-Reported Problem Solving\n- Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
           selectedProjects: [],
-          selectedSections: ['TECHNICAL_SKILLS', 'PROJECTS', 'PROBLEM_SOLVING', 'PROFESSIONAL_EXPERIENCE'],
+          selectedSections: [
+            'TECHNICAL_SKILLS',
+            'PROJECTS',
+            'PROBLEM_SOLVING',
+            'PROFESSIONAL_EXPERIENCE',
+          ],
           sectionSnapshots: {
             PROBLEM_SOLVING: {
               title: 'Problem Solving & Algorithmic Practice',
@@ -355,15 +369,12 @@ Full-stack engineer.
         },
       };
 
-      assert.throws(
-        () => {
-          latexGen.generateTailoredResumeLatex({
-            applicationPackage: pkg,
-            candidateProfile: dummyCandidateData,
-          });
-        },
-        /DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing/i
-      );
+      assert.throws(() => {
+        latexGen.generateTailoredResumeLatex({
+          applicationPackage: pkg,
+          candidateProfile: dummyCandidateData,
+        });
+      }, /DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing/i);
     });
   });
 
@@ -406,9 +417,7 @@ Full-stack engineer.
       const project = {
         name: 'Collaborative-task-manager',
         technologies: ['Node.js', 'Express', 'Socket.io', 'PostgreSQL'],
-        evidence: [
-          { skillName: 'Socket.io', sourceLocation: { filePath: 'src/server.ts' } },
-        ],
+        evidence: [{ skillName: 'Socket.io', sourceLocation: { filePath: 'src/server.ts' } }],
         bullets: [
           'Built collaborative task manager using Node.js and Socket.io.',
           'Integrated real-time updates, reducing team coordination overhead by 35% and improving team productivity.',
@@ -449,7 +458,9 @@ Full-stack engineer.
         'Must preserve verified FastAPI bullet'
       );
       assert.ok(
-        !project.bullets.some((b) => /reduced average manual code review time|developer velocity/i.test(b)),
+        !project.bullets.some((b) =>
+          /reduced average manual code review time|developer velocity/i.test(b)
+        ),
         'Must remove unsupported review time reduction metric'
       );
     });
@@ -471,9 +482,18 @@ Full-stack engineer.
         candidateProfile: dummyCandidateData,
       });
 
-      assert.ok(result.texContent.includes('FTV Saloon'), 'Experience must render from candidate profile');
-      assert.ok(result.texContent.includes('Rajkiya Engineering College'), 'Education must render from candidate profile');
-      assert.ok(result.texContent.includes('AWS Certified Cloud Practitioner'), 'Certifications must render from candidate profile');
+      assert.ok(
+        result.texContent.includes('FTV Saloon'),
+        'Experience must render from candidate profile'
+      );
+      assert.ok(
+        result.texContent.includes('Rajkiya Engineering College'),
+        'Education must render from candidate profile'
+      );
+      assert.ok(
+        result.texContent.includes('AWS Certified Cloud Practitioner'),
+        'Certifications must render from candidate profile'
+      );
     });
   });
 
@@ -579,7 +599,10 @@ Full-stack engineer.
       });
 
       assert.ok(!result.texContent.includes('example.com'), 'Must never contain example.com');
-      assert.ok(!result.texContent.includes('Live Demo'), 'Must omit Live Demo link when URL is synthetic');
+      assert.ok(
+        !result.texContent.includes('Live Demo'),
+        'Must omit Live Demo link when URL is synthetic'
+      );
       assert.ok(
         result.texContent.includes('github.com/vishu1803/Collaborative-task-manager'),
         'Must keep authentic GitHub link'
@@ -632,7 +655,10 @@ Full-stack engineer.
         categorizedSkills['Backend & APIs'].includes('NestJS'),
         'NestJS featured in Project 1 must be retained in Backend & APIs'
       );
-      assert.ok(categorizedSkills['Frontend & Web'], 'Frontend & Web must exist for full-stack role');
+      assert.ok(
+        categorizedSkills['Frontend & Web'],
+        'Frontend & Web must exist for full-stack role'
+      );
       assert.ok(
         categorizedSkills['Frontend & Web'].includes('React'),
         'React must be retained in Frontend & Web without being dropped by React.js claim'
@@ -780,10 +806,7 @@ Full-stack engineer.
       assert.equal(formatProjectDisplayName('vishu1803/Ai-job-mcp'), 'AI Job MCP');
       assert.equal(formatProjectDisplayName('spotify-clone'), 'Spotify Clone');
       assert.equal(formatProjectDisplayName('REST-api-service'), 'REST API Service');
-      assert.equal(
-        formatProjectDisplayName('Product Data Explorer'),
-        'Product Data Explorer'
-      );
+      assert.equal(formatProjectDisplayName('Product Data Explorer'), 'Product Data Explorer');
     });
 
     it('Scenario A: 3 recommended projects + DSA selected -> selects top 2 projects, preserves DSA section, explicitly records omitted 3rd project', () => {
@@ -848,7 +871,11 @@ Full-stack engineer.
       });
 
       // 1. Budget: exactly top 2 projects selected
-      assert.equal(resume.selectedProjects.length, 2, 'Must select top 2 projects for 1-page budget with DSA');
+      assert.equal(
+        resume.selectedProjects.length,
+        2,
+        'Must select top 2 projects for 1-page budget with DSA'
+      );
       assert.equal(resume.selectedProjects[0].name, 'Product Data Explorer');
       assert.equal(resume.selectedProjects[1].name, 'Collaborative Task Manager');
 
@@ -931,9 +958,16 @@ Full-stack engineer.
         includeProblemSolving: false,
       });
 
-      assert.equal(resume.selectedProjects.length, 3, 'Must render up to 3 projects when DSA is omitted');
+      assert.equal(
+        resume.selectedProjects.length,
+        3,
+        'Must render up to 3 projects when DSA is omitted'
+      );
       assert.equal(resume.omittedProjects.length, 0, 'No projects omitted from recommended list');
-      assert.ok(!resume.sections.includes('PROBLEM_SOLVING'), 'PROBLEM_SOLVING must NOT be in sections');
+      assert.ok(
+        !resume.sections.includes('PROBLEM_SOLVING'),
+        'PROBLEM_SOLVING must NOT be in sections'
+      );
       assert.ok(
         !resume.markdownContent.includes('## Problem Solving & Algorithmic Practice'),
         'Markdown must NOT contain DSA section'
@@ -978,12 +1012,19 @@ Full-stack engineer.
 
       // AWS should be selected under Cloud, DevOps & Systems
       const cloudSkills = categorizedSkills['Cloud, DevOps & Systems'] || [];
-      assert.ok(cloudSkills.includes('AWS'), 'AWS must be included as relevant declared cloud platform');
+      assert.ok(
+        cloudSkills.includes('AWS'),
+        'AWS must be included as relevant declared cloud platform'
+      );
 
       // AWS provenance in skillAudit must remain strictly SELF_DECLARED
       const awsAudit = skillAudit.find((s) => s.skill === 'AWS');
       assert.ok(awsAudit, 'AWS must be audited');
-      assert.equal(awsAudit.provenance, 'SELF_DECLARED', 'AWS provenance must remain SELF_DECLARED');
+      assert.equal(
+        awsAudit.provenance,
+        'SELF_DECLARED',
+        'AWS provenance must remain SELF_DECLARED'
+      );
       assert.equal(awsAudit.status, 'SELECTED', 'AWS must be SELECTED');
 
       // Redundant secondary cloud platforms must be omitted with clear audit reasons

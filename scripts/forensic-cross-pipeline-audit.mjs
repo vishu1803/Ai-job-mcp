@@ -26,11 +26,20 @@ import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import { sql, eq, and } from 'drizzle-orm';
 import { db, pool } from '../src/db/index.js';
-import { candidates, users, jobApplications, tailoredDocuments, applicationPackages } from '../src/db/schema.js';
+import {
+  candidates,
+  users,
+  jobApplications,
+  tailoredDocuments,
+  applicationPackages,
+} from '../src/db/schema.js';
 import { createSession } from '../src/security/session.service.js';
 
 // Domain and Service imports
-import { normalizeJobInput, computeCanonicalJobFingerprint } from '../src/services/job-normalization.service.js';
+import {
+  normalizeJobInput,
+  computeCanonicalJobFingerprint,
+} from '../src/services/job-normalization.service.js';
 import { JobApplicationWorkflowService } from '../src/services/job-application-workflow.service.js';
 import { JobAnalysisSnapshotService } from '../src/services/job-analysis-snapshot.service.js';
 import { CandidateProfileService } from '../src/services/candidate-profile.service.js';
@@ -138,23 +147,79 @@ async function runAudit() {
   console.log('--- PHASE 1: MCP Tool & Extension Endpoint Inventory ---');
   const toList = (defs) => (Array.isArray(defs) ? defs : Object.values(defs || {}));
   const mcpTools = [
-    ...toList(CAREER_READ_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'CAREER_READ', scope: d.scope || 'career:read' })),
-    ...toList(CAREER_ARTIFACT_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'CAREER_ARTIFACT', scope: d.scope || 'career:read' })),
-    ...toList(CAREER_WRITE_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'CAREER_WRITE', scope: d.scope || 'career:write' })),
-    ...toList(CAREER_TRACKING_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'CAREER_TRACKING', scope: d.scope || 'career:read/write' })),
-    ...toList(JOB_WORKFLOW_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'JOB_WORKFLOW', scope: d.scope || 'career:read/write' })),
-    ...toList(CAREER_PROFILE_TOOL_DEFINITIONS).map((d) => ({ name: d.name, category: 'CAREER_PROFILE', scope: d.scope || 'career:read/write' })),
+    ...toList(CAREER_READ_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'CAREER_READ',
+      scope: d.scope || 'career:read',
+    })),
+    ...toList(CAREER_ARTIFACT_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'CAREER_ARTIFACT',
+      scope: d.scope || 'career:read',
+    })),
+    ...toList(CAREER_WRITE_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'CAREER_WRITE',
+      scope: d.scope || 'career:write',
+    })),
+    ...toList(CAREER_TRACKING_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'CAREER_TRACKING',
+      scope: d.scope || 'career:read/write',
+    })),
+    ...toList(JOB_WORKFLOW_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'JOB_WORKFLOW',
+      scope: d.scope || 'career:read/write',
+    })),
+    ...toList(CAREER_PROFILE_TOOL_DEFINITIONS).map((d) => ({
+      name: d.name,
+      category: 'CAREER_PROFILE',
+      scope: d.scope || 'career:read/write',
+    })),
   ];
   console.log(`Total Registered MCP Tools: ${mcpTools.length}`);
   const extensionEndpoints = [
-    { method: 'GET', path: '/api/extension/session', responsibility: 'Session & candidate identity inspection' },
-    { method: 'GET', path: '/api/extension/auth-status', responsibility: 'Session status check alias' },
-    { method: 'POST', path: '/api/extension/analyze-job', responsibility: 'Extract, canonicalize, analyze fit & save snapshot' },
-    { method: 'POST', path: '/api/extension/prepare-handoff', responsibility: 'Orchestrate tailored handoff kit preparation' },
-    { method: 'POST', path: '/api/extension/validate-package', responsibility: 'Deep validation of prepared application package' },
-    { method: 'POST', path: '/api/extension/preview-package', responsibility: 'Scrubbed markdown & structured preview' },
-    { method: 'GET', path: '/api/applications/:id/artifacts/:artifactType/view', responsibility: 'Decrypted artifact inline view' },
-    { method: 'GET', path: '/api/applications/:id/artifacts/:artifactType/download', responsibility: 'Decrypted artifact authenticated download' },
+    {
+      method: 'GET',
+      path: '/api/extension/session',
+      responsibility: 'Session & candidate identity inspection',
+    },
+    {
+      method: 'GET',
+      path: '/api/extension/auth-status',
+      responsibility: 'Session status check alias',
+    },
+    {
+      method: 'POST',
+      path: '/api/extension/analyze-job',
+      responsibility: 'Extract, canonicalize, analyze fit & save snapshot',
+    },
+    {
+      method: 'POST',
+      path: '/api/extension/prepare-handoff',
+      responsibility: 'Orchestrate tailored handoff kit preparation',
+    },
+    {
+      method: 'POST',
+      path: '/api/extension/validate-package',
+      responsibility: 'Deep validation of prepared application package',
+    },
+    {
+      method: 'POST',
+      path: '/api/extension/preview-package',
+      responsibility: 'Scrubbed markdown & structured preview',
+    },
+    {
+      method: 'GET',
+      path: '/api/applications/:id/artifacts/:artifactType/view',
+      responsibility: 'Decrypted artifact inline view',
+    },
+    {
+      method: 'GET',
+      path: '/api/applications/:id/artifacts/:artifactType/download',
+      responsibility: 'Decrypted artifact authenticated download',
+    },
   ];
   console.log(`Total Extension/Web Artifact Endpoints: ${extensionEndpoints.length}`);
 
@@ -192,7 +257,11 @@ Requirements:
 
   console.log(`Mode A (MCP Direct) Fingerprint: ${modeA.jobFingerprint}`);
   console.log(`Mode C (Ext Raw)    Fingerprint: ${modeC.jobFingerprint}`);
-  assert.equal(modeA.jobFingerprint, modeC.jobFingerprint, 'Mode A and Mode C must have identical job fingerprints');
+  assert.equal(
+    modeA.jobFingerprint,
+    modeC.jobFingerprint,
+    'Mode A and Mode C must have identical job fingerprints'
+  );
   assert.deepEqual(
     modeA.normalizedRequirements.map((r) => r.id),
     modeC.normalizedRequirements.map((r) => r.id),
@@ -257,7 +326,11 @@ Requirements:
     canonicalJobId: 'job-canonical-test-a',
     jobContentHash: jobContentHashB,
   });
-  assert.equal(valMismatchHash.valid, false, 'Snapshot must be invalid when job content hash changes');
+  assert.equal(
+    valMismatchHash.valid,
+    false,
+    'Snapshot must be invalid when job content hash changes'
+  );
   assert.equal(valMismatchHash.reason, 'JOB_CONTENT_HASH_MISMATCH');
   console.log(`[PASS] Scenario 9b: Altered job description rejected (${valMismatchHash.reason})`);
 
@@ -275,7 +348,9 @@ Requirements:
     assert.equal(err.code, 'ANALYSIS_JOB_MISMATCH', 'Must throw ANALYSIS_JOB_MISMATCH');
   }
   assert.ok(caught409, 'Must throw 409 on canonical job mismatch');
-  console.log('[PASS] Scenario 9c: Canonical job ID mismatch correctly threw 409 ANALYSIS_JOB_MISMATCH');
+  console.log(
+    '[PASS] Scenario 9c: Canonical job ID mismatch correctly threw 409 ANALYSIS_JOB_MISMATCH'
+  );
 
   // Test 9d: Cross-tenant isolation (403)
   let caughtTenant403 = false;
@@ -289,7 +364,9 @@ Requirements:
     assert.equal(err.code, 'CROSS_TENANT_ACCESS_DENIED');
   }
   assert.ok(caughtTenant403, 'Must throw 403 on cross-tenant access');
-  console.log('[PASS] Scenario 9d: Cross-tenant snapshot access blocked (403 CROSS_TENANT_ACCESS_DENIED)');
+  console.log(
+    '[PASS] Scenario 9d: Cross-tenant snapshot access blocked (403 CROSS_TENANT_ACCESS_DENIED)'
+  );
 
   // Test 9e: Cross-candidate isolation (403)
   let caughtCand403 = false;
@@ -303,7 +380,9 @@ Requirements:
     assert.equal(err.code, 'CROSS_CANDIDATE_ACCESS_DENIED');
   }
   assert.ok(caughtCand403, 'Must throw 403 on cross-candidate access');
-  console.log('[PASS] Scenario 9e: Cross-candidate snapshot access blocked (403 CROSS_CANDIDATE_ACCESS_DENIED)');
+  console.log(
+    '[PASS] Scenario 9e: Cross-candidate snapshot access blocked (403 CROSS_CANDIDATE_ACCESS_DENIED)'
+  );
 
   // =========================================================================
   // AUDIT PHASE 10: Specialized Service Conflict Test
@@ -331,7 +410,9 @@ Requirements:
   const graph = buildCandidateJobEvidenceGraph(factInventory.facts, canonicalJobA);
   const scoredFacts = scoreFactsForJob(factInventory.facts, canonicalJobA);
 
-  console.log(`[Service A] CandidateEvidenceGraph: ${graph.facts.length} candidate facts, ${graph.matches.length} match edges`);
+  console.log(
+    `[Service A] CandidateEvidenceGraph: ${graph.facts.length} candidate facts, ${graph.matches.length} match edges`
+  );
   console.log(`            Scored Facts: ${scoredFacts.length} facts`);
 
   // Consistent test job entity for specialized services
@@ -356,7 +437,9 @@ Requirements:
 
   // Service B: EvidenceMatchingService
   const matchB = EvidenceMatchingService.matchJobToCandidate(mcpContext, domainJob, candDomainObj);
-  console.log(`[Service B] EvidenceMatchingService: ${matchB.summary.matchedCount} matched, ${matchB.summary.missingCount} missing`);
+  console.log(
+    `[Service B] EvidenceMatchingService: ${matchB.summary.matchedCount} matched, ${matchB.summary.missingCount} missing`
+  );
 
   // Service C: ProjectRelevanceService
   const projC = ProjectRelevanceService.computeProjectsRelevance(
@@ -365,7 +448,9 @@ Requirements:
     candDomainObj.projects,
     { candidateId: candidate.id, skills: candDomainObj.skills }
   );
-  console.log(`[Service C] ProjectRelevanceService rankings: ${projC.projectRankings.map((p) => `${p.projectName || p.name} (${p.relevanceScore})`).join('; ')}`);
+  console.log(
+    `[Service C] ProjectRelevanceService rankings: ${projC.projectRankings.map((p) => `${p.projectName || p.name} (${p.relevanceScore})`).join('; ')}`
+  );
 
   // Service D: AtsFitScoreService
   const atsD = AtsFitScoreService.calculateCandidateJobFit(
@@ -386,7 +471,9 @@ Requirements:
     },
     { db, candidateProfileService: profileService }
   );
-  console.log(`[Service E] PortfolioRecommendationService: Featured = ${(portE.featuredProjects || []).map((p) => p.name || p.displayName).join(', ')}`);
+  console.log(
+    `[Service E] PortfolioRecommendationService: Featured = ${(portE.featuredProjects || []).map((p) => p.name || p.displayName).join(', ')}`
+  );
 
   // Service F: StructuredResumeService (Canonical Authority)
   const structF = buildStructuredResumeSnapshot({
@@ -396,23 +483,39 @@ Requirements:
       company: jobCompanyA,
       description: jobDescriptionA,
       requirements: canonicalJobA.normalizedRequirements.map((r) => r.text),
-      skills: canonicalJobA.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
+      skills: canonicalJobA.normalizedRequirements
+        .filter((r) => r.class === 'TECHNOLOGY')
+        .map((r) => r.text),
       projectRankings: projC.projectRankings,
     },
     options: {
       projectRankings: projC.projectRankings,
     },
   });
-  const selectedProjNames = (structF.structuredResume.projects || []).map((p) => p.name || p.displayName);
-  console.log(`[Service F] StructuredResume Final Selected Projects: ${selectedProjNames.join(', ')}`);
+  const selectedProjNames = (structF.structuredResume.projects || []).map(
+    (p) => p.name || p.displayName
+  );
+  console.log(
+    `[Service F] StructuredResume Final Selected Projects: ${selectedProjNames.join(', ')}`
+  );
   console.log(`            Integrity Receipt: ${structF.evidenceValidationReceipt.overallStatus}`);
-  console.log(`            Verified Claims: ${structF.evidenceValidationReceipt.verifiedClaimsCount}`);
+  console.log(
+    `            Verified Claims: ${structF.evidenceValidationReceipt.verifiedClaimsCount}`
+  );
 
   // Authority verification:
-  assert.equal(structF.evidenceValidationReceipt.overallStatus, 'PASS', 'StructuredResume must pass integrity validation');
+  assert.equal(
+    structF.evidenceValidationReceipt.overallStatus,
+    'PASS',
+    'StructuredResume must pass integrity validation'
+  );
   console.log('[PASS] Phase 10: Service responsibilities and authority boundary verified:');
-  console.log('       - ProjectRelevanceService & PortfolioRecommendationService: Advisory analytical ranking');
-  console.log('       - CandidateJobEvidenceGraph & StructuredResumeService: Sole authoritative resume selection');
+  console.log(
+    '       - ProjectRelevanceService & PortfolioRecommendationService: Advisory analytical ranking'
+  );
+  console.log(
+    '       - CandidateJobEvidenceGraph & StructuredResumeService: Sole authoritative resume selection'
+  );
 
   // =========================================================================
   // AUDIT PHASE 21: Generic Software Engineer Test (3 Distinct Roles)
@@ -421,40 +524,75 @@ Requirements:
   const role1_Python = normalizeJobInput({
     title: 'Software Engineer',
     company: 'TechCorp A',
-    description: 'Requirements:\n- Python 3.12 and FastAPI\n- PostgreSQL performance tuning\n- REST APIs',
+    description:
+      'Requirements:\n- Python 3.12 and FastAPI\n- PostgreSQL performance tuning\n- REST APIs',
   });
   const role2_Rust = normalizeJobInput({
     title: 'Software Engineer',
     company: 'TechCorp B',
-    description: 'Requirements:\n- Rust systems programming\n- Distributed consensus and Raft\n- Docker and Linux cgroups',
+    description:
+      'Requirements:\n- Rust systems programming\n- Distributed consensus and Raft\n- Docker and Linux cgroups',
   });
   const role3_React = normalizeJobInput({
     title: 'Software Engineer',
     company: 'TechCorp C',
-    description: 'Requirements:\n- React 19 and Next.js App Router\n- TypeScript strict mode\n- Tailwind CSS and responsive UI',
+    description:
+      'Requirements:\n- React 19 and Next.js App Router\n- TypeScript strict mode\n- Tailwind CSS and responsive UI',
   });
 
   console.log(`Role 1 (Python) Fingerprint: ${role1_Python.jobFingerprint}`);
-  console.log(`  Requirements: ${role1_Python.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`);
+  console.log(
+    `  Requirements: ${role1_Python.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`
+  );
   console.log(`Role 2 (Rust)   Fingerprint: ${role2_Rust.jobFingerprint}`);
-  console.log(`  Requirements: ${role2_Rust.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`);
+  console.log(
+    `  Requirements: ${role2_Rust.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`
+  );
   console.log(`Role 3 (React)  Fingerprint: ${role3_React.jobFingerprint}`);
-  console.log(`  Requirements: ${role3_React.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`);
+  console.log(
+    `  Requirements: ${role3_React.normalizedRequirements.map((r) => r.normalizedConcept).join(', ')}`
+  );
 
-  assert.notEqual(role1_Python.jobFingerprint, role2_Rust.jobFingerprint, 'Python vs Rust must have distinct fingerprints');
-  assert.notEqual(role1_Python.jobFingerprint, role3_React.jobFingerprint, 'Python vs React must have distinct fingerprints');
-  assert.notEqual(role2_Rust.jobFingerprint, role3_React.jobFingerprint, 'Rust vs React must have distinct fingerprints');
-  console.log('[PASS] Generic "Software Engineer" title produces 3 distinct evidence-backed fingerprints and requirement sets');
+  assert.notEqual(
+    role1_Python.jobFingerprint,
+    role2_Rust.jobFingerprint,
+    'Python vs Rust must have distinct fingerprints'
+  );
+  assert.notEqual(
+    role1_Python.jobFingerprint,
+    role3_React.jobFingerprint,
+    'Python vs React must have distinct fingerprints'
+  );
+  assert.notEqual(
+    role2_Rust.jobFingerprint,
+    role3_React.jobFingerprint,
+    'Rust vs React must have distinct fingerprints'
+  );
+  console.log(
+    '[PASS] Generic "Software Engineer" title produces 3 distinct evidence-backed fingerprints and requirement sets'
+  );
 
   // Measure Candidate Coverage for each:
   const cov1 = calculateRequirementCoverage(factInventory.facts, role1_Python);
   const cov2 = calculateRequirementCoverage(factInventory.facts, role2_Rust);
   const cov3 = calculateRequirementCoverage(factInventory.facts, role3_React);
-  console.log(`Coverage for Python Role: ${(cov1.coverage * 100).toFixed(1)}% (Tier ${cov1.tier}, ${cov1.coveredCount}/${cov1.totalCount} reqs)`);
-  console.log(`Coverage for Rust Role:   ${(cov2.coverage * 100).toFixed(1)}% (Tier ${cov2.tier}, ${cov2.coveredCount}/${cov2.totalCount} reqs)`);
-  console.log(`Coverage for React Role:  ${(cov3.coverage * 100).toFixed(1)}% (Tier ${cov3.tier}, ${cov3.coveredCount}/${cov3.totalCount} reqs)`);
-  assert.notEqual(cov1.coverage, cov2.coverage, 'Candidate must have differential coverage between Python and Rust');
-  console.log('[PASS] Candidate evidence produces authentic differentiated coverage across identical titles');
+  console.log(
+    `Coverage for Python Role: ${(cov1.coverage * 100).toFixed(1)}% (Tier ${cov1.tier}, ${cov1.coveredCount}/${cov1.totalCount} reqs)`
+  );
+  console.log(
+    `Coverage for Rust Role:   ${(cov2.coverage * 100).toFixed(1)}% (Tier ${cov2.tier}, ${cov2.coveredCount}/${cov2.totalCount} reqs)`
+  );
+  console.log(
+    `Coverage for React Role:  ${(cov3.coverage * 100).toFixed(1)}% (Tier ${cov3.tier}, ${cov3.coveredCount}/${cov3.totalCount} reqs)`
+  );
+  assert.notEqual(
+    cov1.coverage,
+    cov2.coverage,
+    'Candidate must have differential coverage between Python and Rust'
+  );
+  console.log(
+    '[PASS] Candidate evidence produces authentic differentiated coverage across identical titles'
+  );
 
   // =========================================================================
   // AUDIT PHASE 20: Differential MCP vs Extension
@@ -462,10 +600,14 @@ Requirements:
   console.log('\n--- PHASE 20: Differential MCP vs Extension Parity ---');
   // Run MCP generate_tailored_resume
   console.log('Running MCP generate_tailored_resume...');
-  const mcpResume = await handleGenerateTailoredResume(mcpContext, {
-    jobTitle: jobTitleA,
-    jobDescriptionText: jobDescriptionA,
-  }, { database: db, workflowService });
+  const mcpResume = await handleGenerateTailoredResume(
+    mcpContext,
+    {
+      jobTitle: jobTitleA,
+      jobDescriptionText: jobDescriptionA,
+    },
+    { database: db, workflowService }
+  );
 
   // Run Extension prepare-handoff via Fastify inject
   console.log('Running Extension prepare-handoff...');
@@ -510,12 +652,20 @@ Requirements:
 
   console.log(`MCP Projects:       ${mcpProjectNames.join(', ')}`);
   console.log(`Extension Projects: ${extProjectNames.join(', ')}`);
-  assert.deepEqual(mcpProjectNames, extProjectNames, 'MCP and Extension MUST select identical projects');
+  assert.deepEqual(
+    mcpProjectNames,
+    extProjectNames,
+    'MCP and Extension MUST select identical projects'
+  );
   console.log('[PASS] MCP and Extension produce identical selected projects');
 
   // Compare skill categories and names
-  const mcpSkillNames = mcpResume.resume.skills.flatMap((c) => c.skills.map((s) => s.skillName)).sort();
-  const extSkillNames = (extStructured.skills?.categories || []).flatMap((c) => (c.skills || []).map((s) => s.name)).sort();
+  const mcpSkillNames = mcpResume.resume.skills
+    .flatMap((c) => c.skills.map((s) => s.skillName))
+    .sort();
+  const extSkillNames = (extStructured.skills?.categories || [])
+    .flatMap((c) => (c.skills || []).map((s) => s.name))
+    .sort();
   console.log(`MCP Skills (${mcpSkillNames.length}):       ${mcpSkillNames.join(', ')}`);
   console.log(`Extension Skills (${extSkillNames.length}): ${extSkillNames.join(', ')}`);
   assert.deepEqual(mcpSkillNames, extSkillNames, 'MCP and Extension MUST select identical skills');
@@ -536,8 +686,14 @@ Requirements:
   assert.equal(viewRes.statusCode, 200, 'View endpoint must return 200 for READY artifact');
   assert.equal(viewRes.headers['content-type'], 'application/pdf');
   assert.ok(viewRes.rawPayload.length > 1000, 'PDF buffer must have real compiled bytes');
-  assert.equal(viewRes.rawPayload.slice(0, 4).toString(), '%PDF', 'Must have valid PDF magic bytes');
-  console.log(`[PASS] Authenticated View returned HTTP 200 with valid PDF (${viewRes.rawPayload.length} bytes)`);
+  assert.equal(
+    viewRes.rawPayload.slice(0, 4).toString(),
+    '%PDF',
+    'Must have valid PDF magic bytes'
+  );
+  console.log(
+    `[PASS] Authenticated View returned HTTP 200 with valid PDF (${viewRes.rawPayload.length} bytes)`
+  );
 
   const downloadRes = await app.inject({
     method: 'GET',
@@ -548,7 +704,9 @@ Requirements:
   });
   assert.equal(downloadRes.statusCode, 200, 'Download endpoint must return 200 for READY artifact');
   assert.equal(downloadRes.headers['content-type'], 'application/pdf');
-  console.log(`[PASS] Authenticated Download returned HTTP 200 with valid PDF (${downloadRes.rawPayload.length} bytes)`);
+  console.log(
+    `[PASS] Authenticated Download returned HTTP 200 with valid PDF (${downloadRes.rawPayload.length} bytes)`
+  );
 
   // Now test BLOCKED status fail-closed gating (409)
   const [appRow] = await db
@@ -572,7 +730,9 @@ Requirements:
     headers: { Authorization: `Bearer ${bearerToken}` },
   });
   assert.equal(blockedView.statusCode, 409, 'Must return 409 when artifact is BLOCKED');
-  console.log('[PASS] Invariant verified: BLOCKED artifact returns HTTP 409 ARTIFACT_BLOCKED and is unavailable');
+  console.log(
+    '[PASS] Invariant verified: BLOCKED artifact returns HTTP 409 ARTIFACT_BLOCKED and is unavailable'
+  );
 
   // Restore READY status
   await db

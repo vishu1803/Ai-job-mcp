@@ -37,15 +37,19 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p77-sidepanel-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\32fc28a4-be6a-4f53-afeb-1fb203af361a';
 const CDP_PORT = 9477;
 
 const LIVE_JOBGETHER_URL = 'https://www.linkedin.com/jobs/view/4466834190/';
-const LIVE_SAME_COMP_JOB1_URL = 'https://in.linkedin.com/jobs/view/full-stack-javascript-database-developer-at-particle41-4121993912';
-const LIVE_SAME_COMP_JOB2_URL = 'https://in.linkedin.com/jobs/view/full-stack-javascript-developer-at-particle41-4467464995';
+const LIVE_SAME_COMP_JOB1_URL =
+  'https://in.linkedin.com/jobs/view/full-stack-javascript-database-developer-at-particle41-4121993912';
+const LIVE_SAME_COMP_JOB2_URL =
+  'https://in.linkedin.com/jobs/view/full-stack-javascript-developer-at-particle41-4467464995';
 
 if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -81,7 +85,8 @@ class CDPClient {
   async send(method, params = {}, timeoutMs = 45000) {
     const id = this.nextId++;
     const payload = JSON.stringify({ id, method, params });
-    const effectiveTimeout = (method === 'Page.navigate' || method === 'Page.reload') ? 12000 : timeoutMs;
+    const effectiveTimeout =
+      method === 'Page.navigate' || method === 'Page.reload' ? 12000 : timeoutMs;
     return new Promise((resolve, reject) => {
       const tid = setTimeout(() => {
         if (this.pending.has(id)) {
@@ -123,7 +128,9 @@ class CDPClient {
 
   close() {
     if (this.ws) {
-      try { this.ws.close(); } catch {}
+      try {
+        this.ws.close();
+      } catch {}
     }
   }
 }
@@ -152,7 +159,9 @@ async function main() {
     userId: canonicalUser.id,
     tenantId: canonicalUser.tenantId,
   });
-  console.log(`   Session created for user ${canonicalUser.id} (${session.rawToken.slice(0, 16)}...)`);
+  console.log(
+    `   Session created for user ${canonicalUser.id} (${session.rawToken.slice(0, 16)}...)`
+  );
 
   // 3. Spawn Real Chrome for Testing (CFT)
   console.log(`\n3. Spawning Chrome for Testing (CDP port ${CDP_PORT})...`);
@@ -208,7 +217,9 @@ async function main() {
     `);
 
     // 4. OPEN AUTHENTIC PRODUCTION CHROME SIDE PANEL (chrome.sidePanel.open)
-    console.log('\n4. Opening Authentic Production Chrome Side Panel via chrome.sidePanel.open()...');
+    console.log(
+      '\n4. Opening Authentic Production Chrome Side Panel via chrome.sidePanel.open()...'
+    );
     const popupTarget = await browserCdp.send('Target.createTarget', {
       url: `chrome-extension://${extId}/popup/popup.html`,
     });
@@ -240,13 +251,15 @@ async function main() {
     );
 
     if (!sidePanelTargetInfo) {
-      throw new Error('Real production Chrome Side Panel target not found! Expected sidebar.html with NO ?tabId= parameter.');
+      throw new Error(
+        'Real production Chrome Side Panel target not found! Expected sidebar.html with NO ?tabId= parameter.'
+      );
     }
 
     console.log(`   Found Authentic Side Panel Target: ${sidePanelTargetInfo.url}`);
-    const sidePanelListInfo = (await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json()).find(
-      (item) => item.id === sidePanelTargetInfo.targetId
-    );
+    const sidePanelListInfo = (
+      await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json()
+    ).find((item) => item.id === sidePanelTargetInfo.targetId);
     sidebarCdp = new CDPClient(sidePanelListInfo.webSocketDebuggerUrl);
     await sidebarCdp.connect();
     await sidebarCdp.send('Runtime.enable');
@@ -262,7 +275,9 @@ async function main() {
     })()`);
     console.log('   Side Panel controller state:', sidePanelPinnedState);
     if (sidePanelPinnedState.pinnedTabId !== null) {
-      throw new Error(`CRITICAL: Production side panel must be unpinned (pinnedTabId === null), found ${sidePanelPinnedState.pinnedTabId}`);
+      throw new Error(
+        `CRITICAL: Production side panel must be unpinned (pinnedTabId === null), found ${sidePanelPinnedState.pinnedTabId}`
+      );
     }
 
     // Connect to primary browser tab
@@ -317,20 +332,29 @@ async function main() {
 
     // Assertions for Phase 3
     if (!sidebarJobgetherState.title.toLowerCase().includes('full stack engineer')) {
-      throw new Error(`Title parity failure: expected Full Stack Engineer, got "${sidebarJobgetherState.title}"`);
+      throw new Error(
+        `Title parity failure: expected Full Stack Engineer, got "${sidebarJobgetherState.title}"`
+      );
     }
     if (!sidebarJobgetherState.company.toLowerCase().includes('jobgether')) {
-      throw new Error(`Company parity failure: expected Jobgether, got "${sidebarJobgetherState.company}"`);
+      throw new Error(
+        `Company parity failure: expected Jobgether, got "${sidebarJobgetherState.company}"`
+      );
     }
     if (sidebarJobgetherState.employmentType !== 'FULL_TIME') {
-      throw new Error(`CRITICAL: Employment type parity failure! Expected "FULL_TIME", got "${sidebarJobgetherState.employmentType}"`);
+      throw new Error(
+        `CRITICAL: Employment type parity failure! Expected "FULL_TIME", got "${sidebarJobgetherState.employmentType}"`
+      );
     }
     if (sidebarJobgetherState.detectedHidden) {
       throw new Error('Job detected state should NOT be hidden for Job ID 4466834190');
     }
 
     // Capture screenshot for Phase 3
-    const screenshotJobgetPath = path.join(SCREENSHOT_DIR, 'p77-01-jobgether-4466834190-sidebar.png');
+    const screenshotJobgetPath = path.join(
+      SCREENSHOT_DIR,
+      'p77-01-jobgether-4466834190-sidebar.png'
+    );
     await sidebarCdp.captureScreenshot(screenshotJobgetPath);
     console.log(`   [PASS] Parity verified! Screenshot: ${screenshotJobgetPath}`);
 
@@ -341,8 +365,12 @@ async function main() {
     })()`);
 
     console.log('\n3-Way Convergence Assertion (Jobgether 4466834190):');
-    console.log(`   Persisted Title: "${persistedStateJobgether?.jobData?.title}" (Type: "${persistedStateJobgether?.jobData?.employmentType}")`);
-    console.log(`   Rendered Title:  "${sidebarJobgetherState.title}" (Type: "${sidebarJobgetherState.employmentType}")`);
+    console.log(
+      `   Persisted Title: "${persistedStateJobgether?.jobData?.title}" (Type: "${persistedStateJobgether?.jobData?.employmentType}")`
+    );
+    console.log(
+      `   Rendered Title:  "${sidebarJobgetherState.title}" (Type: "${sidebarJobgetherState.employmentType}")`
+    );
     if (persistedStateJobgether?.jobData?.title !== sidebarJobgetherState.title) {
       throw new Error('Title convergence failure on Jobgether');
     }
@@ -385,8 +413,12 @@ async function main() {
     if (!sidebarP41Job1.company.toLowerCase().includes('particle41')) {
       throw new Error(`Company mismatch: expected Particle41, got "${sidebarP41Job1.company}"`);
     }
-    if (!sidebarP41Job1.title.toLowerCase().includes('full stack javascript & database developer')) {
-      throw new Error(`Title mismatch: expected Full Stack Javascript & Database Developer, got "${sidebarP41Job1.title}"`);
+    if (
+      !sidebarP41Job1.title.toLowerCase().includes('full stack javascript & database developer')
+    ) {
+      throw new Error(
+        `Title mismatch: expected Full Stack Javascript & Database Developer, got "${sidebarP41Job1.title}"`
+      );
     }
 
     const screenshotP41Job1Path = path.join(SCREENSHOT_DIR, 'p77-02-particle41-job-1.png');
@@ -426,22 +458,30 @@ async function main() {
 
     // Company MUST remain Particle41
     if (!sidebarP41Job2.company.toLowerCase().includes('particle41')) {
-      throw new Error(`Same-company invariant failed: expected Particle41, got "${sidebarP41Job2.company}"`);
+      throw new Error(
+        `Same-company invariant failed: expected Particle41, got "${sidebarP41Job2.company}"`
+      );
     }
 
     // Title MUST update to Job 2
     if (!sidebarP41Job2.title.toLowerCase().includes('full stack javascript developer')) {
-      throw new Error(`Same-company title transition failed: expected Full Stack Javascript Developer, got "${sidebarP41Job2.title}"`);
+      throw new Error(
+        `Same-company title transition failed: expected Full Stack Javascript Developer, got "${sidebarP41Job2.title}"`
+      );
     }
 
     // Fingerprint MUST be distinct from Job 1
     if (sidebarP41Job2.fingerprint === sidebarP41Job1.fingerprint) {
-      throw new Error(`CRITICAL: Same-company different-job navigation did not yield distinct fingerprint! Both are ${sidebarP41Job1.fingerprint}`);
+      throw new Error(
+        `CRITICAL: Same-company different-job navigation did not yield distinct fingerprint! Both are ${sidebarP41Job1.fingerprint}`
+      );
     }
 
     const screenshotP41Job2Path = path.join(SCREENSHOT_DIR, 'p77-03-particle41-job-2.png');
     await sidebarCdp.captureScreenshot(screenshotP41Job2Path);
-    console.log(`   [PASS] Same-Company Different-Job verified! Screenshot: ${screenshotP41Job2Path}`);
+    console.log(
+      `   [PASS] Same-Company Different-Job verified! Screenshot: ${screenshotP41Job2Path}`
+    );
 
     // =========================================================================
     // PHASE 6: RETURN NAVIGATION TO SAME-COMPANY JOB 1
@@ -473,16 +513,29 @@ async function main() {
     console.log(`   Company:     "${sidebarP41Job1Restored.company}"`);
     console.log(`   Fingerprint: ${sidebarP41Job1Restored.fingerprint}`);
 
-    if (!sidebarP41Job1Restored.title.toLowerCase().includes('full stack javascript & database developer')) {
-      throw new Error(`Return navigation to Job 1 failed: expected Full Stack Javascript & Database Developer, got "${sidebarP41Job1Restored.title}"`);
+    if (
+      !sidebarP41Job1Restored.title
+        .toLowerCase()
+        .includes('full stack javascript & database developer')
+    ) {
+      throw new Error(
+        `Return navigation to Job 1 failed: expected Full Stack Javascript & Database Developer, got "${sidebarP41Job1Restored.title}"`
+      );
     }
     if (sidebarP41Job1Restored.fingerprint !== sidebarP41Job1.fingerprint) {
-      throw new Error(`Return fingerprint mismatch: expected ${sidebarP41Job1.fingerprint}, got ${sidebarP41Job1Restored.fingerprint}`);
+      throw new Error(
+        `Return fingerprint mismatch: expected ${sidebarP41Job1.fingerprint}, got ${sidebarP41Job1Restored.fingerprint}`
+      );
     }
 
-    const screenshotP41Job1RestoredPath = path.join(SCREENSHOT_DIR, 'p77-04-particle41-job-1-restored.png');
+    const screenshotP41Job1RestoredPath = path.join(
+      SCREENSHOT_DIR,
+      'p77-04-particle41-job-1-restored.png'
+    );
     await sidebarCdp.captureScreenshot(screenshotP41Job1RestoredPath);
-    console.log(`   [PASS] Return navigation to Job 1 verified! Screenshot: ${screenshotP41Job1RestoredPath}`);
+    console.log(
+      `   [PASS] Return navigation to Job 1 verified! Screenshot: ${screenshotP41Job1RestoredPath}`
+    );
 
     // =========================================================================
     // PHASE 7: RESTORATION OF JOB ID 4466834190 (JOBGETHER)
@@ -517,27 +570,39 @@ async function main() {
     console.log(`   Fingerprint:     ${sidebarJobgetherRestored.fingerprint}`);
 
     if (!sidebarJobgetherRestored.title.toLowerCase().includes('full stack engineer')) {
-      throw new Error(`Jobgether restoration title mismatch: got "${sidebarJobgetherRestored.title}"`);
+      throw new Error(
+        `Jobgether restoration title mismatch: got "${sidebarJobgetherRestored.title}"`
+      );
     }
     if (!sidebarJobgetherRestored.company.toLowerCase().includes('jobgether')) {
-      throw new Error(`Jobgether restoration company mismatch: got "${sidebarJobgetherRestored.company}"`);
+      throw new Error(
+        `Jobgether restoration company mismatch: got "${sidebarJobgetherRestored.company}"`
+      );
     }
     if (sidebarJobgetherRestored.employmentType !== 'FULL_TIME') {
-      throw new Error(`Jobgether restoration employmentType mismatch: expected FULL_TIME, got "${sidebarJobgetherRestored.employmentType}"`);
+      throw new Error(
+        `Jobgether restoration employmentType mismatch: expected FULL_TIME, got "${sidebarJobgetherRestored.employmentType}"`
+      );
     }
     if (sidebarJobgetherRestored.fingerprint !== sidebarJobgetherState.fingerprint) {
-      throw new Error(`Jobgether restoration fingerprint mismatch: expected ${sidebarJobgetherState.fingerprint}, got ${sidebarJobgetherRestored.fingerprint}`);
+      throw new Error(
+        `Jobgether restoration fingerprint mismatch: expected ${sidebarJobgetherState.fingerprint}, got ${sidebarJobgetherRestored.fingerprint}`
+      );
     }
 
-    const screenshotJobgetherRestoredPath = path.join(SCREENSHOT_DIR, 'p77-05-jobgether-restored.png');
+    const screenshotJobgetherRestoredPath = path.join(
+      SCREENSHOT_DIR,
+      'p77-05-jobgether-restored.png'
+    );
     await sidebarCdp.captureScreenshot(screenshotJobgetherRestoredPath);
-    console.log(`   [PASS] Full cycle restoration verified! Screenshot: ${screenshotJobgetherRestoredPath}`);
+    console.log(
+      `   [PASS] Full cycle restoration verified! Screenshot: ${screenshotJobgetherRestoredPath}`
+    );
 
     console.log('\n======================================================');
     console.log('🎉 ALL 7 PHASES OF PART 77 PASSED IN REAL CHROME (CFT)!');
     console.log('======================================================');
     process.exit(0);
-
   } catch (err) {
     console.error('\n❌ P77 Live Verification Failed:', err);
     process.exitCode = 1;

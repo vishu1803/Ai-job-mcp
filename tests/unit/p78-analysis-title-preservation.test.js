@@ -24,7 +24,10 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
-import { WorkflowStateMachine, WORKFLOW_STATES } from '../../extension/lib/workflow-state-machine.js';
+import {
+  WorkflowStateMachine,
+  WORKFLOW_STATES,
+} from '../../extension/lib/workflow-state-machine.js';
 import { DurableWorkflowStore } from '../../extension/lib/durable-workflow-store.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
 
@@ -44,9 +47,15 @@ function createMockElement(id = '', defaultText = '') {
     children: [],
     classList: {
       _set: new Set(['hidden']),
-      add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
-      contains(c) { return this._set.has(c); },
+      add(c) {
+        this._set.add(c);
+      },
+      remove(c) {
+        this._set.delete(c);
+      },
+      contains(c) {
+        return this._set.has(c);
+      },
       toggle(c, force) {
         if (force === true) this._set.add(c);
         else if (force === false) this._set.delete(c);
@@ -72,32 +81,96 @@ function createMockElement(id = '', defaultText = '') {
 function setupMockDocument() {
   const elements = new Map();
   const elementIds = [
-    'connectionBadge', 'connectionText', 'refreshBtn', 'rescanBtn',
-    'pendingJobNotification', 'pendingJobTitle', 'rescanPendingBtn',
-    'authBar', 'authUnauthenticatedState', 'authAuthenticatedState',
-    'loginBtn', 'logoutBtn', 'userName', 'userEmail', 'userAvatar',
-    'sessionExpiredNotice', 'reauthBtn', 'workflowStatusBar', 'workflowStateText',
-    'workflowLockedBadge', 'syncIndicator', 'portalCard', 'portalName',
-    'confidenceBadge', 'capJob', 'capApp', 'capForm', 'capAutofill',
-    'jobCard', 'reanalyzeBtn', 'jobNotDetectedState', 'jobDetectedState',
-    'jobTitle', 'jobCompany', 'jobLocation', 'jobType', 'jobIdTag',
-    'analyzeJobBtn', 'descriptionLoadingNotice', 'descriptionLoadingText',
-    'analysisErrorBanner', 'analysisErrorMessage', 'retryAnalysisBtn',
-    'analysisCard', 'matchBandBadge', 'scoreValue', 'matchedSkillsCount',
-    'missingSkillsCount', 'experienceFitVal', 'matchedSkillsList', 'missingSkillsList',
-    'analysisNextActionBox', 'projectsCard', 'recommendedProjectsList',
-    'handoffCard', 'handoffStatusBadge', 'handoffTelemetryRow', 'handoffAppId',
-    'handoffPackageMeta', 'workflowLockBanner', 'resetWorkflowBtn',
-    'handoffErrorBanner', 'handoffErrorMessage', 'retryHandoffBtn',
-    'prepareHandoffBtn', 'prepareSpinner', 'prepareBtnText',
-    'regenerateHandoffBtn', 'regenerateConfirmBox', 'cancelRegenerateBtn',
-    'confirmRegenerateBtn', 'artifactsContainer', 'reviewResumeBtn',
-    'downloadResumeBtn', 'reviewCoverLetterBtn', 'downloadCoverLetterBtn',
-    'downloadBundleBtn', 'formDetectionCard', 'stepIndicator',
-    'formStatusMessage', 'formFieldsSummary', 'autofillFormBtn',
-    'autofillFormSpinner', 'autofillBtnText', 'autofillSuccessBanner',
-    'autofillErrorBanner', 'autofillErrorMessage', 'viewApplicationLink',
-    'sidebarVersionTag', 'exportLogsBtn'
+    'connectionBadge',
+    'connectionText',
+    'refreshBtn',
+    'rescanBtn',
+    'pendingJobNotification',
+    'pendingJobTitle',
+    'rescanPendingBtn',
+    'authBar',
+    'authUnauthenticatedState',
+    'authAuthenticatedState',
+    'loginBtn',
+    'logoutBtn',
+    'userName',
+    'userEmail',
+    'userAvatar',
+    'sessionExpiredNotice',
+    'reauthBtn',
+    'workflowStatusBar',
+    'workflowStateText',
+    'workflowLockedBadge',
+    'syncIndicator',
+    'portalCard',
+    'portalName',
+    'confidenceBadge',
+    'capJob',
+    'capApp',
+    'capForm',
+    'capAutofill',
+    'jobCard',
+    'reanalyzeBtn',
+    'jobNotDetectedState',
+    'jobDetectedState',
+    'jobTitle',
+    'jobCompany',
+    'jobLocation',
+    'jobType',
+    'jobIdTag',
+    'analyzeJobBtn',
+    'descriptionLoadingNotice',
+    'descriptionLoadingText',
+    'analysisErrorBanner',
+    'analysisErrorMessage',
+    'retryAnalysisBtn',
+    'analysisCard',
+    'matchBandBadge',
+    'scoreValue',
+    'matchedSkillsCount',
+    'missingSkillsCount',
+    'experienceFitVal',
+    'matchedSkillsList',
+    'missingSkillsList',
+    'analysisNextActionBox',
+    'projectsCard',
+    'recommendedProjectsList',
+    'handoffCard',
+    'handoffStatusBadge',
+    'handoffTelemetryRow',
+    'handoffAppId',
+    'handoffPackageMeta',
+    'workflowLockBanner',
+    'resetWorkflowBtn',
+    'handoffErrorBanner',
+    'handoffErrorMessage',
+    'retryHandoffBtn',
+    'prepareHandoffBtn',
+    'prepareSpinner',
+    'prepareBtnText',
+    'regenerateHandoffBtn',
+    'regenerateConfirmBox',
+    'cancelRegenerateBtn',
+    'confirmRegenerateBtn',
+    'artifactsContainer',
+    'reviewResumeBtn',
+    'downloadResumeBtn',
+    'reviewCoverLetterBtn',
+    'downloadCoverLetterBtn',
+    'downloadBundleBtn',
+    'formDetectionCard',
+    'stepIndicator',
+    'formStatusMessage',
+    'formFieldsSummary',
+    'autofillFormBtn',
+    'autofillFormSpinner',
+    'autofillBtnText',
+    'autofillSuccessBanner',
+    'autofillErrorBanner',
+    'autofillErrorMessage',
+    'viewApplicationLink',
+    'sidebarVersionTag',
+    'exportLogsBtn',
   ];
 
   for (const id of elementIds) {
@@ -120,7 +193,8 @@ const sampleJobgether = {
   workplace: 'REMOTE',
   employmentType: 'FULL_TIME',
   sourceUrl: 'https://www.linkedin.com/jobs/view/4466834190/',
-  description: 'Jobgether is seeking a Full Stack Engineer to build scalable, maintainable architectures. Remote opportunity.',
+  description:
+    'Jobgether is seeking a Full Stack Engineer to build scalable, maintainable architectures. Remote opportunity.',
   requirements: ['Architecture design', 'Web applications', 'Full stack depth'],
   responsibilities: ['Design scalable architectures'],
   analysisReady: true,
@@ -141,9 +215,14 @@ describe('P78: Analysis Title Preservation & Passive Detection Protection', () =
           get: (keys, cb) => {
             const res = {};
             if (typeof keys === 'string') res[keys] = mockStorage.get(keys);
-            else if (Array.isArray(keys)) keys.forEach((k) => { res[k] = mockStorage.get(k); });
+            else if (Array.isArray(keys))
+              keys.forEach((k) => {
+                res[k] = mockStorage.get(k);
+              });
             else if (typeof keys === 'object' && keys !== null) {
-              Object.keys(keys).forEach((k) => { res[k] = mockStorage.has(k) ? mockStorage.get(k) : keys[k]; });
+              Object.keys(keys).forEach((k) => {
+                res[k] = mockStorage.has(k) ? mockStorage.get(k) : keys[k];
+              });
             }
             if (cb) cb(res);
             return Promise.resolve(res);
@@ -164,7 +243,14 @@ describe('P78: Analysis Title Preservation & Passive Detection Protection', () =
       tabs: {
         _currentActiveTabId: 101,
         query: (opts, cb) => {
-          const tabs = [{ id: global.chrome.tabs._currentActiveTabId, active: true, windowId: 1, url: sampleJobgether.sourceUrl }];
+          const tabs = [
+            {
+              id: global.chrome.tabs._currentActiveTabId,
+              active: true,
+              windowId: 1,
+              url: sampleJobgether.sourceUrl,
+            },
+          ];
           if (cb) cb(tabs);
           return Promise.resolve(tabs);
         },
@@ -275,7 +361,8 @@ describe('P78: Analysis Title Preservation & Passive Detection Protection', () =
     assert.equal(domElements.get('jobTitle').textContent, 'Full Stack Engineer');
 
     // Simulate network delay or background port failure throwing error
-    global.chrome.tabs.sendMessage = () => Promise.reject(new Error('Extension context invalidated or timeout'));
+    global.chrome.tabs.sendMessage = () =>
+      Promise.reject(new Error('Extension context invalidated or timeout'));
 
     const res = await controller._requestDetectionFromTab();
     assert.equal(res, false);

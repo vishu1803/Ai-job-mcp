@@ -1,8 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  composeProfessionalProjectBulletsAsync,
-} from '../../src/services/resume-accomplishment-composer.service.js';
+import { composeProfessionalProjectBulletsAsync } from '../../src/services/resume-accomplishment-composer.service.js';
 
 describe('P17: Gemini / AI Language Realization Engine', () => {
   const sampleProject = {
@@ -79,7 +77,8 @@ describe('P17: Gemini / AI Language Realization Engine', () => {
       generateText: async () => ({
         text: 'Architected distributed key-value store in Go utilizing Raft consensus protocol.',
         raw: {
-          accomplishmentText: 'Architected distributed key-value store in Go utilizing Raft consensus protocol.',
+          accomplishmentText:
+            'Architected distributed key-value store in Go utilizing Raft consensus protocol.',
           primaryAction: 'architected',
           technologiesMentioned: ['Go', 'Raft'],
           authenticMetricsMentioned: [],

@@ -206,7 +206,11 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
 
     assert.ok(result.texContent, 'texContent must be generated');
     assert.match(result.texContent, /Jordan Taylor/, 'Candidate name must be present');
-    assert.match(result.texContent, /Staff Distributed Systems Engineer/, 'Headline must be present');
+    assert.match(
+      result.texContent,
+      /Staff Distributed Systems Engineer/,
+      'Headline must be present'
+    );
     assert.match(result.texContent, /Nexus Distributed Systems/, 'Company must be present');
   });
 
@@ -270,7 +274,10 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
       candidateProfile: { summary: 'Profile summary that must be ignored' },
     });
 
-    assert.match(result.texContent, /Unique structured summary that proves snapshot was consumed directly\./);
+    assert.match(
+      result.texContent,
+      /Unique structured summary that proves snapshot was consumed directly\./
+    );
     assert.doesNotMatch(result.texContent, /This legacy markdown summary MUST NOT be rendered/);
     assert.doesNotMatch(result.texContent, /Profile summary that must be ignored/);
   });
@@ -335,7 +342,8 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
 
   // Test F
   it('F. Project bullets come from structuredResume', () => {
-    const uniqueBullet = 'Pioneered custom SIMD-accelerated serialization codec achieving 4x throughput.';
+    const uniqueBullet =
+      'Pioneered custom SIMD-accelerated serialization codec achieving 4x throughput.';
     const structuredResume = createMockStructuredResume({
       projects: [
         {
@@ -413,9 +421,7 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
   it('I. Certifications come from structuredResume and empty section is omitted', () => {
     // 1. Present
     const structuredWithCert = createMockStructuredResume({
-      certifications: [
-        { name: 'Certified Kubernetes Administrator (CKA)' },
-      ],
+      certifications: [{ name: 'Certified Kubernetes Administrator (CKA)' }],
     });
     const pkgWithCert = createMockPackage(structuredWithCert);
     const resWithCert = generator.generateTailoredResumeLatex({
@@ -505,14 +511,24 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
       candidateProfile: null,
     });
 
-    assert.match(result.texContent, /\\href\{https:\/\/linkedin\.com\/in\/custom-jordan\}\{LinkedIn\}/);
+    assert.match(
+      result.texContent,
+      /\\href\{https:\/\/linkedin\.com\/in\/custom-jordan\}\{LinkedIn\}/
+    );
     assert.match(result.texContent, /\\href\{https:\/\/github\.com\/custom-jordan\}\{GitHub\}/);
   });
 
   // Test M
   it('M. sectionOrder comes from structuredResume', () => {
     const structuredResume = createMockStructuredResume({
-      sectionOrder: ['HEADER', 'PROJECTS', 'EXPERIENCE', 'TECHNICAL_SKILLS', 'EDUCATION', 'SUMMARY'],
+      sectionOrder: [
+        'HEADER',
+        'PROJECTS',
+        'EXPERIENCE',
+        'TECHNICAL_SKILLS',
+        'EDUCATION',
+        'SUMMARY',
+      ],
     });
     const pkg = createMockPackage(structuredResume);
 
@@ -689,11 +705,18 @@ Dedicated backend engineer with verified experience in Node.js and PostgreSQL.
 
   // Test R
   it('R. Raw LaTeX in text is escaped', () => {
-    const rawText = 'Handled \\textbf{bold} and \\input{secret} and $500M & 100% #1 _tag_ ~home ^power <tag>';
+    const rawText =
+      'Handled \\textbf{bold} and \\input{secret} and $500M & 100% #1 _tag_ ~home ^power <tag>';
     const escaped = escapeLatex(rawText);
 
-    assert.ok(escaped.includes('\\textbackslash{}textbf\\{bold\\}'), 'Must neutralize textbf macro with escaped braces');
-    assert.ok(escaped.includes('\\textbackslash{}input\\{secret\\}'), 'Must neutralize input macro with escaped braces');
+    assert.ok(
+      escaped.includes('\\textbackslash{}textbf\\{bold\\}'),
+      'Must neutralize textbf macro with escaped braces'
+    );
+    assert.ok(
+      escaped.includes('\\textbackslash{}input\\{secret\\}'),
+      'Must neutralize input macro with escaped braces'
+    );
     assert.match(escaped, /\\\$500M/);
     assert.ok(escaped.includes('\\&'));
     assert.ok(escaped.includes('\\%'));
@@ -750,7 +773,11 @@ Dedicated backend engineer with verified experience in Node.js and PostgreSQL.
     const escapedTarget = `mailto:${escapeLatexUrl(email)}`;
     const escapedLabel = escapeLatex(email);
 
-    assert.strictEqual(escapedTarget, 'mailto:jane_doe@example.com', 'Target must keep unescaped underscore');
+    assert.strictEqual(
+      escapedTarget,
+      'mailto:jane_doe@example.com',
+      'Target must keep unescaped underscore'
+    );
     assert.strictEqual(escapedLabel, 'jane\\_doe@example.com', 'Label must escape underscore');
 
     const tex = `\\documentclass{article}\\usepackage{hyperref}\\begin{document}\\href{${escapedTarget}}{${escapedLabel}}\\end{document}`;
@@ -764,10 +791,17 @@ Dedicated backend engineer with verified experience in Node.js and PostgreSQL.
     const textWithSmartQuotes = 'Architected “zero-trust” gateway with ‘fail-safe’ mechanisms.';
     const escaped = escapeLatex(textWithSmartQuotes);
 
-    assert.doesNotMatch(escaped, /[\u201C\u201D\u2018\u2019]/, 'Unicode smart quotes must be normalized');
+    assert.doesNotMatch(
+      escaped,
+      /[\u201C\u201D\u2018\u2019]/,
+      'Unicode smart quotes must be normalized'
+    );
 
     const tex = `\\documentclass{article}\\usepackage[utf8]{inputenc}\\usepackage[T1]{fontenc}\\begin{document}${escaped}\\end{document}`;
-    const result = await compiler.compileLatexToPdf({ texContent: tex, jobName: 'test-smart-quotes' });
+    const result = await compiler.compileLatexToPdf({
+      texContent: tex,
+      jobName: 'test-smart-quotes',
+    });
     assert.ok(result.pdfBuffer && result.pdfBuffer.length > 0);
   });
 
@@ -800,7 +834,11 @@ Dedicated backend engineer with verified experience in Node.js and PostgreSQL.
       candidateProfile: null,
     });
 
-    assert.strictEqual(run1.texContent, run2.texContent, 'Generated LaTeX must be byte-for-byte identical');
+    assert.strictEqual(
+      run1.texContent,
+      run2.texContent,
+      'Generated LaTeX must be byte-for-byte identical'
+    );
   });
 
   // Test Z

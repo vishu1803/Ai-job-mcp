@@ -112,9 +112,7 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
   it('Scenario B3: resolves email from identities externalEmail', () => {
     const candidate = {
       displayName: 'Diana Hacker',
-      identities: [
-        { provider: 'GITHUB', externalEmail: 'diana.github@gmail.com' },
-      ],
+      identities: [{ provider: 'GITHUB', externalEmail: 'diana.github@gmail.com' }],
     };
 
     const resolved = resolveCandidateEmail(candidate);
@@ -173,7 +171,11 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
     ];
 
     for (const badEmail of malformedInputs) {
-      assert.equal(isValidEmailFormat(badEmail), false, `Expected ${badEmail} to fail isValidEmailFormat`);
+      assert.equal(
+        isValidEmailFormat(badEmail),
+        false,
+        `Expected ${badEmail} to fail isValidEmailFormat`
+      );
 
       const candidate = {
         displayName: 'Malformed Test',
@@ -181,7 +183,11 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
       };
 
       const status = evaluateCandidateEmailStatus(candidate);
-      assert.equal(status.state, CandidateEmailState.INVALID_EMAIL, `Expected INVALID_EMAIL for ${badEmail}`);
+      assert.equal(
+        status.state,
+        CandidateEmailState.INVALID_EMAIL,
+        `Expected INVALID_EMAIL for ${badEmail}`
+      );
       assert.equal(status.status, 'MISSING');
       assert.equal(status.presence, 'MISSING');
       assert.ok(status.notes.includes('malformed email format'));
@@ -224,11 +230,17 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
     const profileView = await profileService.getProfile(context, candidateId);
     assert.equal(profileView.candidate.canonicalEmail, expectedEmail);
 
-    const careerProfile = await profileService.getCareerProfile(context, candidateId, { profileView });
+    const careerProfile = await profileService.getCareerProfile(context, candidateId, {
+      profileView,
+    });
     assert.equal(careerProfile.canonicalEmail, expectedEmail);
 
     // 2b. Live MCP Tool handleGetCandidateProfile
-    const mcpProfile = await handleGetCandidateProfile(context, { candidateId }, { db, candidateProfileService: profileService });
+    const mcpProfile = await handleGetCandidateProfile(
+      context,
+      { candidateId },
+      { db, candidateProfileService: profileService }
+    );
     assert.equal(mcpProfile.candidate.canonicalEmail, expectedEmail);
 
     // 3. ApplicationReadinessService: evaluates directly from candidate record
@@ -298,7 +310,10 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
       candidateId,
       applicationPackage: mockPackage,
     });
-    assert.ok(!validation.missingFields.includes('candidateEmail'), 'candidateEmail must not appear in missingFields');
+    assert.ok(
+      !validation.missingFields.includes('candidateEmail'),
+      'candidateEmail must not appear in missingFields'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -324,7 +339,11 @@ describe('Canonical Candidate Email Resolution & State Audit', () => {
     const status = evaluateCandidateEmailStatus(candidateWithSyntheticSeed);
     assert.equal(status.state, CandidateEmailState.VALID_EMAIL);
     assert.equal(status.status, 'READY');
-    assert.equal(status.hasConflict, false, 'Synthetic seed must not trigger false conflict with authentic email');
+    assert.equal(
+      status.hasConflict,
+      false,
+      'Synthetic seed must not trigger false conflict with authentic email'
+    );
     assert.equal(status.email, 'vishwanatnishad@gmail.com');
   });
 

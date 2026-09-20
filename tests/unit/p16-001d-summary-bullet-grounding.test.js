@@ -38,7 +38,8 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     id: 'job-backend-001',
     title: 'Senior Backend Engineer',
     company: 'Cloudflare',
-    description: 'Build robust, scalable backend APIs, database persistence layers, and distributed services using Python, FastAPI, and PostgreSQL.',
+    description:
+      'Build robust, scalable backend APIs, database persistence layers, and distributed services using Python, FastAPI, and PostgreSQL.',
     requirements: [
       'req-b1: Extensive experience with Python and FastAPI',
       'req-b2: Deep expertise in relational databases and PostgreSQL query optimization',
@@ -52,7 +53,8 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     id: 'job-frontend-001',
     title: 'Senior Frontend & UI Engineer',
     company: 'Vercel',
-    description: 'Design and deliver responsive, high-performance web applications using React, TypeScript, Next.js, and modern state management.',
+    description:
+      'Design and deliver responsive, high-performance web applications using React, TypeScript, Next.js, and modern state management.',
     requirements: [
       'req-f1: Strong proficiency with React, TypeScript, and modern component lifecycle',
       'req-f2: Experience with Next.js and server-side rendering',
@@ -69,16 +71,65 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     canonicalEmail: 'vishwanatnishad@gmail.com',
     phone: '7905087928',
     location: 'Remote',
-    summary: 'Full-stack software developer with hands-on experience building backend APIs and modern frontend interfaces.',
+    summary:
+      'Full-stack software developer with hands-on experience building backend APIs and modern frontend interfaces.',
     skills: [
-      { name: 'Python', slug: 'python', provenanceStatus: 'VERIFIED', evidenceCount: 15, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0001' },
-      { name: 'FastAPI', slug: 'fastapi', provenanceStatus: 'VERIFIED', evidenceCount: 12, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0002' },
-      { name: 'PostgreSQL', slug: 'postgresql', provenanceStatus: 'VERIFIED', evidenceCount: 10, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0003' },
-      { name: 'Node.js', slug: 'node-js', provenanceStatus: 'VERIFIED', evidenceCount: 14, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0004' },
-      { name: 'React', slug: 'react', provenanceStatus: 'VERIFIED', evidenceCount: 18, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0005' },
-      { name: 'TypeScript', slug: 'typescript', provenanceStatus: 'VERIFIED', evidenceCount: 16, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0006' },
-      { name: 'Next.js', slug: 'next-js', provenanceStatus: 'VERIFIED', evidenceCount: 12, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0007' },
-      { name: 'Tailwind CSS', slug: 'tailwind-css', provenanceStatus: 'VERIFIED', evidenceCount: 10, evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0008' },
+      {
+        name: 'Python',
+        slug: 'python',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 15,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0001',
+      },
+      {
+        name: 'FastAPI',
+        slug: 'fastapi',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 12,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0002',
+      },
+      {
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 10,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0003',
+      },
+      {
+        name: 'Node.js',
+        slug: 'node-js',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 14,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0004',
+      },
+      {
+        name: 'React',
+        slug: 'react',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 18,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0005',
+      },
+      {
+        name: 'TypeScript',
+        slug: 'typescript',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 16,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0006',
+      },
+      {
+        name: 'Next.js',
+        slug: 'next-js',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 12,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0007',
+      },
+      {
+        name: 'Tailwind CSS',
+        slug: 'tailwind-css',
+        provenanceStatus: 'VERIFIED',
+        evidenceCount: 10,
+        evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0008',
+      },
     ],
     projects: [
       {
@@ -92,26 +143,54 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
         bullets: [
           {
             text: 'Architected an asynchronous PR review pipeline using FastAPI, Python, and OpenAI API.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0011', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0011', sourceLocation: { filePath: 'src/analyzer.py' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0011',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0011',
+                sourceLocation: { filePath: 'src/analyzer.py' },
+              },
+            ],
             matchedRequirementIds: ['req-b1', 'req-b3'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Optimized PostgreSQL database queries and schemas for repository indexing and commit diffs.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0012', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0012', sourceLocation: { filePath: 'src/db.py' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0012',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0012',
+                sourceLocation: { filePath: 'src/db.py' },
+              },
+            ],
             matchedRequirementIds: ['req-b2'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Configured basic Docker container scripts for local developer environment setup.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0013', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0013', sourceLocation: { filePath: 'Dockerfile' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0013',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0013',
+                sourceLocation: { filePath: 'Dockerfile' },
+              },
+            ],
             matchedRequirementIds: [],
             provenanceStatus: 'VERIFIED',
           },
         ],
         evidence: [
-          { id: 'e810a976-a070-4f61-a8cf-432d561a0011', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0011', skillSlug: 'fastapi', sourceLocation: { filePath: 'src/analyzer.py' } },
-          { id: 'e810a976-a070-4f61-a8cf-432d561a0012', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0012', skillSlug: 'postgresql', sourceLocation: { filePath: 'src/db.py' } },
+          {
+            id: 'e810a976-a070-4f61-a8cf-432d561a0011',
+            evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0011',
+            skillSlug: 'fastapi',
+            sourceLocation: { filePath: 'src/analyzer.py' },
+          },
+          {
+            id: 'e810a976-a070-4f61-a8cf-432d561a0012',
+            evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0012',
+            skillSlug: 'postgresql',
+            sourceLocation: { filePath: 'src/db.py' },
+          },
         ],
       },
       {
@@ -125,26 +204,54 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
         bullets: [
           {
             text: 'Developed reactive Kanban board with drag-and-drop state management using React and TypeScript.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0021', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0021', sourceLocation: { filePath: 'src/board.tsx' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0021',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0021',
+                sourceLocation: { filePath: 'src/board.tsx' },
+              },
+            ],
             matchedRequirementIds: ['req-f1'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Designed accessible responsive UI components using Next.js and Tailwind CSS styling.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0022', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0022', sourceLocation: { filePath: 'src/components.tsx' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0022',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0022',
+                sourceLocation: { filePath: 'src/components.tsx' },
+              },
+            ],
             matchedRequirementIds: ['req-f2', 'req-f3'],
             provenanceStatus: 'VERIFIED',
           },
           {
             text: 'Configured local SQLite database for offline task persistence.',
-            evidenceRefs: [{ id: 'e810a976-a070-4f61-a8cf-432d561a0023', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0023', sourceLocation: { filePath: 'src/db.ts' } }],
+            evidenceRefs: [
+              {
+                id: 'e810a976-a070-4f61-a8cf-432d561a0023',
+                evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0023',
+                sourceLocation: { filePath: 'src/db.ts' },
+              },
+            ],
             matchedRequirementIds: [],
             provenanceStatus: 'VERIFIED',
           },
         ],
         evidence: [
-          { id: 'e810a976-a070-4f61-a8cf-432d561a0021', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0021', skillSlug: 'react', sourceLocation: { filePath: 'src/board.tsx' } },
-          { id: 'e810a976-a070-4f61-a8cf-432d561a0022', evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0022', skillSlug: 'typescript', sourceLocation: { filePath: 'src/components.tsx' } },
+          {
+            id: 'e810a976-a070-4f61-a8cf-432d561a0021',
+            evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0021',
+            skillSlug: 'react',
+            sourceLocation: { filePath: 'src/board.tsx' },
+          },
+          {
+            id: 'e810a976-a070-4f61-a8cf-432d561a0022',
+            evidenceId: 'e810a976-a070-4f61-a8cf-432d561a0022',
+            skillSlug: 'typescript',
+            sourceLocation: { filePath: 'src/components.tsx' },
+          },
         ],
       },
     ],
@@ -168,9 +275,21 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
 
     assert.ok(summary.text, 'Summary text must be generated');
     assert.match(summary.text, /backend/i, 'Must emphasize backend focus');
-    assert.match(summary.text, /python|fastapi|postgres/i, 'Must mention verified backend technologies');
-    assert.doesNotMatch(summary.text, /react|next\.js|frontend/i, 'Must NOT emphasize frontend skills for backend job');
-    assert.ok(summary.referencedSkillSlugs.some((s) => s.includes('python') || s.includes('fastapi') || s.includes('postgres')));
+    assert.match(
+      summary.text,
+      /python|fastapi|postgres/i,
+      'Must mention verified backend technologies'
+    );
+    assert.doesNotMatch(
+      summary.text,
+      /react|next\.js|frontend/i,
+      'Must NOT emphasize frontend skills for backend job'
+    );
+    assert.ok(
+      summary.referencedSkillSlugs.some(
+        (s) => s.includes('python') || s.includes('fastapi') || s.includes('postgres')
+      )
+    );
     assert.ok(summary.text.length < 350, 'Must remain concise');
   });
 
@@ -182,9 +301,21 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
 
     assert.ok(summary.text, 'Summary text must be generated');
     assert.match(summary.text, /frontend|web/i, 'Must emphasize frontend focus');
-    assert.match(summary.text, /react|typescript|next/i, 'Must mention verified frontend technologies');
-    assert.doesNotMatch(summary.text, /fastapi|python/i, 'Must NOT emphasize backend Python/FastAPI for frontend job');
-    assert.ok(summary.referencedSkillSlugs.some((s) => s.includes('react') || s.includes('typescript') || s.includes('next')));
+    assert.match(
+      summary.text,
+      /react|typescript|next/i,
+      'Must mention verified frontend technologies'
+    );
+    assert.doesNotMatch(
+      summary.text,
+      /fastapi|python/i,
+      'Must NOT emphasize backend Python/FastAPI for frontend job'
+    );
+    assert.ok(
+      summary.referencedSkillSlugs.some(
+        (s) => s.includes('react') || s.includes('typescript') || s.includes('next')
+      )
+    );
     assert.ok(summary.text.length < 350, 'Must remain concise');
   });
 
@@ -198,7 +329,11 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
       jobPosting: frontendJob,
     });
 
-    assert.notEqual(backendSummary.text, frontendSummary.text, 'Summaries for distinct jobs must be distinct');
+    assert.notEqual(
+      backendSummary.text,
+      frontendSummary.text,
+      'Summaries for distinct jobs must be distinct'
+    );
     assert.match(backendSummary.text, /backend/i);
     assert.match(frontendSummary.text, /frontend/i);
   });
@@ -211,31 +346,45 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
 
     const candidateSkillSlugs = new Set(sampleCandidate.skills.map((s) => s.slug));
     for (const slug of summary.referencedSkillSlugs) {
-      assert.ok(candidateSkillSlugs.has(slug), `Referenced skill '${slug}' must be candidate-owned`);
+      assert.ok(
+        candidateSkillSlugs.has(slug),
+        `Referenced skill '${slug}' must be candidate-owned`
+      );
     }
 
     const candidateProjectIds = new Set(sampleCandidate.projects.map((p) => p.id));
     for (const projId of summary.referencedProjectIds) {
-      assert.ok(candidateProjectIds.has(projId), `Referenced project '${projId}' must be candidate-owned`);
+      assert.ok(
+        candidateProjectIds.has(projId),
+        `Referenced project '${projId}' must be candidate-owned`
+      );
     }
   });
 
   it('Test E: Fabricated technology is rejected', () => {
     const sourceBullet = 'Built async API endpoints using FastAPI.';
-    const fabricatedBullet = 'Built async API endpoints using FastAPI and Kubernetes microservices.';
+    const fabricatedBullet =
+      'Built async API endpoints using FastAPI and Kubernetes microservices.';
 
     assert.throws(
       () => {
         validateRephrasingSafety(sourceBullet, fabricatedBullet, sampleCandidate);
       },
-      (err) => err instanceof ValidationError || err.message.includes('Kubernetes') || err.message.includes('technology')
+      (err) =>
+        err instanceof ValidationError ||
+        err.message.includes('Kubernetes') ||
+        err.message.includes('technology')
     );
   });
 
   it('Test F: Fabricated metric is rejected', () => {
     // 1. "40% reduction"
     assert.throws(
-      () => assertMetricSafety('Engineered database optimization resulting in a 40% reduction in query latency.', []),
+      () =>
+        assertMetricSafety(
+          'Engineered database optimization resulting in a 40% reduction in query latency.',
+          []
+        ),
       ValidationError,
       '40% reduction without evidence must throw ValidationError'
     );
@@ -271,7 +420,8 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
 
   it('Test G: Fabricated experience claim is rejected', () => {
     assert.throws(
-      () => assertMetricSafety('Over 10 years of professional software engineering experience.', []),
+      () =>
+        assertMetricSafety('Over 10 years of professional software engineering experience.', []),
       ValidationError,
       '10+ years tenure without backing work history must throw ValidationError'
     );
@@ -330,7 +480,8 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     // Should not throw
     validateRephrasingSafety(sourceBullet, validRephrased, sampleCandidate);
 
-    const invalidRephrased = 'Designed a distributed microservices platform serving millions of users.';
+    const invalidRephrased =
+      'Designed a distributed microservices platform serving millions of users.';
     assert.throws(
       () => validateRephrasingSafety(sourceBullet, invalidRephrased, sampleCandidate),
       ValidationError
@@ -348,7 +499,10 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
       assert.ok(Array.isArray(b.evidenceRefs), 'evidenceRefs must be an array');
       if (b.text.includes('FastAPI') || b.text.includes('PostgreSQL')) {
         assert.ok(b.evidenceRefs.length > 0, `Bullet '${b.text}' must carry evidenceRefs`);
-        assert.ok(b.evidenceRefs[0].filePath || b.evidenceRefs[0].sourceLocation?.filePath, 'Must reference file path');
+        assert.ok(
+          b.evidenceRefs[0].filePath || b.evidenceRefs[0].sourceLocation?.filePath,
+          'Must reference file path'
+        );
       }
     }
   });
@@ -396,7 +550,11 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     });
 
     assert.ok(doc);
-    assert.deepEqual(sampleCandidate, candidateBefore, 'Source candidate object must be strictly immutable');
+    assert.deepEqual(
+      sampleCandidate,
+      candidateBefore,
+      'Source candidate object must be strictly immutable'
+    );
   });
 
   it('Test O: Same inputs produce deterministic structured output', () => {

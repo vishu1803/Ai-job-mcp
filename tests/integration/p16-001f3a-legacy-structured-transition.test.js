@@ -220,7 +220,8 @@ describe('Integration: P16-001F-3A Legacy to Structured Package Transition & Art
       targetJob: canonicalJob,
       tailoredResume: {
         title: 'Legacy Tailored Resume - Stripe',
-        markdownContent: '# Taylor Reed\n\nExperienced Distributed Systems Engineer with expertise in Node.js and high-throughput pipelines.',
+        markdownContent:
+          '# Taylor Reed\n\nExperienced Distributed Systems Engineer with expertise in Node.js and high-throughput pipelines.',
         contentHash: '1111222233334444555566667777888899990000aaaabbbbccccddddeeeeffff',
         fitScore: 88,
         generationContractVersion: LEGACY_GENERATION_CONTRACT_VERSION,
@@ -250,17 +251,13 @@ describe('Integration: P16-001F-3A Legacy to Structured Package Transition & Art
     };
 
     // Create application and record version 1
-    const app = await trackingService.resolveOrCreateApplication(
-      authContext,
-      candidateId,
-      {
-        canonicalJobId: canonicalJob.canonicalJobId,
-        company: canonicalJob.company,
-        title: canonicalJob.title,
-        jobUrl: canonicalJob.applicationUrl,
-        packageHash,
-      }
-    );
+    const app = await trackingService.resolveOrCreateApplication(authContext, candidateId, {
+      canonicalJobId: canonicalJob.canonicalJobId,
+      company: canonicalJob.company,
+      title: canonicalJob.title,
+      jobUrl: canonicalJob.applicationUrl,
+      packageHash,
+    });
     applicationId = app.id;
     assert.ok(applicationId, 'Application must be created');
 
@@ -324,12 +321,30 @@ describe('Integration: P16-001F-3A Legacy to Structured Package Transition & Art
     });
 
     structuredPackage = preparedResult;
-    assert.strictEqual(structuredPackage.applicationId, applicationId, 'Must reuse the exact same application ID');
+    assert.strictEqual(
+      structuredPackage.applicationId,
+      applicationId,
+      'Must reuse the exact same application ID'
+    );
     assert.strictEqual(structuredPackage.packageVersion, 2, 'Version must increment to 2');
-    assert.strictEqual(structuredPackage.lifecycleAction, 'UPDATED', 'Lifecycle action must be UPDATED');
-    assert.strictEqual(structuredPackage.generationContractVersion, RESUME_GENERATION_CONTRACT_VERSION);
-    assert.strictEqual(structuredPackage.structuredResumeSchemaVersion, DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION);
-    assert.notStrictEqual(structuredPackage.packageHash, legacyPackage.packageHash, 'Hash must differ from legacy');
+    assert.strictEqual(
+      structuredPackage.lifecycleAction,
+      'UPDATED',
+      'Lifecycle action must be UPDATED'
+    );
+    assert.strictEqual(
+      structuredPackage.generationContractVersion,
+      RESUME_GENERATION_CONTRACT_VERSION
+    );
+    assert.strictEqual(
+      structuredPackage.structuredResumeSchemaVersion,
+      DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION
+    );
+    assert.notStrictEqual(
+      structuredPackage.packageHash,
+      legacyPackage.packageHash,
+      'Hash must differ from legacy'
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -368,8 +383,14 @@ describe('Integration: P16-001F-3A Legacy to Structured Package Transition & Art
     });
 
     assert.ok(structuredHandoffKit, 'Must produce structured handoff kit');
-    assert.strictEqual(structuredHandoffKit.generationContractVersion, RESUME_GENERATION_CONTRACT_VERSION);
-    assert.strictEqual(structuredHandoffKit.structuredResumeSchemaVersion, DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION);
+    assert.strictEqual(
+      structuredHandoffKit.generationContractVersion,
+      RESUME_GENERATION_CONTRACT_VERSION
+    );
+    assert.strictEqual(
+      structuredHandoffKit.structuredResumeSchemaVersion,
+      DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION
+    );
     assert.strictEqual(structuredHandoffKit.packageHash, structuredPackage.packageHash);
 
     structuredResumeStorageKey = structuredHandoffKit.resume.storageKey;
@@ -413,7 +434,10 @@ describe('Integration: P16-001F-3A Legacy to Structured Package Transition & Art
     });
 
     assert.strictEqual(repeatHandoffKit.packageHash, structuredPackage.packageHash);
-    assert.strictEqual(repeatHandoffKit.generationContractVersion, RESUME_GENERATION_CONTRACT_VERSION);
+    assert.strictEqual(
+      repeatHandoffKit.generationContractVersion,
+      RESUME_GENERATION_CONTRACT_VERSION
+    );
     assert.strictEqual(
       repeatHandoffKit.resume.storageKey,
       structuredResumeStorageKey,

@@ -34,16 +34,24 @@ function stripTags(html) {
 
 async function fetchJobPage() {
   const res = await fetch(JOB_URL, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36', Accept: 'text/html' },
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
+      Accept: 'text/html',
+    },
   });
   if (!res.ok) throw new Error('Greenhouse fetch failed: HTTP ' + res.status);
   const html = await res.text();
   const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
   // Greenhouse job description lives in #content (job posting body)
-  const contentMatch = html.match(/<div[^>]*id=["']content["'][^>]*>([\s\S]*?)<\/div>\s*(<div|<section|<footer|$)/i);
+  const contentMatch = html.match(
+    /<div[^>]*id=["']content["'][^>]*>([\s\S]*?)<\/div>\s*(<div|<section|<footer|$)/i
+  );
   const rawDesc = contentMatch ? contentMatch[1] : html;
   return {
-    title: (titleMatch ? titleMatch[1] : 'Software Engineer').replace(/\s*-\s*Cloudflare.*$/i, '').trim(),
+    title: (titleMatch ? titleMatch[1] : 'Software Engineer')
+      .replace(/\s*-\s*Cloudflare.*$/i, '')
+      .trim(),
     description: stripTags(rawDesc).slice(0, 12000),
   };
 }
@@ -61,9 +69,15 @@ async function main() {
   console.log('\n[0] Port 3000 listeners: ' + JSON.stringify(listeners));
 
   // 1. Session for the real user
-  const [targetUser] = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const [targetUser] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
-  const [targetCand] = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const [targetCand] = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   console.log('[1] Session user: ' + targetUser.displayName + ' candidate=' + targetCand.id);
 
   const session = await createSession(db, { userId: targetUser.id, tenantId: targetUser.tenantId });
@@ -72,7 +86,9 @@ async function main() {
   let job;
   try {
     job = await fetchJobPage();
-    console.log('[2] Live job fetched: title="' + job.title + '" descriptionChars=' + job.description.length);
+    console.log(
+      '[2] Live job fetched: title="' + job.title + '" descriptionChars=' + job.description.length
+    );
   } catch (e) {
     console.log('[2] WARN: live fetch failed (' + e.message + ') — using title-only probe');
     job = { title: 'Software Engineer', description: '' };
@@ -95,17 +111,23 @@ async function main() {
   });
   const analyze = await analyzeRes.json();
   console.log('\n[3] POST /analyze-job -> HTTP ' + analyzeRes.status);
-  console.log(JSON.stringify({
-    analysisSnapshotId: analyze.analysisSnapshotId,
-    canonicalJobId: analyze.canonicalJob?.canonicalJobId,
-    fitScore: analyze.fitAnalysis?.score,
-    existingApplication: analyze.existingApplication,
-    featuredProjects: (analyze.portfolioRecommendations?.featuredProjects || []).map((p) => ({
-      name: p.projectName || p.name,
-      score: p.relevanceScore ?? p.score,
-      rank: p.relevanceRank,
-    })),
-  }, null, 1));
+  console.log(
+    JSON.stringify(
+      {
+        analysisSnapshotId: analyze.analysisSnapshotId,
+        canonicalJobId: analyze.canonicalJob?.canonicalJobId,
+        fitScore: analyze.fitAnalysis?.score,
+        existingApplication: analyze.existingApplication,
+        featuredProjects: (analyze.portfolioRecommendations?.featuredProjects || []).map((p) => ({
+          name: p.projectName || p.name,
+          score: p.relevanceScore ?? p.score,
+          rank: p.relevanceRank,
+        })),
+      },
+      null,
+      1
+    )
+  );
 
   if (!analyze.analysisSnapshotId) {
     console.log('FAIL: analysisSnapshotId missing — snapshot layer not active on this process?');
@@ -114,21 +136,35 @@ async function main() {
   }
 
   // 4. Verify snapshot row (STEP 5 pre-check)
-  const snap = (await db.execute(sql`
+  const snap = (
+    await db.execute(sql`
     SELECT id, candidate_id, canonical_job_id, job_content_hash, analyzed_at, project_rankings
     FROM job_analysis_snapshots
-    WHERE id = ${analyze.analysisSnapshotId}`)).rows[0];
+    WHERE id = ${analyze.analysisSnapshotId}`)
+  ).rows[0];
   const rankings = snap?.project_rankings || [];
   console.log('\n[4] SNAPSHOT ROW ' + (snap ? 'FOUND' : 'MISSING'));
-  console.log(JSON.stringify({
-    snapshotId: snap?.id,
-    candidateMatches: snap?.candidate_id === targetCand.id,
-    canonicalJobId: snap?.canonical_job_id,
-    jobContentHash: snap?.job_content_hash?.slice(0, 16) + '…',
-    analyzedAt: snap?.analyzed_at,
-    rankings: rankings.map((r) => ({ name: r.projectName || r.name, score: r.relevanceScore, rank: r.relevanceRank })),
-    pdeFirst: (rankings[0]?.projectName || rankings[0]?.name || '').toLowerCase().includes('product-data-explorer'),
-  }, null, 1));
+  console.log(
+    JSON.stringify(
+      {
+        snapshotId: snap?.id,
+        candidateMatches: snap?.candidate_id === targetCand.id,
+        canonicalJobId: snap?.canonical_job_id,
+        jobContentHash: snap?.job_content_hash?.slice(0, 16) + '…',
+        analyzedAt: snap?.analyzed_at,
+        rankings: rankings.map((r) => ({
+          name: r.projectName || r.name,
+          score: r.relevanceScore,
+          rank: r.relevanceRank,
+        })),
+        pdeFirst: (rankings[0]?.projectName || rankings[0]?.name || '')
+          .toLowerCase()
+          .includes('product-data-explorer'),
+      },
+      null,
+      1
+    )
+  );
 
   // 5. Probe prepare-handoff route exposure harmlessly (empty body -> 400, not 404)
   const probeRes = await fetch(API + '/prepare-handoff', {
@@ -137,8 +173,15 @@ async function main() {
     body: JSON.stringify({}),
   });
   const probe = await probeRes.json().catch(() => ({}));
-  console.log('\n[5] prepare-handoff route probe (empty payload): HTTP ' + probeRes.status + ' code=' + probe.code);
-  console.log('    (400 INVALID_JOB_PAYLOAD = route registered on current code; 404 would mean stale server)');
+  console.log(
+    '\n[5] prepare-handoff route probe (empty payload): HTTP ' +
+      probeRes.status +
+      ' code=' +
+      probe.code
+  );
+  console.log(
+    '    (400 INVALID_JOB_PAYLOAD = route registered on current code; 404 would mean stale server)'
+  );
 
   console.log('\n=== STEP 2/5 PRE-CHECK DONE ===');
   await pool.end();
@@ -146,6 +189,8 @@ async function main() {
 
 main().catch(async (e) => {
   console.error('VERIFY ERROR:', e);
-  try { await pool.end(); } catch {}
+  try {
+    await pool.end();
+  } catch {}
   process.exit(1);
 });

@@ -41,12 +41,8 @@ import {
   GATE_SEVERITY,
   classifyRoleFocus,
 } from '../../src/services/resume-content-quality-gate.service.js';
-import {
-  countPdfPages,
-} from '../../src/services/resume-quality-assessment.service.js';
-import {
-  TEMPLATE_METADATA_CATALOG,
-} from '../../src/services/resume-presentation.service.js';
+import { countPdfPages } from '../../src/services/resume-quality-assessment.service.js';
+import { TEMPLATE_METADATA_CATALOG } from '../../src/services/resume-presentation.service.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Synthetic fixtures (no real identities)
@@ -77,9 +73,27 @@ const richCandidate = {
       bullets: ['Built streaming ingestion for telemetry events.'],
       repositoryUrl: 'https://github.com/synthetic-org/telemetry-platform',
       evidence: [
-        { id: 'e00000000-0000-4000-8000-000000000001', evidenceType: 'CODE_USAGE', skillSlug: 'redis', confidenceScore: 0.95, sourceLocation: { filePath: 'src/dedup/redis-dedup.js' } },
-        { id: 'e00000000-0000-4000-8000-000000000002', evidenceType: 'CODE_USAGE', skillSlug: 'postgresql', confidenceScore: 0.92, sourceLocation: { filePath: 'src/db/telemetry-store.js' } },
-        { id: 'e00000000-0000-4000-8000-000000000003', evidenceType: 'CODE_USAGE', skillSlug: 'docker', confidenceScore: 0.88, sourceLocation: { filePath: 'Dockerfile' } },
+        {
+          id: 'e00000000-0000-4000-8000-000000000001',
+          evidenceType: 'CODE_USAGE',
+          skillSlug: 'redis',
+          confidenceScore: 0.95,
+          sourceLocation: { filePath: 'src/dedup/redis-dedup.js' },
+        },
+        {
+          id: 'e00000000-0000-4000-8000-000000000002',
+          evidenceType: 'CODE_USAGE',
+          skillSlug: 'postgresql',
+          confidenceScore: 0.92,
+          sourceLocation: { filePath: 'src/db/telemetry-store.js' },
+        },
+        {
+          id: 'e00000000-0000-4000-8000-000000000003',
+          evidenceType: 'CODE_USAGE',
+          skillSlug: 'docker',
+          confidenceScore: 0.88,
+          sourceLocation: { filePath: 'Dockerfile' },
+        },
       ],
     },
     {
@@ -137,8 +151,18 @@ const jobFrontend = {
 
 /** Authoritative rankings (Project A first — backend-relevant). */
 const rankingsRich = [
-  { projectId: PROJ_A_ID, projectName: 'Telemetry Ingestion Platform', relevanceScore: 61.0, relevanceRank: 1 },
-  { projectId: PROJ_B_ID, projectName: 'Metrics Dashboard', relevanceScore: 42.0, relevanceRank: 2 },
+  {
+    projectId: PROJ_A_ID,
+    projectName: 'Telemetry Ingestion Platform',
+    relevanceScore: 61.0,
+    relevanceRank: 1,
+  },
+  {
+    projectId: PROJ_B_ID,
+    projectName: 'Metrics Dashboard',
+    relevanceScore: 42.0,
+    relevanceRank: 2,
+  },
 ];
 
 const buildDoc = (candidate, job = jobBackend, rankings = rankingsRich, options = {}) =>
@@ -182,21 +206,37 @@ const renderFull = (doc) => {
 describe('P16-002 Phase 3: evidence-grounded bullet integrity (P16-003)', () => {
   it('preserves candidate-authored accomplishment prose and does not fabricate bullets from presence evidence alone', () => {
     const doc = buildDoc(richCandidate);
-    const projA = doc.projects.find((p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform');
+    const projA = doc.projects.find(
+      (p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform'
+    );
     assert.ok(projA, 'selected project A must be present in the snapshot');
 
     const bullets = projA.bullets.map((b) => (typeof b === 'string' ? b : b.text));
     assert.ok(bullets.length >= 1, 'candidate-authored bullets are preserved');
     const joined = bullets.join(' ');
-    assert.match(joined, /streaming ingestion for telemetry events/i, 'authentic candidate bullet is preserved');
+    assert.match(
+      joined,
+      /streaming ingestion for telemetry events/i,
+      'authentic candidate bullet is preserved'
+    );
     // Ensure presence evidence does NOT manufacture fake prose or leak file paths
-    assert.doesNotMatch(joined, /\b(?:src\/|lib\/|Dockerfile|redis-dedup\.js)\b/i, 'presence evidence file paths must never leak into bullets');
-    assert.doesNotMatch(joined, /developed .* functionality in/i, 'fake template accomplishment prose must never be generated');
+    assert.doesNotMatch(
+      joined,
+      /\b(?:src\/|lib\/|Dockerfile|redis-dedup\.js)\b/i,
+      'presence evidence file paths must never leak into bullets'
+    );
+    assert.doesNotMatch(
+      joined,
+      /developed .* functionality in/i,
+      'fake template accomplishment prose must never be generated'
+    );
   });
 
   it('keeps evidence refs attached to verified authored bullets when skills match', () => {
     const doc = buildDoc(richCandidate);
-    const projA = doc.projects.find((p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform');
+    const projA = doc.projects.find(
+      (p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform'
+    );
     assert.ok(projA, 'project A must be present');
     for (const b of projA.bullets) {
       const t = typeof b === 'string' ? b : b.text;
@@ -210,14 +250,20 @@ describe('P16-002 Phase 3: evidence-grounded bullet integrity (P16-003)', () => 
       for (const b of p.bullets) {
         const t = typeof b === 'string' ? b : b.text;
         assert.doesNotMatch(t, /\b\d{2,}%\b/, 'no invented percentage metrics');
-        assert.doesNotMatch(t, /\b\d+[kKmM]\s*\+\s*(users|customers|requests|rps)\b/i, 'no invented scale claims');
+        assert.doesNotMatch(
+          t,
+          /\b\d+[kKmM]\s*\+\s*(users|customers|requests|rps)\b/i,
+          'no invented scale claims'
+        );
       }
     }
   });
 
   it('preserves authored candidate bullets verbatim in the pool', () => {
     const doc = buildDoc(richCandidate);
-    const projA = doc.projects.find((p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform');
+    const projA = doc.projects.find(
+      (p) => p.projectId === PROJ_A_ID || p.name === 'Telemetry Ingestion Platform'
+    );
     const texts = projA.bullets.map((b) => (typeof b === 'string' ? b : b.text));
     assert.ok(
       texts.some((t) => t.includes('streaming ingestion for telemetry events')),
@@ -234,8 +280,18 @@ describe('P16-002 Phase 4: dynamic project budget', () => {
   it('selects more than the legacy fixed budget when strong projects exist (frontend job, no DSA)', () => {
     // Frontend job: Project B (React) ranks first; both projects are relevant with evidence.
     const rankingsFrontend = [
-      { projectId: PROJ_B_ID, projectName: 'Metrics Dashboard', relevanceScore: 58.0, relevanceRank: 1 },
-      { projectId: PROJ_A_ID, projectName: 'Telemetry Ingestion Platform', relevanceScore: 39.0, relevanceRank: 2 },
+      {
+        projectId: PROJ_B_ID,
+        projectName: 'Metrics Dashboard',
+        relevanceScore: 58.0,
+        relevanceRank: 1,
+      },
+      {
+        projectId: PROJ_A_ID,
+        projectName: 'Telemetry Ingestion Platform',
+        relevanceScore: 39.0,
+        relevanceRank: 2,
+      },
     ];
     const doc = buildDoc(richCandidate, jobFrontend, rankingsFrontend);
     assert.ok(
@@ -259,10 +315,7 @@ describe('P16-002 Phase 4: dynamic project budget', () => {
     ];
     const doc = buildDoc(weakCandidate, jobBackend, rankingsWeak);
     for (const p of doc.projects) {
-      assert.ok(
-        (p.relevanceScore ?? 0) > 0,
-        'only relevance-scored projects may be selected'
-      );
+      assert.ok((p.relevanceScore ?? 0) > 0, 'only relevance-scored projects may be selected');
     }
   });
 });
@@ -304,7 +357,10 @@ describe('P16-002 Phase 5: DSA quality (P16-001G invariants)', () => {
       false,
       'weak DSA (no substantive bullet, no URL) must be omitted by the quality gate'
     );
-    assert.ok(snap.contentQualityGate, 'snapshot bundle must expose the content quality gate report');
+    assert.ok(
+      snap.contentQualityGate,
+      'snapshot bundle must expose the content quality gate report'
+    );
   });
 });
 
@@ -317,7 +373,10 @@ describe('P16-002 Phase 6: role-aware section ordering', () => {
     const { sectionOrder } = deriveSectionOrdering({ candidateProfile: richCandidate });
     const iExp = sectionOrder.indexOf('EXPERIENCE');
     const iProj = sectionOrder.indexOf('PROJECTS');
-    assert.ok(iExp !== -1 && iProj !== -1 && iExp < iProj, `experienced ordering must be experience-first, got ${sectionOrder.join('>')}`);
+    assert.ok(
+      iExp !== -1 && iProj !== -1 && iExp < iProj,
+      `experienced ordering must be experience-first, got ${sectionOrder.join('>')}`
+    );
   });
 
   it('orders PROJECTS before EXPERIENCE for genuine fresher profiles', () => {
@@ -336,14 +395,25 @@ describe('P16-002 Phase 6: role-aware section ordering', () => {
       ],
       experience: [],
       education: [
-        { id: 'edu-2', institution: 'Synthetic State University', degree: 'B.S. Computer Science', startDate: '2022-08-01', endDate: '2026-05-30' },
+        {
+          id: 'edu-2',
+          institution: 'Synthetic State University',
+          degree: 'B.S. Computer Science',
+          startDate: '2022-08-01',
+          endDate: '2026-05-30',
+        },
       ],
     };
-    const { sectionOrder, candidateArchetype } = deriveSectionOrdering({ candidateProfile: fresher });
+    const { sectionOrder, candidateArchetype } = deriveSectionOrdering({
+      candidateProfile: fresher,
+    });
     assert.equal(candidateArchetype, 'FRESHER');
     const iExp = sectionOrder.indexOf('EXPERIENCE');
     const iProj = sectionOrder.indexOf('PROJECTS');
-    assert.ok(iExp === -1 || iProj < iExp, `fresher ordering must be project-first, got ${sectionOrder.join('>')}`);
+    assert.ok(
+      iExp === -1 || iProj < iExp,
+      `fresher ordering must be project-first, got ${sectionOrder.join('>')}`
+    );
   });
 
   it('renderer fallback is experience-aware when snapshot lacks explicit sectionOrder', async () => {
@@ -353,7 +423,10 @@ describe('P16-002 Phase 6: role-aware section ordering', () => {
     const tex = renderTex(clone);
     const iExp = tex.indexOf('\\atssection{Professional Experience}');
     const iProj = tex.indexOf('\\atssection{Technical Projects}');
-    assert.ok(iExp !== -1 && iProj !== -1 && iExp < iProj, 'renderer fallback must be experience-first when real experience exists');
+    assert.ok(
+      iExp !== -1 && iProj !== -1 && iExp < iProj,
+      'renderer fallback must be experience-first when real experience exists'
+    );
   });
 });
 
@@ -368,8 +441,14 @@ describe('P16-002 Phase 7: headline and summary alignment', () => {
     c.experience[0].company = 'Metropolis Holdings';
     const doc = buildDoc(c);
     const headline = (doc.candidateIdentity.headline || '').toLowerCase();
-    assert.ok(!headline.includes('recognition platform'), 'employer platform qualifiers must not leak into canonical headline');
-    assert.ok(!headline.includes('metropolis'), 'employer company name must not leak into canonical headline');
+    assert.ok(
+      !headline.includes('recognition platform'),
+      'employer platform qualifiers must not leak into canonical headline'
+    );
+    assert.ok(
+      !headline.includes('metropolis'),
+      'employer company name must not leak into canonical headline'
+    );
   });
 
   it('summary aligns with a backend target role (no forced frontend positioning)', () => {
@@ -380,7 +459,11 @@ describe('P16-002 Phase 7: headline and summary alignment', () => {
     }).text;
     const focus = classifyRoleFocus(jobBackend.title + ' ' + jobBackend.description);
     assert.equal(focus, 'backend');
-    assert.doesNotMatch(summary, /frontend/i, 'backend summary must not be forced into frontend positioning');
+    assert.doesNotMatch(
+      summary,
+      /frontend/i,
+      'backend summary must not be forced into frontend positioning'
+    );
   });
 
   it('summary aligns with a frontend target role (no forced backend positioning)', () => {
@@ -391,7 +474,11 @@ describe('P16-002 Phase 7: headline and summary alignment', () => {
     }).text;
     const focus = classifyRoleFocus(jobFrontend.title + ' ' + jobFrontend.description);
     assert.equal(focus, 'frontend');
-    assert.doesNotMatch(summary, /\bbackend\b/i, 'frontend summary must not be forced into backend positioning');
+    assert.doesNotMatch(
+      summary,
+      /\bbackend\b/i,
+      'frontend summary must not be forced into backend positioning'
+    );
   });
 });
 
@@ -402,7 +489,11 @@ describe('P16-002 Phase 7: headline and summary alignment', () => {
 describe('P16-002 Phases 8-10: canonical ATS template + extraction', () => {
   it('template metadata truthfully describes the rendered font path', () => {
     const meta = TEMPLATE_METADATA_CATALOG.ATS_FOCUSED;
-    assert.match(meta.defaultFont, /TeX Gyre Heros/, 'metadata must advertise the actual embedded font');
+    assert.match(
+      meta.defaultFont,
+      /TeX Gyre Heros/,
+      'metadata must advertise the actual embedded font'
+    );
     assert.equal(meta.supportsMultiColumn, false);
     assert.equal(meta.isAtsOptimized, true);
   });
@@ -410,8 +501,16 @@ describe('P16-002 Phases 8-10: canonical ATS template + extraction', () => {
   it('preamble disables common ligatures and loads the Unicode-safe font path', () => {
     const doc = buildDoc(richCandidate);
     const tex = renderTex(doc);
-    assert.match(tex, /Ligatures\s*=\s*NoCommon/, 'common ligatures must be disabled at the font level');
-    assert.match(tex, /texgyreheros-regular\.otf/, 'canonical template must load TeX Gyre Heros (bundle file path)');
+    assert.match(
+      tex,
+      /Ligatures\s*=\s*NoCommon/,
+      'common ligatures must be disabled at the font level'
+    );
+    assert.match(
+      tex,
+      /texgyreheros-regular\.otf/,
+      'canonical template must load TeX Gyre Heros (bundle file path)'
+    );
     assert.match(tex, /hyperref/, 'links must be clickable');
   });
 
@@ -423,7 +522,10 @@ describe('P16-002 Phases 8-10: canonical ATS template + extraction', () => {
     const doc = buildDoc(c);
     const tex = renderTex(doc);
     const compiler = new LatexCompilerService();
-    const { pdfBuffer } = await compiler.compileLatexToPdf({ texContent: tex, jobName: 'p16-002-ligature' });
+    const { pdfBuffer } = await compiler.compileLatexToPdf({
+      texContent: tex,
+      jobName: 'p16-002-ligature',
+    });
     const parser = new ResumeParserService();
     const text = parser.extractRawText({ buffer: pdfBuffer, format: 'PDF' });
     assert.ok(text.includes('workflows'), 'workflow family words must extract intact');
@@ -446,13 +548,19 @@ describe('P16-002 Phase 11: content/PDF traceability gate', () => {
     const tex = renderResult.texContent;
     const bulletCap = renderResult.appliedMaxBulletsPerProject || 3;
     const compiler = new LatexCompilerService();
-    const { pdfBuffer } = await compiler.compileLatexToPdf({ texContent: tex, jobName: 'p16-002-trace-ok' });
+    const { pdfBuffer } = await compiler.compileLatexToPdf({
+      texContent: tex,
+      jobName: 'p16-002-trace-ok',
+    });
     const parser = new ResumeParserService();
     const extracted = parser.extractRawText({ buffer: pdfBuffer, format: 'PDF' });
 
     const audit = await validator.validatePdf({
       pdfBuffer,
-      expectedCandidate: { name: doc.candidateIdentity.displayName, email: doc.candidateIdentity.email },
+      expectedCandidate: {
+        name: doc.candidateIdentity.displayName,
+        email: doc.candidateIdentity.email,
+      },
       targetJob: jobBackend,
       documentType: 'RESUME',
       expectedContent: {
@@ -462,25 +570,36 @@ describe('P16-002 Phase 11: content/PDF traceability gate', () => {
         projectBullets: doc.projects.flatMap((p) =>
           p.bullets.map((b) => (typeof b === 'string' ? b : b.text)).slice(0, bulletCap)
         ),
-        experienceBullets: doc.experience.flatMap((e) => e.bullets.map((b) => (typeof b === 'string' ? b : b.text))),
+        experienceBullets: doc.experience.flatMap((e) =>
+          e.bullets.map((b) => (typeof b === 'string' ? b : b.text))
+        ),
         educationTokens: doc.education.flatMap((e) => [e.institution, e.degree].filter(Boolean)),
-        links: doc.projects.map((p) => (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')),
+        links: doc.projects.map((p) =>
+          (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+        ),
         sectionHeadings: ['Summary', 'Skills', 'Experience', 'Projects', 'Education'],
       },
     });
-    assert.ok(audit.traceability?.checked, 'traceability must run when expectedContent is provided');
-    assert.deepEqual(audit.traceability.missing, [], `no content may be lost; missing=${JSON.stringify(audit.traceability.missing)}; extracted=${extracted.slice(0, 400)}`);
+    assert.ok(
+      audit.traceability?.checked,
+      'traceability must run when expectedContent is provided'
+    );
+    assert.deepEqual(
+      audit.traceability.missing,
+      [],
+      `no content may be lost; missing=${JSON.stringify(audit.traceability.missing)}; extracted=${extracted.slice(0, 400)}`
+    );
     assert.equal(audit.traceability.sectionOrderOk, true);
     assert.equal(audit.traceability.integrityOk, true);
-    assert.ok(audit.passed, `full audit must pass; failures=${JSON.stringify(audit.criticalFailures)}`);
+    assert.ok(
+      audit.passed,
+      `full audit must pass; failures=${JSON.stringify(audit.criticalFailures)}`
+    );
   });
 
   it('fails when selected content is missing from the extracted PDF', async () => {
     // Synthetic oversized buffer with PDF magic but no recoverable expected content.
-    const pdfBuffer = Buffer.concat([
-      Buffer.from('%PDF-1.4\n'),
-      Buffer.alloc(2048, 0x41),
-    ]);
+    const pdfBuffer = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(2048, 0x41)]);
     const audit = await validator.validatePdf({
       pdfBuffer,
       expectedCandidate: { name: 'Alex Rich', email: 'alex.rich@synthetic-test.org' },
@@ -521,7 +640,10 @@ describe('P16-002 Phase 12: pre-render content quality gate', () => {
 
   it('detects duplicate skills across categories', () => {
     const doc = buildDoc(richCandidate);
-    doc.skills.categories.push({ categoryName: 'Tools', skills: [{ displayName: 'node.js', slug: 'nodejs-dup' }] });
+    doc.skills.categories.push({
+      categoryName: 'Tools',
+      skills: [{ displayName: 'node.js', slug: 'nodejs-dup' }],
+    });
     const gate = assessPreRenderQuality({ structuredResume: doc });
     const dup = gate.findings.find((f) => f.code === GATE_FINDING_CODES.DUPLICATE_SKILLS);
     assert.ok(dup, 'duplicate skill must be detected');
@@ -529,7 +651,11 @@ describe('P16-002 Phase 12: pre-render content quality gate', () => {
 
   it('detects low-information bullets', () => {
     const doc = buildDoc(richCandidate);
-    doc.projects[0].bullets.push({ text: 'Did stuff.', provenanceStatus: 'CLAIMED', evidenceRefs: [] });
+    doc.projects[0].bullets.push({
+      text: 'Did stuff.',
+      provenanceStatus: 'CLAIMED',
+      evidenceRefs: [],
+    });
     const gate = assessPreRenderQuality({ structuredResume: doc });
     const low = gate.findings.find((f) => f.code === GATE_FINDING_CODES.LOW_INFORMATION_BULLET);
     assert.ok(low, 'low-information bullet must be detected');
@@ -538,8 +664,13 @@ describe('P16-002 Phase 12: pre-render content quality gate', () => {
   it('detects contradictory role positioning between headline and target role', () => {
     const doc = buildDoc(richCandidate);
     doc.candidateIdentity.headline = 'Frontend Engineer';
-    const gate = assessPreRenderQuality({ structuredResume: doc, targetRole: 'Senior Backend Engineer' });
-    const contra = gate.findings.find((f) => f.code === GATE_FINDING_CODES.CONTRADICTORY_ROLE_POSITIONING);
+    const gate = assessPreRenderQuality({
+      structuredResume: doc,
+      targetRole: 'Senior Backend Engineer',
+    });
+    const contra = gate.findings.find(
+      (f) => f.code === GATE_FINDING_CODES.CONTRADICTORY_ROLE_POSITIONING
+    );
     assert.ok(contra, 'contradictory positioning must be detected');
   });
 
@@ -566,9 +697,15 @@ describe('P16-002: renderer genericity invariants', () => {
     const doc2 = buildDoc(c2);
     const tex1 = renderTex(doc1);
     const tex2 = renderTex(doc2);
-    const structural = (tex) => tex.replace(/Completely Different Person|Alex Rich/g, 'NAME')
-      .replace(/other\.person@synthetic-test\.org|alex\.rich@synthetic-test\.org/g, 'EMAIL');
-    assert.equal(structural(tex1), structural(tex2), 'renderer output must be structurally identical across candidate identities');
+    const structural = (tex) =>
+      tex
+        .replace(/Completely Different Person|Alex Rich/g, 'NAME')
+        .replace(/other\.person@synthetic-test\.org|alex\.rich@synthetic-test\.org/g, 'EMAIL');
+    assert.equal(
+      structural(tex1),
+      structural(tex2),
+      'renderer output must be structurally identical across candidate identities'
+    );
   });
 
   it('job source does not affect renderer behavior', async () => {
@@ -580,14 +717,28 @@ describe('P16-002: renderer genericity invariants', () => {
 
   it('different jobs alter tailoring through ranking data, not name matching', () => {
     const rankingsFrontend = [
-      { projectId: PROJ_B_ID, projectName: 'Metrics Dashboard', relevanceScore: 58.0, relevanceRank: 1 },
-      { projectId: PROJ_A_ID, projectName: 'Telemetry Ingestion Platform', relevanceScore: 39.0, relevanceRank: 2 },
+      {
+        projectId: PROJ_B_ID,
+        projectName: 'Metrics Dashboard',
+        relevanceScore: 58.0,
+        relevanceRank: 1,
+      },
+      {
+        projectId: PROJ_A_ID,
+        projectName: 'Telemetry Ingestion Platform',
+        relevanceScore: 39.0,
+        relevanceRank: 2,
+      },
     ];
     const docBackend = buildDoc(richCandidate, jobBackend, rankingsRich);
     const docFrontend = buildDoc(richCandidate, jobFrontend, rankingsFrontend);
     const firstA = docBackend.projects[0]?.name || docBackend.projects[0]?.displayName;
     const firstB = docFrontend.projects[0]?.name || docFrontend.projects[0]?.displayName;
-    assert.notEqual(firstA, firstB, 'project order must follow ranking data, which differs between jobs');
+    assert.notEqual(
+      firstA,
+      firstB,
+      'project order must follow ranking data, which differs between jobs'
+    );
   });
 });
 
@@ -622,8 +773,18 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
       label: 'frontend/product',
       job: jobFrontend,
       rankings: [
-        { projectId: PROJ_B_ID, projectName: 'Metrics Dashboard', relevanceScore: 58.0, relevanceRank: 1 },
-        { projectId: PROJ_A_ID, projectName: 'Telemetry Ingestion Platform', relevanceScore: 39.0, relevanceRank: 2 },
+        {
+          projectId: PROJ_B_ID,
+          projectName: 'Metrics Dashboard',
+          relevanceScore: 58.0,
+          relevanceRank: 1,
+        },
+        {
+          projectId: PROJ_A_ID,
+          projectName: 'Telemetry Ingestion Platform',
+          relevanceScore: 39.0,
+          relevanceRank: 2,
+        },
       ],
     },
     {
@@ -661,30 +822,46 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
         'TECHNICAL PROJECTS',
         'EDUCATION',
       ].map((h) => text.toUpperCase().indexOf(h));
-      assert.ok(order.every((p) => p !== -1), `${tc.label}: all canonical sections present`);
-      assert.ok(order.every((p, i) => i === 0 || p > order[i - 1]), `${tc.label}: canonical section order preserved`);
+      assert.ok(
+        order.every((p) => p !== -1),
+        `${tc.label}: all canonical sections present`
+      );
+      assert.ok(
+        order.every((p, i) => i === 0 || p > order[i - 1]),
+        `${tc.label}: canonical section order preserved`
+      );
 
       // Links survive extraction (project repo URLs).
       for (const p of doc.projects) {
         if (p.repositoryUrl) {
           const display = p.repositoryUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-          assert.ok(text.includes(display), `${tc.label}: project link ${display} must be extractable`);
+          assert.ok(
+            text.includes(display),
+            `${tc.label}: project link ${display} must be extractable`
+          );
         }
       }
 
       // No fabricated metrics: no percentages/scale claims absent from source.
-      const sourceText = JSON.stringify(richCandidate.projects.map((p) => p.bullets)) +
+      const sourceText =
+        JSON.stringify(richCandidate.projects.map((p) => p.bullets)) +
         JSON.stringify(richCandidate.experience.map((e) => e.bullets));
       const pctMatches = text.match(/\b\d{2,}%\b/g) || [];
       for (const m of pctMatches) {
-        assert.ok(sourceText.includes(m), `${tc.label}: percentage '${m}' must exist in source content (no fabrication)`);
+        assert.ok(
+          sourceText.includes(m),
+          `${tc.label}: percentage '${m}' must exist in source content (no fabrication)`
+        );
       }
 
       // Full QA audit with traceability passes.
       const bulletCap = renderResult.appliedMaxBulletsPerProject || 3;
       const audit = await validator.validatePdf({
         pdfBuffer,
-        expectedCandidate: { name: doc.candidateIdentity.displayName, email: doc.candidateIdentity.email },
+        expectedCandidate: {
+          name: doc.candidateIdentity.displayName,
+          email: doc.candidateIdentity.email,
+        },
         targetJob: tc.job,
         documentType: 'RESUME',
         expectedContent: {
@@ -692,9 +869,13 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
           projectBullets: doc.projects.flatMap((p) =>
             p.bullets.map((b) => (typeof b === 'string' ? b : b.text)).slice(0, bulletCap)
           ),
-          experienceBullets: doc.experience.flatMap((e) => e.bullets.map((b) => (typeof b === 'string' ? b : b.text))),
+          experienceBullets: doc.experience.flatMap((e) =>
+            e.bullets.map((b) => (typeof b === 'string' ? b : b.text))
+          ),
           educationTokens: doc.education.flatMap((e) => [e.institution, e.degree].filter(Boolean)),
-          links: doc.projects.map((p) => (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')),
+          links: doc.projects.map((p) =>
+            (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+          ),
           sectionHeadings: ['Summary', 'Skills', 'Experience', 'Projects', 'Education'],
         },
       });

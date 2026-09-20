@@ -137,7 +137,8 @@ export const USER_FACING_STATE_DEFAULTS = {
   },
   [UserFacingStateEnum.AI_FAILURE]: {
     title: 'AI assistant temporarily unavailable',
-    message: 'The AI assistant is temporarily unavailable. The core portal continues working normally.',
+    message:
+      'The AI assistant is temporarily unavailable. The core portal continues working normally.',
     isError: true,
     recoverable: true,
     defaultAction: {

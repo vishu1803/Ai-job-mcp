@@ -80,7 +80,11 @@ export class WorkdayAdapter {
       }
     }
     const location = locationEl ? locationEl.textContent.trim() : '';
-    const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
+    const description = descEl
+      ? descEl.textContent.trim()
+      : doc.body
+        ? doc.body.textContent.trim()
+        : '';
 
     const requirements = [];
     if (descEl) {

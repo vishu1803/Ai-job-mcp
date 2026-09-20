@@ -37,10 +37,12 @@ import * as schema from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { createSession } from '../src/security/session.service.js';
 
-const CHROME_PATH = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
+const CHROME_PATH =
+  'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\chrome\\win64-152.0.7977.82\\chrome-win64\\chrome.exe';
 const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'cft-p62-acceptance-'));
 const EXTENSION_DIR = 'C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\extension';
-const SCREENSHOT_DIR = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
+const SCREENSHOT_DIR =
+  'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\6c240aca-0203-4240-b960-4e31b472135d';
 const CDP_PORT = 9338;
 const FIXTURE_PORT = 3198;
 
@@ -234,11 +236,17 @@ async function run() {
   console.log(`[Fixture] Server listening at http://127.0.0.1:${FIXTURE_PORT}`);
 
   // 2. Query target real user and candidate
-  const users = await db.select().from(schema.users).where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
+  const users = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.email, 'vishwanatnishad@gmail.com'));
   const targetUser = users[0];
   if (!targetUser) throw new Error('Target user vishwanatnishad@gmail.com not found');
 
-  const candidates = await db.select().from(schema.candidates).where(eq(schema.candidates.userId, targetUser.id));
+  const candidates = await db
+    .select()
+    .from(schema.candidates)
+    .where(eq(schema.candidates.userId, targetUser.id));
   const targetCandidate = candidates[0];
   if (!targetCandidate) throw new Error('Target candidate not found');
 
@@ -292,7 +300,9 @@ async function run() {
   let extensionId = null;
   for (let i = 0; i < 20; i++) {
     const targetsRes = await browserCdp.send('Target.getTargets');
-    const swTarget = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+    const swTarget = targetsRes.targetInfos.find(
+      (t) => t.type === 'service_worker' && t.url.includes('service-worker.js')
+    );
     if (swTarget) {
       const m = swTarget.url.match(/chrome-extension:\/\/([a-z0-9]+)\//);
       if (m) extensionId = m[1];
@@ -334,7 +344,9 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEP 1: Authenticate & Verify Canonical User Identity ---');
     const simulatedTabId = 5062;
-    sidebarTab = await openTab(`chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`);
+    sidebarTab = await openTab(
+      `chrome-extension://${extensionId}/sidebar/sidebar.html?tabId=${simulatedTabId}`
+    );
     await sleep(1000);
 
     // Set real session cookie
@@ -350,7 +362,9 @@ async function run() {
     await sleep(500);
 
     const isAuth = await sidebarTab.evaluate(`window.__sidebarController.isAuthenticated`);
-    const displayedEmail = await sidebarTab.evaluate(`document.getElementById('userEmail').textContent`);
+    const displayedEmail = await sidebarTab.evaluate(
+      `document.getElementById('userEmail').textContent`
+    );
 
     console.log(`   [Check] Authenticated: ${isAuth}`);
     console.log(`   [Check] Displayed Email: "${displayedEmail}"`);
@@ -363,16 +377,24 @@ async function run() {
     // STEP 2: Verify Single Primary CTA Invariant in DOM
     // -------------------------------------------------------------
     console.log('\n--- STEP 2: Verify Single Primary CTA Invariant in DOM ---');
-    const duplicateCtaExists = await sidebarTab.evaluate(`Boolean(document.getElementById('ctaPrepareHandoffBtn'))`);
-    const primaryCtaExists = await sidebarTab.evaluate(`Boolean(document.getElementById('prepareHandoffBtn'))`);
+    const duplicateCtaExists = await sidebarTab.evaluate(
+      `Boolean(document.getElementById('ctaPrepareHandoffBtn'))`
+    );
+    const primaryCtaExists = await sidebarTab.evaluate(
+      `Boolean(document.getElementById('prepareHandoffBtn'))`
+    );
     console.log(`   [Check] Legacy duplicate CTA exists in DOM: ${duplicateCtaExists}`);
     console.log(`   [Check] Authoritative primary CTA exists in DOM: ${primaryCtaExists}`);
 
     if (duplicateCtaExists) {
-      throw new Error('FAILED: #ctaPrepareHandoffBtn must NOT exist in the sidebar DOM (duplicate CTA defect)!');
+      throw new Error(
+        'FAILED: #ctaPrepareHandoffBtn must NOT exist in the sidebar DOM (duplicate CTA defect)!'
+      );
     }
     if (!primaryCtaExists) {
-      throw new Error('FAILED: #prepareHandoffBtn must exist as the single authoritative handoff CTA!');
+      throw new Error(
+        'FAILED: #prepareHandoffBtn must exist as the single authoritative handoff CTA!'
+      );
     }
     console.log('   >>> INVARIANT VERIFIED: Exactly ONE primary handoff CTA exists in DOM <<<');
 
@@ -387,15 +409,23 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: `http://127.0.0.1:${FIXTURE_PORT}/job-a`,
       provider: 'LINKEDIN',
-      description: 'Apex Scale is seeking a Principal Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
+      description:
+        'Apex Scale is seeking a Principal Backend Architect with Node.js, TypeScript, PostgreSQL, and Distributed Systems.',
       portalMetadata: {
         portalName: 'LinkedIn',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
-    await sidebarTab.evaluate(`window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`);
+    await sidebarTab.evaluate(
+      `window.__sidebarController._handleJobDetectedEvent(${JSON.stringify(jobAData)})`
+    );
     await sleep(500);
 
     // Run analysis on Job A
@@ -407,7 +437,9 @@ async function run() {
     }
 
     const stateA1 = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const primaryBtnText1 = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
+    const primaryBtnText1 = await sidebarTab.evaluate(
+      `document.getElementById('prepareBtnText').textContent`
+    );
     console.log(`   [Check] Job A State after analysis: ${stateA1}`);
     console.log(`   [Check] Primary CTA Text: "${primaryBtnText1}"`);
 
@@ -425,9 +457,15 @@ async function run() {
     }
 
     const appAId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const statusBadgeText1 = await sidebarTab.evaluate(`document.getElementById('handoffStatusBadge').textContent`);
-    const primaryBtnText2 = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
-    const isRegenBtnVisible1 = await sidebarTab.evaluate(`!document.getElementById('regenerateHandoffBtn').classList.contains('hidden')`);
+    const statusBadgeText1 = await sidebarTab.evaluate(
+      `document.getElementById('handoffStatusBadge').textContent`
+    );
+    const primaryBtnText2 = await sidebarTab.evaluate(
+      `document.getElementById('prepareBtnText').textContent`
+    );
+    const isRegenBtnVisible1 = await sidebarTab.evaluate(
+      `!document.getElementById('regenerateHandoffBtn').classList.contains('hidden')`
+    );
 
     console.log(`   [Check] Application A ID: "${appAId}"`);
     console.log(`   [Check] Handoff Status Badge: "${statusBadgeText1}"`);
@@ -435,13 +473,17 @@ async function run() {
     console.log(`   [Check] Secondary Regenerate Button Visible: ${isRegenBtnVisible1}`);
 
     if (primaryBtnText2 !== 'View Handoff Kit') {
-      throw new Error(`Expected primary CTA text to be "View Handoff Kit", got "${primaryBtnText2}"`);
+      throw new Error(
+        `Expected primary CTA text to be "View Handoff Kit", got "${primaryBtnText2}"`
+      );
     }
     if (!isRegenBtnVisible1) {
       throw new Error('Expected secondary button [Regenerate Handoff Kit] to be visible');
     }
 
-    await sidebarTab.evaluate(`document.getElementById('handoffCard').scrollIntoView({ behavior: 'instant', block: 'center' })`);
+    await sidebarTab.evaluate(
+      `document.getElementById('handoffCard').scrollIntoView({ behavior: 'instant', block: 'center' })`
+    );
     await sleep(300);
     await sidebarTab.captureScreenshot('p62-01-initial-handoff-ready.png');
 
@@ -450,11 +492,15 @@ async function run() {
     // -------------------------------------------------------------
     console.log('\n--- STEP 5: Click [View Handoff Kit] ---');
     // Hide artifacts container to verify viewHandoffKit unhides it
-    await sidebarTab.evaluate(`document.getElementById('artifactsContainer').classList.add('hidden')`);
+    await sidebarTab.evaluate(
+      `document.getElementById('artifactsContainer').classList.add('hidden')`
+    );
     await sidebarTab.evaluate(`document.getElementById('prepareHandoffBtn').click()`);
     await sleep(300);
 
-    const isArtifactsVisible = await sidebarTab.evaluate(`!document.getElementById('artifactsContainer').classList.contains('hidden')`);
+    const isArtifactsVisible = await sidebarTab.evaluate(
+      `!document.getElementById('artifactsContainer').classList.contains('hidden')`
+    );
     console.log(`   [Check] Artifacts Container Unhidden: ${isArtifactsVisible}`);
     if (!isArtifactsVisible) {
       throw new Error('Clicking [View Handoff Kit] failed to reveal artifacts container');
@@ -473,25 +519,41 @@ async function run() {
     }
 
     const stateReused = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-    const isLockedReused = await sidebarTab.evaluate(`window.__sidebarController.isWorkflowLocked()`);
-    const appAIdReused = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const primaryBtnTextReused = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
-    const isRegenVisibleReused = await sidebarTab.evaluate(`!document.getElementById('regenerateHandoffBtn').classList.contains('hidden')`);
+    const isLockedReused = await sidebarTab.evaluate(
+      `window.__sidebarController.isWorkflowLocked()`
+    );
+    const appAIdReused = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const primaryBtnTextReused = await sidebarTab.evaluate(
+      `document.getElementById('prepareBtnText').textContent`
+    );
+    const isRegenVisibleReused = await sidebarTab.evaluate(
+      `!document.getElementById('regenerateHandoffBtn').classList.contains('hidden')`
+    );
 
     console.log(`   [Check] Re-analyzed Job A State: ${stateReused}`);
     console.log(`   [Check] Workflow Locked: ${isLockedReused}`);
-    console.log(`   [Check] Reused Application ID: "${appAIdReused}" (matches App A: ${appAIdReused === appAId})`);
+    console.log(
+      `   [Check] Reused Application ID: "${appAIdReused}" (matches App A: ${appAIdReused === appAId})`
+    );
     console.log(`   [Check] Primary CTA Text: "${primaryBtnTextReused}"`);
     console.log(`   [Check] Regenerate CTA Visible: ${isRegenVisibleReused}`);
 
     if (stateReused !== 'APPLICATION_READY' || !isLockedReused) {
-      throw new Error(`Expected APPLICATION_READY and LOCKED upon re-analyzing existing job. Got state: ${stateReused}, locked: ${isLockedReused}`);
+      throw new Error(
+        `Expected APPLICATION_READY and LOCKED upon re-analyzing existing job. Got state: ${stateReused}, locked: ${isLockedReused}`
+      );
     }
     if (appAIdReused !== appAId) {
-      throw new Error(`Application ID mismatch on reuse! Expected "${appAId}", got "${appAIdReused}"`);
+      throw new Error(
+        `Application ID mismatch on reuse! Expected "${appAId}", got "${appAIdReused}"`
+      );
     }
     if (primaryBtnTextReused !== 'View Handoff Kit') {
-      throw new Error(`Expected primary CTA to be "View Handoff Kit" on existing handoff. Got "${primaryBtnTextReused}"`);
+      throw new Error(
+        `Expected primary CTA to be "View Handoff Kit" on existing handoff. Got "${primaryBtnTextReused}"`
+      );
     }
 
     console.log('   >>> VERIFIED: Existing handoff kit reused cleanly without regeneration! <<<');
@@ -508,11 +570,17 @@ async function run() {
       employmentType: 'Full-time',
       sourceUrl: `http://127.0.0.1:${FIXTURE_PORT}/job-b`,
       provider: 'LINKEDIN',
-      description: 'CloudMatrix is seeking a Staff Platform Infrastructure Engineer with Go, Kubernetes, Terraform, and Distributed Systems.',
+      description:
+        'CloudMatrix is seeking a Staff Platform Infrastructure Engineer with Go, Kubernetes, Terraform, and Distributed Systems.',
       portalMetadata: {
         portalName: 'LinkedIn',
         confidence: 'HIGH',
-        capabilities: { jobExtraction: true, applicationDetection: true, formExtraction: false, automaticFieldMapping: false },
+        capabilities: {
+          jobExtraction: true,
+          applicationDetection: true,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
       },
     };
 
@@ -526,22 +594,29 @@ async function run() {
     `);
     await sleep(500);
 
-    const isPendingVis = await sidebarTab.evaluate(`!document.getElementById('pendingJobNotification').classList.contains('hidden')`);
+    const isPendingVis = await sidebarTab.evaluate(
+      `!document.getElementById('pendingJobNotification').classList.contains('hidden')`
+    );
     console.log(`   [Check] Minimal Pending Notification Visible: ${isPendingVis}`);
 
     // Click Rescan to switch to Job B
     await sidebarTab.evaluate(`document.getElementById('rescanBtn').click()`);
     await sleep(500);
 
-    const activeJobBTitle = await sidebarTab.evaluate(`document.getElementById('jobTitle').textContent`);
+    const activeJobBTitle = await sidebarTab.evaluate(
+      `document.getElementById('jobTitle').textContent`
+    );
     console.log(`   [Check] Switched Active Job Title: "${activeJobBTitle}"`);
     if (!activeJobBTitle.includes('Staff Platform Infrastructure Engineer')) {
       throw new Error('Failed to switch active workflow to Job B via Rescan');
     }
 
     // Verify Application A in DB is completely untouched
-    const checkAppA = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
-    if (!checkAppA) throw new Error('Integrity violation: Application A was deleted or corrupted during Rescan!');
+    const checkAppA = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
+    if (!checkAppA)
+      throw new Error('Integrity violation: Application A was deleted or corrupted during Rescan!');
     console.log(`   [DB Check] Application A remains intact in DB. Status: ${checkAppA.status}`);
 
     // -------------------------------------------------------------
@@ -557,12 +632,16 @@ async function run() {
     }
 
     // Single primary CTA check for Job B
-    const primaryBtnTextB1 = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
+    const primaryBtnTextB1 = await sidebarTab.evaluate(
+      `document.getElementById('prepareBtnText').textContent`
+    );
     console.log(`   [Check] Job B Primary CTA before handoff: "${primaryBtnTextB1}"`);
 
     if (primaryBtnTextB1 !== 'Prepare Handoff Kit') {
       // In case Job B already had an application from previous test runs
-      console.log('   [Info] Job B already had a handoff; will proceed with explicit regeneration test.');
+      console.log(
+        '   [Info] Job B already had a handoff; will proceed with explicit regeneration test.'
+      );
     } else {
       await sidebarTab.evaluate(`window.__sidebarController.runPrepareHandoff()`, false);
       for (let i = 0; i < 30; i++) {
@@ -573,35 +652,47 @@ async function run() {
     }
 
     const appBId = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const appBPackageMeta1 = await sidebarTab.evaluate(`document.getElementById('handoffPackageMeta').textContent`);
+    const appBPackageMeta1 = await sidebarTab.evaluate(
+      `document.getElementById('handoffPackageMeta').textContent`
+    );
     console.log(`   [Check] Application B ID: "${appBId}"`);
     console.log(`   [Check] Application B Package Meta: "${appBPackageMeta1}"`);
 
     // -------------------------------------------------------------
     // STEP 9: Secondary Button [Regenerate Handoff Kit] & Confirmation
     // -------------------------------------------------------------
-    console.log('\n--- STEP 9: Secondary Button [Regenerate Handoff Kit] & In-Card Confirmation ---');
-    const isConfirmBoxHiddenBefore = await sidebarTab.evaluate(`document.getElementById('regenerateConfirmBox').classList.contains('hidden')`);
+    console.log(
+      '\n--- STEP 9: Secondary Button [Regenerate Handoff Kit] & In-Card Confirmation ---'
+    );
+    const isConfirmBoxHiddenBefore = await sidebarTab.evaluate(
+      `document.getElementById('regenerateConfirmBox').classList.contains('hidden')`
+    );
     console.log(`   [Check] Confirm Box Hidden initially: ${isConfirmBoxHiddenBefore}`);
 
     // Click [Regenerate Handoff Kit]
     await sidebarTab.evaluate(`document.getElementById('regenerateHandoffBtn').click()`);
     await sleep(300);
 
-    const isConfirmBoxVisible = await sidebarTab.evaluate(`!document.getElementById('regenerateConfirmBox').classList.contains('hidden')`);
+    const isConfirmBoxVisible = await sidebarTab.evaluate(
+      `!document.getElementById('regenerateConfirmBox').classList.contains('hidden')`
+    );
     console.log(`   [Check] Confirm Box Visible after click: ${isConfirmBoxVisible}`);
     if (!isConfirmBoxVisible) {
       throw new Error('Clicking [Regenerate Handoff Kit] failed to unhide #regenerateConfirmBox');
     }
 
-    await sidebarTab.evaluate(`document.getElementById('regenerateConfirmBox').scrollIntoView({ behavior: 'instant', block: 'center' })`);
+    await sidebarTab.evaluate(
+      `document.getElementById('regenerateConfirmBox').scrollIntoView({ behavior: 'instant', block: 'center' })`
+    );
     await sleep(300);
     await sidebarTab.captureScreenshot('p62-03-regeneration-confirmation.png');
 
     // Click [Cancel] -> dismiss confirmation
     await sidebarTab.evaluate(`document.getElementById('cancelRegenerateBtn').click()`);
     await sleep(300);
-    const isConfirmBoxDismissed = await sidebarTab.evaluate(`document.getElementById('regenerateConfirmBox').classList.contains('hidden')`);
+    const isConfirmBoxDismissed = await sidebarTab.evaluate(
+      `document.getElementById('regenerateConfirmBox').classList.contains('hidden')`
+    );
     console.log(`   [Check] Confirm Box Dismissed after Cancel: ${isConfirmBoxDismissed}`);
     if (!isConfirmBoxDismissed) {
       throw new Error('Clicking Cancel failed to hide confirmation banner');
@@ -621,44 +712,67 @@ async function run() {
     // Wait for regeneration
     for (let i = 0; i < 30; i++) {
       const state = await sidebarTab.evaluate(`window.__sidebarController.stateMachine.state`);
-      const btnText = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
+      const btnText = await sidebarTab.evaluate(
+        `document.getElementById('prepareBtnText').textContent`
+      );
       if (state === 'APPLICATION_READY' && btnText === 'View Handoff Kit') break;
       await sleep(1000);
     }
 
-    const appBIdRegen = await sidebarTab.evaluate(`document.getElementById('handoffAppId').textContent`);
-    const appBPackageMeta2 = await sidebarTab.evaluate(`document.getElementById('handoffPackageMeta').textContent`);
-    const primaryBtnTextRegen = await sidebarTab.evaluate(`document.getElementById('prepareBtnText').textContent`);
+    const appBIdRegen = await sidebarTab.evaluate(
+      `document.getElementById('handoffAppId').textContent`
+    );
+    const appBPackageMeta2 = await sidebarTab.evaluate(
+      `document.getElementById('handoffPackageMeta').textContent`
+    );
+    const primaryBtnTextRegen = await sidebarTab.evaluate(
+      `document.getElementById('prepareBtnText').textContent`
+    );
 
-    console.log(`   [Check] Application B ID after regen: "${appBIdRegen}" (Preserved: ${appBIdRegen === appBId})`);
+    console.log(
+      `   [Check] Application B ID after regen: "${appBIdRegen}" (Preserved: ${appBIdRegen === appBId})`
+    );
     console.log(`   [Check] Application B Package Meta after regen: "${appBPackageMeta2}"`);
     console.log(`   [Check] Primary CTA Text: "${primaryBtnTextRegen}"`);
 
     if (appBIdRegen !== appBId) {
-      throw new Error(`Application ID changed during regeneration! Expected "${appBId}", got "${appBIdRegen}"`);
+      throw new Error(
+        `Application ID changed during regeneration! Expected "${appBId}", got "${appBIdRegen}"`
+      );
     }
     if (primaryBtnTextRegen !== 'View Handoff Kit') {
-      throw new Error(`Expected primary CTA to return to "View Handoff Kit", got "${primaryBtnTextRegen}"`);
+      throw new Error(
+        `Expected primary CTA to return to "View Handoff Kit", got "${primaryBtnTextRegen}"`
+      );
     }
 
     // Check DB: Application A is still intact and Application B updated
-    const finalAppA = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId)))[0];
-    const finalAppB = (await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appBId)))[0];
+    const finalAppA = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appAId))
+    )[0];
+    const finalAppB = (
+      await db.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, appBId))
+    )[0];
 
     if (!finalAppA) throw new Error('Application A disappeared from DB!');
     if (!finalAppB) throw new Error('Application B disappeared from DB!');
 
-    console.log(`   [DB Check] Application A status: ${finalAppA.status}, Current Hash: ${finalAppA.metadata?.currentPackageHash || 'ok'}`);
-    console.log(`   [DB Check] Application B status: ${finalAppB.status}, Current Version: ${finalAppB.metadata?.currentPackageVersion || 2}`);
+    console.log(
+      `   [DB Check] Application A status: ${finalAppA.status}, Current Hash: ${finalAppA.metadata?.currentPackageHash || 'ok'}`
+    );
+    console.log(
+      `   [DB Check] Application B status: ${finalAppB.status}, Current Version: ${finalAppB.metadata?.currentPackageVersion || 2}`
+    );
 
-    await sidebarTab.evaluate(`document.getElementById('handoffCard').scrollIntoView({ behavior: 'instant', block: 'center' })`);
+    await sidebarTab.evaluate(
+      `document.getElementById('handoffCard').scrollIntoView({ behavior: 'instant', block: 'center' })`
+    );
     await sleep(300);
     await sidebarTab.captureScreenshot('p62-04-regenerated-handoff-ready.png');
 
     console.log('\n================================================================');
     console.log('  ALL PART 62 REAL CHROME CDP VERIFICATION CHECKS PASSED!');
     console.log('================================================================\n');
-
   } finally {
     if (sidebarTab) await sidebarTab.close().catch(() => {});
     if (jobTab) await jobTab.close().catch(() => {});

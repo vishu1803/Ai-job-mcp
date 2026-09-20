@@ -58,8 +58,12 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
     realCandidateProfile = await profService.getProfile(MCP_CONTEXT, CANDIDATE_ID);
     assert.ok(realCandidateProfile, 'Candidate profile must exist');
     assert.equal(realCandidateProfile.candidate.id, CANDIDATE_ID);
-    assert.ok(Array.isArray(realCandidateProfile.projects) && realCandidateProfile.projects.length >= 3);
-    assert.ok(Array.isArray(realCandidateProfile.skills) && realCandidateProfile.skills.length >= 10);
+    assert.ok(
+      Array.isArray(realCandidateProfile.projects) && realCandidateProfile.projects.length >= 3
+    );
+    assert.ok(
+      Array.isArray(realCandidateProfile.skills) && realCandidateProfile.skills.length >= 10
+    );
 
     // Generate sample LaTeX for preamble inspection
     const snapshot = buildStructuredResumeSnapshot({
@@ -81,18 +85,53 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
 
   describe('1. Visual Authority & LaTeX Layout Styling', () => {
     it('uses classic Latin Modern Roman serif typography in preamble', () => {
-      assert.match(sampleLatexContent, /lmroman10-regular\.otf/, 'XeTeX fontspec must load Latin Modern Roman serif');
-      assert.match(sampleLatexContent, /lmroman10-bold\.otf/, 'XeTeX fontspec must load Latin Modern Roman bold');
-      assert.match(sampleLatexContent, /lmroman10-italic\.otf/, 'XeTeX fontspec must load Latin Modern Roman italic');
-      assert.match(sampleLatexContent, /Ligatures\s*=\s*NoCommon/, 'Common ligatures must be disabled for ATS extraction fidelity');
-      assert.ok(!sampleLatexContent.includes('\\renewcommand{\\familydefault}{\\sfdefault}'), 'Must not override serif with sans-serif');
-      assert.match(sampleLatexContent, /margin=0\.52in/, 'Uses calibrated 0.52in margins for natural 1-page fit');
+      assert.match(
+        sampleLatexContent,
+        /lmroman10-regular\.otf/,
+        'XeTeX fontspec must load Latin Modern Roman serif'
+      );
+      assert.match(
+        sampleLatexContent,
+        /lmroman10-bold\.otf/,
+        'XeTeX fontspec must load Latin Modern Roman bold'
+      );
+      assert.match(
+        sampleLatexContent,
+        /lmroman10-italic\.otf/,
+        'XeTeX fontspec must load Latin Modern Roman italic'
+      );
+      assert.match(
+        sampleLatexContent,
+        /Ligatures\s*=\s*NoCommon/,
+        'Common ligatures must be disabled for ATS extraction fidelity'
+      );
+      assert.ok(
+        !sampleLatexContent.includes('\\renewcommand{\\familydefault}{\\sfdefault}'),
+        'Must not override serif with sans-serif'
+      );
+      assert.match(
+        sampleLatexContent,
+        /margin=0\.52in/,
+        'Uses calibrated 0.52in margins for natural 1-page fit'
+      );
     });
 
     it('renders section headings with uppercase serif and 0.4pt horizontal rule', () => {
-      assert.match(sampleLatexContent, /\\newcommand\{\\atssection\}\[1\]/, 'Must define atssection');
-      assert.match(sampleLatexContent, /\\large\\bfseries\\uppercase\{#1\}/, 'Section headings must be large, bold, uppercase');
-      assert.match(sampleLatexContent, /\\hrule height 0\.4pt/, 'Must include thin 0.4pt horizontal rule matching reference');
+      assert.match(
+        sampleLatexContent,
+        /\\newcommand\{\\atssection\}\[1\]/,
+        'Must define atssection'
+      );
+      assert.match(
+        sampleLatexContent,
+        /\\large\\bfseries\\uppercase\{#1\}/,
+        'Section headings must be large, bold, uppercase'
+      );
+      assert.match(
+        sampleLatexContent,
+        /\\hrule height 0\.4pt/,
+        'Must include thin 0.4pt horizontal rule matching reference'
+      );
     });
 
     it('formats project links as compact labels with \\hfill and underlying real URLs', () => {
@@ -101,20 +140,34 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
       const latex = formatProjectLinksLatex(repoUrl, liveUrl);
 
       // Verify underlying hrefs and visible text labels
-      assert.match(latex, /\\href\{https:\/\/github\.com\/vishu1803\/Collaborative-task-manager\}\{\\textbf\{GitHub\}\}/, 'Must generate clickable GitHub label');
-      assert.match(latex, /\\href\{https:\/\/task-manager\.demo\.app\}\{\\textbf\{Live Demo\}\}/, 'Must generate clickable Live Demo label');
+      assert.match(
+        latex,
+        /\\href\{https:\/\/github\.com\/vishu1803\/Collaborative-task-manager\}\{\\textbf\{GitHub\}\}/,
+        'Must generate clickable GitHub label'
+      );
+      assert.match(
+        latex,
+        /\\href\{https:\/\/task-manager\.demo\.app\}\{\\textbf\{Live Demo\}\}/,
+        'Must generate clickable Live Demo label'
+      );
       assert.match(latex, /\$\\cdot\$/, 'Must separate links with compact dot');
 
       // Verify visible text does not show the raw URL
       const visibleOnly = latex.replace(/\\href\{[^}]+\}/g, '');
       assert.ok(!visibleOnly.includes('github.com'), 'Visible text must not show raw GitHub URL');
-      assert.ok(!visibleOnly.includes('task-manager.demo.app'), 'Visible text must not show raw demo URL');
+      assert.ok(
+        !visibleOnly.includes('task-manager.demo.app'),
+        'Visible text must not show raw demo URL'
+      );
     });
 
     it('does not invent Live Demo when liveUrl is absent', () => {
       const repoUrl = 'https://github.com/vishu1803/Collaborative-task-manager';
       const latex = formatProjectLinksLatex(repoUrl, null);
-      assert.ok(!latex.includes('Live Demo'), 'Must not invent Live Demo when not present in candidate records');
+      assert.ok(
+        !latex.includes('Live Demo'),
+        'Must not invent Live Demo when not present in candidate records'
+      );
       assert.match(latex, /\\textbf\{GitHub\}/);
     });
 
@@ -133,9 +186,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
     const devopsJobPosting = {
       id: 'job-devops-001',
       title: 'Senior Cloud & DevOps Platform Engineer',
-      description: 'Deploy cloud infrastructure, containers, and pipelines using AWS, Docker, and GitHub Actions.',
+      description:
+        'Deploy cloud infrastructure, containers, and pipelines using AWS, Docker, and GitHub Actions.',
       skills: ['AWS', 'Docker', 'GitHub Actions', 'Linux'],
-      requirements: ['3+ years AWS cloud deployment', 'Container orchestration with Docker', 'CI/CD with GitHub Actions'],
+      requirements: [
+        '3+ years AWS cloud deployment',
+        'Container orchestration with Docker',
+        'CI/CD with GitHub Actions',
+      ],
     };
 
     it('selects candidate-declared AWS for a Cloud/DevOps job into Cloud, DevOps & Systems', () => {
@@ -143,27 +201,52 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
       const candidateWithAws = {
         ...realCandidateProfile,
         additionalSkills: [
-          { name: 'AWS', skillSlug: 'aws', category: 'Cloud, DevOps & Systems', provenanceStatus: 'USER_PROVIDED' },
+          {
+            name: 'AWS',
+            skillSlug: 'aws',
+            category: 'Cloud, DevOps & Systems',
+            provenanceStatus: 'USER_PROVIDED',
+          },
         ],
       };
 
       const result = contentSvc.selectAndCategorizeSkillsForJob(candidateWithAws, devopsJobPosting);
       const cloudSkills = result.categorizedSkills['Cloud, DevOps & Systems'] || [];
       assert.ok(cloudSkills.includes('AWS'), 'AWS must be selected in Cloud, DevOps & Systems');
-      assert.ok(cloudSkills.includes('Docker'), 'Docker must be selected in Cloud, DevOps & Systems');
+      assert.ok(
+        cloudSkills.includes('Docker'),
+        'Docker must be selected in Cloud, DevOps & Systems'
+      );
 
       const awsItem = result.selectedSkills.find((s) => s.name === 'AWS' || s.slug === 'aws');
       assert.ok(awsItem, 'AWS must be in selectedSkills');
-      assert.equal(awsItem.provenanceStatus, 'USER_PROVIDED', 'AWS provenanceStatus must remain USER_PROVIDED');
-      assert.notEqual(awsItem.provenanceStatus, 'VERIFIED', 'USER_PROVIDED skill must NEVER be converted to VERIFIED');
-      assert.equal(awsItem.confidenceScore, 0.7, 'USER_PROVIDED confidenceScore must be 0.7, not 1.0');
+      assert.equal(
+        awsItem.provenanceStatus,
+        'USER_PROVIDED',
+        'AWS provenanceStatus must remain USER_PROVIDED'
+      );
+      assert.notEqual(
+        awsItem.provenanceStatus,
+        'VERIFIED',
+        'USER_PROVIDED skill must NEVER be converted to VERIFIED'
+      );
+      assert.equal(
+        awsItem.confidenceScore,
+        0.7,
+        'USER_PROVIDED confidenceScore must be 0.7, not 1.0'
+      );
     });
 
     it('includes AWS in structured resume snapshot while preserving USER_PROVIDED provenance', () => {
       const candidateWithAws = {
         ...realCandidateProfile,
         additionalSkills: [
-          { name: 'AWS', skillSlug: 'aws', category: 'Cloud, DevOps & Systems', provenanceStatus: 'USER_PROVIDED' },
+          {
+            name: 'AWS',
+            skillSlug: 'aws',
+            category: 'Cloud, DevOps & Systems',
+            provenanceStatus: 'USER_PROVIDED',
+          },
         ],
       };
 
@@ -179,8 +262,16 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
       assert.ok(cloudCat, 'Cloud, DevOps & Systems category must exist');
       const awsSkill = cloudCat.skills.find((s) => s.name === 'AWS');
       assert.ok(awsSkill, 'AWS skill must exist in structured resume');
-      assert.equal(awsSkill.provenanceStatus, 'USER_PROVIDED', 'Provenance in structured resume must be USER_PROVIDED');
-      assert.equal(awsSkill.evidenceId, null, 'Must have null evidenceId since it is not repository-verified');
+      assert.equal(
+        awsSkill.provenanceStatus,
+        'USER_PROVIDED',
+        'Provenance in structured resume must be USER_PROVIDED'
+      );
+      assert.equal(
+        awsSkill.evidenceId,
+        null,
+        'Must have null evidenceId since it is not repository-verified'
+      );
     });
 
     it('strictly blocks unsupported AWS accomplishment claims in project bullets', () => {
@@ -211,7 +302,10 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
       assert.equal(validation.valid, false, 'Unsupported AWS claim must be marked invalid');
       assert.equal(validation.rejected, true, 'Unsupported AWS claim must be rejected');
       const techViolation = validation.violations.find((v) => v.code === 'UNAUTHORIZED_TECHNOLOGY');
-      assert.ok(techViolation, 'Must produce UNAUTHORIZED_TECHNOLOGY violation for unbacked AWS claim');
+      assert.ok(
+        techViolation,
+        'Must produce UNAUTHORIZED_TECHNOLOGY violation for unbacked AWS claim'
+      );
       assert.match(techViolation.message, /AWS/);
     });
   });
@@ -224,9 +318,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         posting: {
           id: 'job-python-ai',
           title: 'Senior Python & AI Backend Engineer',
-          description: 'Build AI-powered developer tools and webhook pipelines using Python, FastAPI, and asynchronous workflows.',
+          description:
+            'Build AI-powered developer tools and webhook pipelines using Python, FastAPI, and asynchronous workflows.',
           skills: ['Python', 'FastAPI', 'Flask', 'Redis', 'Docker', 'OpenAI API'],
-          requirements: ['3+ years Python experience', 'FastAPI and Redis for high-throughput APIs', 'OpenAI API integration'],
+          requirements: [
+            '3+ years Python experience',
+            'FastAPI and Redis for high-throughput APIs',
+            'OpenAI API integration',
+          ],
         },
         expectedTop1Slug: 'aipoweredcodereviewassistant',
       },
@@ -236,9 +335,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         posting: {
           id: 'job-realtime-fs',
           title: 'Full-Stack Engineer — Realtime Collaboration',
-          description: 'Build realtime web applications with WebSocket events, collaborative workspaces, and Prisma ORM.',
+          description:
+            'Build realtime web applications with WebSocket events, collaborative workspaces, and Prisma ORM.',
           skills: ['Socket.io', 'Node.js', 'Express.js', 'Prisma ORM', 'Next.js', 'TypeScript'],
-          requirements: ['Node.js and Express.js backend services', 'Real-time WebSockets with Socket.io', 'PostgreSQL with Prisma ORM'],
+          requirements: [
+            'Node.js and Express.js backend services',
+            'Real-time WebSockets with Socket.io',
+            'PostgreSQL with Prisma ORM',
+          ],
         },
         expectedTop1Slug: 'collaborativetaskmanager',
       },
@@ -248,9 +352,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         posting: {
           id: 'job-enterprise-backend',
           title: 'Backend Engineer — NestJS & Enterprise Data',
-          description: 'Design modular microservices with NestJS, TypeORM, and Redis caching for high data volume ingestion.',
+          description:
+            'Design modular microservices with NestJS, TypeORM, and Redis caching for high data volume ingestion.',
           skills: ['NestJS', 'TypeORM', 'TypeScript', 'Redis', 'PostgreSQL'],
-          requirements: ['NestJS modular architecture', 'TypeORM with PostgreSQL', 'Redis caching and queuing'],
+          requirements: [
+            'NestJS modular architecture',
+            'TypeORM with PostgreSQL',
+            'Redis caching and queuing',
+          ],
         },
         expectedTopProjectSlugs: ['productdataexplorer', 'collaborativetaskmanager'],
       },
@@ -260,9 +369,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         posting: {
           id: 'job-cloud-devops',
           title: 'Cloud & Infrastructure Platform Engineer',
-          description: 'Container orchestration, CI/CD pipelines, and cloud platform infrastructure using Docker and Linux.',
+          description:
+            'Container orchestration, CI/CD pipelines, and cloud platform infrastructure using Docker and Linux.',
           skills: ['Docker', 'AWS', 'Linux', 'GitHub Actions', 'PostgreSQL'],
-          requirements: ['Docker containerization', 'Cloud infrastructure deployment', 'Automated CI/CD pipelines'],
+          requirements: [
+            'Docker containerization',
+            'Cloud infrastructure deployment',
+            'Automated CI/CD pipelines',
+          ],
         },
         expectedTop1Slug: 'aipoweredcodereviewassistant',
       },
@@ -272,9 +386,14 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         posting: {
           id: 'job-fullstack-web',
           title: 'Senior Full-Stack Developer — React / Node.js / PostgreSQL',
-          description: 'Build responsive web applications with React, Next.js, and Node.js REST services backed by PostgreSQL.',
+          description:
+            'Build responsive web applications with React, Next.js, and Node.js REST services backed by PostgreSQL.',
           skills: ['React', 'Next.js', 'TypeScript', 'Node.js', 'Express.js', 'PostgreSQL'],
-          requirements: ['React and Next.js frontend', 'Node.js REST APIs', 'PostgreSQL database design'],
+          requirements: [
+            'React and Next.js frontend',
+            'Node.js REST APIs',
+            'PostgreSQL database design',
+          ],
         },
         expectedTop1Slug: 'collaborativetaskmanager',
       },
@@ -295,7 +414,11 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         const authoritativeTopN = authoritativeProjects.slice(0, capacity);
         const authoritativeTopNIds = authoritativeTopN.map((p) => p.id || p.projectId);
 
-        assert.equal(authoritativeTopN.length, capacity, 'Must select exactly N=2 authoritative projects');
+        assert.equal(
+          authoritativeTopN.length,
+          capacity,
+          'Must select exactly N=2 authoritative projects'
+        );
 
         // 2. Structured resume snapshot generation
         const snapshot = buildStructuredResumeSnapshot({
@@ -335,7 +458,9 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
         // C. Specific role discrimination verification
         if (role.expectedTop1Slug) {
           const top1Proj = authoritativeTopN[0];
-          const top1Slug = (top1Proj.name || top1Proj.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const top1Slug = (top1Proj.name || top1Proj.title || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '');
           assert.ok(
             top1Slug.includes(role.expectedTop1Slug),
             `Top project for ${role.label} must be ${role.expectedTop1Slug}, got ${top1Slug}`
@@ -368,7 +493,9 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
     it('guarantees semantic freeze and fingerprint invariance', () => {
       const contentSvc = new CandidateArtifactContentService();
       const pythonJob = testRoles[0].posting;
-      const rankingResult = contentSvc.rankProjectsForJob(realCandidateProfile, pythonJob, { maxProjects: 2 });
+      const rankingResult = contentSvc.rankProjectsForJob(realCandidateProfile, pythonJob, {
+        maxProjects: 2,
+      });
 
       const snapshot = buildStructuredResumeSnapshot({
         candidateProfile: realCandidateProfile,
@@ -398,15 +525,25 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
     it('compiles clean one-page ATS PDF with Tectonic for candidate with AWS & compact links', async () => {
       const devopsJob = {
         title: 'Senior DevOps & Infrastructure Engineer',
-        description: 'Deploy AWS cloud infrastructure and container pipelines with Docker and GitHub Actions.',
+        description:
+          'Deploy AWS cloud infrastructure and container pipelines with Docker and GitHub Actions.',
         skills: ['AWS', 'Docker', 'GitHub Actions', 'PostgreSQL', 'Linux'],
-        requirements: ['AWS production deployment', 'Docker container orchestration', 'Automated GitHub Actions CI/CD'],
+        requirements: [
+          'AWS production deployment',
+          'Docker container orchestration',
+          'Automated GitHub Actions CI/CD',
+        ],
       };
 
       const candidateWithAws = {
         ...realCandidateProfile,
         additionalSkills: [
-          { name: 'AWS', skillSlug: 'aws', category: 'Cloud, DevOps & Systems', provenanceStatus: 'USER_PROVIDED' },
+          {
+            name: 'AWS',
+            skillSlug: 'aws',
+            category: 'Cloud, DevOps & Systems',
+            provenanceStatus: 'USER_PROVIDED',
+          },
         ],
       };
 
@@ -426,10 +563,18 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
       const tex = latexResult.texContent;
 
       // 1. Verify project links in LaTeX
-      assert.match(tex, /\\href\{https:\/\/github\.com\/[^}]+\}\{\\textbf\{GitHub\}\}/, 'Must contain compact GitHub link label');
-      const projMatch = tex.match(/\\atssection\{Technical Projects\}[\s\S]*?\\atssection/)?.[0] || '';
+      assert.match(
+        tex,
+        /\\href\{https:\/\/github\.com\/[^}]+\}\{\\textbf\{GitHub\}\}/,
+        'Must contain compact GitHub link label'
+      );
+      const projMatch =
+        tex.match(/\\atssection\{Technical Projects\}[\s\S]*?\\atssection/)?.[0] || '';
       const visibleOnly = projMatch.replace(/\\href\{[^}]+\}/g, '');
-      assert.ok(!visibleOnly.includes('github.com'), 'Must not contain raw repository URLs in visible text');
+      assert.ok(
+        !visibleOnly.includes('github.com'),
+        'Must not contain raw repository URLs in visible text'
+      );
 
       // 2. Verify classic Latin Modern Roman serif typography
       assert.match(tex, /lmroman10-regular\.otf/, 'Must embed Latin Modern Roman serif typeface');

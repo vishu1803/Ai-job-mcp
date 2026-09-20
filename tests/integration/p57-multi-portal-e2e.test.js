@@ -16,12 +16,7 @@ import { inArray } from 'drizzle-orm';
 
 import { buildApp } from '../../src/app.js';
 import { db, closeDatabase } from '../../src/db/index.js';
-import {
-  tenants,
-  users,
-  candidates,
-  projects,
-} from '../../src/db/schema.js';
+import { tenants, users, candidates, projects } from '../../src/db/schema.js';
 import { createSession } from '../../src/security/session.service.js';
 import { JobDetectionEngine } from '../../extension/job-detection/detection-engine.js';
 import { JobIdentity } from '../../extension/lib/job-identity.js';
@@ -47,14 +42,26 @@ function createTestDoc({
     },
     querySelectorAll: () => [],
   };
-  const companyNode = { tagName: 'DIV', textContent: company, cloneNode() { return this; }, querySelectorAll: () => [] };
+  const companyNode = {
+    tagName: 'DIV',
+    textContent: company,
+    cloneNode() {
+      return this;
+    },
+    querySelectorAll: () => [],
+  };
   const descNode = {
     tagName: 'DIV',
     textContent: description,
-    querySelectorAll: (s) => (s.includes('li') ? requirements.map((r) => ({ textContent: r })) : []),
+    querySelectorAll: (s) =>
+      s.includes('li') ? requirements.map((r) => ({ textContent: r })) : [],
   };
   const jsonLdNode = jsonLd
-    ? { tagName: 'SCRIPT', attrs: { type: 'application/ld+json' }, textContent: JSON.stringify(jsonLd) }
+    ? {
+        tagName: 'SCRIPT',
+        attrs: { type: 'application/ld+json' },
+        textContent: JSON.stringify(jsonLd),
+      }
     : null;
 
   const doc = {
@@ -63,8 +70,14 @@ function createTestDoc({
       const s = sel.toLowerCase();
       // ATS specific overrides
       if (s.includes('automation') || s.includes('workday')) return isWorkday ? descNode : null;
-      if (s === '#app_body' || s.includes('job-post') || s === '#content.job__description') return isGreenhouse ? descNode : null;
-      if (s.includes('posting-headline') || s.includes('posting-categories') || s.includes('lever-job')) return isLever ? titleNode : null;
+      if (s === '#app_body' || s.includes('job-post') || s === '#content.job__description')
+        return isGreenhouse ? descNode : null;
+      if (
+        s.includes('posting-headline') ||
+        s.includes('posting-categories') ||
+        s.includes('lever-job')
+      )
+        return isLever ? titleNode : null;
 
       // Filter out vendor-specific selectors so generic and JSON-LD fallbacks are not intercepted
       if (
@@ -88,13 +101,31 @@ function createTestDoc({
       }
 
       if (s.includes('json') && jsonLdNode) return jsonLdNode;
-      if (s === 'h1' || s === 'h2' || s.includes('og:title') || s === '.job-title' || s === '#job-title') return titleNode;
+      if (
+        s === 'h1' ||
+        s === 'h2' ||
+        s.includes('og:title') ||
+        s === '.job-title' ||
+        s === '#job-title'
+      )
+        return titleNode;
       if (s.includes('company') || s.includes('organization')) return companyNode;
-      if (s === 'article' || s === 'main' || s === '.content' || s === '.job-description' || s === '.description' || s === 'p' || s === '#content') return descNode;
+      if (
+        s === 'article' ||
+        s === 'main' ||
+        s === '.content' ||
+        s === '.job-description' ||
+        s === '.description' ||
+        s === 'p' ||
+        s === '#content'
+      )
+        return descNode;
       if (s.includes('form')) {
         return {
           querySelectorAll: (inp) =>
-            inp.includes('input') || inp.includes('select') || inp.includes('textarea') ? inputs : [],
+            inp.includes('input') || inp.includes('select') || inp.includes('textarea')
+              ? inputs
+              : [],
         };
       }
       return null;
@@ -136,93 +167,111 @@ describe('P57: Multi-Portal End-to-End Suite', () => {
     const tenantId = crypto.randomUUID();
     createdTenantIds.push(tenantId);
 
-    [tenant] = await db.insert(tenants).values({
-      id: tenantId,
-      name: 'P57 MultiPortal Org',
-      slug: `p57-multi-${Date.now()}`,
-    }).returning();
+    [tenant] = await db
+      .insert(tenants)
+      .values({
+        id: tenantId,
+        name: 'P57 MultiPortal Org',
+        slug: `p57-multi-${Date.now()}`,
+      })
+      .returning();
 
     const userId = crypto.randomUUID();
-    [user] = await db.insert(users).values({
-      id: userId,
-      tenantId: tenant.id,
-      email: `multi-candidate-${Date.now()}@example.test`,
-      displayName: 'Alex Candidate',
-      role: 'MEMBER',
-      status: 'ACTIVE',
-    }).returning();
+    [user] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        tenantId: tenant.id,
+        email: `multi-candidate-${Date.now()}@example.test`,
+        displayName: 'Alex Candidate',
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      })
+      .returning();
 
     const candidateId = crypto.randomUUID();
-    [candidate] = await db.insert(candidates).values({
-      id: candidateId,
-      tenantId: tenant.id,
-      userId: user.id,
-      displayName: 'Alex Candidate',
-      canonicalEmail: user.email,
-      status: 'ACTIVE',
-      profileMetadata: {
-        userCustom: {},
-        systemInferred: { onboardingState: 'COMPLETED' },
-        resumeData: {
-          identity: { fullName: 'Alex Candidate', email: user.email },
-          skills: ['Node.js', 'React', 'Docker', 'PostgreSQL', 'TypeScript', 'Redis'],
-          projects: [
-            {
-              title: 'Cloud-Distributed-Task-Queue',
-              slug: 'cloud-task-queue',
-              description: 'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
-              skills: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
-              bullets: [
-                'Architected distributed async task queue with Node.js and Redis',
-                'Scaled containerized microservices using Docker to handle 10k req/sec',
-              ],
-            },
-            {
-              title: 'Realtime-Collaboration-Canvas',
-              slug: 'realtime-canvas',
-              description: 'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
-              skills: ['React', 'TypeScript', 'WebSocket'],
-              bullets: [
-                'Real-time multi-user collaborative canvas with React and WebSockets',
-              ],
-            },
-          ],
+    [candidate] = await db
+      .insert(candidates)
+      .values({
+        id: candidateId,
+        tenantId: tenant.id,
+        userId: user.id,
+        displayName: 'Alex Candidate',
+        canonicalEmail: user.email,
+        status: 'ACTIVE',
+        profileMetadata: {
+          userCustom: {},
+          systemInferred: { onboardingState: 'COMPLETED' },
+          resumeData: {
+            identity: { fullName: 'Alex Candidate', email: user.email },
+            skills: ['Node.js', 'React', 'Docker', 'PostgreSQL', 'TypeScript', 'Redis'],
+            projects: [
+              {
+                title: 'Cloud-Distributed-Task-Queue',
+                slug: 'cloud-task-queue',
+                description:
+                  'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
+                skills: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
+                bullets: [
+                  'Architected distributed async task queue with Node.js and Redis',
+                  'Scaled containerized microservices using Docker to handle 10k req/sec',
+                ],
+              },
+              {
+                title: 'Realtime-Collaboration-Canvas',
+                slug: 'realtime-canvas',
+                description:
+                  'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
+                skills: ['React', 'TypeScript', 'WebSocket'],
+                bullets: ['Real-time multi-user collaborative canvas with React and WebSockets'],
+              },
+            ],
+          },
         },
-      },
-    }).returning();
+      })
+      .returning();
 
     // 2. Seed verified portfolio projects with valid schema columns and metadata
-    [project1] = await db.insert(projects).values({
-      id: crypto.randomUUID(),
-      tenantId: tenant.id,
-      candidateId: candidate.id,
-      name: 'Cloud-Distributed-Task-Queue',
-      slug: 'cloud-task-queue',
-      headline: 'Distributed Task Queue in Node.js',
-      summary: 'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
-      isHighlighted: true,
-      metadata: {
-        technologies: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
-        skills: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
-        description: 'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
-      },
-    }).returning();
+    [project1] = await db
+      .insert(projects)
+      .values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        name: 'Cloud-Distributed-Task-Queue',
+        slug: 'cloud-task-queue',
+        headline: 'Distributed Task Queue in Node.js',
+        summary:
+          'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
+        isHighlighted: true,
+        metadata: {
+          technologies: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
+          skills: ['Node.js', 'Redis', 'Docker', 'TypeScript'],
+          description:
+            'Distributed async task queue built with Node.js, Redis, and Docker with high availability',
+        },
+      })
+      .returning();
 
-    [project2] = await db.insert(projects).values({
-      id: crypto.randomUUID(),
-      tenantId: tenant.id,
-      candidateId: candidate.id,
-      name: 'Realtime-Collaboration-Canvas',
-      slug: 'realtime-canvas',
-      headline: 'Realtime Collaboration Canvas in React',
-      summary: 'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
-      isHighlighted: true,
-      metadata: {
-        technologies: ['React', 'TypeScript', 'WebSocket'],
-        skills: ['React', 'TypeScript', 'WebSocket'],
-        description: 'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
-      },
-    }).returning();
+    [project2] = await db
+      .insert(projects)
+      .values({
+        id: crypto.randomUUID(),
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        name: 'Realtime-Collaboration-Canvas',
+        slug: 'realtime-canvas',
+        headline: 'Realtime Collaboration Canvas in React',
+        summary: 'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
+        isHighlighted: true,
+        metadata: {
+          technologies: ['React', 'TypeScript', 'WebSocket'],
+          skills: ['React', 'TypeScript', 'WebSocket'],
+          description:
+            'Collaborative real-time canvas built with React, WebSockets, and Canvas API',
+        },
+      })
+      .returning();
 
     // 3. Create active session
     session = await createSession(db, { userId: user.id, tenantId: tenant.id });
@@ -252,7 +301,10 @@ describe('P57: Multi-Portal End-to-End Suite', () => {
       company: 'Stripe',
       description:
         'We are looking for a Senior Backend Engineer to build high-scale distributed systems with Node.js and Docker. 5+ years experience required.',
-      requirements: ['5+ years with Node.js and PostgreSQL', 'Experience with Docker and distributed systems'],
+      requirements: [
+        '5+ years with Node.js and PostgreSQL',
+        'Experience with Docker and distributed systems',
+      ],
       inputs,
       isGreenhouse: true,
     });
@@ -352,7 +404,11 @@ describe('P57: Multi-Portal End-to-End Suite', () => {
     });
 
     assert.strictEqual(navResult.reconciled, true);
-    assert.strictEqual(navResult.applicationId, 'app-lever-112233', 'applicationId must survive route transition');
+    assert.strictEqual(
+      navResult.applicationId,
+      'app-lever-112233',
+      'applicationId must survive route transition'
+    );
     assert.strictEqual(navResult.packageHash, 'sha256-lever-hash', 'packageHash must survive');
     assert.strictEqual(navResult.recommendedProjects[0].id, project2.id);
   });

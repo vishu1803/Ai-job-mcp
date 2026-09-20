@@ -28,31 +28,23 @@ import {
   hasUnsupportedOutcomeOrMetric,
 } from '../../src/services/resume-claim-validation.service.js';
 
-import {
-  sanitizeGroundedAccomplishment,
-} from '../../src/services/resume-composition-primitives.js';
+import { sanitizeGroundedAccomplishment } from '../../src/services/resume-composition-primitives.js';
 
 import {
   buildStructuredResumeDocument,
   buildStructuredResumeSnapshot,
 } from '../../src/services/structured-resume.service.js';
 
-import {
-  CandidateArtifactContentService,
-} from '../../src/services/candidate-artifact-content.service.js';
+import { CandidateArtifactContentService } from '../../src/services/candidate-artifact-content.service.js';
 
 import {
   buildResumeAiContext,
   validateAiPrivacy,
 } from '../../src/services/ai-context-sanitizer.service.js';
 
-import {
-  AiResumeContentGeneratorService,
-} from '../../src/services/ai-resume-content-generator.service.js';
+import { AiResumeContentGeneratorService } from '../../src/services/ai-resume-content-generator.service.js';
 
-import {
-  LatexDocumentGenerator,
-} from '../../src/services/latex-document-generator.service.js';
+import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 
 describe('P56 Resume-Grounding Correctness Test Suite', () => {
   const sampleProjectFacts = [
@@ -155,18 +147,29 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
   const sampleJobPosting = {
     title: 'Senior Backend Engineer',
     company: 'Tech Corp',
-    description: 'Looking for a Senior Backend Engineer skilled in Python, FastAPI, and PostgreSQL.',
+    description:
+      'Looking for a Senior Backend Engineer skilled in Python, FastAPI, and PostgreSQL.',
     requirements: ['Python', 'FastAPI', 'Flask', 'PostgreSQL', 'Microservices'],
   };
 
   // ── Requirement 1: Unsupported outcome claim rejected ──────────────────────
   it('Req 1: rejects unverified outcome claims without circular authorization from self-authored bullets', () => {
-    const pureOutcomeBullet = 'Reduced code review time across repositories, resulting in improved developer velocity.';
+    const pureOutcomeBullet =
+      'Reduced code review time across repositories, resulting in improved developer velocity.';
     const isUnsupported = hasUnsupportedOutcomeOrMetric(pureOutcomeBullet, sampleProjectFacts);
-    assert.equal(isUnsupported, true, 'Pure unsupported outcome claim should be detected as unsupported');
+    assert.equal(
+      isUnsupported,
+      true,
+      'Pure unsupported outcome claim should be detected as unsupported'
+    );
 
     const result = validateClaimEvidenceGrounding(
-      { text: pureOutcomeBullet, factIds: ['fact-3'], sourceFact: pureOutcomeBullet, transformationType: 'VERBATIM' },
+      {
+        text: pureOutcomeBullet,
+        factIds: ['fact-3'],
+        sourceFact: pureOutcomeBullet,
+        transformationType: 'VERBATIM',
+      },
       {
         factInventory: sampleProjectFacts,
         contributingFacts: sampleProjectFacts,
@@ -188,7 +191,12 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
     assert.equal(isUnsupported, true, 'Unverified metric claim should be detected as unsupported');
 
     const result = validateClaimEvidenceGrounding(
-      { text: unverifiedMetricBullet, factIds: ['fact-1'], sourceFact: unverifiedMetricBullet, transformationType: 'VERBATIM' },
+      {
+        text: unverifiedMetricBullet,
+        factIds: ['fact-1'],
+        sourceFact: unverifiedMetricBullet,
+        transformationType: 'VERBATIM',
+      },
       {
         factInventory: sampleProjectFacts,
         contributingFacts: sampleProjectFacts,
@@ -205,9 +213,14 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
 
   // ── Requirement 3: Supported implementation claim accepted ────────────────
   it('Req 3: accepts substantiated engineering implementation claims', () => {
-    const substantiatedBullet = 'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations.';
+    const substantiatedBullet =
+      'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations.';
     const isUnsupported = hasUnsupportedOutcomeOrMetric(substantiatedBullet, sampleProjectFacts);
-    assert.equal(isUnsupported, false, 'Substantiated implementation bullet has no unsupported outcomes');
+    assert.equal(
+      isUnsupported,
+      false,
+      'Substantiated implementation bullet has no unsupported outcomes'
+    );
 
     const result = validateClaimEvidenceGrounding(
       {
@@ -232,7 +245,8 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
 
   // ── Requirement 4: Mixed bullet safely rewritten or rejected ─────────────
   it('Req 4: safely rewrites mixed bullets extracting supported engineering action and stripping ungrounded outcome clauses', () => {
-    const mixedBullet = 'Reduced average manual code review time across multiple repositories by automating code evaluation, resulting in improved developer velocity and code quality standards.';
+    const mixedBullet =
+      'Reduced average manual code review time across multiple repositories by automating code evaluation, resulting in improved developer velocity and code quality standards.';
     const sanitized = sanitizeAccomplishmentClaim(mixedBullet);
 
     assert.equal(
@@ -269,10 +283,26 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
     assert.equal(fallbackBullets.length, 3, 'Should produce exactly 3 fallback bullets');
 
     for (const b of fallbackBullets) {
-      assert.doesNotMatch(b.text, /developer velocity/i, 'No bullet may contain developer velocity');
-      assert.doesNotMatch(b.text, /code quality standards/i, 'No bullet may contain code quality standards');
-      assert.doesNotMatch(b.text, /reduced average manual code review time/i, 'No bullet may contain ungrounded review time claim');
-      assert.equal(hasUnsupportedOutcomeOrMetric(b.text, sampleProjectFacts), false, 'Must be fully supported');
+      assert.doesNotMatch(
+        b.text,
+        /developer velocity/i,
+        'No bullet may contain developer velocity'
+      );
+      assert.doesNotMatch(
+        b.text,
+        /code quality standards/i,
+        'No bullet may contain code quality standards'
+      );
+      assert.doesNotMatch(
+        b.text,
+        /reduced average manual code review time/i,
+        'No bullet may contain ungrounded review time claim'
+      );
+      assert.equal(
+        hasUnsupportedOutcomeOrMetric(b.text, sampleProjectFacts),
+        false,
+        'Must be fully supported'
+      );
     }
   });
 
@@ -448,7 +478,15 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
     assert.ok(latex.includes('\\documentclass['), 'Contains LaTeX documentclass');
     assert.ok(latex.includes('lmroman10'), 'Preserves frozen font lmroman10');
     assert.ok(latex.includes('0.52in') || latex.includes('0.5'), 'Preserves frozen margins');
-    assert.doesNotMatch(latex, /developer velocity/i, 'Generated LaTeX contains no developer velocity');
-    assert.doesNotMatch(latex, /code quality standards/i, 'Generated LaTeX contains no code quality standards');
+    assert.doesNotMatch(
+      latex,
+      /developer velocity/i,
+      'Generated LaTeX contains no developer velocity'
+    );
+    assert.doesNotMatch(
+      latex,
+      /code quality standards/i,
+      'Generated LaTeX contains no code quality standards'
+    );
   });
 });

@@ -12,9 +12,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  handleGetCandidateProfile,
-} from '../../src/mcp/tools/career-read-tools.js';
+import { handleGetCandidateProfile } from '../../src/mcp/tools/career-read-tools.js';
 import {
   GetCandidateProfileInputSchema,
   GetCandidateProfileOutputSchema,
@@ -92,7 +90,15 @@ const careerProfile = {
   summary: 'Summary',
   canonicalEmail: 'alice@example.com',
   topSkills: [
-    { slug: 'typescript', name: 'TypeScript', category: 'LANGUAGES', tier: 'PRIMARY', confidenceScore: 0.95, evidenceCount: 8, provenanceStatus: 'VERIFIED' },
+    {
+      slug: 'typescript',
+      name: 'TypeScript',
+      category: 'LANGUAGES',
+      tier: 'PRIMARY',
+      confidenceScore: 0.95,
+      evidenceCount: 8,
+      provenanceStatus: 'VERIFIED',
+    },
   ],
   highlightedProjects: [
     {
@@ -199,11 +205,7 @@ describe('get_candidate_profile — 7-field include-flag contract', () => {
   });
 
   it('2. defaults return every section with fixture data', async () => {
-    const result = await handleGetCandidateProfile(
-      mockContext,
-      { candidateId },
-      deps
-    );
+    const result = await handleGetCandidateProfile(mockContext, { candidateId }, deps);
     assert.ok(GetCandidateProfileOutputSchema.safeParse(result).success);
     for (const key of Object.values(SECTIONS)) {
       assert.ok(key in result, `expected ${key} present by default`);
@@ -308,7 +310,12 @@ describe('get_candidate_profile — 7-field include-flag contract', () => {
   it('8. original three flags still gate their sections (regression)', async () => {
     const result = await handleGetCandidateProfile(
       mockContext,
-      { candidateId, includeExperience: false, includeProjects: false, includeSkillsSummary: false },
+      {
+        candidateId,
+        includeExperience: false,
+        includeProjects: false,
+        includeSkillsSummary: false,
+      },
       deps
     );
     assert.ok(!('recentExperience' in result));
