@@ -7,7 +7,12 @@
  * 3. CSRF Origin header validation for state-changing requests (`verifyCsrf`)
  */
 
-import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
+import {
+  validateSession,
+  getSessionCookieOptions,
+  hashSessionToken,
+  validateCsrfToken,
+} from '../security/session.service.js';
 import { db } from '../db/index.js';
 import { AuthenticationError, AuthorizationError } from '../errors/index.js';
 import { config } from '../config/env.js';
@@ -85,69 +90,180 @@ export function authorize(...allowedRoles) {
 }
 
 /**
- * Validates Origin/Referer headers on state-changing methods (POST, PUT, PATCH, DELETE)
- * to provide defense-in-depth CSRF mitigation alongside SameSite cookies.
+ * Validates Origin/Referer headers and session-bound CSRF tokens on state-changing methods
+ * (POST, PUT, PATCH, DELETE) to provide defense-in-depth CSRF mitigation alongside SameSite cookies.
  *
  * @param {import('fastify').FastifyRequest} req Fastify request
  * @param {import('fastify').FastifyReply} _reply Fastify reply
+ * @param {object} [options={}] Configuration options
+ * @param {boolean} [options.requireOrigin=false] Whether to strictly require Origin/Referer header
+ * @param {boolean} [options.requireToken=false] Whether to strictly require a valid CSRF token
  */
-export async function verifyCsrf(req, _reply) {
+export async function verifyCsrf(req, _reply, options = {}) {
   const method = req.method.toUpperCase();
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     return;
   }
 
-  const origin = req.headers['origin'];
-  if (!origin) {
-    // If Origin is not provided by non-browser HTTP clients, allow if not browser session or pass
+  // Exempt webhooks which authenticate via HMAC SHA-256 signatures
+  const rawUrl = req.raw?.url || req.url || '';
+  if (rawUrl.startsWith('/webhooks/')) {
     return;
   }
 
-  try {
-    const originUrl = new URL(origin);
-    const originHostname = originUrl.hostname;
+  // Exempt OAuth provider redirects/callbacks
+  if (
+    rawUrl.startsWith('/auth/github/callback') ||
+    rawUrl.startsWith('/integrations/github/install/callback')
+  ) {
+    return;
+  }
 
-    // Build set of trusted hostnames:
-    // 1. APP_URL hostname (if configured)
-    // 2. Request Host header (reflects actual served hostname)
-    const trustedHostnames = new Set();
+  // Detect session cookie presence
+  const cookieOpts = getSessionCookieOptions(config);
+  const rawSessionToken = req.cookies?.[cookieOpts.name] || req.cookies?.['career_hub_session'];
+  const hasSessionCookie = Boolean(rawSessionToken);
 
-    if (config.APP_URL) {
-      try {
-        trustedHostnames.add(new URL(config.APP_URL).hostname);
-      } catch {
-        /* ignore invalid APP_URL */
-      }
-    }
+  const origin = req.headers['origin'];
+  const referer = req.headers['referer'];
+  const secFetchSite = req.headers['sec-fetch-site'];
 
-    if (req.headers.host) {
-      // Host header may include port (e.g. "dev.aicareershub.tech")
-      const hostHeader = req.headers.host.split(':')[0];
-      if (hostHeader) trustedHostnames.add(hostHeader);
-    }
-
-    // Allow loopback for local development
-    const isLoopback =
-      originHostname === 'localhost' ||
-      originHostname === '127.0.0.1' ||
-      originHostname === '[::1]' ||
-      originHostname === '::1' ||
-      originHostname === '0.0.0.0' ||
-      /^127\./.test(originHostname);
-
-    const isAllowedHost = isLoopback || trustedHostnames.has(originHostname);
-
-    if (!isAllowedHost) {
-      throw new AuthorizationError(
-        'Cross-Site Request Forgery Origin validation failed',
-        'CSRF_DETECTED'
-      );
-    }
-  } catch (err) {
-    if (err instanceof AuthorizationError) throw err;
+  // Defense: Explicitly block Sec-Fetch-Site: cross-site
+  if (secFetchSite === 'cross-site') {
     throw new AuthorizationError(
-      'Malformed Origin header in state-changing request',
+      'Cross-Site Request Forgery blocked by Sec-Fetch-Site',
       'CSRF_DETECTED'
     );
   }
+
+  // Build set of trusted hostnames:
+  // 1. APP_URL hostname (if configured)
+  // 2. Request Host header (reflects actual served hostname)
+  const trustedHostnames = new Set();
+
+  if (config.APP_URL) {
+    try {
+      trustedHostnames.add(new URL(config.APP_URL).hostname);
+    } catch {
+      /* ignore invalid APP_URL */
+    }
+  }
+
+  if (req.headers.host) {
+    const hostHeader = req.headers.host.split(':')[0];
+    if (hostHeader) trustedHostnames.add(hostHeader);
+  }
+
+  const isTrustedHostname = (hostname) => {
+    if (!hostname) return false;
+    const isLoopback =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0' ||
+      /^127\./.test(hostname);
+    return isLoopback || trustedHostnames.has(hostname);
+  };
+
+  if (origin) {
+    if (origin === 'null') {
+      throw new AuthorizationError(
+        'Null Origin header rejected in state-changing request',
+        'CSRF_DETECTED'
+      );
+    }
+    try {
+      const originUrl = new URL(origin);
+      if (!isTrustedHostname(originUrl.hostname)) {
+        throw new AuthorizationError(
+          'Cross-Site Request Forgery Origin validation failed',
+          'CSRF_DETECTED'
+        );
+      }
+    } catch (err) {
+      if (err instanceof AuthorizationError) throw err;
+      throw new AuthorizationError(
+        'Malformed Origin header in state-changing request',
+        'CSRF_DETECTED'
+      );
+    }
+  } else if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+      if (!isTrustedHostname(refererUrl.hostname)) {
+        throw new AuthorizationError(
+          'Cross-Site Request Forgery Referer validation failed',
+          'CSRF_DETECTED'
+        );
+      }
+    } catch (err) {
+      if (err instanceof AuthorizationError) throw err;
+      throw new AuthorizationError(
+        'Malformed Referer header in state-changing request',
+        'CSRF_DETECTED'
+      );
+    }
+  } else {
+    // If neither Origin nor Referer is present:
+    // If strict requireOrigin is specified, or if browser request with session cookie
+    if (options.requireOrigin || (hasSessionCookie && req.headers['sec-fetch-mode'])) {
+      throw new AuthorizationError(
+        'Missing Origin header in state-changing request',
+        'CSRF_DETECTED'
+      );
+    }
+  }
+
+  // Resolve session ID if available (from req.session, or by hashing raw session cookie)
+  let sessionId = req.session?.id;
+  if (!sessionId && rawSessionToken) {
+    try {
+      sessionId = hashSessionToken(rawSessionToken);
+    } catch {
+      sessionId = null;
+    }
+  }
+
+  // Extract candidate CSRF token from header, body, or query
+  const csrfToken =
+    req.headers['x-csrf-token'] ||
+    req.headers['csrf-token'] ||
+    req.body?._csrf ||
+    req.body?.csrfToken ||
+    req.query?._csrf ||
+    req.query?.csrfToken;
+
+  if (csrfToken) {
+    if (!sessionId) {
+      throw new AuthorizationError(
+        'CSRF token provided but session is not authenticated',
+        'CSRF_TOKEN_INVALID'
+      );
+    }
+    const isValid = validateCsrfToken(sessionId, csrfToken);
+    if (!isValid) {
+      throw new AuthorizationError(
+        'Cross-Site Request Forgery token validation failed',
+        'CSRF_TOKEN_INVALID'
+      );
+    }
+  } else if (options.requireToken && sessionId) {
+    throw new AuthorizationError(
+      'Missing CSRF token in state-changing request',
+      'CSRF_TOKEN_MISSING'
+    );
+  }
+}
+
+/**
+ * Creates a Fastify preHandler hook configuring verifyCsrf with custom options.
+ *
+ * @param {object} options Options to pass to verifyCsrf
+ * @returns {import('fastify').preHandlerHookHandler}
+ */
+export function createVerifyCsrf(options = {}) {
+  return async function (req, reply) {
+    return verifyCsrf(req, reply, options);
+  };
 }

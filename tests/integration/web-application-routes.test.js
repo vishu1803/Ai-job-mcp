@@ -76,10 +76,19 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
             type: 'REPOSITORY',
             defaultBranch: 'main',
           }),
+          createNormalizedResource({
+            id: 'repo-101',
+            name: 'cloud-mesh-kernel',
+            fullName: 'AlexMercer/cloud-mesh-kernel',
+            type: 'REPOSITORY',
+            defaultBranch: 'main',
+          }),
         ],
       },
     });
-    connectorRegistry.register('GITHUB_APP', mockGitHubConnector, { allowOverride: true });
+    connectorRegistry.register('GITHUB_APP', mockGitHubConnector, {
+      allowOverride: true,
+    });
 
     const mockIngestionService = {
       syncCandidateRepositories: async () => ({
@@ -274,7 +283,9 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       // Best-effort cleanup
     }
     if (originalGitHubConnector) {
-      connectorRegistry.register('GITHUB_APP', originalGitHubConnector, { allowOverride: true });
+      connectorRegistry.register('GITHUB_APP', originalGitHubConnector, {
+        allowOverride: true,
+      });
     }
     await closeDatabase();
   });
@@ -372,9 +383,10 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
         [cookieOpts.name]: rawSessionTokenA,
         career_hub_session: rawSessionTokenA,
       },
-      payload: new URLSearchParams({
-        repositories: 'AlexMercer/new-showcase-repo',
-      }).toString(),
+      payload: new URLSearchParams([
+        ['repositories', 'AlexMercer/new-showcase-repo'],
+        ['repositories', 'AlexMercer/cloud-mesh-kernel'],
+      ]).toString(),
     });
 
     assert.equal(res.statusCode, 302);

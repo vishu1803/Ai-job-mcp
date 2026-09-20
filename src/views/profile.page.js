@@ -1319,6 +1319,7 @@ export function renderProfilePage({
       <!-- Main Profile Form -->
       <form id="careerProfileForm" action="/profile" method="POST" class="profile-form">
         <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}">
+        <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
         <input type="hidden" name="activeTab" id="activeTabInput" value="${escapeHtml(normalizedSection)}">
 
         <!-- ================================================================= -->
@@ -2436,6 +2437,7 @@ export function renderProfilePage({
                 headers: {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
+                  'x-csrf-token': formData.get('csrfToken') || formData.get('_csrf') || '',
                 },
                 body: JSON.stringify(payload),
               });

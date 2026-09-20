@@ -1,9 +1,56 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-19*
+*Last Updated: 2026-09-20*
 
-### P90 Live Bug Fix Pass — Copilot Scroll Isolation & Profile Save Enum Normalization
+### Phase 1: Web Security Mutation Boundary (CSRF & State-Changing Protections)
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-20  
+**Scope:** Hardened the web application mutation boundary against Cross-Site Request Forgery (CSRF), forged origin attacks, and state-changing request tampering without breaking API interoperability or existing regression suites:
+
+1. **Cryptographic Session-Bound Anti-CSRF Engine (`src/security/session.service.js`):**
+   - Implemented `generateCsrfToken(sessionOrId, secret)` following the OWASP HMAC-based token pattern: generates a 256-bit entropy random nonce (`crypto.randomBytes(32)`), binds it cryptographically to the specific authenticated `sessionId` via HMAC-SHA256, and emits a structured `${nonce}.${signature}` token.
+   - Implemented `validateCsrfToken(sessionOrId, token, secret)` using constant-time comparison (`crypto.timingSafeEqual`), strictly rejecting modified nonces, forged signatures, malformed strings, and cross-session replays.
+
+2. **Defense-in-Depth Middleware Hardening (`src/middleware/auth.middleware.js`):**
+   - Enhanced `verifyCsrf` to enforce 5 layers of defense:
+     - Safe method exemption: `GET`, `HEAD`, `OPTIONS` pass immediately, preserving page navigation.
+     - Webhook & OAuth exemption: `/webhooks/*` (HMAC authenticated) and `/auth/github/callback` pass safely.
+     - `Sec-Fetch-Site`: requests with `sec-fetch-site: cross-site` are immediately rejected with 403 `CSRF_DETECTED`.
+     - Strict Origin/Referer verification: validated against trusted hostnames (`APP_URL`, `Host` header, loopbacks). Rejects `"null"` origin (sandboxed iframes/redirects) and malformed URLs. Blocks browser requests omitting Origin/Referer when session cookies are present.
+     - Session-bound CSRF token validation: extracts tokens from `x-csrf-token`, `csrf-token`, body (`_csrf`, `csrfToken`), or query (`_csrf`, `csrfToken`), validating against the session with constant-time equality.
+
+3. **Purged Static & Dummy CSRF Tokens (`src/routes/web.routes.js`, `src/views/profile.page.js`):**
+   - Completely purged hardcoded `'csrf-profile-token-2026'` from `src/routes/web.routes.js:2541` and all views.
+   - Wired `generateCsrfToken(sessionContext.session)` into view renders: `renderProfilePage`, `renderSourcesPage`, `renderConnectPage`, `renderResumesPage`, and `renderResumeDetailPage`.
+   - Updated `profile.page.js` to render `<input type="hidden" name="_csrf">` alongside `csrfToken`, and wired the client-side `fetch('/profile')` to send `'x-csrf-token'`.
+   - Attached `await verifyCsrf(req, reply)` across all state-changing endpoints: `POST /profile` (`requireToken: true`), `PATCH /api/profile` (`requireToken: true`), `POST /profile/clear-preferences`, `POST /sources/disconnect`, `POST /connect/revoke-provider`, `POST /connect/tokens`, `POST /connect/tokens/:id/revoke`, `POST /resumes/:id/approve`, `POST /resumes/:id/delete`.
+
+4. **Security Documentation (`docs/security/web-mutation-boundary.md`):**
+   - Created comprehensive architectural documentation of the multi-layered CSRF defense, threat model, protected endpoint inventory, and verification evidence.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/csrf-token.test.js`: **9/9 PASS (100%)**
+- `tests/integration/security-web-mutation-boundary.test.js`: **14/14 PASS (100%)**
+  - Unauthenticated JSON/HTML mutations rejected (401/302)
+  - Browser mutation missing Origin/Referer blocked (403 `CSRF_DETECTED`)
+  - Malicious Origin blocked (403 `CSRF_DETECTED`)
+  - Malformed & null Origin blocked (403 `CSRF_DETECTED`)
+  - Forged Referer blocked (403 `CSRF_DETECTED`)
+  - Missing CSRF token blocked (403 `CSRF_TOKEN_MISSING`)
+  - Tampered CSRF token blocked (403 `CSRF_TOKEN_INVALID`)
+  - Cross-session CSRF token blocked (403 `CSRF_TOKEN_INVALID`)
+  - Valid mutation with trusted Origin & session-bound token succeeds (200 OK)
+  - GET requests exempt from CSRF checks (200 OK)
+  - Webhooks exempt from browser CSRF checks (HMAC verified)
+  - `Sec-Fetch-Site: cross-site` blocked (403 `CSRF_DETECTED`)
+- Regression Battery:
+  - `tests/integration/multi-browser-csrf.test.js`: **28/28 PASS (100%)**
+  - `tests/integration/web-application-routes.test.js`: **20/20 PASS (100%)**
+  - `tests/unit/p90-profile-enum-copilot-scroll.test.js`: **18/18 PASS (100%)**
+- Secrets Scanner: `npm run scan:secrets`: **PASS (Zero exposed secrets detected)**
+- Code Quality & Formatting: `git diff --check`: **PASS (0 whitespace/CRLF errors)**; Prettier code style verified.
+
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-19  
 **Scope:** Targeted live production bug fixes addressing Copilot scroll leak / chaining on `/profile` and `POST /profile` 400 Bad Request on lowercase / human enum representations (`noticePeriod: "immediate"`), with a full profile enum audit and submission safety hardening:

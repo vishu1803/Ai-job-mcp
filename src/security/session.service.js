@@ -196,3 +196,83 @@ export function getSessionCookieOptions(
     maxAge: ttlSeconds,
   };
 }
+
+/**
+ * Generates a cryptographically random, session-bound anti-CSRF token.
+ *
+ * Implements the HMAC-based token pattern (OWASP CSRF Prevention):
+ * 1. Generates 32 cryptographically secure random bytes (256-bit entropy nonce)
+ * 2. Cryptographically binds nonce to the specific session ID via HMAC-SHA256
+ * 3. Returns structured token: `${nonce}.${signature}`
+ *
+ * @param {string | { id: string }} sessionOrId Session ID string or session object with .id
+ * @param {string} [secret] Signing secret (defaults to SESSION_COOKIE_SECRET or internal secret)
+ * @returns {string} Structured session-bound CSRF token
+ */
+export function generateCsrfToken(
+  sessionOrId,
+  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET || 'career-hub-csrf-secret-2026'
+) {
+  const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.id;
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new AuthenticationError(
+      'Valid session ID is required to generate CSRF token',
+      'INVALID_SESSION'
+    );
+  }
+
+  const nonce = crypto.randomBytes(32).toString('hex');
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${sessionId}:${nonce}`)
+    .digest('hex');
+
+  return `${nonce}.${signature}`;
+}
+
+/**
+ * Validates a CSRF token against an authenticated session using constant-time comparison.
+ *
+ * @param {string | { id: string }} sessionOrId Session ID string or session object with .id
+ * @param {string} token CSRF token from request header, body, or query
+ * @param {string} [secret] Signing secret
+ * @returns {boolean} True if token is cryptographically valid and bound to the session
+ */
+export function validateCsrfToken(
+  sessionOrId,
+  token,
+  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET || 'career-hub-csrf-secret-2026'
+) {
+  const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.id;
+  if (!sessionId || typeof sessionId !== 'string' || !token || typeof token !== 'string') {
+    return false;
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const [nonce, signature] = parts;
+  if (!nonce || !signature || nonce.length !== 64 || signature.length !== 64) {
+    return false;
+  }
+
+  try {
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(`${sessionId}:${nonce}`)
+      .digest('hex');
+
+    const signatureBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+    if (signatureBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}

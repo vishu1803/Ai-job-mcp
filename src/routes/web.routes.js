@@ -23,7 +23,12 @@
 
 import crypto from 'node:crypto';
 import { eq, and, or, desc } from 'drizzle-orm';
-import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
+import {
+  validateSession,
+  getSessionCookieOptions,
+  generateCsrfToken,
+} from '../security/session.service.js';
+import { verifyCsrf } from '../middleware/auth.middleware.js';
 import { db as defaultDb } from '../db/index.js';
 import {
   candidates,
@@ -170,7 +175,10 @@ async function getOrCreateCandidate(database, tenantId, user) {
       displayName: user.displayName || user.email.split('@')[0],
       canonicalEmail: user.email,
       status: 'ACTIVE',
-      profileMetadata: { userCustom: {}, systemInferred: { onboardingState: 'REGISTERED' } },
+      profileMetadata: {
+        userCustom: {},
+        systemInferred: { onboardingState: 'REGISTERED' },
+      },
     })
     .returning();
 
@@ -251,7 +259,9 @@ export default async function webRoutes(app, opts = {}) {
     });
 
     const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
-    const conflicts = aiCareerAssistantService.identifyProfileConflicts({ candidateProfile });
+    const conflicts = aiCareerAssistantService.identifyProfileConflicts({
+      candidateProfile,
+    });
 
     // Fetch candidate skills with skill details
     const candidateSkillList = await dbInstance
@@ -467,7 +477,11 @@ export default async function webRoutes(app, opts = {}) {
     if (wantsJson) {
       return {
         message: 'Welcome to AI Careers Hub Dashboard',
-        user: { id: data.user.id, displayName: data.user.displayName, role: data.user.role },
+        user: {
+          id: data.user.id,
+          displayName: data.user.displayName,
+          role: data.user.role,
+        },
         tenant: { id: data.tenant.id, name: data.tenant.name },
         candidate: {
           id: data.candidate.id,
@@ -645,7 +659,10 @@ export default async function webRoutes(app, opts = {}) {
     const summary = body.summary?.trim() || candidate.summary;
     const specialization = body.specialization || 'Full-Stack';
 
-    const existingMetadata = candidate.profileMetadata || { userCustom: {}, systemInferred: {} };
+    const existingMetadata = candidate.profileMetadata || {
+      userCustom: {},
+      systemInferred: {},
+    };
     const updatedMetadata = {
       ...existingMetadata,
       userCustom: {
@@ -672,7 +689,10 @@ export default async function webRoutes(app, opts = {}) {
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, message: 'Profile updated successfully' });
+      return reply.send({
+        success: true,
+        message: 'Profile updated successfully',
+      });
     }
 
     return reply.redirect('/onboarding?step=2&success=Profile+updated+successfully');
@@ -956,9 +976,9 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       const accept = req.headers['accept'] || '';
       if (accept.includes('application/json') && !accept.includes('text/html')) {
-        return reply
-          .status(401)
-          .send({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        });
       }
       return reply.redirect('/login?returnTo=/onboarding');
     }
@@ -1222,9 +1242,9 @@ export default async function webRoutes(app, opts = {}) {
   app.get('/onboarding/ingestion/status', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
-      return reply
-        .status(401)
-        .send({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+      return reply.status(401).send({
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      });
     }
 
     const { user, tenant } = sessionContext;
@@ -1273,7 +1293,10 @@ export default async function webRoutes(app, opts = {}) {
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, message: 'Ingestion run reset for retry' });
+      return reply.send({
+        success: true,
+        message: 'Ingestion run reset for retry',
+      });
     }
 
     return reply.redirect('/onboarding?step=4');
@@ -1776,13 +1799,25 @@ export default async function webRoutes(app, opts = {}) {
     const previousResumes = resumesList.filter((r) => r.id !== activeResume?.id);
 
     const providers = [
-      { id: 'resume', name: 'Resume Document', status: activeResume ? 'ACTIVE' : 'AVAILABLE' },
-      { id: 'github', name: 'GitHub', status: gitHubConnection ? 'CONNECTED' : 'DISCONNECTED' },
+      {
+        id: 'resume',
+        name: 'Resume Document',
+        status: activeResume ? 'ACTIVE' : 'AVAILABLE',
+      },
+      {
+        id: 'github',
+        name: 'GitHub',
+        status: gitHubConnection ? 'CONNECTED' : 'DISCONNECTED',
+      },
       { id: 'gitlab', name: 'GitLab', status: 'COMING_SOON' },
       { id: 'gdrive', name: 'Google Drive', status: 'COMING_SOON' },
       { id: 'onedrive', name: 'Microsoft OneDrive', status: 'COMING_SOON' },
       { id: 'linkedin', name: 'LinkedIn', status: 'COMING_SOON' },
-      { id: 'portfolio', name: 'Portfolio / Personal Website', status: 'COMING_SOON' },
+      {
+        id: 'portfolio',
+        name: 'Portfolio / Personal Website',
+        status: 'COMING_SOON',
+      },
     ];
 
     const sourcesViewModel = {
@@ -1817,7 +1852,7 @@ export default async function webRoutes(app, opts = {}) {
       activeResume,
       previousResumes,
       resumesList,
-      csrfToken: session?.token || '',
+      csrfToken: session ? generateCsrfToken(session) : '',
       success: flashMessage,
       error: errorMessage,
     });
@@ -1833,6 +1868,7 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       return reply.redirect('/login?returnTo=/sources');
     }
+    await verifyCsrf(req, reply);
 
     const { user, tenant } = sessionContext;
     const connectionId = req.body?.connectionId;
@@ -1851,7 +1887,10 @@ export default async function webRoutes(app, opts = {}) {
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, message: 'Source disconnected successfully' });
+      return reply.send({
+        success: true,
+        message: 'Source disconnected successfully',
+      });
     }
 
     return reply.redirect('/sources?success=GitHub+App+disconnected+successfully');
@@ -1911,7 +1950,9 @@ export default async function webRoutes(app, opts = {}) {
     const host = req.headers.host || 'localhost:3000';
     const baseUrl = `${protocol}://${host}`;
 
-    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    const aiConnectionStatusService = new AiConnectionStatusService({
+      database,
+    });
     const aiStatus = await aiConnectionStatusService.getConnectionStatus({
       tenantId: tenant.id,
       userId: user.id,
@@ -1925,7 +1966,7 @@ export default async function webRoutes(app, opts = {}) {
       mcpTokens: activeTokens,
       newRawToken,
       newTokenName,
-      csrfToken: session.token,
+      csrfToken: session ? generateCsrfToken(session) : '',
       flashMessage,
       errorMessage,
       baseUrl,
@@ -1953,7 +1994,9 @@ export default async function webRoutes(app, opts = {}) {
     const host = req.headers.host || 'localhost:3000';
     const baseUrl = `${protocol}://${host}`;
 
-    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    const aiConnectionStatusService = new AiConnectionStatusService({
+      database,
+    });
     const status = await aiConnectionStatusService.getConnectionStatus({
       tenantId: tenant.id,
       userId: user.id,
@@ -1971,12 +2014,15 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       return reply.redirect('/login?returnTo=/connect');
     }
+    await verifyCsrf(req, reply);
 
     const { user, tenant } = sessionContext;
     const body = req.body || {};
     const provider = String(body.provider || '').trim();
 
-    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    const aiConnectionStatusService = new AiConnectionStatusService({
+      database,
+    });
     await aiConnectionStatusService.revokeProviderConnection({
       tenantId: tenant.id,
       userId: user.id,
@@ -2005,6 +2051,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect('/login?returnTo=/connect');
     }
+    await verifyCsrf(req, reply);
 
     const { user, tenant } = sessionContext;
     const body = req.body || {};
@@ -2084,6 +2131,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect('/login?returnTo=/connect');
     }
+    await verifyCsrf(req, reply);
 
     const { user, tenant } = sessionContext;
     const tokenId = req.params?.id;
@@ -2200,7 +2248,7 @@ export default async function webRoutes(app, opts = {}) {
       tenant: sessionContext.tenant,
       candidate,
       resumesList,
-      csrfToken: '',
+      csrfToken: sessionContext?.session ? generateCsrfToken(sessionContext.session) : '',
       flashMessage,
       errorMessage,
     });
@@ -2349,7 +2397,7 @@ export default async function webRoutes(app, opts = {}) {
       resume: details.resume,
       sections: details.sections,
       claims: details.claims,
-      csrfToken: sessionContext.session.token,
+      csrfToken: sessionContext?.session ? generateCsrfToken(sessionContext.session) : '',
       flashMessage,
     });
     reply.type('text/html; charset=utf-8').send(html);
@@ -2374,6 +2422,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect('/login?returnTo=/resumes');
     }
+    await verifyCsrf(req, reply);
 
     const candidate = await getOrCreateCandidate(
       database,
@@ -2472,6 +2521,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect('/login?returnTo=/resumes');
     }
+    await verifyCsrf(req, reply);
 
     const candidate = await getOrCreateCandidate(
       database,
@@ -2537,7 +2587,10 @@ export default async function webRoutes(app, opts = {}) {
       /* additional skills load skipped */
     }
     try {
-      skillCatalog = await skillCatalogService.searchSkills({ query: '', pageSize: 500 });
+      skillCatalog = await skillCatalogService.searchSkills({
+        query: '',
+        pageSize: 500,
+      });
       skillCatalog.categories = await skillCatalogService.getCategories();
     } catch {
       /* skill catalog load skipped */
@@ -2550,7 +2603,7 @@ export default async function webRoutes(app, opts = {}) {
       profile,
       preferences: profile.jobPreferences,
       verifiedSkills: profile.verifiedSkillsSummary,
-      csrfToken: 'csrf-profile-token-2026',
+      csrfToken: sessionContext?.session ? generateCsrfToken(sessionContext.session) : '',
       flashMessage,
       additionalSkills,
       skillCatalog,
@@ -2569,6 +2622,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect('/login?returnTo=/profile');
     }
+    await verifyCsrf(req, reply, { requireToken: true });
 
     const candidate = await getOrCreateCandidate(
       database,
@@ -2883,6 +2937,7 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       return reply.redirect('/login?returnTo=/profile');
     }
+    await verifyCsrf(req, reply);
 
     const candidate = await getOrCreateCandidate(
       database,
@@ -2967,7 +3022,10 @@ export default async function webRoutes(app, opts = {}) {
     // Get full skill catalog for client-side search
     let skillCatalog = { items: [], categories: [] };
     try {
-      skillCatalog = await skillCatalogService.searchSkills({ query: '', pageSize: 500 });
+      skillCatalog = await skillCatalogService.searchSkills({
+        query: '',
+        pageSize: 500,
+      });
       const categories = await skillCatalogService.getCategories();
       skillCatalog.categories = categories;
     } catch (err) {
@@ -3053,6 +3111,7 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
+    await verifyCsrf(req, reply, { requireToken: true });
 
     const candidate = await getOrCreateCandidate(
       database,
@@ -3725,7 +3784,11 @@ export default async function webRoutes(app, opts = {}) {
             qaAudit: {
               passed: resumeSnapshot.metadata.artifact.status === 'READY',
               score: resumeSnapshot.atsFitScore || 90,
-              breakdown: { parsingCompatibility: 35, contentIntegrity: 35, readability: 28 },
+              breakdown: {
+                parsingCompatibility: 35,
+                contentIntegrity: 35,
+                readability: 28,
+              },
               metrics: { jobAlignmentCoverage: 90 },
             },
           },
@@ -3974,7 +4037,11 @@ export default async function webRoutes(app, opts = {}) {
     const version = Number(req.params.version);
 
     try {
-      const context = { tenantId: tenant.id, userId: user.id, role: 'MEMBER' };
+      const context = {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: 'MEMBER',
+      };
       await applicationTrackingService.restoreApplicationPackage(context, appId, version);
 
       return reply.redirect(
@@ -4003,7 +4070,11 @@ export default async function webRoutes(app, opts = {}) {
     const version = Number(req.params.version);
 
     try {
-      const context = { tenantId: tenant.id, userId: user.id, role: 'MEMBER' };
+      const context = {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: 'MEMBER',
+      };
       await applicationTrackingService.archiveApplicationPackage(context, appId, version);
 
       return reply.redirect(
@@ -4349,7 +4420,9 @@ export default async function webRoutes(app, opts = {}) {
       });
 
       if (entries.length <= 1) {
-        return reply.code(404).send({ error: 'No generated artifacts found for this handoff kit' });
+        return reply.code(404).send({
+          error: 'No generated artifacts found for this handoff kit',
+        });
       }
 
       const zipBuffer = createZipArchive(entries);
@@ -4738,9 +4811,12 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       const accept = req.headers['accept'] || '';
       if (accept.includes('application/json') && !accept.includes('text/html')) {
-        return reply
-          .status(401)
-          .send({ error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } });
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required',
+          },
+        });
       }
       return reply.redirect('/login?returnTo=/apps/radar');
     }
@@ -4769,7 +4845,10 @@ export default async function webRoutes(app, opts = {}) {
       const accept = req.headers['accept'] || '';
       if (accept.includes('application/json') && !accept.includes('text/html')) {
         return reply.status(400).send({
-          error: { code: 'INVALID_INPUT', message: 'jobId, title, and company are required' },
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'jobId, title, and company are required',
+          },
         });
       }
       return reply.redirect('/apps/radar?error=Missing+required+job+details');
@@ -4828,7 +4907,12 @@ export default async function webRoutes(app, opts = {}) {
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, saved: true, jobId, applicationId: persistedId });
+      return reply.send({
+        success: true,
+        saved: true,
+        jobId,
+        applicationId: persistedId,
+      });
     }
     return reply.redirect('/apps/radar?tab=saved&success=Job+saved+to+your+pipeline');
   });
@@ -4841,9 +4925,12 @@ export default async function webRoutes(app, opts = {}) {
     if (!sessionContext) {
       const accept = req.headers['accept'] || '';
       if (accept.includes('application/json') && !accept.includes('text/html')) {
-        return reply
-          .status(401)
-          .send({ error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } });
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required',
+          },
+        });
       }
       return reply.redirect('/login?returnTo=/apps/radar');
     }
