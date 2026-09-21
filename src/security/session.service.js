@@ -11,7 +11,7 @@
 import crypto from 'node:crypto';
 import { eq, and, gt } from 'drizzle-orm';
 import { sessions, users, tenants } from '../db/schema.js';
-import { AuthenticationError } from '../errors/index.js';
+import { AuthenticationError, SecurityError } from '../errors/index.js';
 import { config } from '../config/env.js';
 
 export const DEFAULT_SESSION_TTL_SECONDS = 604800; // 7 days
@@ -211,13 +211,19 @@ export function getSessionCookieOptions(
  */
 export function generateCsrfToken(
   sessionOrId,
-  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET || 'career-hub-csrf-secret-2026'
+  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET
 ) {
   const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.id;
   if (!sessionId || typeof sessionId !== 'string') {
     throw new AuthenticationError(
       'Valid session ID is required to generate CSRF token',
       'INVALID_SESSION'
+    );
+  }
+  if (!secret) {
+    throw new SecurityError(
+      'CSRF signing secret is required: configure SESSION_COOKIE_SECRET or AUTH_SECRET in environment',
+      'MISSING_CSRF_SECRET'
     );
   }
 
@@ -241,11 +247,17 @@ export function generateCsrfToken(
 export function validateCsrfToken(
   sessionOrId,
   token,
-  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET || 'career-hub-csrf-secret-2026'
+  secret = config.SESSION_COOKIE_SECRET || config.APP_SECRET
 ) {
   const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.id;
   if (!sessionId || typeof sessionId !== 'string' || !token || typeof token !== 'string') {
     return false;
+  }
+  if (!secret) {
+    throw new SecurityError(
+      'CSRF signing secret is required: configure SESSION_COOKIE_SECRET or AUTH_SECRET in environment',
+      'MISSING_CSRF_SECRET'
+    );
   }
 
   const parts = token.split('.');

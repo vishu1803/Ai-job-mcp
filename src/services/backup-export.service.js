@@ -33,10 +33,13 @@ export class BackupExportService {
   constructor(options = {}) {
     this.keyVersion = options.keyVersion || KEY_VERSION;
     const rawKey =
-      options.masterKey ||
-      process.env.BACKUP_ENCRYPTION_KEY ||
-      config.ENCRYPTION_MASTER_KEY ||
-      'default-career-hub-dev-encryption-key-32b';
+      options.masterKey || process.env.BACKUP_ENCRYPTION_KEY || config.ENCRYPTION_MASTER_KEY;
+    if (!rawKey) {
+      throw new SecurityError(
+        'BACKUP_ENCRYPTION_KEY or ENCRYPTION_MASTER_KEY is required and must be configured in environment',
+        'MISSING_ENCRYPTION_KEY'
+      );
+    }
     this.key = crypto.createHash('sha256').update(rawKey).digest();
     this.documentStorageDir =
       options.documentStorageDir || path.resolve(process.cwd(), 'storage', 'documents');

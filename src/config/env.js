@@ -90,7 +90,14 @@ const envSchema = z
         () => process.env.GITHUB_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET || ''
       ),
     SESSION_COOKIE_NAME: z.string().default('career_hub_session'),
-    SESSION_COOKIE_SECRET: z.string().optional().default(''),
+    SESSION_COOKIE_SECRET: z
+      .string()
+      .optional()
+      .default(() => process.env.SESSION_COOKIE_SECRET || process.env.AUTH_SECRET || ''),
+    APP_SECRET: z
+      .string()
+      .optional()
+      .default(() => process.env.AUTH_SECRET || process.env.SESSION_SECRET || ''),
     SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
     APP_URL: z.string().default('http://localhost:3000'),
     OAUTH_ISSUER_URL: z

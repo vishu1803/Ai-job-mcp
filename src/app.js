@@ -22,6 +22,7 @@ import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from './connectors/github/auth.js';
 import { parseFormBody } from './utils/form-parser.js';
+import { registerSecurityHeaders } from './middleware/security-headers.middleware.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -114,6 +115,9 @@ export function buildApp(opts = {}) {
       reply.header('x-request-id', request.id);
     }
   });
+
+  // Centralized HTTP security headers policy (CSP, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+  registerSecurityHeaders(app);
 
   // Path traversal defense (P14-002): reject URLs containing decoded '..' sequences
   app.addHook('onRequest', async (req, reply) => {

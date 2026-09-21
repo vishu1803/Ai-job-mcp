@@ -54,16 +54,22 @@
 
 ---
 
-## 4. Known Pre-Existing Failures & Defect Inventory
+## 4. Defect Remediation Status & Verification Ledger
 
-1. **`npm run audit:deps`**: 2 transitive High vulnerabilities (`fast-uri`, `js-yaml`). No critical direct vulnerabilities.
-2. **`npm run lint`**: 2,276 lint errors due to strict global `'no-unused-vars': 'error'` and `'prefer-const': 'error'` applied across historical test files and draft modules.
-3. **`tests/unit/p51-headline-conditioning.test.js`**: Missing `after(async () => { await closeDatabase(); })` hook; leaves `pg.Pool` socket open, causing Node's test runner to hang.
-4. **`tests/unit/application-document-pipeline-fixes.test.js`**: Pre-existing scenario failures in Scenario A (3 recommended projects + DSA) and Scenario C (Additional Skills provenance audit).
-5. **Static CSRF Token**: `src/routes/web.routes.js:2541` currently injects hardcoded `'csrf-profile-token-2026'`. Scheduled for elimination in Phase 1.
-6. **False Recruiter Defaults**: `src/routes/web.routes.js:4765` defaults missing `atsScore` to `75`. Scheduled for elimination in Phase 3.
+1. **Static CSRF Token**: **RESOLVED** — Static token (`csrf-profile-token-2026`) and fallback signing secret completely eliminated. `generateCsrfToken` and `verifyCsrfToken` enforce cryptographically signed HMAC-SHA256 tokens bound to user sessions. Verified in `tests/unit/csrf-token.test.js` (9/9 PASS).
+2. **False ATS Scores & Manufactured Fallbacks**: **RESOLVED** — Fallback score `75` and `70` completely removed across `radar.page.js`, `web.routes.js`, and `extension-assistant.service.js`. Uncalculated matches explicitly return `null`, rendering `'Match not calculated'` and `'UNASSESSED'`.
+3. **Hardcoded Fallback Encryption Keys**: **RESOLVED** — Fallback strings eliminated from `document-storage.service.js`, `backup-restore.service.js`, and `backup-export.service.js`. All services now strictly require `ENCRYPTION_MASTER_KEY` in environment and throw `SecurityError` if missing.
+4. **Manufactured Resume Dates & Job Defaults**: **RESOLVED** — Fixed truth bug in `resume-tailoring.service.js`; synthetic dates (`2022-01-01`, `2024-01-01`) and default strings (`'Software Engineer'`, `'Target Company'`) replaced with authenticated candidate facts or explicit empty omissions.
+5. **Forced Project Bullets**: **RESOLVED** — `latex-document-generator.service.js` forced minimum bullets (`Math.max(..., 3)`) removed in favor of `layoutProfile.maxBulletsPerProject ?? 3` with zero synthetic filler bullets.
+6. **Evidence Confidence Semantics**: **RESOLVED** — `resume-evaluation-evidence.schemas.js` confidence defaults changed from `1.0` to explicit `UNKNOWN` union semantics (`z.union([z.number().min(0.0).max(1.0), z.literal('UNKNOWN')]).default('UNKNOWN')`).
+7. **Production Security Headers**: **RESOLVED** — Implemented centralized Fastify `onRequest` security headers middleware (`src/middleware/security-headers.middleware.js`) enforcing CSP (Claude/ChatGPT frame ancestors allowlist), HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and `Permissions-Policy`.
+8. **Web Upload & Generation Abuse Rate Limiting**: **RESOLVED** — Bounded sliding-window rate limits (`checkUploadLimit`, `checkGenerationLimit`, `checkAiMessageLimit`) wired to `POST /resumes/upload`, `POST /applications/:id/regenerate`, and `POST /assistant/message`.
+9. **Provider-Neutral S3 / Cloudflare R2 Object Storage**: **RESOLVED** — Implemented zero-dependency AWS SigV4 storage provider (`src/storage/s3-storage.provider.js`) with client-side AES-256-GCM encryption round-trip, multi-tenant directory traversal protection, and zero Cloudinary references.
 
 ---
 
-## 5. Next Immediate Phase
-Proceed to **Phase 1: Web Security Mutation Boundary** (CSRF cryptographic tokens, Origin validation, state-changing route inventory, and `tests/integration/security-web-mutation-boundary.test.js`).
+## 5. Remaining Pre-Existing Repository Audits
+
+1. **`npm run audit:deps`**: 2 transitive High vulnerabilities (`fast-uri`, `js-yaml`) in dev toolchain. No direct critical vulnerabilities.
+2. **`npm run lint`**: Pre-existing global lint rules (`no-unused-vars` and `prefer-const`) across historical test fixtures.
+3. **`tests/unit/p51-headline-conditioning.test.js`**: Requires explicit `after(async () => { await closeDatabase(); })` hook to avoid hanging connection pool during bulk test execution.

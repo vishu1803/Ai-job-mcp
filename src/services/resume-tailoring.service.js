@@ -616,12 +616,16 @@ export class ResumeTailoringService {
     const expAssertions = assertionList.filter((a) => a.assertionType === 'EXPERIENCE');
 
     for (const entry of rawExperience) {
-      const company = entry.company || entry.employer || 'Organization';
-      const title = entry.title || entry.role || 'Software Engineer';
-      const startDate = entry.startDate || '2022-01-01';
-      const endDate = entry.endDate || (entry.isCurrent ? null : '2024-01-01');
+      const company = entry.company || entry.employer || null;
+      const title = entry.title || entry.role || null;
+      const startDate = entry.startDate || null;
+      const endDate = entry.endDate || null;
       const location = entry.location || null;
-      const isCurrent = Boolean(entry.isCurrent || !endDate);
+      const isCurrent = Boolean(entry.isCurrent || (entry.startDate && !entry.endDate));
+
+      if (!company && !title) {
+        continue;
+      }
 
       const bullets = [];
       const rawBullets = Array.isArray(entry.bullets)
@@ -632,9 +636,8 @@ export class ResumeTailoringService {
 
       for (const bulletItem of rawBullets) {
         const bulletText =
-          typeof bulletItem === 'string'
-            ? bulletItem
-            : bulletItem.text || 'Contributed to core engineering systems.';
+          typeof bulletItem === 'string' ? bulletItem.trim() : (bulletItem?.text || '').trim();
+        if (!bulletText) continue;
 
         // Metric Safety Guard
         this._assertMetricSafety(bulletText, []);
@@ -760,8 +763,7 @@ export class ResumeTailoringService {
     jobDescription,
     _assertionList
   ) {
-    const rawHeadline =
-      candidateProfile.headline || jobDescription.title || 'Senior Software Engineer';
+    const rawHeadline = candidateProfile.headline || jobDescription?.title || null;
 
     const skillHighlights = topVerifiedRequiredSkills
       .slice(0, 3)
@@ -773,10 +775,15 @@ export class ResumeTailoringService {
       : '';
 
     let summaryText = '';
+    const roleTitle = candidateProfile.headline || jobDescription?.title;
     if (skillHighlights) {
-      summaryText = `Software Engineer proficient in ${skillHighlights}${projectHighlight ? ` with${projectHighlight}` : ''}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`;
+      summaryText = roleTitle
+        ? `${roleTitle} proficient in ${skillHighlights}${projectHighlight ? ` with${projectHighlight}` : ''}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`
+        : `Proficient in ${skillHighlights}${projectHighlight ? ` with${projectHighlight}` : ''}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`;
+    } else if (roleTitle) {
+      summaryText = `${roleTitle} with demonstrated technical expertise in building robust, high-integrity software applications.`;
     } else {
-      summaryText = `Software Engineer with demonstrated technical expertise in building robust, high-integrity software applications.`;
+      summaryText = `Demonstrated technical expertise in building robust, high-integrity software applications.`;
     }
 
     const summaryBullet = {

@@ -331,8 +331,8 @@ export class LatexDocumentGenerator {
       applicationPackage.tailoringPlan?.targetRoleTitle ||
       structuredResume.candidateIdentity?.headline ||
       targetJob.title ||
-      'Software Engineer';
-    const targetCompany = targetJob.company || 'Target Organization';
+      '';
+    const targetCompany = targetJob.company || '';
 
     // 1. Authoritative Candidate Identity & Contact from structured snapshot
     const identity = structuredResume.candidateIdentity || {};
@@ -393,7 +393,9 @@ export class LatexDocumentGenerator {
 
     // 2. Summary
     const summaryText = structuredResume.summary?.text || '';
-    const summaryLatexSection = `\\atssection{Professional Summary}\n${summaryText ? escapeLatex(summaryText) : '\\textit{(Professional summary not provided in profile.)}'}\\par`;
+    const summaryLatexSection = summaryText
+      ? `\\atssection{Professional Summary}\n${escapeLatex(summaryText)}\\par`
+      : '';
 
     // 3. Technical Skills: render categories in exact stored order
     const skillCategories = Array.isArray(structuredResume.skills?.categories)
@@ -419,7 +421,7 @@ export class LatexDocumentGenerator {
 
     // 4. Projects: exact stored ranking and authentic bullets (P16-006 high-density formatting)
     const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
-    const maxBulletsPerProject = Math.max(layoutProfile.maxBulletsPerProject || 3, 3);
+    const maxBulletsPerProject = layoutProfile.maxBulletsPerProject ?? 3;
     let projectsLatexSection = '';
     if (projects.length > 0) {
       const projectEntries = projects.map((p, index) => {

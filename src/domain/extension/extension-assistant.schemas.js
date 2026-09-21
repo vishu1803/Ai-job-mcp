@@ -140,7 +140,7 @@ export const ExplainErrorResponseSchema = z.object({
  */
 export const CompactExtensionAssistantContextSchema = z.object({
   jobMatch: z.object({
-    score: z.number(),
+    score: z.number().nullable(),
     band: z.string(),
     matchedSkills: z.array(z.string()).default([]),
     missingSkills: z.array(z.string()).default([]),

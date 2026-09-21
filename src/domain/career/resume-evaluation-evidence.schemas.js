@@ -60,7 +60,7 @@ export const ResumeEvaluationEvidenceSchema = z.strictObject({
   scoreContribution: z.number().min(0.0),
   maxPossibleScore: z.number().min(0.0),
   evidenceIds: z.array(z.string()).default([]),
-  confidence: z.number().min(0.0).max(1.0).default(1.0),
+  confidence: z.union([z.number().min(0.0).max(1.0), z.literal('UNKNOWN')]).default('UNKNOWN'),
   confidenceFactors: z
     .strictObject({
       pdfExtractionQuality: z.number().min(0.0).max(1.0).optional(),
@@ -83,7 +83,9 @@ export const ResumeEvaluationTraceabilityReportSchema = z.strictObject({
   totalEarnedScore: z.number().min(0.0),
   totalPossibleScore: z.number().min(0.0),
   evidenceItems: z.array(ResumeEvaluationEvidenceSchema).default([]),
-  overallConfidence: z.number().min(0.0).max(1.0),
+  overallConfidence: z
+    .union([z.number().min(0.0).max(1.0), z.literal('UNKNOWN')])
+    .default('UNKNOWN'),
   generatedAt: z
     .string()
     .datetime()

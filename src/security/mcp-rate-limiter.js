@@ -401,6 +401,69 @@ export class McpRateLimiter {
     }
   }
 
+  /**
+   * Checks file upload rate limit tier (post-auth or IP).
+   * Default: 10 uploads per hour (3600000 ms).
+   * @param {string} identifier User ID, Tenant ID, or Client IP
+   * @param {number} [limit=10] Max uploads per window
+   * @param {number} [windowMs=3600000] Window length (default 1 hour)
+   * @throws {AppError} With statusCode 429 if rate limit exceeded
+   */
+  checkUploadLimit(identifier, limit = 10, windowMs = 3600000) {
+    if (!identifier) return;
+    const result = this.checkLimit(`upload:${identifier}`, limit, windowMs);
+    if (!result.allowed) {
+      const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+      throw new AppError(
+        `Upload rate limit exceeded. Please retry after ${retryAfterSec} seconds.`,
+        429,
+        'RATE_LIMITED'
+      );
+    }
+  }
+
+  /**
+   * Checks generation / compilation rate limit tier (LaTeX PDF / Tailoring).
+   * Default: 20 operations per 15 minutes (900000 ms).
+   * @param {string} identifier User ID or Tenant ID
+   * @param {number} [limit=20] Max generations per window
+   * @param {number} [windowMs=900000] Window length (default 15 mins)
+   * @throws {AppError} With statusCode 429 if rate limit exceeded
+   */
+  checkGenerationLimit(identifier, limit = 20, windowMs = 900000) {
+    if (!identifier) return;
+    const result = this.checkLimit(`gen:${identifier}`, limit, windowMs);
+    if (!result.allowed) {
+      const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+      throw new AppError(
+        `Generation rate limit exceeded. Please retry after ${retryAfterSec} seconds.`,
+        429,
+        'RATE_LIMITED'
+      );
+    }
+  }
+
+  /**
+   * Checks interactive AI Copilot / message rate limit tier.
+   * Default: 30 messages per minute (60000 ms).
+   * @param {string} identifier User ID or Session ID
+   * @param {number} [limit=30] Max messages per window
+   * @param {number} [windowMs=60000] Window length (default 1 minute)
+   * @throws {AppError} With statusCode 429 if rate limit exceeded
+   */
+  checkAiMessageLimit(identifier, limit = 30, windowMs = 60000) {
+    if (!identifier) return;
+    const result = this.checkLimit(`aimsg:${identifier}`, limit, windowMs);
+    if (!result.allowed) {
+      const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+      throw new AppError(
+        `Message rate limit exceeded. Please slow down and retry after ${retryAfterSec} seconds.`,
+        429,
+        'RATE_LIMITED'
+      );
+    }
+  }
+
   // -------------------------------------------------------------------------
   // LRU eviction
   // -------------------------------------------------------------------------

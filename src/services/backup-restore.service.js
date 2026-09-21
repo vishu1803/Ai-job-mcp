@@ -25,10 +25,13 @@ export class BackupRestoreService {
    */
   constructor(options = {}) {
     const rawKey =
-      options.masterKey ||
-      process.env.BACKUP_ENCRYPTION_KEY ||
-      process.env.ENCRYPTION_MASTER_KEY ||
-      'default-career-hub-dev-encryption-key-32b';
+      options.masterKey || process.env.BACKUP_ENCRYPTION_KEY || process.env.ENCRYPTION_MASTER_KEY;
+    if (!rawKey) {
+      throw new SecurityError(
+        'BACKUP_ENCRYPTION_KEY or ENCRYPTION_MASTER_KEY is required and must be configured in environment',
+        'MISSING_ENCRYPTION_KEY'
+      );
+    }
     this.key = crypto.createHash('sha256').update(rawKey).digest();
     this.targetDocumentDir =
       options.targetDocumentDir || path.resolve(process.cwd(), 'storage', 'documents');

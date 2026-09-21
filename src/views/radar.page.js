@@ -167,9 +167,15 @@ export function renderRadarPage({
             ${discoveredJobs
               .map((job) => {
                 const isSaved = Boolean(job.isSaved);
-                const score = Number.isFinite(job.atsScore) ? job.atsScore : 75;
-                const matchBadgeClass =
-                  score >= 80 ? 'badge-verified' : score >= 60 ? 'badge-indigo' : 'badge-amber';
+                const hasScore = Number.isFinite(job.atsScore);
+                const score = hasScore ? Math.round(job.atsScore) : null;
+                const matchBadgeClass = !hasScore
+                  ? 'badge-subtle'
+                  : score >= 80
+                    ? 'badge-verified'
+                    : score >= 60
+                      ? 'badge-indigo'
+                      : 'badge-amber';
 
                 return `
               <div class="card" style="padding:22px; display:flex; flex-direction:column; justify-content:space-between; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-md); transition:border-color 0.15s ease;">
@@ -184,7 +190,7 @@ export function renderRadarPage({
                       </div>
                     </div>
                     <span class="badge ${matchBadgeClass}" style="flex-shrink:0;">
-                      ${score}% Match
+                      ${hasScore ? `${score}% Match` : 'Match not calculated'}
                     </span>
                   </div>
 
@@ -849,8 +855,8 @@ function renderEmbeddedRadarWidget(data) {
           <p style="font-size: 0.825rem; color: var(--text-muted); margin: 0;">Launch the application readiness and tailored submission workflow with this job.</p>
         </div>
         <form action="/applications/start" method="POST" style="margin: 0;">
-          <input type="hidden" name="companyName" value="${escapeHtml(jobContext.companyName || 'Target Company')}">
-          <input type="hidden" name="jobTitle" value="${escapeHtml(jobContext.jobTitle || 'Software Engineer')}">
+          <input type="hidden" name="companyName" value="${escapeHtml(jobContext.companyName || '')}">
+          <input type="hidden" name="jobTitle" value="${escapeHtml(jobContext.jobTitle || '')}">
           <button type="submit" class="btn btn-primary" style="padding: 9px 18px; font-weight: 700;">
             Apply for this Role &rarr;
           </button>

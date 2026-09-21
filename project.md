@@ -3,6 +3,69 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-20*
 
+### Phase PH-01: Production Security Hardening, Zero-Fabrication Enforcement & Provider-Neutral Multi-Cloud S3 Storage
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-20
+**Scope:** Remediated 12 critical engineering and security findings across encryption key fallbacks, CSRF signing secrets, manufactured resume defaults/dates, fake ATS scores, forced bullet counts, production security headers, abuse rate limiting, provider-neutral S3/R2 storage, and baseline validation documentation:
+
+1. **Eliminated Fallback Encryption Keys (`src/services/document-storage.service.js`, `backup-restore.service.js`, `backup-export.service.js`):**
+   - Removed hardcoded fallback `'default-career-hub-dev-encryption-key-32b'`.
+   - Replaced with strict environment resolution (`config.ENCRYPTION_MASTER_KEY` / `process.env.ENCRYPTION_KEY`). Services fail closed with `SecurityError('ENCRYPTION_MASTER_KEY is required and must be configured in environment')`.
+
+2. **Eliminated Built-in Session/CSRF Signing Secret (`src/security/session.service.js`):**
+   - Removed hardcoded fallback `'career-hub-csrf-secret-2026'`.
+   - Validated secret derivation from `SESSION_COOKIE_SECRET`, `AUTH_SECRET`, or `SESSION_SECRET`, failing closed with `SecurityError` if missing. Verified across 9 CSRF tests.
+
+3. **Eliminated Fake ATS Score Fallbacks (`src/views/radar.page.js`, `src/routes/web.routes.js`, `src/services/extension-assistant.service.js`):**
+   - Removed `75` and `70` magic defaults from radar dashboard, web application flow, and browser extension service.
+   - Match scores now evaluate authentically to `score: null`, rendering `'Match not calculated'` (`badge-subtle`) in the web UI and `'UNASSESSED'` in extension schemas.
+
+4. **Eliminated Manufactured Job Defaults & Enforced Input Integrity (`src/views/radar.page.js`, `src/routes/web.routes.js`):**
+   - Removed hidden/fallback form strings (`'Target Company'`, `'Software Engineer'`, `'Target Organization'`).
+   - `POST /applications/start` requires explicit `companyName` and `jobTitle`, failing closed with informative feedback if missing.
+
+5. **Eliminated Resume Tailoring Truth Bug (`src/services/resume-tailoring.service.js`):**
+   - Removed synthetic experience generator injecting fake dates (`'2022-01-01'` / `'2024-01-01'`) and fabricated positions (`'Software Engineer'`).
+   - Experience tailoring synthesizes strictly from authentic candidate profile history. Missing experience or summary fields are omitted cleanly without placeholder copy.
+
+6. **Evidence Confidence Semantics Alignment (`src/domain/career/resume-evaluation-evidence.schemas.js`):**
+   - Changed default confidence and overallConfidence from numeric `1.0` to explicit `UNKNOWN` union semantics (`z.union([z.number().min(0.0).max(1.0), z.literal('UNKNOWN')]).default('UNKNOWN')`).
+
+7. **Eliminated Forced Minimum Project Bullets (`src/services/latex-document-generator.service.js`):**
+   - Replaced `Math.max(..., 3)` forcing with layout profile max bullet caps (`layoutProfile.maxBulletsPerProject ?? 3`).
+   - Completely eliminated synthetic bullet filler backfilling. Documents with insufficient bullets are either cleanly dropped or rendered faithfully per P46 zero-hallucination rules.
+
+8. **Centralized Production HTTP Security Headers (`src/middleware/security-headers.middleware.js`, `src/app.js`):**
+   - Implemented centralized Fastify `onRequest` hook setting CSP (frame-ancestors allowlist for Claude/ChatGPT artifacts), HSTS (`max-age=31536000; includeSubDomains; preload`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
+   - Excluded internal machine JSON-RPC endpoints (`/mcp`, `/livez`) where browser CSP is inapplicable. Verified across 6 integration tests.
+
+9. **Web Route Abuse Rate Limiting (`src/security/mcp-rate-limiter.js`, `src/routes/web.routes.js`):**
+   - Implemented `checkUploadLimit(identifier)` (default 10/hr), `checkGenerationLimit(identifier)` (default 20/15min), and `checkAiMessageLimit(identifier)` (default 30/min).
+   - Wired to `POST /resumes/upload`, `POST /applications/:id/regenerate`, and `POST /assistant/message` with HTTP 429 response formatting.
+
+10. **Provider-Neutral S3 / Cloudflare R2 Storage Provider (`src/storage/s3-storage.provider.js`, `src/services/document-storage.service.js`):**
+    - Built a pure Node.js AWS SigV4 signed HTTP S3 client supporting Cloudflare R2 (`https://<accountid>.r2.cloudflarestorage.com`), AWS S3, MinIO, and LocalStack.
+    - Integrated seamlessly with `DocumentStorageService` for end-to-end client-side AES-256-GCM encrypted blob storage.
+    - Guaranteed zero Cloudinary references across the entire repository. Verified across 6 unit tests.
+
+11. **Refreshed Engineering Baseline Validation (`docs/engineering/baseline-validation.md`):**
+    - Updated Sections 4 & 5 to document the resolution of static CSRF tokens, 75-score fallbacks, encryption key defaults, and rate limits.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/document-storage.service.test.js`: **5/5 PASS (100%)**
+- `tests/unit/csrf-token.test.js`: **9/9 PASS (100%)**
+- `tests/unit/p16-structured-resume-contract.test.js`: **10/10 PASS (100%)**
+- `tests/unit/p46-ranking-authority-and-bullet-minimum.test.js`: **9/9 PASS (100%)**
+- `tests/unit/p87-extension-ai-assistant.test.js`: **8/8 PASS (100%)**
+- `tests/unit/s3-storage.provider.test.js`: **6/6 PASS (100%)**
+- `tests/unit/web-rate-limiting.test.js`: **4/4 PASS (100%)**
+- `tests/integration/security-headers.test.js`: **6/6 PASS (100%)**
+- `tests/integration/web-application-routes.test.js`: **20/20 PASS (100%)**
+- Total Targeted Verification Battery: **77/77 PASS (100%)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- `npm run format:check` / `git diff --check`: **PASS (0 whitespace or formatting errors)**
+- ESLint on modified/new modules: **PASS (0 errors, 0 warnings)**
+
 ### Phase CI: CI Pipeline & Full Monorepo Test Battery Convergence (100% PASS Across All Verification Checks)
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-20

@@ -20,13 +20,18 @@ export class DocumentStorageService {
    * @param {object} [options={}]
    * @param {string} [options.storageDir] Root storage directory
    * @param {string|Buffer} [options.masterKey] Master encryption key override
+   * @param {object} [options.s3Provider] Optional S3-compatible / Cloudflare R2 object storage provider
    */
   constructor(options = {}) {
     this.storageDir = options.storageDir || path.resolve(process.cwd(), 'storage', 'documents');
-    const rawKey =
-      options.masterKey ||
-      config.ENCRYPTION_MASTER_KEY ||
-      'default-career-hub-dev-encryption-key-32b';
+    this.s3Provider = options.s3Provider || null;
+    const rawKey = options.masterKey || config.ENCRYPTION_MASTER_KEY;
+    if (!rawKey) {
+      throw new SecurityError(
+        'ENCRYPTION_MASTER_KEY is required and must be configured in environment',
+        'MISSING_ENCRYPTION_KEY'
+      );
+    }
     this.key =
       Buffer.isBuffer(rawKey) && rawKey.length === 32
         ? rawKey
@@ -124,10 +129,22 @@ export class DocumentStorageService {
     // 4. Pack: IV (12B) + AuthTag (16B) + Ciphertext
     const payload = Buffer.concat([iv, authTag, ciphertext]);
 
-    // 5. Ensure directory exists and write atomically
-    const { tenantDir, targetFile } = this._getSafeFilePath(tenantId, storageKey);
-    await fs.mkdir(tenantDir, { recursive: true });
-    await fs.writeFile(targetFile, payload);
+    // 5. Persist: via S3 provider if configured, or atomic local file write
+    if (this.s3Provider) {
+      await this.s3Provider.putEncryptedObject({
+        tenantId,
+        key: storageKey,
+        buffer: payload,
+        metadata: {
+          contentHash,
+          originalLength: String(buffer.length),
+        },
+      });
+    } else {
+      const { tenantDir, targetFile } = this._getSafeFilePath(tenantId, storageKey);
+      await fs.mkdir(tenantDir, { recursive: true });
+      await fs.writeFile(targetFile, payload);
+    }
 
     return {
       storageKey,
@@ -145,19 +162,36 @@ export class DocumentStorageService {
    * @returns {Promise<Buffer>} Decrypted plaintext binary buffer
    */
   async getDecryptedDocument({ tenantId, storageKey }) {
-    const { targetFile } = this._getSafeFilePath(tenantId, storageKey);
-
     let encryptedPayload;
-    try {
-      encryptedPayload = await fs.readFile(targetFile);
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        throw new ValidationError(
-          `Document not found in storage: ${storageKey}`,
-          'DOCUMENT_NOT_FOUND'
-        );
+
+    if (this.s3Provider) {
+      try {
+        encryptedPayload = await this.s3Provider.getEncryptedObject({
+          tenantId,
+          key: storageKey,
+        });
+      } catch (err) {
+        if (err.name === 'NotFoundError') {
+          throw new ValidationError(
+            `Document not found in storage: ${storageKey}`,
+            'DOCUMENT_NOT_FOUND'
+          );
+        }
+        throw err;
       }
-      throw err;
+    } else {
+      const { targetFile } = this._getSafeFilePath(tenantId, storageKey);
+      try {
+        encryptedPayload = await fs.readFile(targetFile);
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          throw new ValidationError(
+            `Document not found in storage: ${storageKey}`,
+            'DOCUMENT_NOT_FOUND'
+          );
+        }
+        throw err;
+      }
     }
 
     if (encryptedPayload.length < IV_LENGTH_BYTES + AUTH_TAG_LENGTH_BYTES) {
@@ -194,6 +228,10 @@ export class DocumentStorageService {
    * @returns {Promise<boolean>} True if deleted, false if not found
    */
   async deleteEncryptedDocument({ tenantId, storageKey }) {
+    if (this.s3Provider) {
+      return await this.s3Provider.deleteObject({ tenantId, key: storageKey });
+    }
+
     const { targetFile } = this._getSafeFilePath(tenantId, storageKey);
     try {
       await fs.unlink(targetFile);
@@ -203,6 +241,29 @@ export class DocumentStorageService {
         return false;
       }
       throw err;
+    }
+  }
+
+  /**
+   * Checks if an encrypted document exists.
+   *
+   * @param {object} params
+   * @param {string} params.tenantId
+   * @param {string} params.storageKey
+   * @returns {Promise<boolean>}
+   */
+  async hasEncryptedDocument({ tenantId, storageKey }) {
+    if (this.s3Provider) {
+      const head = await this.s3Provider.headObject({ tenantId, key: storageKey });
+      return Boolean(head?.exists);
+    }
+
+    const { targetFile } = this._getSafeFilePath(tenantId, storageKey);
+    try {
+      await fs.access(targetFile);
+      return true;
+    } catch {
+      return false;
     }
   }
 }

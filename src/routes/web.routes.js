@@ -107,6 +107,7 @@ import {
   normalizeVisaSponsorship,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { NotFoundError } from '../errors/index.js';
+import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 
 /**
  * Extracts authenticated session context from request cookies if present.
@@ -230,6 +231,7 @@ export default async function webRoutes(app, opts = {}) {
       candidateProfileService,
       readinessService: applicationReadinessService,
     });
+  const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
   // Helper to load complete authenticated overview data
   async function loadDashboardData(sessionContext, dbInstance) {
@@ -2277,6 +2279,20 @@ export default async function webRoutes(app, opts = {}) {
       sessionContext.user
     );
 
+    try {
+      rateLimiter.checkUploadLimit(sessionContext.tenant.id || sessionContext.user.id || req.ip);
+    } catch (rateErr) {
+      if (wantsJson) {
+        return reply.status(429).send({
+          error: {
+            code: 'RATE_LIMITED',
+            message: rateErr.message,
+          },
+        });
+      }
+      return reply.redirect('/resumes?error=' + encodeURIComponent(rateErr.message));
+    }
+
     let fileBuffer;
     let fileName = 'resume';
     let declaredMimeType = '';
@@ -3381,8 +3397,18 @@ export default async function webRoutes(app, opts = {}) {
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
 
     const body = req.body || {};
-    const companyName = body.companyName ? String(body.companyName).trim() : 'Target Company';
-    const jobTitle = body.jobTitle ? String(body.jobTitle).trim() : 'Software Engineer';
+    const companyName = body.companyName ? String(body.companyName).trim() : '';
+    const jobTitle = body.jobTitle ? String(body.jobTitle).trim() : '';
+
+    if (!companyName || !jobTitle) {
+      return reply.redirect(
+        '/apps/radar?tab=analyze&error=' +
+          encodeURIComponent(
+            'Target company name and job title are required to start an application.'
+          )
+      );
+    }
+
     const jobUrl = body.jobUrl ? String(body.jobUrl).trim() : null;
     const location = body.location ? String(body.location).trim() : 'Remote';
     const rawJobDescription = body.jobDescriptionText
@@ -4008,6 +4034,15 @@ export default async function webRoutes(app, opts = {}) {
     const appId = req.params.id;
     const scope = String(req.body?.scope || 'BOTH').toUpperCase();
     const reason = String(req.body?.reason || '').trim();
+
+    try {
+      rateLimiter.checkGenerationLimit(tenant.id || user.id);
+    } catch (rateErr) {
+      req.log.warn({ err: rateErr.message, appId }, 'Package regeneration rate limited');
+      return reply.redirect(
+        `/applications/${appId}/handoff?error=${encodeURIComponent(rateErr.message)}`
+      );
+    }
 
     try {
       await jobApplicationWorkflowService.regenerateApplicationPackage({
@@ -4683,7 +4718,7 @@ export default async function webRoutes(app, opts = {}) {
     const query =
       typeof req.query?.q === 'string'
         ? req.query.q.trim()
-        : candidateProfile?.targetRoles?.[0] || 'Software Engineer';
+        : candidateProfile?.targetRoles?.[0] || candidate?.headline || '';
     const location = typeof req.query?.location === 'string' ? req.query.location.trim() : '';
     const workplaceType =
       typeof req.query?.workplaceType === 'string' ? req.query.workplaceType.trim() : '';
@@ -4714,7 +4749,8 @@ export default async function webRoutes(app, opts = {}) {
           includeSynthetic: false, // Strictly zero synthetic jobs in production
         });
         const result = await discoveryService.searchJobs({
-          query: query || 'Software Engineer',
+          query:
+            query || candidateProfile?.targetRoles?.[0] || candidate?.headline || 'Engineering',
           location: location || undefined,
           workplaceType: workplaceType ? workplaceType.toUpperCase() : undefined,
           limit: 15,
@@ -4736,7 +4772,7 @@ export default async function webRoutes(app, opts = {}) {
                   100,
                   Math.max(25, Math.round((matchedSkills.length / reqSkills.length) * 100))
                 )
-              : 75;
+              : null;
 
           return {
             ...job,
@@ -5045,6 +5081,15 @@ export default async function webRoutes(app, opts = {}) {
     const userMessage = body.message || '';
     const rawPageContext = body.pageContext;
     const pageContext = normalizeCopilotPageContext(rawPageContext);
+
+    try {
+      rateLimiter.checkAiMessageLimit(user.id || tenant.id || req.ip);
+    } catch (rateErr) {
+      if (req.headers.accept?.includes('application/json')) {
+        return reply.status(429).send({ error: rateErr.message });
+      }
+      return reply.redirect(`/dashboard?copilot=open&error=${encodeURIComponent(rateErr.message)}`);
+    }
 
     const context = {
       tenantId: tenant.id,

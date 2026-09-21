@@ -817,11 +817,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
   }) {
     // 1. Job Match (Fit analysis)
     let jobMatch = {
-      score: 75,
-      band: 'RECOMMENDED',
+      score: null,
+      band: 'UNASSESSED',
       matchedSkills: [],
       missingSkills: [],
-      summary: 'Deterministic ATS analysis evaluated against verified profile.',
+      summary: 'ATS match analysis has not yet been performed for this job.',
     };
 
     try {
@@ -839,8 +839,10 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
 
       if (fitResult?.atsScore) {
         jobMatch = {
-          score: fitResult.atsScore.overallScore ?? 75,
-          band: fitResult.atsScore.matchBand || 'RECOMMENDED',
+          score: Number.isFinite(fitResult.atsScore.overallScore)
+            ? fitResult.atsScore.overallScore
+            : null,
+          band: fitResult.atsScore.matchBand || 'UNASSESSED',
           matchedSkills: (fitResult.requirementMatches || [])
             .filter((m) => m.matchStatus === 'MATCHED')
             .map((m) => m.normalizedRequirement || m.originalRequirement)
@@ -861,8 +863,13 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         score:
           comp.totalRequirements > 0
             ? Math.round((comp.satisfiedCount / comp.totalRequirements) * 100)
-            : 70,
-        band: 'RECOMMENDED',
+            : null,
+        band:
+          comp.totalRequirements > 0
+            ? comp.satisfiedCount > 0
+              ? 'RECOMMENDED'
+              : 'NOT_RECOMMENDED'
+            : 'UNASSESSED',
         matchedSkills: comp.matches
           .filter((m) => m.satisfied)
           .map((m) => m.requirement)
