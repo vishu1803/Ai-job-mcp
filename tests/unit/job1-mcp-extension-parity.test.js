@@ -15,7 +15,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, db } from '../../src/db/index.js';
+import { pool, db, closeDatabase } from '../../src/db/index.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import { handleGenerateTailoredResume } from '../../src/mcp/tools/career-artifact-tools.js';
 import {
@@ -88,24 +88,43 @@ Requirements:
 
   let workflowService;
   let originalGenerate;
-  let cachedAiContent = null;
 
   before(() => {
     workflowService = new JobApplicationWorkflowService({ database: db });
-    originalGenerate = defaultAiResumeContentGenerator.generateResumeAiContent;
-    defaultAiResumeContentGenerator.generateResumeAiContent = async function (...args) {
-      if (!cachedAiContent) {
-        cachedAiContent = await originalGenerate.apply(this, args);
-      }
-      return cachedAiContent;
+    const mockLatexCompiler = {
+      compileLatexToPdf: async () => ({
+        success: true,
+        compilerUsed: 'mock-tectonic',
+        pdfBuffer: Buffer.from('%PDF-1.5 mock pdf for testing'),
+        texContent: '% mock tex',
+      }),
     };
+    workflowService.applicationHandoffService.latexCompiler = mockLatexCompiler;
+    if (workflowService.applicationHandoffService.resumeOptimizer) {
+      workflowService.applicationHandoffService.resumeOptimizer.latexCompiler = mockLatexCompiler;
+    }
+    workflowService.applicationHandoffService.buildApplicationHandoffKit = async () => null;
+
+    originalGenerate = defaultAiResumeContentGenerator.generateResumeAiContent;
+    defaultAiResumeContentGenerator.generateResumeAiContent = async () => ({
+      success: true,
+      summary:
+        'Full-Stack Developer with verified competencies in React, Next.js, TypeScript, Node.js, and PostgreSQL.',
+      projectBullets: {
+        all: [
+          'Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing.',
+          'Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.',
+          'Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.',
+        ],
+      },
+    });
   });
 
   after(async () => {
     if (originalGenerate) {
       defaultAiResumeContentGenerator.generateResumeAiContent = originalGenerate;
     }
-    await pool.end();
+    await closeDatabase(pool);
   });
 
   it('produces semantically identical output across Extension and MCP for Job 1', async () => {

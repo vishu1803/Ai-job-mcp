@@ -23,7 +23,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import {
   CandidateArtifactContentService,
@@ -604,6 +604,6 @@ describe('P50: Production-Grade Resume Rendering & Tailoring Refinement', () => 
   });
 
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
 });

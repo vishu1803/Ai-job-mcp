@@ -31,7 +31,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 
 import {
   boundRequirementText,
@@ -109,10 +109,9 @@ function assertSchemaConformant(req, label) {
 }
 
 describe('JobRequirement Bounded-Text Producer Contract Regression', () => {
-  // Close the eagerly-constructed pg pool so the test process can exit cleanly
-  // (repo convention: see tests/unit/step1g-career-profile-reconciliation.test.js).
+  // Close the eagerly-constructed pg pool safely so subsequent tests get a fresh pool.
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
 
   // ---------------------------------------------------------------------------

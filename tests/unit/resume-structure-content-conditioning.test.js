@@ -21,7 +21,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { db, pool } from '../../src/db/index.js';
+import { db, pool, closeDatabase } from '../../src/db/index.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import {
   buildStructuredResumeSnapshot,
@@ -116,7 +116,7 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
   });
 
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
 
   // =========================================================================

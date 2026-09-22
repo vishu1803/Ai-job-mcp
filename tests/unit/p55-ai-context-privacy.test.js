@@ -38,7 +38,7 @@ import {
 
 import { AiResumeContentGeneratorService } from '../../src/services/ai-resume-content-generator.service.js';
 
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 
 // Synthetic candidate for privacy & adversarial testing
 const SYNTHETIC_CANDIDATE = {
@@ -558,7 +558,7 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
 
   after(async () => {
     try {
-      await pool.end();
+      await closeDatabase(pool);
     } catch {
       // ignore
     }

@@ -15,11 +15,11 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { NotFoundError } from '../../src/errors/index.js';
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 
 describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
   const tenantIdA = 'a0000000-0000-4000-a000-000000000001';
   const tenantIdB = 'b0000000-0000-4000-a000-000000000002';

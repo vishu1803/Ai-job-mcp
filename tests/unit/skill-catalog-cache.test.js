@@ -11,7 +11,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 import { SkillCatalogService } from '../../src/services/skill-catalog.service.js';
 
 const originalQuery = pg.Pool.prototype.query;
@@ -37,7 +37,7 @@ function instrument() {
 
 after(async () => {
   pg.Pool.prototype.query = originalQuery;
-  await pool.end();
+  await closeDatabase(pool);
 });
 
 describe('SkillCatalogService reference-data cache', () => {

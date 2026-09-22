@@ -17,7 +17,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { eq } from 'drizzle-orm';
-import { pool, db } from '../../src/db/index.js';
+import { pool, db, closeDatabase } from '../../src/db/index.js';
 import { users } from '../../src/db/schema.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { handleGetCandidateProfile } from '../../src/mcp/tools/career-read-tools.js';
@@ -68,7 +68,7 @@ before(async () => {
 
 after(async () => {
   pg.Pool.prototype.query = originalQuery;
-  await pool.end();
+  await closeDatabase(pool);
 });
 
 function hasLegacyPerProjectEvidence(statements) {

@@ -18,7 +18,7 @@
 
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { db, pool } from '../../src/db/index.js';
+import { db, pool, closeDatabase } from '../../src/db/index.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import { handleGenerateTailoredResume } from '../../src/mcp/tools/career-artifact-tools.js';
@@ -159,7 +159,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
   });
 
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
 
   // =========================================================================

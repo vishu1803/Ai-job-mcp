@@ -43,7 +43,7 @@ import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { pool } from '../../src/db/index.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 import { handleAnalyzeJobFit } from '../../src/mcp/tools/career-read-tools.js';
 import { AnalyzeJobFitOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
 import { serializeRequirementMatchesForExtension } from '../../src/routes/extension.routes.js';
@@ -159,7 +159,7 @@ function runMatchService(candidateProfile, requirements) {
 
 describe('analyze_job_fit candidateProvenance enum contract regression', () => {
   after(async () => {
-    await pool.end();
+    await closeDatabase(pool);
   });
 
   // ---------------------------------------------------------------------------
