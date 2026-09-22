@@ -190,7 +190,7 @@ export async function closeDatabase(poolInstance = pool) {
     // If the default singleton pool was closed, auto-recreate it so that
     // subsequent imports (e.g. later integration test files) get a working pool.
     if (poolInstance === pool) {
-      pool = createPool();
+      pool = createPool({ min: 0 });
       db = createDb(pool);
     }
     logger.info('PostgreSQL connection pool drained and closed successfully');

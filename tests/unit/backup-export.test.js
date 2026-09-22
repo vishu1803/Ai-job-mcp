@@ -101,8 +101,16 @@ describe('P14-005: BackupExportService & Envelope Encryption', () => {
   });
 
   it('should verify package manifest integrity and detect missing or modified files', async () => {
-    const exportService = new BackupExportService({ masterKey: testKey });
-    const restoreService = new BackupRestoreService({ masterKey: testKey });
+    const mockDocsDir = path.join(testTempDir, 'mock-documents');
+    await fs.mkdir(mockDocsDir, { recursive: true });
+    const exportService = new BackupExportService({
+      masterKey: testKey,
+      documentStorageDir: mockDocsDir,
+    });
+    const restoreService = new BackupRestoreService({
+      masterKey: testKey,
+      documentStorageDir: mockDocsDir,
+    });
 
     const backupRes = await exportService.exportBackupPackage(testTempDir, {
       backupId: `pkg-unit-test-${Date.now()}`,

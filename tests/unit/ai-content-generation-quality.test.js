@@ -131,6 +131,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
     const profileService = new CandidateProfileService();
     candidateProfile = await profileService.getProfile(mcpContext, CANDIDATE_ID);
     workflowService = new JobApplicationWorkflowService({ database: db, aiProvider: false });
+    workflowService.applicationHandoffService.buildApplicationHandoffKit = async () => null;
 
     // Prepare packages for all 4 jobs
     results.fullStack = await workflowService.prepareJobApplication({
@@ -376,7 +377,15 @@ describe('AI Resume Content Generation Quality Suite', () => {
   // =========================================================================
   describe('3. Optimizer Semantic Freeze Invariance', () => {
     it('preserves bit-for-bit summary and project bullets across optimizer iterations', async () => {
-      const optimizer = new ResumeContentOptimizer();
+      const mockLatexCompiler = {
+        compileLatexToPdf: async () => ({
+          success: true,
+          compilerUsed: 'mock-tectonic',
+          pdfBuffer: Buffer.from('%PDF-1.5 mock pdf for testing'),
+          texContent: '% mock tex',
+        }),
+      };
+      const optimizer = new ResumeContentOptimizer({ latexCompiler: mockLatexCompiler });
       const resume = results.pythonBackend.tailoredResume.structuredResume;
       const baselineSemantic = freezeSemanticResume(resume);
 

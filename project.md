@@ -31,10 +31,12 @@
    - Verified 5 distinct roles end-to-end: Backend Engineer (Stripe), Frontend Engineer (Vercel), Full-Stack Engineer (Linear), AI Systems Engineer (Anthropic), Computer Vision Engineer (Scale AI).
    - Compiled all 5 roles with real local Tectonic engine: 100% 1-page fit, 100/100 ATS parseability score (17/17 ATS checks passed), selectable text (1690-1745 chars), 0 integrity violations across all 20+ audited claims per role.
 
-6. **CI Unit Test Runner Isolation & Pool Lifecycle (`tests/unit/job1-mcp-extension-parity.test.js`, `tests/unit/*`, `tests/integration/*`):**
-   - Mocked LaTeX compilation and handoff kit generation in `job1-mcp-extension-parity.test.js` to ensure 100% offline runner execution without requiring runner-level Tectonic binaries.
+6. **CI Unit Test Runner Isolation & Pool Lifecycle (`tests/unit/job1-mcp-extension-parity.test.js`, `tests/unit/ai-content-generation-quality.test.js`, `tests/unit/backup-export.test.js`, `src/db/index.js`):**
+   - Mocked LaTeX compilation and handoff kit generation in `job1-mcp-extension-parity.test.js` and `ai-content-generation-quality.test.js` to ensure 100% offline runner execution without requiring runner-level Tectonic binaries or invoking redundant multi-second PDF compilations.
    - Deterministically mocked AI content generation in the parity test to eliminate unauthenticated external LLM calls in CI runners lacking local cloud credentials.
-   - Replaced raw, destructive `pool.end()` calls with graceful `closeDatabase(pool)` across 9 test suites (`job1-mcp-extension-parity.test.js`, `step1g-career-profile-reconciliation.test.js`, `skill-catalog-cache.test.js`, `resume-structure-content-conditioning.test.js`, `p55-ai-context-privacy.test.js`, `p50-production-resume-tailoring.test.js`, `job-requirement-bounded-text-regression.test.js`, `analyze-job-fit-provenance-enum-regression.test.js`, `ai-content-generation-quality.test.js`, `profile-single-load-invariant.test.js`) to guarantee connection pool recycling and eliminate "Cannot use a pool after calling end" failures across test runner threads.
+   - Isolated document storage directory in `tests/unit/backup-export.test.js` to a mock temp dir rather than traversing 10,000+ local documents on disk.
+   - Hardened `closeDatabase(pool)` in `src/db/index.js` to recreate the recycled singleton pool with `{ min: 0 }` so no eager idle socket connection prevents Node's test runner event loop from exiting immediately upon test completion.
+   - Replaced raw, destructive `pool.end()` calls with graceful `closeDatabase(pool)` across all unit/integration test suites to guarantee connection pool recycling and eliminate "Cannot use a pool after calling end" failures across test runner threads.
 
 **Verification Evidence & Test Results:**
 - `npm run format:check`: **PASS (All matched files use Prettier code style)**
