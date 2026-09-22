@@ -12,11 +12,17 @@ async function main() {
   const tenantsRes = await db.execute(sql`SELECT * FROM tenants WHERE id = ${TENANT_ID}`);
   const usersRes = await db.execute(sql`SELECT * FROM users WHERE id = ${USER_ID}`);
   const candidatesRes = await db.execute(sql`SELECT * FROM candidates WHERE id = ${CANDIDATE_ID}`);
+  const resourceConnectionsRes = await db.execute(
+    sql`SELECT * FROM resource_connections WHERE tenant_id = ${TENANT_ID}`
+  );
   const projectsRes = await db.execute(
     sql`SELECT * FROM projects WHERE candidate_id = ${CANDIDATE_ID}`
   );
   const resourcesRes = await db.execute(
     sql`SELECT * FROM resources WHERE candidate_id = ${CANDIDATE_ID}`
+  );
+  const projectResourcesRes = await db.execute(
+    sql`SELECT * FROM project_resources WHERE tenant_id = ${TENANT_ID}`
   );
   const candidateSkillsRes = await db.execute(
     sql`SELECT * FROM candidate_skills WHERE candidate_id = ${CANDIDATE_ID}`
@@ -33,10 +39,12 @@ async function main() {
   const dump = {
     tenants: tenantsRes.rows,
     users: usersRes.rows,
+    resource_connections: resourceConnectionsRes.rows,
     candidates: candidatesRes.rows,
     skills: skillsRes.rows,
     projects: projectsRes.rows,
     resources: resourcesRes.rows,
+    project_resources: projectResourcesRes.rows,
     candidate_skills: candidateSkillsRes.rows,
     evidence_items: evidenceItemsRes.rows,
     job_applications: jobApplicationsRes.rows,

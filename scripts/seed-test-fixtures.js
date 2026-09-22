@@ -15,10 +15,12 @@ async function seedTestFixtures() {
   const tables = [
     'tenants',
     'users',
+    'resource_connections',
     'candidates',
     'skills',
     'projects',
     'resources',
+    'project_resources',
     'candidate_skills',
     'evidence_items',
     'job_applications',

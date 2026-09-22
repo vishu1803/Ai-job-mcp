@@ -22,6 +22,36 @@
       "updated_at": "2026-08-21 10:54:28.555884+00"
     }
   ],
+  "resource_connections": [
+    {
+      "id": "1743c149-bf4c-4c4e-a1fa-0532dfd5460a",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "user_id": "9dd8e4fb-456b-4104-9cb1-c839a544b721",
+      "provider": "GITHUB_APP",
+      "auth_type": "APP_INSTALLATION",
+      "display_name": "GitHub (vishu1803)",
+      "external_account_id": "97516061",
+      "external_account_name": "vishu1803",
+      "installation_id": "155430459",
+      "encrypted_credentials": "enc:v1:v1:aE1MpmNeievk3v2F:gUkkwhyVzv9KwXU3DjqjFw:JKBcJJ8rtBsbK9UnALdR2QSLbRAoS_gI394UxYQFHewtAMx6SU-WKsr9tTBuj0NYeWYvoK6ZqN9SVeuPCawnGs7XHcCO-bLSpimpE664eHpxZ2SbjoP2-qdpVJ4wWPL0aBZBmMb2Wkgx5ZTm_q-Ua_Bt9Qh6Slwz33A1FUKu9nCgVu3CLp_EBFbX_50xi-YF",
+      "key_version": "v1",
+      "status": "ACTIVE",
+      "scopes": ["contents:read", "metadata:read"],
+      "metadata": {
+        "targetType": "User",
+        "accountHtmlUrl": "https://github.com/vishu1803",
+        "accountAvatarUrl": "https://avatars.githubusercontent.com/u/97516061?v=4",
+        "repositorySelection": "all"
+      },
+      "expires_at": null,
+      "refreshed_at": null,
+      "last_validated_at": "2026-08-30 11:06:38.978+00",
+      "last_error_code": null,
+      "last_error_at": null,
+      "created_at": "2026-08-21 15:05:24.373278+00",
+      "updated_at": "2026-08-30 11:06:38.978+00"
+    }
+  ],
   "candidates": [
     {
       "id": "10a2b51b-09bf-4090-8040-1f60ebeb89c9",
@@ -706,6 +736,16 @@
       "updated_at": "2026-09-11 18:02:47.585344+00"
     },
     {
+      "id": "85c46252-f346-4eb8-b532-23b91d88f2c8",
+      "slug": "node-js-1790094261232",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:24:19.83817+00",
+      "updated_at": "2026-09-22 16:24:19.83817+00"
+    },
+    {
       "id": "16aad95e-8760-4266-b396-4a5a95d22680",
       "slug": "dist-arch-5825ca0a",
       "name": "Distributed Architecture 5825ca0a",
@@ -754,6 +794,16 @@
       "description": null,
       "created_at": "2026-09-12 03:53:11.406671+00",
       "updated_at": "2026-09-12 03:53:11.406671+00"
+    },
+    {
+      "id": "a3efdc7c-a73e-4a6e-a509-78bbebd29e15",
+      "slug": "python-1790094261301",
+      "name": "Python",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:24:19.953589+00",
+      "updated_at": "2026-09-22 16:24:19.953589+00"
     },
     {
       "id": "243ee1d1-cbb8-405b-af1c-a351a864dc97",
@@ -1096,6 +1146,26 @@
       "updated_at": "2026-09-09 14:15:20.189508+00"
     },
     {
+      "id": "6540030a-3d38-43e4-ac59-023fbe548b16",
+      "slug": "node-js-1790094353886",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:25:52.495743+00",
+      "updated_at": "2026-09-22 16:25:52.495743+00"
+    },
+    {
+      "id": "0181558c-d446-4b46-8b1a-60ce124f9a84",
+      "slug": "typescript-1790094354425",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:25:53.037727+00",
+      "updated_at": "2026-09-22 16:25:53.037727+00"
+    },
+    {
       "id": "4789fa03-8452-4c33-92c4-52a911ac1f3b",
       "slug": "nodejs-5c6b9756",
       "name": "Node.js",
@@ -1254,6 +1324,36 @@
       "description": null,
       "created_at": "2026-08-23 08:48:09.185904+00",
       "updated_at": "2026-08-23 08:48:09.185904+00"
+    },
+    {
+      "id": "803744d6-9622-4f52-a4bd-e0b7ae3c2963",
+      "slug": "node-js-1790089822897",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:10:21.567457+00",
+      "updated_at": "2026-09-22 15:10:21.567457+00"
+    },
+    {
+      "id": "14481f33-03ce-4e2a-900c-87e65cc6208d",
+      "slug": "python-1790089822964",
+      "name": "Python",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:10:21.626519+00",
+      "updated_at": "2026-09-22 15:10:21.626519+00"
+    },
+    {
+      "id": "8c610c33-a447-4ed0-92cd-e34547878240",
+      "slug": "node-js-1790094491789",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:28:10.427036+00",
+      "updated_at": "2026-09-22 16:28:10.427036+00"
     },
     {
       "id": "c76ecb9b-7789-4638-82a0-e902cecea0d6",
@@ -1466,6 +1566,16 @@
       "updated_at": "2026-09-09 12:21:44.114566+00"
     },
     {
+      "id": "65cfd70f-d3c4-4ab4-bc23-ae045bab5d56",
+      "slug": "typescript-1790094491888",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:28:10.488279+00",
+      "updated_at": "2026-09-22 16:28:10.488279+00"
+    },
+    {
       "id": "f2d5fb16-8a22-46c0-80b0-1d36dfc3720b",
       "slug": "node-p16f3a-32365a9e",
       "name": "Node.js",
@@ -1606,6 +1716,16 @@
       "updated_at": "2026-09-20 16:43:09.664544+00"
     },
     {
+      "id": "17239011-1358-4a0e-a282-bb3dddbd16dc",
+      "slug": "claim-alpha-280bc444",
+      "name": "Claim Alpha 280bc444",
+      "category": "CONCEPT",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 14:52:39.274018+00",
+      "updated_at": "2026-09-22 14:52:39.274018+00"
+    },
+    {
       "id": "b46ffb16-b3cf-4561-8dfc-b973a74cb7f5",
       "slug": "kubernetes",
       "name": "Kubernetes",
@@ -1654,6 +1774,26 @@
       "description": null,
       "created_at": "2026-09-03 07:21:36.332064+00",
       "updated_at": "2026-09-03 07:21:36.332064+00"
+    },
+    {
+      "id": "aa8f178f-1bb4-4c5b-bc3a-df4266a96f1e",
+      "slug": "node-js-1790089913012",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:11:51.756724+00",
+      "updated_at": "2026-09-22 15:11:51.756724+00"
+    },
+    {
+      "id": "76e71550-0bee-4d0e-b82d-48fa39f2cde7",
+      "slug": "typescript-1790089913180",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:11:51.922088+00",
+      "updated_at": "2026-09-22 15:11:51.922088+00"
     },
     {
       "id": "b516894d-cd64-4966-8bc7-c5324b550efc",
@@ -2366,6 +2506,26 @@
       "updated_at": "2026-09-20 16:43:35.5699+00"
     },
     {
+      "id": "88365ef1-49a5-4c81-b8df-905c078f519c",
+      "slug": "node-js-1790090038900",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:13:57.559498+00",
+      "updated_at": "2026-09-22 15:13:57.559498+00"
+    },
+    {
+      "id": "4af017e2-550d-46be-a121-9a75cbc1d843",
+      "slug": "typescript-1790090038959",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:13:57.622489+00",
+      "updated_at": "2026-09-22 15:13:57.622489+00"
+    },
+    {
       "id": "efd58f17-1c73-4696-808d-106fbfc530e1",
       "slug": "claim-alpha-478526e6",
       "name": "Claim Alpha 478526e6",
@@ -2374,6 +2534,16 @@
       "description": null,
       "created_at": "2026-09-03 07:22:12.373152+00",
       "updated_at": "2026-09-03 07:22:12.373152+00"
+    },
+    {
+      "id": "11ddad7c-f3c0-49b0-adb0-ab88ae8701f0",
+      "slug": "nodejs-9ea4c326",
+      "name": "Node.js 9ea4c326",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:29:31.326443+00",
+      "updated_at": "2026-09-22 16:29:31.326443+00"
     },
     {
       "id": "dca5622e-f13e-4e77-8725-d743422297ce",
@@ -2836,6 +3006,16 @@
       "updated_at": "2026-09-03 07:22:32.479729+00"
     },
     {
+      "id": "cbbafeec-7e32-42f7-8b49-821fb2b19817",
+      "slug": "nodejs-f5bb53ab",
+      "name": "Node.js f5bb53ab",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:15:31.127929+00",
+      "updated_at": "2026-09-22 15:15:31.127929+00"
+    },
+    {
       "id": "4f4c1faf-1908-4126-9877-a90763390daf",
       "slug": "claim-alpha-feea7caa",
       "name": "Claim Alpha Feea7caa",
@@ -3206,6 +3386,16 @@
       "updated_at": "2026-09-09 12:34:34.476992+00"
     },
     {
+      "id": "1a84eb8b-efc0-42db-b8fb-aeea7930c846",
+      "slug": "dist-arch-d04e0466",
+      "name": "Distributed Architecture d04e0466",
+      "category": "ARCHITECTURE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:30:39.53365+00",
+      "updated_at": "2026-09-22 16:30:39.53365+00"
+    },
+    {
       "id": "5f98a1fd-353b-4268-b4fd-c7c0db57bb86",
       "slug": "node-js-1788980658592",
       "name": "Node.js",
@@ -3394,6 +3584,16 @@
       "description": null,
       "created_at": "2026-08-30 12:31:49.525973+00",
       "updated_at": "2026-08-30 12:31:49.525973+00"
+    },
+    {
+      "id": "488ade35-674c-48f2-86aa-211f0d881cdd",
+      "slug": "dist-arch-c91642fa",
+      "name": "Distributed Architecture c91642fa",
+      "category": "ARCHITECTURE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:16:50.288295+00",
+      "updated_at": "2026-09-22 15:16:50.288295+00"
     },
     {
       "id": "f18164db-40e5-4a20-b372-2982376a5328",
@@ -3646,6 +3846,26 @@
       "updated_at": "2026-09-09 12:36:13.910324+00"
     },
     {
+      "id": "8f3c1a54-be3b-4278-b753-26288a073592",
+      "slug": "nodejs-38daf7ed",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:01.090034+00",
+      "updated_at": "2026-09-22 16:33:01.090034+00"
+    },
+    {
+      "id": "e49f34c0-ae72-46b9-9b47-b5d9cbec701c",
+      "slug": "postgres-38daf7ed",
+      "name": "PostgreSQL",
+      "category": "DATABASE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:01.15091+00",
+      "updated_at": "2026-09-22 16:33:01.15091+00"
+    },
+    {
       "id": "5af0819a-8e05-4273-bbef-82561486cb34",
       "slug": "node-p16f3a-4ea41706",
       "name": "Node.js",
@@ -3824,6 +4044,26 @@
       "description": null,
       "created_at": "2026-08-30 14:32:26.204812+00",
       "updated_at": "2026-08-30 14:32:26.204812+00"
+    },
+    {
+      "id": "88584817-9a16-4218-a374-b02149e4e74f",
+      "slug": "nodejs-a2fff3c9",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:19:21.994673+00",
+      "updated_at": "2026-09-22 15:19:21.994673+00"
+    },
+    {
+      "id": "2d0b370e-c859-492d-bc58-d3ae0d4f2ea9",
+      "slug": "postgres-a2fff3c9",
+      "name": "PostgreSQL",
+      "category": "DATABASE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:19:22.054956+00",
+      "updated_at": "2026-09-22 15:19:22.054956+00"
     },
     {
       "id": "245b705e-9c31-426c-9f74-6fcd9b80d50c",
@@ -4186,6 +4426,46 @@
       "updated_at": "2026-09-11 19:09:11.789884+00"
     },
     {
+      "id": "f91971f5-8561-4750-89b5-9ef22ee069c3",
+      "slug": "claim-alpha-ae7bd001",
+      "name": "Claim Alpha Ae7bd001",
+      "category": "CONCEPT",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:06:08.458851+00",
+      "updated_at": "2026-09-22 16:06:08.458851+00"
+    },
+    {
+      "id": "2d654fd1-9744-4835-bc68-4b00a1f639cb",
+      "slug": "nodejs-95bc609a",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:17.666475+00",
+      "updated_at": "2026-09-22 16:33:17.666475+00"
+    },
+    {
+      "id": "4e148480-7e00-4002-bfc6-583374b6e5bf",
+      "slug": "postgres-95bc609a",
+      "name": "PostgreSQL",
+      "category": "DATABASE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:17.760902+00",
+      "updated_at": "2026-09-22 16:33:17.760902+00"
+    },
+    {
+      "id": "87d7d1ed-a83f-4c55-8f70-fb17609624c2",
+      "slug": "typescript-95bc609a",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:17.820336+00",
+      "updated_at": "2026-09-22 16:33:17.820336+00"
+    },
+    {
       "id": "b5da05a8-64a8-4c2a-8cd9-b7b7edd96073",
       "slug": "node-js-1789904478732",
       "name": "Node.js",
@@ -4264,6 +4544,26 @@
       "description": null,
       "created_at": "2026-09-03 07:26:11.695675+00",
       "updated_at": "2026-09-03 07:26:11.695675+00"
+    },
+    {
+      "id": "022c4731-b389-4d68-8a1c-c95aa998aa2a",
+      "slug": "nodejs-9b0b5a21",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:19:40.683926+00",
+      "updated_at": "2026-09-22 15:19:40.683926+00"
+    },
+    {
+      "id": "f77f8bea-db6a-4119-a439-5f648872356c",
+      "slug": "postgres-9b0b5a21",
+      "name": "PostgreSQL",
+      "category": "DATABASE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:19:40.851164+00",
+      "updated_at": "2026-09-22 15:19:40.851164+00"
     },
     {
       "id": "74fe443b-0abd-4941-9081-ce234ce9b13e",
@@ -4496,6 +4796,16 @@
       "updated_at": "2026-09-09 13:55:41.27746+00"
     },
     {
+      "id": "76a303c6-e0be-4eb3-b752-b0af8b53c891",
+      "slug": "typescript-9b0b5a21",
+      "name": "TypeScript",
+      "category": "LANGUAGE",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:19:41.007654+00",
+      "updated_at": "2026-09-22 15:19:41.007654+00"
+    },
+    {
       "id": "137c805a-bc22-44a1-8014-859681e9bcdf",
       "slug": "node-js-1789150712594",
       "name": "Node.js",
@@ -4594,6 +4904,16 @@
       "description": null,
       "created_at": "2026-09-12 03:53:11.515775+00",
       "updated_at": "2026-09-12 03:53:11.515775+00"
+    },
+    {
+      "id": "803dc84d-187e-497a-ba6a-2f8ee1157103",
+      "slug": "node-p16f3a-b436aca3",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 16:33:50.940443+00",
+      "updated_at": "2026-09-22 16:33:50.940443+00"
     },
     {
       "id": "accfa9fd-a467-46ee-af3a-02b3a404ad82",
@@ -4704,6 +5024,16 @@
       "description": null,
       "created_at": "2026-09-03 07:30:52.656946+00",
       "updated_at": "2026-09-03 07:30:52.656946+00"
+    },
+    {
+      "id": "ac50f450-2dd3-4450-b82a-5204d0800d5d",
+      "slug": "node-p16f3a-ad01ee7e",
+      "name": "Node.js",
+      "category": "FRAMEWORK",
+      "aliases": [],
+      "description": null,
+      "created_at": "2026-09-22 15:20:13.857914+00",
+      "updated_at": "2026-09-22 15:20:13.857914+00"
     },
     {
       "id": "b7a9f5f7-05ec-4d4a-9a45-a203240c104d",
@@ -5431,7 +5761,7 @@
       "last_synced_at": "2026-08-30 12:32:55.936+00",
       "metadata": {},
       "created_at": "2026-08-30 12:31:31.962136+00",
-      "updated_at": "2026-09-20 16:46:12.959+00"
+      "updated_at": "2026-09-22 16:37:26.378+00"
     },
     {
       "id": "b80ff55f-2d39-43d9-a121-d9ecfbecb247",
@@ -5449,7 +5779,7 @@
       "last_synced_at": "2026-08-31 13:20:07.575+00",
       "metadata": {},
       "created_at": "2026-08-31 13:19:49.396486+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "2c95f256-9e9e-4dd5-a1dd-29ddf233b593",
@@ -5467,7 +5797,7 @@
       "last_synced_at": "2026-08-31 13:19:57.922+00",
       "metadata": {},
       "created_at": "2026-08-31 13:19:05.189764+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "658e5861-246e-4709-9156-3196ad7bc0ab",
@@ -5485,7 +5815,7 @@
       "last_synced_at": "2026-08-30 12:32:48.776+00",
       "metadata": {},
       "created_at": "2026-08-30 11:27:46.332777+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "c4245f1e-d99a-41f0-b1fd-8cfe8370d455",
@@ -5503,7 +5833,7 @@
       "last_synced_at": "2026-08-30 13:32:53.029+00",
       "metadata": {},
       "created_at": "2026-08-30 13:18:15.983464+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "84863adb-6e8a-47f3-9414-fa15abf5bb3e",
@@ -5521,7 +5851,7 @@
       "last_synced_at": "2026-08-30 12:33:21.306+00",
       "metadata": {},
       "created_at": "2026-08-30 12:31:32.077021+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "0ba206ac-be0d-47bc-8b1a-c47c9b8c2d0b",
@@ -5539,7 +5869,7 @@
       "last_synced_at": "2026-08-30 12:32:04.428+00",
       "metadata": {},
       "created_at": "2026-08-30 12:31:32.186592+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "84096c61-32ca-4a87-8fd1-1ae3efa3676d",
@@ -5557,7 +5887,7 @@
       "last_synced_at": "2026-08-30 12:32:30.009+00",
       "metadata": {},
       "created_at": "2026-08-30 12:31:32.311904+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "83e1d1dd-af80-4f8e-bed3-6bc127c5fe59",
@@ -5575,7 +5905,7 @@
       "last_synced_at": "2026-08-30 13:32:43.695+00",
       "metadata": {},
       "created_at": "2026-08-30 13:18:15.862406+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
     },
     {
       "id": "39b504f5-2cf2-4656-ab9a-2d897a29523e",
@@ -5593,7 +5923,108 @@
       "last_synced_at": "2026-09-06 19:00:06.204+00",
       "metadata": {},
       "created_at": "2026-09-06 18:59:42.56397+00",
-      "updated_at": "2026-09-20 16:46:10.386+00"
+      "updated_at": "2026-09-22 16:37:23.404+00"
+    }
+  ],
+  "project_resources": [
+    {
+      "id": "39c7b8a1-c9d8-4e3f-a8f9-4fb1922e7b61",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "57e17373-ea29-48ae-94fc-0758ce284969",
+      "resource_id": "658e5861-246e-4709-9156-3196ad7bc0ab",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 11:28:24.821938+00"
+    },
+    {
+      "id": "400a3454-7ef6-47ef-a019-c7aef3c9aeff",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "f68e4520-52bd-4355-822f-2bc0a02d8c5f",
+      "resource_id": "658e5861-246e-4709-9156-3196ad7bc0ab",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-25 17:06:08.611705+00"
+    },
+    {
+      "id": "931c7f7e-2940-49b2-aaa4-923092f43e49",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "389d1357-156a-4296-a1bb-603140897bc3",
+      "resource_id": "0ba206ac-be0d-47bc-8b1a-c47c9b8c2d0b",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 12:32:12.135968+00"
+    },
+    {
+      "id": "f949ddff-f6d8-4199-9ff5-f4b1de53b948",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "0769c3f5-e81c-4ebf-8be7-716db1c9e5a2",
+      "resource_id": "84096c61-32ca-4a87-8fd1-1ae3efa3676d",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 12:32:34.776912+00"
+    },
+    {
+      "id": "bd469cab-ede1-4b03-8e08-2243ebb04bb1",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "d0c5640b-7f1d-4a94-ac45-319727c139ed",
+      "resource_id": "054867e0-9b4b-441d-a760-a13dacf46358",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 12:32:57.538448+00"
+    },
+    {
+      "id": "429475da-e6fe-498d-b667-71ce153fa159",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "ea5137c3-2f7f-4e29-a884-28ff3c659ebf",
+      "resource_id": "84863adb-6e8a-47f3-9414-fa15abf5bb3e",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 12:33:27.467931+00"
+    },
+    {
+      "id": "32e9722a-33d2-4022-8e70-17416e7c36bc",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "9fcf04a0-5ff5-4dee-844d-9c61267348fb",
+      "resource_id": "83e1d1dd-af80-4f8e-bed3-6bc127c5fe59",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 13:32:46.024288+00"
+    },
+    {
+      "id": "6eaf9cc9-8f3d-4245-8d76-b4d127e8d833",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "cfe98236-4ca7-481a-8a5d-9f21c7abe73d",
+      "resource_id": "c4245f1e-d99a-41f0-b1fd-8cfe8370d455",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-30 13:32:55.454861+00"
+    },
+    {
+      "id": "daa16cc9-9a1b-48dd-bc14-0c2523c0e826",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "95a13c93-a198-4473-bf64-5b8a50cbd3b9",
+      "resource_id": "39b504f5-2cf2-4656-ab9a-2d897a29523e",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-09-06 19:00:10.605291+00"
+    },
+    {
+      "id": "87c7143a-ede6-4173-9831-f05e83b71cb7",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "8bd2dd23-4883-4948-b1da-b4d57284bf16",
+      "resource_id": "2c95f256-9e9e-4dd5-a1dd-29ddf233b593",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-31 13:19:58.341149+00"
+    },
+    {
+      "id": "9f0cee18-207b-414b-9486-91ac1c2d5cab",
+      "tenant_id": "24d53f53-780e-4431-b065-32180c354175",
+      "project_id": "44b1ff07-221f-4457-b344-f1f9a4cbc307",
+      "resource_id": "b80ff55f-2d39-43d9-a121-d9ecfbecb247",
+      "role_in_project": "Primary Repository",
+      "metadata": {},
+      "created_at": "2026-08-31 13:20:09.15428+00"
     }
   ],
   "candidate_skills": [
@@ -18075,7 +18506,7 @@
         "externalSubmissionState": "HANDOFF_READY"
       },
       "created_at": "2026-09-22 13:37:26.437172+00",
-      "updated_at": "2026-09-22 13:37:48.606+00",
+      "updated_at": "2026-09-22 16:56:59.358+00",
       "canonical_job_id": "test-job-uuid-1",
       "normalized_job_url": "https://boards.greenhouse.io/stripe/jobs/12345"
     },
@@ -22089,7 +22520,7 @@
       "compensation": {
         "currency": "USD"
       },
-      "notes": "Current Package Hash: 95e79de16a9ab0fcb89c980cde06fb7bebbe38b3a1f3800b836b4071d22e9587",
+      "notes": "Current Package Hash: 829789b0de79a63e48b48ad217d65841ba79e60aef128515b0de6424dd4f756d",
       "metadata": {
         "jobId": "c093f2b8-d995-4423-b3fd-c354cf81ecd4",
         "handoffKit": {
@@ -22098,8 +22529,8 @@
               "score": 100,
               "passed": true,
               "metrics": {
-                "wordCount": 385,
-                "characterCount": 3095,
+                "wordCount": 400,
+                "characterCount": 3210,
                 "selectableTextRatio": 1,
                 "jobAlignmentCoverage": 26
               },
@@ -22118,16 +22549,16 @@
               }
             },
             "viewUrl": "/api/applications/a5602dbd-602b-4abe-b0e8-b4fbcb7c0817/artifacts/resume/view",
-            "filename": "Vishwanath Nishad - Senior Backend Engineer.pdf",
+            "filename": "Vishwanath Nishad - DevOps & Platform Engineer.pdf",
             "mimeType": "application/pdf",
-            "storageKey": "7daef0f6-d2f1-4992-9c81-6a58d876e076",
-            "contentHash": "fa107080e115c488ac370d3f11e328a5bff44463ab418162425c2cc00365f3f3",
+            "storageKey": "6399fce4-bc03-4c16-8e14-cbc85d1355b0",
+            "contentHash": "1044c8769464b48b5bd698a9da60ecb78ccc88c77f0124f3e6af534dd2aad11c",
             "downloadUrl": "/api/applications/a5602dbd-602b-4abe-b0e8-b4fbcb7c0817/artifacts/resume/download",
-            "fileSizeBytes": 26861,
+            "fileSizeBytes": 27172,
             "resumeQuality": {
               "jobMatch": {
                 "note": "Candidate/job alignment from the existing evidence-aware fit engine (analyze_job_fit). Independent of resume formatting quality.",
-                "score": 69.89,
+                "score": 54.43,
                 "source": "analyze_job_fit",
                 "fitBand": "MODERATE"
               },
@@ -22139,7 +22570,7 @@
                     "label": "PDF text extraction succeeds",
                     "passed": true,
                     "weight": 12,
-                    "details": "Extracted 3093 characters of selectable text"
+                    "details": "Extracted 3206 characters of selectable text"
                   },
                   {
                     "id": "CANDIDATE_NAME_PRESENT",
@@ -22257,109 +22688,93 @@
                 "passed": true,
                 "metrics": {
                   "pageCountEstimate": null,
-                  "extractedLineCount": 48,
-                  "extractedCharacterCount": 3093
+                  "extractedLineCount": 49,
+                  "extractedCharacterCount": 3206
                 },
                 "version": "1.0.0",
                 "maxScore": 100,
-                "auditedAt": "2026-09-22T13:40:27.360Z",
+                "auditedAt": "2026-09-22T16:58:20.499Z",
                 "disclaimer": "Measures whether this system can reliably parse the generated resume. Not an employer ATS score; no universal ATS score exists."
               },
               "evidenceBackedCoverage": {
-                "score": 50,
+                "score": 23,
                 "summary": {
                   "total": 6,
-                  "claimed": 0,
-                  "missing": 3,
-                  "evidenceBacked": 3
+                  "claimed": 1,
+                  "missing": 4,
+                  "evidenceBacked": 1
                 },
                 "version": "1.0.0",
-                "auditedAt": "2026-09-22T13:40:27.360Z",
+                "auditedAt": "2026-09-22T16:58:20.499Z",
                 "requirements": [
                   {
                     "status": "EVIDENCE_BACKED",
                     "evidence": [
                       {
-                        "detail": "Stored verified skill: Python",
-                        "source": "SKILL_EVIDENCE",
-                        "provenance": "EVIDENCE_BACKED"
+                        "detail": "Candidate-claimed skill: Docker",
+                        "source": "SKILL_CLAIM",
+                        "provenance": "CLAIMED"
                       },
                       {
-                        "detail": "Rendered in evidence-backed project technology stack: Python",
+                        "detail": "Rendered in evidence-backed project technology stack: Docker",
                         "source": "PROJECT_TECHNOLOGY",
                         "provenance": "EVIDENCE_BACKED"
                       }
                     ],
                     "importance": "REQUIRED",
-                    "requirement": "Python"
-                  },
-                  {
-                    "status": "EVIDENCE_BACKED",
-                    "evidence": [
-                      {
-                        "detail": "Stored verified skill: FastAPI",
-                        "source": "SKILL_EVIDENCE",
-                        "provenance": "EVIDENCE_BACKED"
-                      },
-                      {
-                        "detail": "Rendered in evidence-backed project technology stack: FastAPI",
-                        "source": "PROJECT_TECHNOLOGY",
-                        "provenance": "EVIDENCE_BACKED"
-                      }
-                    ],
-                    "importance": "REQUIRED",
-                    "requirement": "FastAPI"
+                    "requirement": "Docker"
                   },
                   {
                     "status": "MISSING",
                     "evidence": [],
                     "importance": "REQUIRED",
-                    "requirement": "Scalable REST APIs"
+                    "requirement": "Containerization"
                   },
                   {
-                    "status": "EVIDENCE_BACKED",
+                    "status": "MISSING",
+                    "evidence": [],
+                    "importance": "REQUIRED",
+                    "requirement": "Container Orchestration"
+                  },
+                  {
+                    "status": "CLAIMED",
                     "evidence": [
                       {
-                        "detail": "Stored verified skill: PostgreSQL",
-                        "source": "SKILL_EVIDENCE",
-                        "provenance": "EVIDENCE_BACKED"
-                      },
-                      {
-                        "detail": "Rendered in evidence-backed project technology stack: PostgreSQL",
-                        "source": "PROJECT_TECHNOLOGY",
-                        "provenance": "EVIDENCE_BACKED"
+                        "detail": "Candidate-claimed skill: GitHub",
+                        "source": "SKILL_CLAIM",
+                        "provenance": "CLAIMED"
                       }
                     ],
                     "importance": "REQUIRED",
-                    "requirement": "PostgreSQL"
+                    "requirement": "GitHub"
+                  },
+                  {
+                    "status": "MISSING",
+                    "evidence": [],
+                    "importance": "REQUIRED",
+                    "requirement": "Automation"
                   },
                   {
                     "status": "MISSING",
                     "evidence": [],
                     "importance": "REQUIRED",
                     "requirement": "Database Management"
-                  },
-                  {
-                    "status": "MISSING",
-                    "evidence": [],
-                    "importance": "REQUIRED",
-                    "requirement": "Microservices"
                   }
                 ],
                 "scoringModel": "EVIDENCE_BACKED = full credit, CLAIMED (candidate-provided/self-declared) = partial credit (0.4), MISSING = zero credit."
               }
             },
-            "texStorageKey": "4915b026-82ee-456d-9791-c88a37a3c8ff",
+            "texStorageKey": "fda9fff8-8421-4cbe-a6db-32bbcef665d4",
             "layoutDiagnostics": {
               "density": "BALANCED",
               "spacing": "WARN",
               "pageCount": 1,
-              "wordCount": 385,
+              "wordCount": 400,
               "dsaExpected": true,
               "dsaRendered": true,
               "sectionsRendered": "6/6",
               "dsaVerificationStatus": "PASS",
-              "contentUtilizationRatio": 0.8555555555555555
+              "contentUtilizationRatio": 0.8888888888888888
             },
             "generationContractVersion": "P16-001F",
             "structuredResumeSchemaVersion": "2.0.0"
@@ -22477,8 +22892,8 @@
             }
           ],
           "targetJob": {
-            "title": "Senior Backend Engineer",
-            "company": "Target Company",
+            "title": "DevOps & Platform Engineer",
+            "company": "InfraScale Systems",
             "location": "Remote",
             "directPortalUrl": "https://example.com/apply"
           },
@@ -22487,8 +22902,8 @@
               "score": 100,
               "passed": true,
               "metrics": {
-                "wordCount": 235,
-                "characterCount": 1835,
+                "wordCount": 246,
+                "characterCount": 1910,
                 "selectableTextRatio": 1,
                 "jobAlignmentCoverage": 100
               },
@@ -22501,17 +22916,17 @@
               "qualityLevel": "EXCELLENT"
             },
             "viewUrl": "/api/applications/a5602dbd-602b-4abe-b0e8-b4fbcb7c0817/artifacts/cover-letter/view",
-            "filename": "Vishwanath Nishad - Senior Backend Engineer - Cover Letter.pdf",
+            "filename": "Vishwanath Nishad - DevOps & Platform Engineer - Cover Letter.pdf",
             "mimeType": "application/pdf",
-            "storageKey": "12d3a453-dad0-4388-8f17-ccb407f6804d",
-            "contentHash": "debd987ac2c89fcadaa67b47123079d0a81a6f2b576c08cdb9117f747e7262ef",
+            "storageKey": "6c7c89f6-0a9c-474e-8ba4-8ac90b6cf440",
+            "contentHash": "9b17c69419fcd6af9f1fd1c43ad510ac3b947de2665f150c0605b58760c94b5d",
             "downloadUrl": "/api/applications/a5602dbd-602b-4abe-b0e8-b4fbcb7c0817/artifacts/cover-letter/download",
-            "fileSizeBytes": 16678,
+            "fileSizeBytes": 17244,
             "generationContractVersion": "P16-001F",
             "structuredResumeSchemaVersion": "2.0.0"
           },
-          "generatedAt": "2026-09-22T13:40:40.601Z",
-          "packageHash": "95e79de16a9ab0fcb89c980cde06fb7bebbe38b3a1f3800b836b4071d22e9587",
+          "generatedAt": "2026-09-22T16:58:42.696Z",
+          "packageHash": "829789b0de79a63e48b48ad217d65841ba79e60aef128515b0de6424dd4f756d",
           "applicationId": "a5602dbd-602b-4abe-b0e8-b4fbcb7c0817",
           "directPortalUrl": "https://example.com/apply",
           "submissionNotice": "Prepared for manual submission. External submission has not occurred.",
@@ -22529,24 +22944,24 @@
           "structuredResumeSchemaVersion": "2.0.0"
         },
         "canonicalJobId": "c093f2b8-d995-4423-b3fd-c354cf81ecd4",
-        "currentPackageHash": "95e79de16a9ab0fcb89c980cde06fb7bebbe38b3a1f3800b836b4071d22e9587",
-        "currentPackageVersion": 436,
+        "currentPackageHash": "829789b0de79a63e48b48ad217d65841ba79e60aef128515b0de6424dd4f756d",
+        "currentPackageVersion": 447,
         "previousPackageHashes": [
-          "b396c20db8eaa0bbc24897781eda43e83d79cd3475c1c11fbbabc97a2171aa14",
-          "2eb6a0df08c50684af4df74b7998a89e372674ae1441bdb68bd474a3bb45cedc",
-          "3e88cc3127c114a11a261c816069dcb466bc3b3dcfe0032ea52f3937496d248f",
+          "a7641c47923291b823134d758586b609cfd9238a2cbb77c47739efffbc75d429",
+          "885056dfd22b07994b8c3097bf691ef243e939bac5b24f806ec823b9dcf381b2",
+          "8e5a173cb90b103161f75108fbea69dc46f5425e31c4f7614b9e258303a01663",
+          "84b219bee6fcb13f800a8902cf4a570fdc22dd9484bcedce2539b08feca6702b",
           "38b9977f38c89c43c4f1299d50cff0593a2434e51c4a6927f6ec5dcefe4da282",
-          "ef664d6967542d7498d19cfe51873a066cbe23a634cc648e67adb3cf1ac3a847",
-          "05b51a6cca45912bf61c1a84fc5777d88e99fc26880c3aa74664f70ce18f23a7",
-          "c0c77d0e0f75cb6ad82f3e2889645cf04de7ead3e2a9d13bbdd60661cad676f8",
-          "0ebdc456228eb6c6d2d552bc0d6eeb450b9ddb9695bff3fe8d97bb4f20346bb8",
-          "ba891b2d5cbaa267f0f0c22166ee3f71e45e1c7993b744d99b366226a878881b",
-          "eb7b2029dbff335df08168719955b1a99c9696eaddb109b632c33b626903dde5"
+          "4bb537c8adcfd10da854ca3c5566057cfa20e6871a511c90773f85e7de5b9cc9",
+          "9975a6f970a9d454bde1644f3314b12f44625aa7f83e067708fd4694d22d6974",
+          "9157f588c99f41fe7b09974d9fc7e4a812358214ff65089d8280101796b086d7",
+          "f523214c4590a62e372711aed70f598300e14499b2020ebb49cd4cf9329bf225",
+          "b45fada2c55815d82ec2ca03cd9c06de68f790bf5d5a70587e2ae3a7459b45ec"
         ],
         "externalSubmissionState": "HANDOFF_READY"
       },
       "created_at": "2026-09-13 10:35:31.472275+00",
-      "updated_at": "2026-09-22 13:40:45.945+00",
+      "updated_at": "2026-09-22 16:58:52.74+00",
       "canonical_job_id": "c093f2b8-d995-4423-b3fd-c354cf81ecd4",
       "normalized_job_url": "https://example.com/apply"
     },
@@ -33910,7 +34325,7 @@
         "externalSubmissionState": "HANDOFF_READY"
       },
       "created_at": "2026-09-22 13:37:21.188791+00",
-      "updated_at": "2026-09-22 13:37:42.061+00",
+      "updated_at": "2026-09-22 16:57:06.388+00",
       "canonical_job_id": "70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f",
       "normalized_job_url": "https://platform-systems.example-corp.com/apply"
     },
