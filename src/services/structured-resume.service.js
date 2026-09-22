@@ -126,6 +126,79 @@ export const FORBIDDEN_FABRICATED_DSA_BULLETS = Object.freeze([
 ]);
 
 /**
+ * Forbidden ungrounded buzzwords that cannot appear in summary unless backed by candidate evidence.
+ */
+export const FORBIDDEN_UNBACKED_SUMMARY_TERMS = Object.freeze([
+  'production-ready',
+  'enterprise-scale',
+  'high availability',
+  'high concurrency',
+  'low latency',
+  'low-latency',
+  'scalable',
+  'fault tolerant',
+  'fault-tolerant',
+  'test-driven',
+  'millions of users',
+  'large-scale',
+  'production systems',
+  'enterprise architecture',
+  'leadership',
+  'architecture ownership',
+]);
+
+/**
+ * Determines whether candidate-owned evidence supports a factual phrase.
+ */
+export function hasEvidenceForPhrase(phrase, doc, options = {}) {
+  const norm = phrase.toLowerCase().replace(/[-_]/g, ' ');
+  const regex = new RegExp(`\\b${norm.replace(/\\s+/g, '[-_\\s]+')}\\b`, 'i');
+
+  const profile = options.candidateProfile;
+  if (profile) {
+    if (regex.test(profile.summary || '')) return true;
+    if (regex.test(profile.headline || '')) return true;
+    for (const p of profile.projects || []) {
+      if (regex.test(p.summary || '')) return true;
+      if (regex.test(p.description || '')) return true;
+      for (const b of p.bullets || []) {
+        const t = typeof b === 'string' ? b : b?.text || '';
+        if (regex.test(t)) return true;
+      }
+    }
+    for (const e of profile.experience || []) {
+      for (const b of e.bullets || []) {
+        const t = typeof b === 'string' ? b : b?.text || '';
+        if (regex.test(t)) return true;
+      }
+    }
+  }
+
+  // Also check rendered doc content
+  for (const p of doc?.projects || []) {
+    if (regex.test(p.summary || '')) return true;
+    if (regex.test(p.description || '')) return true;
+    for (const b of p.bullets || []) {
+      const t = typeof b === 'string' ? b : b?.text || '';
+      if (regex.test(t)) return true;
+    }
+  }
+  for (const e of doc?.experience || []) {
+    for (const b of e.bullets || []) {
+      const t = typeof b === 'string' ? b : b?.text || '';
+      if (regex.test(t)) return true;
+    }
+  }
+  if (doc?.dsa?.bullets) {
+    for (const b of doc.dsa.bullets) {
+      if (regex.test(b || '')) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Strips repository prefixes and non-alphanumeric characters to create a matching slug.
  *
  * @param {string} text
@@ -584,9 +657,8 @@ export function buildStructuredResumeDocument({
           (Array.isArray(canonicalJob?.normalizedRequirements) &&
             canonicalJob.normalizedRequirements.length > 0);
 
-        // When job has technical requirements, exclude projects with zero matched requirements
-        // and zero contributing skills (do not admit irrelevant projects merely for having generic architectural density >= 25)
-        if (!isSelected && hasJobRequirements && !hasMatchedReqs && !hasContributingSkills) {
+        // Exclude explicitly rejected projects or projects below minimum threshold
+        if (r.selectionStatus === 'REJECTED' || r.status === 'REJECTED') {
           continue;
         }
 
@@ -1224,7 +1296,17 @@ export function buildStructuredResumeDocument({
             ? proj.metadata.skills
             : [];
 
-    const matchedReqs = ranking?.matchedRequirementIds || ranking?.matchedRequirements || [];
+    const rawMatchedReqs = ranking?.matchedRequirementIds || ranking?.matchedRequirements || [];
+    const matchedReqs = (Array.isArray(rawMatchedReqs) ? rawMatchedReqs : [])
+      .map((r) => {
+        if (typeof r === 'string') return r.trim();
+        if (r && typeof r === 'object') {
+          const id = r.requirementId || r.id || r.name || r.title;
+          return typeof id === 'string' ? id.trim() : '';
+        }
+        return '';
+      })
+      .filter(Boolean);
     const selectedFactIds = pBullets.flatMap((b) => b.composedFromFactIds || []).filter(Boolean);
 
     return {
@@ -1384,16 +1466,22 @@ export function buildStructuredResumeDocument({
 
   // 9. Grounded Tailored Summary
   let summary = null;
+  const renderedPIdSet = new Set(
+    projects.flatMap((p) => [p.projectId, p.id, p.name, p.displayName].filter(Boolean))
+  );
+
   if (
     options?.aiContent?.summary &&
     typeof options.aiContent.summary === 'object' &&
     typeof options.aiContent.summary.text === 'string' &&
     options.aiContent.summary.text.trim().length > 0
   ) {
+    const rawRefPIds = options.aiContent.summary.referencedProjectIds || [];
+    const validRefPIds = rawRefPIds.filter((id) => renderedPIdSet.has(id));
     summary = {
       text: options.aiContent.summary.text,
       referencedSkillSlugs: options.aiContent.summary.referencedSkillSlugs || [],
-      referencedProjectIds: options.aiContent.summary.referencedProjectIds || [],
+      referencedProjectIds: validRefPIds,
       evidenceRefs: options.aiContent.summary.evidenceRefs || [],
       matchedRequirementIds: options.aiContent.summary.matchedRequirementIds || [],
       composedFromFactIds: options.aiContent.summary.composedFromFactIds || [],
@@ -1406,7 +1494,12 @@ export function buildStructuredResumeDocument({
         ? { transformationType: options.aiContent.summary.transformationType }
         : {}),
       ...(options.aiContent.summary.sentences
-        ? { sentences: options.aiContent.summary.sentences }
+        ? {
+            sentences: options.aiContent.summary.sentences.map((s) => ({
+              ...s,
+              projectIds: (s.projectIds || []).filter((id) => renderedPIdSet.has(id)),
+            })),
+          }
         : {}),
     };
   } else if (
@@ -1417,7 +1510,9 @@ export function buildStructuredResumeDocument({
     summary = {
       text: incomingPlan.summary.text,
       referencedSkillSlugs: incomingPlan.summary.referencedSkillSlugs || [],
-      referencedProjectIds: incomingPlan.summary.referencedProjectIds || [],
+      referencedProjectIds: (incomingPlan.summary.referencedProjectIds || []).filter((id) =>
+        renderedPIdSet.has(id)
+      ),
       evidenceRefs: incomingPlan.summary.evidenceRefs || [],
       matchedRequirementIds: incomingPlan.summary.matchedRequirementIds || [],
       provenanceStatus: incomingPlan.summary.provenanceStatus || 'CLAIMED',
@@ -1436,12 +1531,18 @@ export function buildStructuredResumeDocument({
       text: compSummary.text,
       referencedSkillSlugs:
         compSummary.referencedSkillSlugs || compSummary.topRelevantTechnologies || [],
-      referencedProjectIds: compSummary.referencedProjectIds || [],
+      referencedProjectIds: (compSummary.referencedProjectIds || []).filter((id) =>
+        renderedPIdSet.has(id)
+      ),
       evidenceRefs: compSummary.evidenceRefs || [],
       matchedRequirementIds: compSummary.matchedRequirementIds || [],
       composedFromFactIds: compSummary.composedFromFactIds || [],
       provenanceStatus: 'VERIFIED',
       provenance: null,
+      sentences: (compSummary.sentences || []).map((s) => ({
+        ...s,
+        projectIds: (s.projectIds || []).filter((id) => renderedPIdSet.has(id)),
+      })),
     };
   }
 
@@ -1835,9 +1936,13 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
     else if (doc.summary.provenanceStatus === 'CORROBORATED') corroboratedClaimsCount += 1;
     else claimedClaimsCount += 1;
 
+    const summaryText = doc.summary.text;
+
     // Cross-section check: Summary referenced projects must belong to rendered projects
     if (Array.isArray(doc.summary.referencedProjectIds)) {
-      const renderedProjectIds = new Set(renderedProjects.map((p) => p.projectId));
+      const renderedProjectIds = new Set(
+        renderedProjects.flatMap((p) => [p.projectId, p.id, p.name, p.displayName].filter(Boolean))
+      );
       for (const refId of doc.summary.referencedProjectIds) {
         if (!renderedProjectIds.has(refId)) {
           violations.push({
@@ -1847,6 +1952,80 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
             violationType: 'UNBACKED_CLAIM',
             message: `Summary references project '${refId}' which is not among selected rendered projects.`,
           });
+        }
+      }
+    }
+
+    // Cross-section check: Summary must not reference unselected or rejected candidate projects
+    const allCandidateProjects = options?.candidateProfile?.projects || [];
+    if (allCandidateProjects.length > 0) {
+      const renderedNames = new Set(
+        renderedProjects.map((p) => (p.name || p.displayName || '').toLowerCase()).filter(Boolean)
+      );
+      for (const cp of allCandidateProjects) {
+        const cpName = cp.name || cp.displayName || cp.title;
+        if (cpName && !renderedNames.has(cpName.toLowerCase())) {
+          const escaped = cpName
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/[-_]/g, '[-_\\s]+');
+          if (
+            new RegExp(`(?:^|[^a-zA-Z0-9_])${escaped}(?:$|[^a-zA-Z0-9_])`, 'i').test(summaryText)
+          ) {
+            violations.push({
+              section: 'SUMMARY',
+              field: 'text',
+              claimText: cpName,
+              violationType: 'UNBACKED_CLAIM',
+              message: `Summary references unselected project '${cpName}'.`,
+            });
+          }
+        }
+      }
+    }
+
+    // Cross-section check: No unsupported buzzwords without candidate evidence
+    for (const term of FORBIDDEN_UNBACKED_SUMMARY_TERMS) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[-_]/g, '[-_\\s]+');
+      const termRegex = new RegExp(`(?:^|[^a-zA-Z0-9_])${escaped}(?:$|[^a-zA-Z0-9_])`, 'i');
+      if (termRegex.test(summaryText)) {
+        if (!hasEvidenceForPhrase(term, doc, options)) {
+          violations.push({
+            section: 'SUMMARY',
+            field: 'text',
+            claimText: term,
+            violationType: 'UNBACKED_CLAIM',
+            message: `Summary contains unsupported claim/buzzword '${term}' without candidate evidence support.`,
+          });
+        }
+      }
+    }
+
+    // Cross-section check: Cross-project attribution prevention
+    for (const proj of renderedProjects) {
+      const pName = proj.name || proj.displayName;
+      if (pName && summaryText.includes(pName)) {
+        for (const other of renderedProjects) {
+          if (other.projectId === proj.projectId) continue;
+          const otherTechs = (other.technologies || []).filter(
+            (ot) => !(proj.technologies || []).some((pt) => pt.toLowerCase() === ot.toLowerCase())
+          );
+          for (const ot of otherTechs) {
+            const pSentence = summaryText.split(/[.!?]+/).find((s) => s.includes(pName));
+            if (pSentence) {
+              const escaped = ot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              if (
+                new RegExp(`(?:^|[^a-zA-Z0-9_])${escaped}(?:$|[^a-zA-Z0-9_])`, 'i').test(pSentence)
+              ) {
+                violations.push({
+                  section: 'SUMMARY',
+                  field: 'text',
+                  claimText: `${pName} with ${ot}`,
+                  violationType: 'CROSS_PROJECT_LEAKAGE',
+                  message: `Summary associates technology '${ot}' (from '${other.name || other.projectId}') with project '${pName}'.`,
+                });
+              }
+            }
+          }
         }
       }
     }
@@ -1926,11 +2105,18 @@ export function buildStructuredResumeSnapshot({
   const callerSink = typeof options?.reportSink === 'function' ? options.reportSink : null;
   // Resolve authoritative rankings at snapshot level if omitted by caller
   const resolvedOptions = { ...options };
+  const hasJobCriteria =
+    (Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0) ||
+    (Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0) ||
+    (typeof jobPosting?.description === 'string' && jobPosting.description.trim().length > 0) ||
+    (Array.isArray(jobPosting?.normalizedRequirements) &&
+      jobPosting.normalizedRequirements.length > 0);
+
   if (
     !resolvedOptions.projectRankings &&
     !jobPosting?.projectRankings &&
     !jobPosting?.jobFitAnalysis?.projectRankings &&
-    jobPosting &&
+    hasJobCriteria &&
     Array.isArray(candidateProfile?.projects) &&
     candidateProfile.projects.length > 0
   ) {
@@ -1947,6 +2133,44 @@ export function buildStructuredResumeSnapshot({
         candidateProfile.candidateId ||
         candidateProfile.candidate?.id ||
         '00000000-0000-0000-0000-000000000000';
+      const isTenantUuid = (id) =>
+        typeof id === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+      const uuidToOrigIdMap = new Map();
+      const normalizedProjects = candidateProfile.projects.map((p, idx) => {
+        const origId = p.id || p.projectId || `proj-${idx + 1}`;
+        const pId = isTenantUuid(origId) ? origId : crypto.randomUUID();
+        if (!isTenantUuid(origId)) {
+          uuidToOrigIdMap.set(pId, origId);
+        }
+
+        let evidence = Array.isArray(p.evidence)
+          ? p.evidence.map((e) => ({
+              ...e,
+              id: isTenantUuid(e.id) ? e.id : crypto.randomUUID(),
+            }))
+          : [];
+
+        if (evidence.length === 0 && Array.isArray(p.technologies) && p.technologies.length > 0) {
+          evidence = p.technologies.map((tech) => ({
+            id: crypto.randomUUID(),
+            evidenceType: 'CODE_USAGE',
+            skillSlug:
+              typeof tech === 'string' ? tech.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'tech',
+            skillName: typeof tech === 'string' ? tech : 'Tech',
+            confidenceScore: 0.9,
+            sourceLocation: { filePath: 'src/main.ts' },
+          }));
+        }
+
+        return {
+          ...p,
+          id: pId,
+          evidence,
+        };
+      });
+
       const projAnalysis = ProjectRelevanceService.computeProjectsRelevance(
         { tenantId },
         {
@@ -1961,14 +2185,17 @@ export function buildStructuredResumeSnapshot({
           skills: jobPosting.skills || [],
           description: jobPosting.description || '',
         },
-        candidateProfile.projects,
+        normalizedProjects,
         {
           candidateId,
           skills: candidateProfile.skills || candidateProfile.candidate?.skills,
         }
       );
       if (Array.isArray(projAnalysis?.projectRankings)) {
-        resolvedOptions.projectRankings = projAnalysis.projectRankings;
+        resolvedOptions.projectRankings = projAnalysis.projectRankings.map((r) => {
+          const origId = uuidToOrigIdMap.get(r.projectId);
+          return origId ? { ...r, projectId: origId } : r;
+        });
       }
     } catch {
       // Best-effort authoritative ranking resolution

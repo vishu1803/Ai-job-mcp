@@ -874,185 +874,187 @@ export default async function extensionRoutes(app, opts = {}) {
   // 3. POST /api/extension/prepare-handoff — Prepare Handoff Kit
   // -------------------------------------------------------------------------
   app.post('/prepare-handoff', async (req, reply) => {
-    const sessionContext = await resolveExtensionSession(req, database);
-    if (!sessionContext) {
-      return reply.code(401).send({
-        error: 'Unauthorized',
-        code: 'UNAUTHENTICATED',
-        message: 'Authentication required to prepare handoff kit',
-      });
-    }
+    try {
+      const sessionContext = await resolveExtensionSession(req, database);
+      if (!sessionContext) {
+        return reply.code(401).send({
+          error: 'Unauthorized',
+          code: 'UNAUTHENTICATED',
+          message: 'Authentication required to prepare handoff kit',
+        });
+      }
 
-    const { user, tenant } = sessionContext;
-    const candidate = await getOrCreateCandidate(database, tenant.id, user);
-    const { job, applicationId, analysisSnapshotId } = req.body || {};
+      const { user, tenant } = sessionContext;
+      const candidate = await getOrCreateCandidate(database, tenant.id, user);
+      const { job, applicationId, analysisSnapshotId } = req.body || {};
 
-    if (!job || (!job.description && !job.rawText && !job.title)) {
-      return reply.code(400).send({
-        error: 'Bad Request',
-        code: 'INVALID_JOB_PAYLOAD',
-        message: 'Job payload must include title and description or rawText',
-      });
-    }
+      if (!job || (!job.description && !job.rawText && !job.title)) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          code: 'INVALID_JOB_PAYLOAD',
+          message: 'Job payload must include title and description or rawText',
+        });
+      }
 
-    const sourceUrl = job.sourceUrl || '';
-    const company = job.company || 'Unknown Company';
-    const title = job.title || 'Untitled Role';
+      const sourceUrl = job.sourceUrl || '';
+      const company = job.company || 'Unknown Company';
+      const title = job.title || 'Untitled Role';
 
-    const normalizedJobUrl = sourceUrl ? normalizeJobUrl(sourceUrl) : null;
-    let canonicalJobId = deriveCanonicalJobId({
-      jobUrl: sourceUrl,
-      directPortalUrl: sourceUrl,
-      applicationUrl: sourceUrl,
-      provider: job.provider,
-      externalJobId: job.externalJobId,
-      company,
-      title,
-      jobPosting: {
-        url: sourceUrl,
+      const normalizedJobUrl = sourceUrl ? normalizeJobUrl(sourceUrl) : null;
+      let canonicalJobId = deriveCanonicalJobId({
+        jobUrl: sourceUrl,
         directPortalUrl: sourceUrl,
         applicationUrl: sourceUrl,
         provider: job.provider,
         externalJobId: job.externalJobId,
         company,
         title,
-      },
-    });
-
-    if (!canonicalJobId && (normalizedJobUrl || (company && title))) {
-      const providerKey = (job.provider || 'GENERIC').toUpperCase();
-      const seed = normalizedJobUrl || `${company.toLowerCase()}:${title.toLowerCase()}`;
-      canonicalJobId = generateCanonicalJobId(providerKey, seed);
-    }
-
-    // Resolve and Validate Authoritative Analysis Snapshot (P16-001F-3B)
-    const jobContentHash = computeJobContentHash(job);
-    let authoritativeJobFit = null;
-    const targetSnapshotId = analysisSnapshotId || job.analysisSnapshotId || null;
-
-    if (targetSnapshotId || canonicalJobId) {
-      try {
-        const validationResult = await snapshotService.getValidatedSnapshot({
-          context: { tenantId: tenant.id, candidateId: candidate.id },
-          snapshotId: targetSnapshotId,
-          canonicalJobId,
-          jobContentHash,
-          expectedJob: job,
-        });
-
-        if (validationResult.valid && validationResult.snapshot) {
-          authoritativeJobFit = snapshotService.toWorkflowJobFit(validationResult.snapshot);
-          req.log.info(
-            { snapshotId: validationResult.snapshot.id, canonicalJobId },
-            'Authoritative analysis snapshot bound to prepare-handoff request'
-          );
-        } else {
-          req.log.warn(
-            { reason: validationResult.reason, targetSnapshotId, canonicalJobId },
-            'Analysis snapshot not used — falling back to parser-backed computation'
-          );
-        }
-      } catch (validationErr) {
-        if (
-          validationErr.statusCode === 403 ||
-          validationErr.statusCode === 409 ||
-          validationErr instanceof AuthorizationError ||
-          validationErr instanceof ConflictError ||
-          validationErr.code === 'ANALYSIS_JOB_MISMATCH'
-        ) {
-          return reply.code(validationErr.statusCode || 403).send({
-            error: validationErr.name || 'Error',
-            code:
-              validationErr.code ||
-              (validationErr.statusCode === 409 ? 'ANALYSIS_JOB_MISMATCH' : 'ACCESS_DENIED'),
-            message: validationErr.message,
-          });
-        }
-        req.log.warn({ error: validationErr.message }, 'Unexpected snapshot validation error');
-      }
-    }
-
-    // 1. Guard against mutations on submitted applications
-    if (applicationId) {
-      const [appRow] = await database
-        .select()
-        .from(jobApplications)
-        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenant.id)))
-        .limit(1);
-
-      if (appRow && isSubmittedApplication(appRow)) {
-        return reply.code(409).send({
-          error: 'Conflict',
-          code: 'APPLICATION_ALREADY_SUBMITTED',
-          message: 'This application has already been submitted and cannot be modified.',
-        });
-      }
-    } else {
-      // P15-002 Batch 3: same inactive-status exclusion as above so the 409
-      // protection check and the reported existingApplication agree with the
-      // workflow service's reuse semantics.
-      const existingApps = await database
-        .select()
-        .from(jobApplications)
-        .where(
-          and(
-            eq(jobApplications.tenantId, tenant.id),
-            eq(jobApplications.candidateId, candidate.id),
-            notInArray(jobApplications.status, [...INACTIVE_APPLICATION_STATUSES])
-          )
-        );
-
-      const match = existingApps.find((app) => {
-        if (canonicalJobId && app.canonicalJobId === canonicalJobId) return true;
-        if (normalizedJobUrl && app.normalizedJobUrl === normalizedJobUrl) return true;
-        return false;
+        jobPosting: {
+          url: sourceUrl,
+          directPortalUrl: sourceUrl,
+          applicationUrl: sourceUrl,
+          provider: job.provider,
+          externalJobId: job.externalJobId,
+          company,
+          title,
+        },
       });
 
-      if (match && isSubmittedApplication(match)) {
-        return reply.code(409).send({
-          error: 'Conflict',
-          code: 'APPLICATION_ALREADY_SUBMITTED',
-          message: 'This application has already been submitted and cannot be modified.',
-        });
+      if (!canonicalJobId && (normalizedJobUrl || (company && title))) {
+        const providerKey = (job.provider || 'GENERIC').toUpperCase();
+        const seed = normalizedJobUrl || `${company.toLowerCase()}:${title.toLowerCase()}`;
+        canonicalJobId = generateCanonicalJobId(providerKey, seed);
       }
-    }
 
-    const rawProvider = String(job.provider || '').toUpperCase();
-    const source = ['GREENHOUSE', 'LEVER', 'REMOTE_OK', 'STRUCTURED_FEED'].includes(rawProvider)
-      ? rawProvider
-      : 'MANUAL';
+      // Resolve and Validate Authoritative Analysis Snapshot (P16-001F-3B)
+      const jobContentHash = computeJobContentHash(job);
+      let authoritativeJobFit = null;
+      const targetSnapshotId = analysisSnapshotId || job.analysisSnapshotId || null;
 
-    const targetJob = {
-      id: canonicalJobId,
-      canonicalJobId,
-      source,
-      provider: source,
-      externalJobId: job.externalJobId || undefined,
-      company,
-      title,
-      description: (job.description || job.rawText || '').trim(),
-      location: job.location || 'Remote',
-      workplaceType: ['REMOTE', 'HYBRID', 'ON_SITE'].includes(
-        String(job.workplace || '').toUpperCase()
-      )
-        ? String(job.workplace).toUpperCase()
-        : 'REMOTE',
-      employmentType: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'].includes(
-        String(job.employmentType || '').toUpperCase()
-      )
-        ? String(job.employmentType).toUpperCase()
-        : 'FULL_TIME',
-      applicationUrl: sourceUrl || 'https://aicareershub.tech/job-portal',
-      directPortalUrl: sourceUrl || undefined,
-      sourceUrl: sourceUrl || undefined,
-      retrievedAt: new Date().toISOString(),
-      responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
-      requirements: Array.isArray(job.requirements) ? job.requirements : [],
-      skills: Array.isArray(job.skills) ? job.skills : [],
-      ...(authoritativeJobFit ? { jobFitAnalysis: authoritativeJobFit } : {}),
-    };
+      if (targetSnapshotId || canonicalJobId) {
+        try {
+          const validationResult = await snapshotService.getValidatedSnapshot({
+            context: { tenantId: tenant.id, candidateId: candidate.id },
+            snapshotId: targetSnapshotId,
+            canonicalJobId,
+            jobContentHash,
+            expectedJob: job,
+          });
 
-    try {
+          if (validationResult.valid && validationResult.snapshot) {
+            authoritativeJobFit = snapshotService.toWorkflowJobFit(validationResult.snapshot);
+            req.log.info(
+              { snapshotId: validationResult.snapshot.id, canonicalJobId },
+              'Authoritative analysis snapshot bound to prepare-handoff request'
+            );
+          } else {
+            req.log.warn(
+              { reason: validationResult.reason, targetSnapshotId, canonicalJobId },
+              'Analysis snapshot not used — falling back to parser-backed computation'
+            );
+          }
+        } catch (validationErr) {
+          if (
+            validationErr.statusCode === 403 ||
+            validationErr.statusCode === 409 ||
+            validationErr instanceof AuthorizationError ||
+            validationErr instanceof ConflictError ||
+            validationErr.code === 'ANALYSIS_JOB_MISMATCH'
+          ) {
+            return reply.code(validationErr.statusCode || 403).send({
+              error: validationErr.name || 'Error',
+              code:
+                validationErr.code ||
+                (validationErr.statusCode === 409 ? 'ANALYSIS_JOB_MISMATCH' : 'ACCESS_DENIED'),
+              message: validationErr.message,
+            });
+          }
+          req.log.warn({ error: validationErr.message }, 'Unexpected snapshot validation error');
+        }
+      }
+
+      // 1. Guard against mutations on submitted applications
+      if (applicationId) {
+        const [appRow] = await database
+          .select()
+          .from(jobApplications)
+          .where(
+            and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenant.id))
+          )
+          .limit(1);
+
+        if (appRow && isSubmittedApplication(appRow)) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            code: 'APPLICATION_ALREADY_SUBMITTED',
+            message: 'This application has already been submitted and cannot be modified.',
+          });
+        }
+      } else {
+        // P15-002 Batch 3: same inactive-status exclusion as above so the 409
+        // protection check and the reported existingApplication agree with the
+        // workflow service's reuse semantics.
+        const existingApps = await database
+          .select()
+          .from(jobApplications)
+          .where(
+            and(
+              eq(jobApplications.tenantId, tenant.id),
+              eq(jobApplications.candidateId, candidate.id),
+              notInArray(jobApplications.status, [...INACTIVE_APPLICATION_STATUSES])
+            )
+          );
+
+        const match = existingApps.find((app) => {
+          if (canonicalJobId && app.canonicalJobId === canonicalJobId) return true;
+          if (normalizedJobUrl && app.normalizedJobUrl === normalizedJobUrl) return true;
+          return false;
+        });
+
+        if (match && isSubmittedApplication(match)) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            code: 'APPLICATION_ALREADY_SUBMITTED',
+            message: 'This application has already been submitted and cannot be modified.',
+          });
+        }
+      }
+
+      const rawProvider = String(job.provider || '').toUpperCase();
+      const source = ['GREENHOUSE', 'LEVER', 'REMOTE_OK', 'STRUCTURED_FEED'].includes(rawProvider)
+        ? rawProvider
+        : 'MANUAL';
+
+      const targetJob = {
+        id: canonicalJobId,
+        canonicalJobId,
+        source,
+        provider: source,
+        externalJobId: job.externalJobId || undefined,
+        company,
+        title,
+        description: (job.description || job.rawText || '').trim(),
+        location: job.location || 'Remote',
+        workplaceType: ['REMOTE', 'HYBRID', 'ON_SITE'].includes(
+          String(job.workplace || '').toUpperCase()
+        )
+          ? String(job.workplace).toUpperCase()
+          : 'REMOTE',
+        employmentType: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'].includes(
+          String(job.employmentType || '').toUpperCase()
+        )
+          ? String(job.employmentType).toUpperCase()
+          : 'FULL_TIME',
+        applicationUrl: sourceUrl || 'https://aicareershub.tech/job-portal',
+        directPortalUrl: sourceUrl || undefined,
+        sourceUrl: sourceUrl || undefined,
+        retrievedAt: new Date().toISOString(),
+        responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
+        requirements: Array.isArray(job.requirements) ? job.requirements : [],
+        skills: Array.isArray(job.skills) ? job.skills : [],
+        ...(authoritativeJobFit ? { jobFitAnalysis: authoritativeJobFit } : {}),
+      };
+
       const preparedResult = await workflowService.prepareJobApplication({
         tenantId: tenant.id,
         candidateId: candidate.id,
@@ -1172,6 +1174,7 @@ export default async function extensionRoutes(app, opts = {}) {
             err.message || 'This application has already been submitted and cannot be modified.',
         });
       }
+
       req.log.error({ error: err.message }, 'Failed to prepare job application handoff kit');
       return reply.code(500).send({
         error: 'Internal Server Error',

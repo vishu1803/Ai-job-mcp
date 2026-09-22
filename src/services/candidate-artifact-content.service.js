@@ -2844,7 +2844,15 @@ export class CandidateArtifactContentService {
       jobPosting?.jobFitAnalysis?.topRelevantProjects ||
       null;
 
-    if (!authoritativeRankings && jobPosting && (candidateData?.projects || []).length > 0) {
+    const hasExplicitRecommendations =
+      Array.isArray(jobPosting?.recommendedProjects) && jobPosting.recommendedProjects.length > 0;
+
+    if (
+      !authoritativeRankings &&
+      !hasExplicitRecommendations &&
+      jobPosting &&
+      (candidateData?.projects || []).length > 0
+    ) {
       try {
         const isTenantUuid = (id) =>
           typeof id === 'string' &&

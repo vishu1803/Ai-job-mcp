@@ -26,6 +26,7 @@
     "scan:secrets:history": "node scripts/scan-secrets.js --history",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.js",
+    "db:seed:test": "node scripts/seed-test-fixtures.js",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio"
   },

@@ -40,6 +40,9 @@ jobs:
       DATABASE_POOL_MAX: 5
       DATABASE_STATEMENT_TIMEOUT_MS: 10000
       LOG_LEVEL: warn
+      ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+      SESSION_COOKIE_SECRET: 'mock-ci-session-cookie-secret-minimum-32-chars-long'
+      AUTH_SECRET: 'mock-ci-auth-secret-minimum-32-chars-long'
 
     steps:
       - name: Checkout repository
@@ -71,6 +74,9 @@ jobs:
 
       - name: Execute database migrations from scratch
         run: npm run db:migrate
+
+      - name: Seed test database fixtures
+        run: npm run db:seed:test
 
       - name: Execute unit test suite
         run: npm run test:unit

@@ -515,7 +515,7 @@ export class AiResumeContentGeneratorService {
     } else if (isPython || (isBackend && !isDistributed)) {
       s1 = `Backend Engineer specializing in robust REST API development, database persistence, and service performance using ${techString}.`;
       s2 = topProjName
-        ? `Engineered scalable backend services and asynchronous webhook pipelines in ${topProjName}, optimizing relational schemas and query latency.`
+        ? `Engineered modular backend services and asynchronous webhook pipelines in ${topProjName}, optimizing relational schemas and query latency.`
         : `Demonstrated delivery of reliable backend services backed by automated testing and clean modular design.`;
       s3 = `Committed to robust server architecture, data integrity, and continuous algorithmic problem-solving.`;
     } else if (isDevOps) {
@@ -525,14 +525,14 @@ export class AiResumeContentGeneratorService {
         : `Focuses on automated workflows, containerized service orchestration, and reliable production operations.`;
       s3 = `Applies strong system design fundamentals and active algorithmic practice to maintain resilient engineering solutions.`;
     } else if (isDistributed) {
-      s1 = `Systems-focused Backend Engineer with expertise in concurrent request handling, event processing, and scalable service integration using ${techString}.`;
+      s1 = `Systems-focused Backend Engineer with expertise in concurrent request handling, event processing, and modular service integration using ${techString}.`;
       s2 = topProjName
-        ? `Engineered asynchronous webhook ingestion endpoints and high-concurrency background workflows in ${topProjName}, maintaining service availability under load.`
-        : `Experienced in architecting decoupled, fault-tolerant backend workflows with robust error boundaries.`;
+        ? `Engineered asynchronous webhook ingestion endpoints and event workflows in ${topProjName}, maintaining service availability under load.`
+        : `Experienced in architecting decoupled, resilient backend workflows with robust error boundaries.`;
       s3 = `Grounded in core data structures, concurrency paradigms, and analytical problem-solving.`;
     } else {
       // Full-Stack
-      s1 = `Full-Stack Developer adept at engineering end-to-end web applications, bridging responsive client interfaces with scalable backend APIs using ${techString}.`;
+      s1 = `Full-Stack Developer adept at engineering end-to-end web applications, bridging responsive client interfaces with modular backend APIs using ${techString}.`;
       s2 =
         topProjName && secondProjName
           ? `Delivered full-lifecycle features across ${topProjName} and ${secondProjName}, implementing authenticated REST APIs, relational persistence, and interactive user experiences.`
@@ -626,24 +626,61 @@ export class AiResumeContentGeneratorService {
     const s3FactId = s3Fact ? s3Fact.factId || s3Fact.id : null;
     const s3Source = s3Fact ? s3Fact.text : '';
 
+    const referencedProjectIds = [];
+    if (topProj && topProjName && (summaryText.includes(topProjName) || s2.includes(topProjName))) {
+      const pId = topProj.id || topProj.projectId || topProj.name;
+      if (pId) referencedProjectIds.push(pId);
+    }
+    if (secondProj && secondProjName && summaryText.includes(secondProjName)) {
+      const pId = secondProj.id || secondProj.projectId || secondProj.name;
+      if (pId && !referencedProjectIds.includes(pId)) referencedProjectIds.push(pId);
+    }
+
     const sentences = [
       {
         text: s1,
         composedFromFactIds: [s1FactId].filter(Boolean),
         sourceFact: s1Source || undefined,
         transformationType: 'EMPHASIZE',
+        factIds: [s1FactId].filter(Boolean),
+        projectIds: [],
+        skillSlugs: relevantSkills.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '-')),
+        evidenceRefs: [s1FactId]
+          .filter(Boolean)
+          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+        matchedRequirementIds: [],
+        provenanceStatus: 'VERIFIED',
+        jobRelevance: 50,
       },
       {
         text: s2,
         composedFromFactIds: [s2FactId].filter(Boolean),
         sourceFact: s2Source || undefined,
         transformationType: 'REWRITE',
+        factIds: [s2FactId].filter(Boolean),
+        projectIds: referencedProjectIds.slice(0, 1),
+        skillSlugs: [],
+        evidenceRefs: [s2FactId]
+          .filter(Boolean)
+          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+        matchedRequirementIds: [],
+        provenanceStatus: 'VERIFIED',
+        jobRelevance: 40,
       },
       {
         text: s3,
         composedFromFactIds: [s3FactId].filter(Boolean),
         sourceFact: s3Source || undefined,
         transformationType: 'CONDENSE',
+        factIds: [s3FactId].filter(Boolean),
+        projectIds: [],
+        skillSlugs: [],
+        evidenceRefs: [s3FactId]
+          .filter(Boolean)
+          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+        matchedRequirementIds: [],
+        provenanceStatus: 'VERIFIED',
+        jobRelevance: 30,
       },
     ];
 
@@ -657,7 +694,7 @@ export class AiResumeContentGeneratorService {
     return {
       text: summaryText,
       referencedSkillSlugs: relevantSkills.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '-')),
-      referencedProjectIds: selectedProjects.map((p) => p.id || p.projectId || p.name),
+      referencedProjectIds,
       composedFromFactIds: allFactIds,
       evidenceRefs: allFactIds.map((id) =>
         toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })

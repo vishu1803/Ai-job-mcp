@@ -527,6 +527,13 @@ export const TailoredSummarySchema = z
       .array(
         z.object({
           text: z.string(),
+          factIds: z.array(z.string()).default([]),
+          projectIds: z.array(z.string()).default([]),
+          skillSlugs: z.array(z.string()).default([]),
+          evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
+          matchedRequirementIds: z.array(z.string()).default([]),
+          provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
+          jobRelevance: z.number().default(0),
           composedFromFactIds: z.array(z.string()).default([]),
           sourceFact: z
             .union([z.string(), z.array(z.string())])

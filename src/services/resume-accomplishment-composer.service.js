@@ -819,15 +819,15 @@ export function composeProfessionalSummary({
       titlePattern: /\b(software\s+engineer|full[- ]?stack|application\s+engineer|developer)\b/i,
       rolePrefix: 'Software Engineer specializing in',
       differentiator:
-        'end-to-end software delivery, modular architecture, and test-driven development',
+        'modular architecture, clean service boundaries, and robust software delivery',
       sentence1: (domains, tech) =>
         `Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
       sentence2: (proj, diff) =>
         proj
           ? `Engineered maintainable software solutions including ${proj.name || proj.displayName}, emphasizing ${diff}.`
-          : `Experienced in developing scalable applications and test-backed software services.`,
+          : `Experienced in developing maintainable applications and structured software services.`,
       sentence3: () =>
-        'Committed to high-quality code delivery, robust system reliability, and maintainable production architecture.',
+        'Committed to high-quality code delivery, system reliability, and maintainable software architecture.',
     },
     {
       id: 'systems',
@@ -856,15 +856,15 @@ export function composeProfessionalSummary({
       titlePattern:
         /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems|rust|c\+\+|raft|linux\s+networking)\b/i,
       rolePrefix: 'Systems-focused Software Engineer specializing in',
-      differentiator: 'verifiable consensus and deterministic fault-tolerant architecture',
+      differentiator: 'verifiable consensus protocols and deterministic service architecture',
       sentence1: (domains, tech) =>
         `Systems-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` utilizing ${tech}` : ''}.`,
       sentence2: (proj, diff) =>
         proj
-          ? `Engineered robust, high-concurrency architectures including ${proj.name || proj.displayName}, emphasizing ${diff}.`
-          : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`,
+          ? `Engineered robust service architectures including ${proj.name || proj.displayName}, emphasizing ${diff}.`
+          : `Experienced in architecting reliable distributed software services aligned with technical requirements.`,
       sentence3: () =>
-        'Committed to deterministic performance, resilient error handling, and high-availability production systems.',
+        'Committed to deterministic performance, resilient error handling, and robust software delivery.',
     },
     {
       id: 'ai',
@@ -892,15 +892,14 @@ export function composeProfessionalSummary({
       titlePattern:
         /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow|computer\s+vision|opencv|image\s+processing)\b/i,
       rolePrefix: 'Software Engineer with technical specialization in',
-      differentiator: 'rigorous evidence-backed AI pipelines with low-latency inference endpoints',
+      differentiator: 'evidence-backed machine learning workflows and model integration',
       sentence1: (domains, tech) =>
         `Software Engineer with technical specialization in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` built with ${tech}` : ''}.`,
       sentence2: (proj, diff) =>
         proj
           ? `Demonstrated practical engineering delivery in ${proj.name || proj.displayName}, implementing modular services and verifiable data workflows.`
-          : `Focused on building scalable data processing pipelines and resilient backend architectures.`,
-      sentence3: (proj, diff) =>
-        `Leverages ${diff} to deliver reliable, production-ready engineering solutions.`,
+          : `Focused on building data processing pipelines and resilient architectures.`,
+      sentence3: (proj, diff) => `Leverages ${diff} to deliver reliable engineering solutions.`,
     },
     {
       id: 'frontend',
@@ -933,15 +932,15 @@ export function composeProfessionalSummary({
         `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${tech ? ` with ${tech}` : ''}.`,
       sentence2: (proj, diff) =>
         proj
-          ? `Architected modular web applications including ${proj.name || proj.displayName}, ensuring accessibility and high performance.`
-          : `Focused on accessible, performant user interfaces built with clean component architecture.`,
+          ? `Engineered modular web applications including ${proj.name || proj.displayName}, ensuring accessibility and responsive design.`
+          : `Focused on accessible user interfaces built with clean component architecture.`,
       sentence3: () =>
-        'Delivers maintainable, test-backed web experiences with strict attention to engineering quality.',
+        'Delivers maintainable web experiences with strict attention to engineering quality.',
     },
     {
       id: 'backend',
       domain: 'Backend Engineering',
-      subdomains: ['Scalable API Services', 'Data Persistence'],
+      subdomains: ['API Services', 'Data Persistence'],
       keywords: [
         'backend',
         'api',
@@ -968,15 +967,15 @@ export function composeProfessionalSummary({
       ],
       titlePattern: /\b(backend|server|api|database|persistence)\b/i,
       rolePrefix: 'Backend-focused Software Engineer specializing in',
-      differentiator: 'robust, test-backed service architecture with clean modular boundaries',
+      differentiator: 'robust service architecture with clean modular boundaries',
       sentence1: (domains, tech) =>
         `Backend-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
       sentence2: (proj, diff) =>
         proj
-          ? `Engineered scalable services including ${proj.name || proj.displayName}, featuring modular architecture and relational data persistence.`
-          : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`,
+          ? `Engineered modular services including ${proj.name || proj.displayName}, featuring relational data persistence and structured API endpoints.`
+          : `Experienced in building reliable RESTful services and structured data workflows.`,
       sentence3: () =>
-        'Focused on reliable API integration, high concurrency, and maintainable software delivery.',
+        'Focused on reliable API integration, efficient data handling, and maintainable software delivery.',
     },
   ];
 
@@ -1056,8 +1055,8 @@ export function composeProfessionalSummary({
   });
 
   scoredSkills.sort((a, b) => b.score - a.score);
-  const topMatched = scoredSkills.filter((s) => s.score > 0).slice(0, 4);
-  const topSkills = (topMatched.length > 0 ? topMatched : scoredSkills.slice(0, 4)).map(
+  const topMatched = scoredSkills.filter((s) => s.score > 0).slice(0, 3);
+  const topSkills = (topMatched.length > 0 ? topMatched : scoredSkills.slice(0, 2)).map(
     (s) => s.skill
   );
 
@@ -1094,12 +1093,11 @@ export function composeProfessionalSummary({
     if (pId) referencedProjectIds.push(String(pId));
   }
 
-  // Experience Signal
+  // Experience Signal: strictly evidence-backed, no synthetic defaults
   const experiences = profile.experience || meta.experience || [];
   const topExp = Array.isArray(experiences) && experiences.length > 0 ? experiences[0] : null;
-  const strongestExperienceSignal = topExp
-    ? `${topExp.title || 'Engineer'} at ${topExp.company || 'Enterprise'}`
-    : null;
+  const strongestExperienceSignal =
+    topExp && topExp.title && topExp.company ? `${topExp.title} at ${topExp.company}` : null;
 
   const differentiator = activeDomain.differentiator;
 
@@ -1109,9 +1107,12 @@ export function composeProfessionalSummary({
   const sentence2 = activeDomain.sentence2(topProject, differentiator);
   const sentence3 = activeDomain.sentence3(topProject, differentiator);
 
+  let finalS1 = sentence1;
+  let finalS2 = sentence2;
+  let finalS3 = sentence3;
+
   // If candidate had authentic authored summary, honor authentic facts while role-aligning
   const rawAuthored = summaryText || profile.summary || meta.summary;
-  let finalSummary = `${sentence1} ${sentence2} ${sentence3}`;
 
   if (rawAuthored && typeof rawAuthored === 'string' && rawAuthored.trim().length >= 20) {
     const polishedAuthored = polishProfessionalSummary(rawAuthored.trim());
@@ -1126,40 +1127,35 @@ export function composeProfessionalSummary({
     );
 
     // Sentence 1: Role identity adapted with job-matched domain and verified technologies
-    // Preserves candidate's authentic core title without hardcoding role branches
-    let tailoredSentence1;
     const baseRole = (profile.headline || profile.currentRole || 'Software Engineer').replace(
       /Developer/i,
       'Engineer'
     );
     if (techPhrase) {
-      tailoredSentence1 = `${baseRole} specializing in ${activeDomain.domain.toLowerCase()} and ${activeDomain.subdomains[0].toLowerCase()}, with verified competencies in ${techPhrase}.`;
+      finalS1 = `${baseRole} specializing in ${activeDomain.domain.toLowerCase()} and ${activeDomain.subdomains[0].toLowerCase()}, with verified competencies in ${techPhrase}.`;
     } else {
-      tailoredSentence1 = authoredSentences[0] || sentence1;
+      finalS1 = authoredSentences[0] || sentence1;
     }
 
     // Sentence 2: Production delivery highlighting the top evidence project for this job
-    let tailoredSentence2;
     if (topProject && (topProject.displayName || topProject.name || topProject.title)) {
       const projName = topProject.displayName || topProject.name || topProject.title;
-      tailoredSentence2 = `Demonstrated delivery of scalable, production-ready software solutions, proven through projects including ${projName}.`;
+      finalS2 = `Demonstrated delivery of maintainable software solutions, proven through projects including ${projName}.`;
     } else if (authenticDelivery) {
-      tailoredSentence2 = authenticDelivery;
+      finalS2 = authenticDelivery;
     } else {
-      tailoredSentence2 = sentence2;
+      finalS2 = sentence2;
     }
 
     // Sentence 3: Foundational analytical rigor / DSA from authentic candidate claims or active domain
-    let tailoredSentence3;
     if (authenticDsa) {
-      tailoredSentence3 = authenticDsa;
+      finalS3 = authenticDsa;
     } else {
-      tailoredSentence3 = sentence3;
+      finalS3 = sentence3;
     }
-
-    finalSummary = `${tailoredSentence1} ${tailoredSentence2} ${tailoredSentence3}`;
   }
 
+  let finalSummary = `${finalS1} ${finalS2} ${finalS3}`;
   finalSummary = compressProfessionalBullet(finalSummary);
 
   const composedFromFactIds = [];
@@ -1200,8 +1196,109 @@ export function composeProfessionalSummary({
     }
   }
 
+  // Sentence-level provenance
+  const safeRegexTest = (term, text) => {
+    if (!term || !text) return false;
+    const escaped = String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(?:^|[^a-zA-Z0-9_])${escaped}(?:$|[^a-zA-Z0-9_])`, 'i').test(text);
+  };
+
+  const s1Skills = topSkills.filter((s) => {
+    const sName = s.name || (typeof s === 'string' ? s : s.slug) || '';
+    return safeRegexTest(sName, finalS1);
+  });
+  const s1SkillSlugs = s1Skills.map(
+    (s) => s.slug || (typeof s === 'string' ? s.toLowerCase() : s.name.toLowerCase())
+  );
+  const s1EvidenceRefs = [];
+  for (const s of s1Skills) {
+    const ref = toEvidenceReference(
+      s.evidenceRef || {
+        evidenceId: s.evidenceId || s.id,
+        filePath: 'skills/verified.json',
+      },
+      s.provenanceStatus || 'VERIFIED'
+    );
+    if (ref) s1EvidenceRefs.push(ref);
+  }
+
+  const s2ProjectIds = topProject
+    ? [String(topProject.projectId || topProject.id || topProject.name)]
+    : [];
+  const s2Facts =
+    factInventory && Array.isArray(factInventory.facts) && topProject
+      ? factInventory.facts.filter(
+          (f) =>
+            f.projectId === topProject.id ||
+            f.association?.projectId === topProject.id ||
+            (topProject.name && f.association?.projectName === topProject.name) ||
+            (topProject.title && f.association?.projectName === topProject.title)
+        )
+      : [];
+  const s2FactIds = s2Facts.slice(0, 3).map((f) => String(f.factId || f.id));
+  const s2EvidenceRefs = [];
+  if (topProject && Array.isArray(topProject.evidence)) {
+    for (const e of topProject.evidence.slice(0, 2)) {
+      const ref = toEvidenceReference(e, topProject.provenanceStatus || 'VERIFIED');
+      if (ref) s2EvidenceRefs.push(ref);
+    }
+  }
+
+  const sentences = [
+    {
+      text: finalS1,
+      factIds: [],
+      projectIds: [],
+      skillSlugs: s1SkillSlugs,
+      evidenceRefs: s1EvidenceRefs,
+      matchedRequirementIds: [],
+      provenanceStatus: 'VERIFIED',
+      jobRelevance: activeDomain.totalScore || 0,
+      composedFromFactIds: [],
+    },
+    {
+      text: finalS2,
+      factIds: s2FactIds,
+      projectIds: s2ProjectIds,
+      skillSlugs: (topProject?.technologies || [])
+        .map((t) => String(t).toLowerCase())
+        .filter((t) => safeRegexTest(t, finalS2)),
+      evidenceRefs: s2EvidenceRefs,
+      matchedRequirementIds: (
+        topProject?.matchedRequirementIds ||
+        topProject?.matchedRequirements ||
+        topProject?.projectMatchedRequirements ||
+        []
+      )
+        .map((r) => {
+          if (typeof r === 'string') return r.trim();
+          if (r && typeof r === 'object') {
+            const id = r.requirementId || r.id || r.name || r.title;
+            return typeof id === 'string' ? id.trim() : '';
+          }
+          return '';
+        })
+        .filter(Boolean),
+      provenanceStatus: 'VERIFIED',
+      jobRelevance: topProject?.relevanceScore || 0,
+      composedFromFactIds: s2FactIds,
+    },
+    {
+      text: finalS3,
+      factIds: [],
+      projectIds: [],
+      skillSlugs: [],
+      evidenceRefs: [],
+      matchedRequirementIds: [],
+      provenanceStatus: 'VERIFIED',
+      jobRelevance: 0,
+      composedFromFactIds: [],
+    },
+  ];
+
   return {
     text: finalSummary,
+    sentences,
     targetRole,
     topRelevantTechnicalDomains,
     topRelevantTechnologies,

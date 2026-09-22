@@ -3,6 +3,48 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-22*
 
+### Phase P51 Follow-up: Professional Summary Grounding, CI Repair & Production Verification
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-22  
+**Scope:** Remediated professional summary sentence-level grounding, resolved CI database fixture dependencies, eliminated ungrounded catalog buzzwords, fixed schema type strictness on requirement IDs, verified complete cross-surface parity between MCP and Extension, and completed real end-to-end multi-role Tectonic PDF compilation matrix:
+
+1. **Strict Sentence-by-Sentence Professional Summary Grounding (`src/services/resume-accomplishment-composer.service.js`, `src/domain/career/resume.schemas.js`):**
+   - Implemented structured provenance tracing on every summary sentence (`text`, `factIds`, `projectIds`, `skillSlugs`, `evidenceRefs`, `matchedRequirementIds`, `provenanceStatus`, `jobRelevance`, `composedFromFactIds`).
+   - Extended `ProfessionalSummarySchema` and `ProfessionalSummarySentenceSchema` with full sentence-level provenance validation.
+   - Enforced zero cross-project leakage by strictly constraining summary project references to the projects actually selected and rendered in the resume document.
+   - Fixed regex special character boundary escaping (`C++`, `C#`, `.NET`) in accomplishment composition and summary validation to prevent regex compilation failures.
+
+2. **Catalog and Fallback Buzzword Elimination (`src/services/resume-accomplishment-composer.service.js`, `src/services/ai-resume-content-generator.service.js`):**
+   - Removed ungrounded buzzword `'scalable'` from `DOMAIN_CATALOG` backend category (`['Scalable API Services', 'Data Persistence']` -> `['API Services', 'Data Persistence']`).
+   - Purged ungrounded buzzwords (`'scalable'`, `'high-concurrency'`, `'fault-tolerant'`) from fallback resume content generator templates to prevent integrity gate rejection when LLM providers are unavailable.
+
+3. **Requirement ID Normalization & Schema Strictness (`src/services/structured-resume.service.js`, `src/services/resume-accomplishment-composer.service.js`):**
+   - Hardened `projectMatchedRequirements` and `matchedRequirementIds` to normalize incoming matched requirement objects (`{ requirementId, ... }` or `{ id, ... }`) into clean string requirement IDs, satisfying strict Zod string-array assertions.
+   - Fixed `prepare-handoff` failure in Fastify extension routes where analysis snapshots returned structured requirement objects that failed Zod document validation.
+
+4. **CI Database Fixture & Pipeline Resilience (`.github/workflows/ci.yml`, `scripts/seed-test-fixtures.js`, `src/db/seeds/test-fixtures.json`):**
+   - Exported and committed canonical test database fixtures covering tenant `24d53f53-780e-4431-b065-32180c354175`, user `9dd8e4fb-456b-4104-9cb1-c839a544b721`, candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, projects, skills, evidence, and applications.
+   - Created idempotent DB seeder `scripts/seed-test-fixtures.js` and added `"db:seed:test"` npm script.
+   - Updated `.github/workflows/ci.yml` with fixture seeding step after `npm run db:migrate` and configured mock-prefixed secrets (`ENCRYPTION_MASTER_KEY`, `SESSION_COOKIE_SECRET`, `AUTH_SECRET`).
+
+5. **5-Role Production Resume Verification Matrix (`scripts/verify-p51-production-matrix.js`, `tests/unit/p51-followup-summary-matrix.test.js`):**
+   - Verified 5 distinct roles end-to-end: Backend Engineer (Stripe), Frontend Engineer (Vercel), Full-Stack Engineer (Linear), AI Systems Engineer (Anthropic), Computer Vision Engineer (Scale AI).
+   - Compiled all 5 roles with real local Tectonic engine: 100% 1-page fit, 100/100 ATS parseability score (17/17 ATS checks passed), selectable text (1690-1745 chars), 0 integrity violations across all 20+ audited claims per role.
+
+**Verification Evidence & Test Results:**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 120 warnings)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- `npm run audit:deps`: **PASS (0 High/Critical vulnerabilities)**
+- `npm run db:check`: **PASS (Everything's fine)**
+- `scripts/verify-p51-production-matrix.js`: **5/5 PASS (100% 1-page Tectonic compilation, 100/100 ATS score)**
+- `tests/unit/p51-followup-summary-matrix.test.js`: **9/9 PASS (100%)**
+- `tests/unit/job1-mcp-extension-parity.test.js`: **2/2 PASS (100%)**
+- `tests/integration/p16-001f3b-analysis-snapshot.test.js`: **9/9 PASS (100%)**
+- Full Integration Suite (`npm run test:integration`): **892/892 PASS (100%, 0 failed across 216 suites)**
+- Full Unit Suite (`npm run test:unit`): **3,787/3,787 PASS (100%, 0 failed across 1,028 suites)**
+- Total Test Battery: **4,679/4,679 PASS (100%)**
+
 ### Phase P51: Authoritative Project Selection & Job-Conditioned Content Tailoring
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-22
