@@ -14,6 +14,7 @@
  * - ADR-034 (docs/decisions.md)
  */
 
+import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
@@ -312,15 +313,19 @@ function buildEvidenceRef(evidence, resourceMap = new Map()) {
     }
   }
 
-  const resourceId = evidence.resourceId || '00000000-0000-0000-0000-000000000000';
+  const isUuid = (val) =>
+    typeof val === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
+  const rawId = evidence.id || evidence.evidenceId || evidence.evidenceRefId;
+  const id = isUuid(rawId) ? rawId : crypto.randomUUID();
+  const resourceId = isUuid(evidence.resourceId)
+    ? evidence.resourceId
+    : '00000000-0000-0000-0000-000000000000';
   const resourceName = resourceMap.get(resourceId) || 'Repository';
 
   return {
-    id:
-      evidence.id ||
-      evidence.evidenceId ||
-      evidence.evidenceRefId ||
-      '00000000-0000-0000-0000-000000000000',
+    id,
     resourceId,
     resourceName,
     evidenceType: evidence.evidenceType || 'CODE_USAGE',
@@ -451,6 +456,94 @@ function inferProjectType(projectSkills, projectFilePaths) {
     return 'CLI';
   }
   return 'APPLICATION';
+}
+
+/**
+ * Normalizes all job requirement formats into canonical evaluated criteria.
+ * Supports:
+ * - jobDescription.requirements (strings, objects with name, text, concept, keyword, extractedValue, category, class)
+ * - jobDescription.normalizedRequirements
+ * - jobDescription.skills
+ *
+ * @param {object} jobDescription
+ * @returns {Array<object>}
+ */
+function normalizeJobRequirements(jobDescription) {
+  const normalized = [];
+  const seenKeys = new Set();
+
+  const addReq = (req, defaultCategory = 'SKILL', defaultImportance = 'REQUIRED') => {
+    if (!req) return;
+    let name = '';
+    let category = defaultCategory;
+    let importance = defaultImportance;
+    let skillSlug = null;
+    let id = null;
+
+    if (typeof req === 'string') {
+      name = req.trim();
+    } else if (typeof req === 'object') {
+      id = req.id || null;
+      name =
+        req.name || req.text || req.concept || req.keyword || req.extractedValue || req.title || '';
+      if (req.category) {
+        category = req.category;
+      } else if (req.class) {
+        category =
+          req.class === 'TECHNOLOGY'
+            ? 'SKILL'
+            : req.class === 'DOMAIN'
+              ? 'DOMAIN'
+              : req.class === 'EXPERIENCE'
+                ? 'EXPERIENCE'
+                : 'SKILL';
+      }
+      importance = req.importance || (req.required ? 'REQUIRED' : defaultImportance);
+      skillSlug = req.skillSlug || null;
+    }
+
+    if (!name && !skillSlug) return;
+    const norm = SkillTaxonomyEngine.normalizeSkill(name);
+    const resolvedSlug = skillSlug || (norm ? norm.canonicalSlug : null);
+    const key = (resolvedSlug || name).toLowerCase();
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+
+    normalized.push({
+      id:
+        id ||
+        `req-${category.toLowerCase()}-${resolvedSlug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      category,
+      importance,
+      name,
+      extractedValue: name,
+      skillSlug: resolvedSlug,
+      weight: typeof req?.weight === 'number' ? req.weight : 0.5,
+      normalizedCriteria:
+        req?.normalizedCriteria ||
+        (resolvedSlug ? { skillName: name, skillSlug: resolvedSlug } : null),
+    });
+  };
+
+  if (Array.isArray(jobDescription?.requirements)) {
+    for (const r of jobDescription.requirements) {
+      addReq(r);
+    }
+  }
+
+  if (Array.isArray(jobDescription?.normalizedRequirements)) {
+    for (const r of jobDescription.normalizedRequirements) {
+      addReq(r);
+    }
+  }
+
+  if (Array.isArray(jobDescription?.skills)) {
+    for (const s of jobDescription.skills) {
+      addReq(s, 'SKILL', 'REQUIRED');
+    }
+  }
+
+  return normalized;
 }
 
 // ---------------------------------------------------------------------------
@@ -677,13 +770,45 @@ export class ProjectRelevanceService {
       }
     }
 
+    // Ingest direct technologies and skills declared on project
+    const directTechnologies = [
+      ...(Array.isArray(project.technologies) ? project.technologies : []),
+      ...(Array.isArray(project.skills) ? project.skills : []),
+    ];
+
+    for (const tech of directTechnologies) {
+      const rawName =
+        typeof tech === 'string' ? tech : tech.name || tech.slug || tech.skillName || '';
+      if (!rawName || typeof rawName !== 'string') continue;
+      const norm = SkillTaxonomyEngine.normalizeSkill(rawName);
+      if (norm && norm.canonicalSlug) {
+        if (!projectSkillsMap.has(norm.canonicalSlug)) {
+          const synthEv = {
+            id: crypto.randomUUID(),
+            evidenceType: 'CONFIG_SYNTAX_DECLARATION',
+            skillSlug: norm.canonicalSlug,
+            skillName: norm.canonicalName,
+            confidenceScore: 0.85,
+            sourceLocation: { filePath: 'project.technologies' },
+          };
+          projectSkillsMap.set(norm.canonicalSlug, {
+            slug: norm.canonicalSlug,
+            name: norm.canonicalName,
+            category: norm.category,
+            bestEvidence: synthEv,
+            bestRank: EVIDENCE_TYPE_RANK.CONFIG_SYNTAX_DECLARATION || 4,
+            confidence: 0.85,
+            allEvidence: [synthEv],
+          });
+        }
+      }
+    }
+
     // -------------------------------------------------------------------------
     // C. 1. Requirement Coverage Calculation (50 Pts Max)
     // -------------------------------------------------------------------------
-    const jobRequirements = Array.isArray(jobDescription.requirements)
-      ? jobDescription.requirements
-      : [];
-    const eligibleRequirements = jobRequirements.filter(
+    const allNormalizedReqs = normalizeJobRequirements(jobDescription);
+    const eligibleRequirements = allNormalizedReqs.filter(
       (r) =>
         r.category === 'SKILL' ||
         r.category === 'DOMAIN' ||
@@ -1015,28 +1140,35 @@ export class ProjectRelevanceService {
     // -------------------------------------------------------------------------
     // H. Composite Score & Relevance Band
     // -------------------------------------------------------------------------
-    const totalScore = round(
-      Math.min(
-        100.0,
-        Math.max(
-          0.0,
-          requirementCoverageScore +
-            architecturalDensityScore +
-            evidenceQualityScore +
-            projectCompletenessScore +
-            recencyScore
-        )
-      ),
-      2
-    );
+    const isZeroMatchGated =
+      eligibleRequirements.length > 0 &&
+      matchedRequirementIds.length === 0 &&
+      totalCoveredWeight === 0;
+
+    let computedTotalScore =
+      requirementCoverageScore +
+      architecturalDensityScore +
+      evidenceQualityScore +
+      projectCompletenessScore +
+      recencyScore;
+
+    if (isZeroMatchGated) {
+      // Hard gating: project matches 0 target role requirements and has 0 domain relevance.
+      // Must not outrank matching projects; capped strictly in MINIMAL band.
+      computedTotalScore = Math.min(computedTotalScore * 0.1, 10.0);
+    }
+
+    const totalScore = round(Math.min(100.0, Math.max(0.0, computedTotalScore)), 2);
 
     let relevanceBand = 'MINIMAL';
-    if (totalScore >= 75.0) {
-      relevanceBand = 'HIGH';
-    } else if (totalScore >= 50.0) {
-      relevanceBand = 'MEDIUM';
-    } else if (totalScore >= 25.0) {
-      relevanceBand = 'LOW';
+    if (!isZeroMatchGated) {
+      if (totalScore >= 75.0) {
+        relevanceBand = 'HIGH';
+      } else if (totalScore >= 50.0) {
+        relevanceBand = 'MEDIUM';
+      } else if (totalScore >= 25.0) {
+        relevanceBand = 'LOW';
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -1116,6 +1248,19 @@ export class ProjectRelevanceService {
       Array.from(contributingSkillSlugs).slice(0, 4).join(', ') || 'general engineering';
     const mainExplanation = `${relevanceBand} relevance (${totalScore}/100): Covers ${matchedRequirementIds.length} requirement(s) via ${topSkillsStr}. Demonstrates ${detectedDimensions.size} architectural dimension(s) in project '${project.name}'.`;
 
+    const matchedTechnologies = Array.from(contributingSkillSlugs).sort();
+    const selectionStatus =
+      isZeroMatchGated || totalScore < 25.0 || relevanceBand === 'MINIMAL'
+        ? 'REJECTED'
+        : 'ELIGIBLE';
+    const selectionReason = selectionStatus === 'ELIGIBLE' ? mainExplanation : null;
+    const rejectionReason =
+      selectionStatus === 'REJECTED'
+        ? isZeroMatchGated
+          ? 'No matching requirements for target role'
+          : `Low relevance score (${totalScore})`
+        : null;
+
     const result = {
       projectId: project.id,
       projectName: project.name,
@@ -1139,6 +1284,11 @@ export class ProjectRelevanceService {
       explanation: mainExplanation,
       confidence,
       resourcesCount: resources.length > 0 ? resources.length : 1,
+      rank: null,
+      selectionStatus,
+      matchedTechnologies,
+      selectionReason,
+      rejectionReason,
     };
 
     return ProjectRelevanceSchema.parse(result);
@@ -1182,6 +1332,23 @@ export class ProjectRelevanceService {
       }
       return a.projectId.localeCompare(b.projectId);
     });
+
+    const maxProjects = options.maxProjects || options.projectBudget || 2;
+    let rankCounter = 1;
+    for (const r of projectRankings) {
+      r.rank = rankCounter++;
+      if (r.selectionStatus === 'ELIGIBLE') {
+        if (r.rank <= maxProjects) {
+          r.selectionStatus = 'SELECTED';
+          r.selectionReason = r.explanation;
+          r.rejectionReason = null;
+        } else {
+          r.selectionStatus = 'OMITTED_BUDGET';
+          r.selectionReason = null;
+          r.rejectionReason = `Omitted to fit ${maxProjects}-project budget`;
+        }
+      }
+    }
 
     let highCount = 0;
     let medCount = 0;

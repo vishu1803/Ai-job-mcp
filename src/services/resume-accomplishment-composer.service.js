@@ -884,9 +884,13 @@ export function composeProfessionalSummary({
         'model',
         'pipelines',
         'embedding',
+        'opencv',
+        'computer vision',
+        'vision',
+        'image processing',
       ],
       titlePattern:
-        /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i,
+        /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow|computer\s+vision|opencv|image\s+processing)\b/i,
       rolePrefix: 'Software Engineer with technical specialization in',
       differentiator: 'rigorous evidence-backed AI pipelines with low-latency inference endpoints',
       sentence1: (domains, tech) =>
@@ -1086,7 +1090,7 @@ export function composeProfessionalSummary({
 
   const referencedProjectIds = [];
   if (topProject) {
-    const pId = topProject.id || topProject.projectId || topProject.name;
+    const pId = topProject.projectId || topProject.id || topProject.name;
     if (pId) referencedProjectIds.push(String(pId));
   }
 

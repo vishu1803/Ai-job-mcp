@@ -855,28 +855,52 @@ export class JobApplicationWorkflowService {
               .map((r) => r.text),
     };
 
-    // Authoritative project rankings from canonical ranking engine
-    const canonicalRanked =
-      typeof this.candidateArtifactContentService?.rankProjectsForJob === 'function'
-        ? this.candidateArtifactContentService.rankProjectsForJob(
-            candidateProfileInput,
-            targetJobPosting,
-            { maxProjects: 2 }
-          )
-        : targetJobPosting?.projectRankings || [];
-    const authoritativeRankings =
-      canonicalRanked?.selectedProjects || (Array.isArray(canonicalRanked) ? canonicalRanked : []);
+    // Authoritative project rankings from ProjectRelevanceService
+    let authoritativeRankings =
+      jobFitAnalysis?.projectRankings || targetJobPosting?.projectRankings || [];
+
+    if (
+      (!authoritativeRankings || authoritativeRankings.length === 0) &&
+      Array.isArray(candidateProfileInput?.projects) &&
+      candidateProfileInput.projects.length > 0
+    ) {
+      try {
+        const projAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+          { tenantId },
+          {
+            id:
+              targetJobPosting.id &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                targetJobPosting.id
+              )
+                ? targetJobPosting.id
+                : crypto.randomUUID(),
+            tenantId,
+            title: targetJobPosting.title || 'Target Role',
+            requirements: targetJobPosting.requirements || [],
+            skills: targetJobPosting.skills || [],
+            description: targetJobPosting.description || '',
+          },
+          candidateProfileInput.projects,
+          { candidateId, skills: candidateProfileInput.skills }
+        );
+        authoritativeRankings = projAnalysis.projectRankings || [];
+      } catch (e) {
+        this.logger.debug(
+          { error: e.message },
+          'Failed to compute project rankings via ProjectRelevanceService'
+        );
+      }
+    }
 
     if (jobFitAnalysis) {
       jobFitAnalysis.projectRankings = authoritativeRankings;
       jobFitAnalysis.topRelevantProjects = authoritativeRankings;
     }
 
-    const eligibleProjects = authoritativeRankings;
-    const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name || p.title);
-
+    // Preserve user-provided recommendedProjects strictly as advisory metadata; never mutate with derived selections
     targetJobPosting.recommendedProjects =
-      jobPosting?.recommendedProjects || answers?.recommendedProjects || derivedRecommended;
+      jobPosting?.recommendedProjects || answers?.recommendedProjects || null;
     targetJobPosting.projectRankings = authoritativeRankings;
     targetJobPosting.jobFitAnalysis = jobFitAnalysis;
 
@@ -1432,6 +1456,36 @@ export class JobApplicationWorkflowService {
         'https://boards.greenhouse.io',
       retrievedAt: new Date().toISOString(),
     };
+
+    // 4b. Authoritative project rankings from ProjectRelevanceService for current job
+    try {
+      const profileView = await this.candidateProfileService.getProfile(context, candidateId);
+      if (profileView && Array.isArray(profileView.projects) && profileView.projects.length > 0) {
+        const projAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+          context,
+          {
+            id:
+              jobPosting.id &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobPosting.id)
+                ? jobPosting.id
+                : crypto.randomUUID(),
+            tenantId,
+            title: jobPosting.title || 'Target Role',
+            requirements: jobPosting.requirements || [],
+            skills: jobPosting.skills || [],
+            description: jobPosting.description || '',
+          },
+          profileView.projects,
+          { candidateId, skills: profileView.skills }
+        );
+        jobPosting.projectRankings = projAnalysis.projectRankings || [];
+      }
+    } catch (err) {
+      this.logger.debug(
+        { error: err.message },
+        'Failed to compute fresh project rankings during package regeneration'
+      );
+    }
 
     // 5. Generate fresh document content from canonical candidate data
     const documentContent = await this.candidateArtifactContentService.generateApplicationDocuments(

@@ -589,6 +589,11 @@ export const TailoredProjectEntrySchema = z
     bullets: z.array(TailoredProjectBulletSchema).default([]),
     relevanceScore: z.number().min(0).max(100).default(0),
     rank: z.number().int().positive().optional().nullable(),
+    selectionSource: z.string().trim().optional().nullable(),
+    authoritativeRankingRank: z.number().int().positive().optional().nullable(),
+    selectedBecause: z.string().trim().optional().nullable(),
+    projectMatchedRequirements: z.array(z.string().trim()).default([]).optional(),
+    selectedBulletFactIds: z.array(z.string().trim()).default([]).optional(),
   })
   .strict();
 

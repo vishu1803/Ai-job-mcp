@@ -1,7 +1,56 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-20*
+*Last Updated: 2026-09-22*
+
+### Phase P51: Authoritative Project Selection & Job-Conditioned Content Tailoring
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-22
+**Scope:** Re-architected candidate project selection and cross-section job-conditioned content tailoring across the entire application workflow so candidate projects and accomplishments truthfully match the target job instead of perpetually selecting fixed default projects:
+
+1. **Single Authoritative Ranking Pipeline (`src/services/project-relevance.service.js`, `src/services/job-application-workflow.service.js`):**
+   - Established `ProjectRelevanceService.computeProjectsRelevance` as the single authoritative ranking source for resume, cover letter, and snapshot generation.
+   - Deprecated `CandidateArtifactContentService.rankProjectsForJob` and eliminated it from all active document generation paths.
+   - In `prepareJobApplication` and `regenerateApplicationPackage`, preserved `authoritativeRankings` directly into options and decoupled ranking from legacy mutation side-effects.
+
+2. **Eliminated Mutation Feedback Loops (`src/services/job-application-workflow.service.js`, `src/services/candidate-artifact-content.service.js`):**
+   - Completely stopped mutating `targetJobPosting.recommendedProjects` with internal candidate project lists.
+   - Preserved `targetJobPosting.recommendedProjects` strictly as advisory input (when explicitly supplied by an external job description).
+   - Decoupled `buildCoverLetterMarkdown` from heuristic scoring, routing through caller-provided `selectedProjects` or authoritative `computeProjectsRelevance`.
+
+3. **Multi-Tenant Identification & Snapshot Reliability (`src/services/structured-resume.service.js`):**
+   - Hardened `buildStructuredResumeSnapshot` against missing root `tenantId` by deeply extracting candidate and tenant IDs from `candidateProfile.candidate?.tenantId`, `candidateProfile.profileMetadata?.tenantId`, or `candidateProfile.projects?.[0]?.tenantId`.
+   - Prevented false-positive cross-tenant access denials in multi-tenant isolation gates during snapshot project ranking resolution.
+
+4. **Zero-Match Relevance Hard Gating (`src/services/project-relevance.service.js`, `src/services/structured-resume.service.js`):**
+   - In `computeProjectsRelevance`, capped composite relevance score <= 10.0, forced relevance band to `MINIMAL`, and set `selectionStatus: 'REJECTED'` when candidate projects have zero matched requirements or contributing skills against job requirements.
+   - In `buildStructuredResumeDocument`, implemented fail-safe empty selection for zero-match jobs rather than rendering irrelevant candidate projects (preferring no projects over wrong projects).
+
+5. **Cross-Section Provenance & Integrity Gate Verification (`src/services/structured-resume.service.js`, `src/domain/career/project-relevance.schemas.js`, `src/domain/career/resume.schemas.js`):**
+   - Extended `ProjectRelevanceSchema` and `TailoredProjectEntrySchema` with audit and provenance fields (`rank`, `selectionStatus`, `matchedTechnologies`, `selectionReason`, `rejectionReason`, `selectionSource`, `authoritativeRankingRank`, `selectedBecause`, `projectMatchedRequirements`, `selectedBulletFactIds`).
+   - Extended `validateStructuredResumeIntegrity` with checks for: authoritative ranking adherence, professional summary project reference bounds, cross-project bullet attribution prevention, and zero-match integrity.
+
+6. **Job-Conditioned Accomplishment Tailoring (`src/services/candidate-artifact-content.service.js`, `src/services/resume-accomplishment-composer.service.js`):**
+   - In `buildTailoredResumeMarkdown`, integrated `composeExperienceRecords` to dynamically reorder experience bullets by job relevance, surfacing the most relevant accomplishments first.
+   - In `composeProfessionalSummary`, strictly bounded referenced project IDs to the genuinely selected projects, eliminating cross-project fact leakage.
+   - Added canonical taxonomy coverage for `opencv`, `computer-vision`, and `image-processing` under `FRAMEWORK` and `CONCEPT` in `skill-taxonomy.js` and `resume-accomplishment-composer.service.js`.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/resume-project-selection-job-conditioning.test.js`: **11/11 PASS (100%)**
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS (100%)**
+- `tests/unit/project-relevance.service.test.js`: **33/33 PASS (100%)**
+- `tests/unit/p46-ranking-authority-and-bullet-minimum.test.js`: **11/11 PASS (100%)**
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: **12/12 PASS (100%)**
+- `tests/unit/resume-content-strategy.test.js`: **15/15 PASS (100%)**
+- `tests/unit/p47-project-evidence-capacity.test.js`: **9/9 PASS (100%)**
+- `tests/unit/p16-structured-resume-contract.test.js`: **10/10 PASS (100%)**
+- `tests/unit/resume-tailoring.service.test.js`: **28/28 PASS (100%)**
+- `tests/unit/job-application-workflow.service.test.js`: **10/10 PASS (100%)**
+- Total Targeted Verification Battery: **146/146 PASS (100%)**
+- `npm run lint`: **PASS (0 errors, 119 warnings)**
+- `npm run format:check`: **PASS (0 formatting errors)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- `git diff --check`: **PASS (Clean diff, 0 trailing whitespace / syntax anomalies)**
 
 ### Phase PH-01: Production Security Hardening, Zero-Fabrication Enforcement & Provider-Neutral Multi-Cloud S3 Storage
 **Status:** COMPLETE & VERIFIED

@@ -43,6 +43,7 @@ import {
   isMeaningfulDsa,
 } from './resume-content-strategy.service.js';
 import { MasterResumeStructureService } from './master-resume-structure.service.js';
+import { ProjectRelevanceService } from './project-relevance.service.js';
 import { formatTechnologyStack } from '../utils/technology-normalizer.js';
 import {
   buildCanonicalFactInventory,
@@ -569,13 +570,25 @@ export function buildStructuredResumeDocument({
             : typeof r.score === 'number'
               ? r.score
               : 0;
-        const isSelected = r.status === 'SELECTED';
+        const isSelected = r.status === 'SELECTED' || r.selectionStatus === 'SELECTED';
         const hasMatchedReqs =
           (Array.isArray(r.matchedRequirementIds) && r.matchedRequirementIds.length > 0) ||
           (Array.isArray(r.matchedRequirements) && r.matchedRequirements.length > 0);
         const hasContributingSkills =
           Array.isArray(r.contributingSkills) && r.contributingSkills.length > 0;
         const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
+
+        const hasJobRequirements =
+          (Array.isArray(canonicalJob?.requirements) && canonicalJob.requirements.length > 0) ||
+          (Array.isArray(canonicalJob?.skills) && canonicalJob.skills.length > 0) ||
+          (Array.isArray(canonicalJob?.normalizedRequirements) &&
+            canonicalJob.normalizedRequirements.length > 0);
+
+        // When job has technical requirements, exclude projects with zero matched requirements
+        // and zero contributing skills (do not admit irrelevant projects merely for having generic architectural density >= 25)
+        if (!isSelected && hasJobRequirements && !hasMatchedReqs && !hasContributingSkills) {
+          continue;
+        }
 
         if (
           !isSelected &&
@@ -1211,6 +1224,9 @@ export function buildStructuredResumeDocument({
             ? proj.metadata.skills
             : [];
 
+    const matchedReqs = ranking?.matchedRequirementIds || ranking?.matchedRequirements || [];
+    const selectedFactIds = pBullets.flatMap((b) => b.composedFromFactIds || []).filter(Boolean);
+
     return {
       projectId: selectedId,
       name:
@@ -1228,6 +1244,12 @@ export function buildStructuredResumeDocument({
       bullets: pBullets,
       relevanceScore,
       rank: idx + 1,
+      selectionSource: ranking?.selectionStatus ? 'AUTHORITATIVE_RANKING' : 'DYNAMIC_LAYOUT',
+      authoritativeRankingRank: ranking?.rank || idx + 1,
+      selectedBecause:
+        ranking?.selectionReason || ranking?.explanation || `Ranked #${idx + 1} for target role`,
+      projectMatchedRequirements: matchedReqs,
+      selectedBulletFactIds: selectedFactIds,
     };
   };
 
@@ -1755,9 +1777,19 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
       else if (bullet.provenanceStatus === 'USER_PROVIDED') userProvidedClaimsCount += 1;
       else claimedClaimsCount += 1;
 
+      if (bullet.sourceProjectId && bullet.sourceProjectId !== proj.projectId) {
+        violations.push({
+          section: 'PROJECTS',
+          field: 'bullets',
+          claimText: bullet.text,
+          violationType: 'UNBACKED_CLAIM',
+          message: `Project bullet belonging to '${bullet.sourceProjectId}' was attributed to project '${proj.projectId}'.`,
+        });
+      }
+
       const evidenceIds = (bullet.evidenceRefs || []).map((e) => e.evidenceId).filter(Boolean);
       provenanceIndex[`project:${proj.projectId}:bullet`] =
-        evidenceIds.length > 0 ? evidenceIds : [bullet.provenanceStatus];
+        evidenceIds.length > 0 ? evidenceIds : [bullet.provenanceStatus || 'CLAIMED'];
 
       try {
         assertMetricSafety(bullet.text, bullet.evidenceRefs || []);
@@ -1773,12 +1805,51 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
     }
   }
 
+  // Cross-section check: Authoritative project rankings verification
+  if (Array.isArray(options?.projectRankings) && options.projectRankings.length > 0) {
+    const eligibleRankingIds = new Set(
+      options.projectRankings
+        .filter(
+          (r) => r.status !== 'REJECTED' && r.status !== 'OMITTED' && r.status !== 'OMITTED_BUDGET'
+        )
+        .map((r) => r.projectId || r.id)
+        .filter(Boolean)
+    );
+    for (const proj of renderedProjects) {
+      if (eligibleRankingIds.size > 0 && !eligibleRankingIds.has(proj.projectId)) {
+        violations.push({
+          section: 'PROJECTS',
+          field: 'projectId',
+          claimText: proj.projectId,
+          violationType: 'FABRICATED_PROJECT',
+          message: `Rendered project '${proj.projectId}' was not present in authoritative eligible rankings.`,
+        });
+      }
+    }
+  }
+
   // Summary audit
   if (doc.summary?.text) {
     totalClaimsAudited += 1;
     if (doc.summary.provenanceStatus === 'VERIFIED') verifiedClaimsCount += 1;
     else if (doc.summary.provenanceStatus === 'CORROBORATED') corroboratedClaimsCount += 1;
     else claimedClaimsCount += 1;
+
+    // Cross-section check: Summary referenced projects must belong to rendered projects
+    if (Array.isArray(doc.summary.referencedProjectIds)) {
+      const renderedProjectIds = new Set(renderedProjects.map((p) => p.projectId));
+      for (const refId of doc.summary.referencedProjectIds) {
+        if (!renderedProjectIds.has(refId)) {
+          violations.push({
+            section: 'SUMMARY',
+            field: 'referencedProjectIds',
+            claimText: refId,
+            violationType: 'UNBACKED_CLAIM',
+            message: `Summary references project '${refId}' which is not among selected rendered projects.`,
+          });
+        }
+      }
+    }
 
     try {
       assertMetricSafety(doc.summary.text, doc.summary.evidenceRefs || []);
@@ -1789,6 +1860,22 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
         claimText: doc.summary.text,
         violationType: 'UNSUPPORTED_METRIC',
         message: err.message,
+      });
+    }
+  }
+
+  // Cross-section check: Target job fingerprint match
+  if (options?.targetJobPosting && doc.debugTrace?.jobFingerprint) {
+    const expectedFp =
+      options.targetJobPosting.jobFingerprint ||
+      buildCanonicalJobRequirements(options.targetJobPosting)?.jobFingerprint;
+    if (expectedFp && doc.debugTrace.jobFingerprint !== expectedFp) {
+      violations.push({
+        section: 'METADATA',
+        field: 'jobFingerprint',
+        claimText: doc.debugTrace.jobFingerprint,
+        violationType: 'PIPELINE_FAILURE',
+        message: `Resume jobFingerprint '${doc.debugTrace.jobFingerprint}' does not match expected job fingerprint '${expectedFp}'.`,
       });
     }
   }
@@ -1839,18 +1926,52 @@ export function buildStructuredResumeSnapshot({
   const callerSink = typeof options?.reportSink === 'function' ? options.reportSink : null;
   // Resolve authoritative rankings at snapshot level if omitted by caller
   const resolvedOptions = { ...options };
-  const contentSvc =
-    resolvedOptions.candidateContentService || new CandidateArtifactContentService();
   if (
     !resolvedOptions.projectRankings &&
     !jobPosting?.projectRankings &&
     !jobPosting?.jobFitAnalysis?.projectRankings &&
     jobPosting &&
-    typeof contentSvc?.rankProjectsForJob === 'function'
+    Array.isArray(candidateProfile?.projects) &&
+    candidateProfile.projects.length > 0
   ) {
-    const ranked = contentSvc.rankProjectsForJob(candidateProfile, jobPosting);
-    if (Array.isArray(ranked?.selectedProjects)) {
-      resolvedOptions.projectRankings = ranked.selectedProjects;
+    try {
+      const tenantId =
+        candidateProfile.tenantId ||
+        candidateProfile.candidate?.tenantId ||
+        candidateProfile.profileMetadata?.tenantId ||
+        candidateProfile.projects?.[0]?.tenantId ||
+        jobPosting.tenantId ||
+        '00000000-0000-0000-0000-000000000000';
+      const candidateId =
+        candidateProfile.id ||
+        candidateProfile.candidateId ||
+        candidateProfile.candidate?.id ||
+        '00000000-0000-0000-0000-000000000000';
+      const projAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+        { tenantId },
+        {
+          id:
+            jobPosting.id &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobPosting.id)
+              ? jobPosting.id
+              : '00000000-0000-0000-0000-000000000000',
+          tenantId,
+          title: jobPosting.title || 'Target Role',
+          requirements: jobPosting.requirements || [],
+          skills: jobPosting.skills || [],
+          description: jobPosting.description || '',
+        },
+        candidateProfile.projects,
+        {
+          candidateId,
+          skills: candidateProfile.skills || candidateProfile.candidate?.skills,
+        }
+      );
+      if (Array.isArray(projAnalysis?.projectRankings)) {
+        resolvedOptions.projectRankings = projAnalysis.projectRankings;
+      }
+    } catch {
+      // Best-effort authoritative ranking resolution
     }
   }
 

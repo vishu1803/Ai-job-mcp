@@ -48,6 +48,7 @@ export {
   countDistinctCanonicalFacts,
 };
 import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
+import { composeExperienceRecords } from './resume-accomplishment-composer.service.js';
 import { getJobRequirementConcepts } from './candidate-fact-inventory.service.js';
 import {
   CANONICAL_TECH_MAP,
@@ -1675,6 +1676,9 @@ export class CandidateArtifactContentService {
    * - Selected projects must have authentic technical bullets from candidate/repo records.
    * - Archived projects are never selected but preserved in audit.
    * - Produces a deterministic project selection audit.
+   * @deprecated Superseded by ProjectRelevanceService.computeProjectsRelevance().
+   * Retained strictly for backwards-compatibility with isolated unit test suites.
+   * Production workflows consume ProjectRelevanceService directly.
    *
    * @param {object} candidateData Candidate data snapshot
    * @param {object} [jobPosting] Target job posting (defaults to candidateData.jobPosting)
@@ -3101,19 +3105,42 @@ export class CandidateArtifactContentService {
       Array.isArray(jobPosting?.recommendedProjects) &&
       jobPosting.recommendedProjects.length > 0
     ) {
-      // Fallback for callers explicitly passing recommendedProjects without analyzer rankings
-      const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
-        maxProjects: projectBudget,
-        recommendedProjects: jobPosting.recommendedProjects,
-      });
-      const rawSelected = rankedProjects.selectedProjects || rankedProjects.slice(0, projectBudget);
-      selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
-        ...p,
-        name: formatProjectDisplayName(p.title || p.name),
-        title: formatProjectDisplayName(p.title || p.name),
-        displayName: formatProjectDisplayName(p.title || p.name),
-      }));
-      selectionAudit = rankedProjects.selectionAudit || [];
+      // Direct recommended projects passed on jobPosting: resolve from candidate projects without secondary ranking
+      const candProjMap = new Map();
+      for (const p of candidateData.projects || []) {
+        const slug = slugifyProject(p.name || p.title || p.displayName || '');
+        if (slug) candProjMap.set(slug, p);
+        if (p.id) candProjMap.set(p.id, p);
+        if (p.projectId) candProjMap.set(p.projectId, p);
+      }
+      const eligible = [];
+      for (const rec of jobPosting.recommendedProjects) {
+        const recId = typeof rec === 'string' ? rec : rec.id || rec.projectId || '';
+        const recSlug = slugifyProject(
+          typeof rec === 'string' ? rec : rec.name || rec.title || rec.slug || ''
+        );
+        const candProj =
+          (recId ? candProjMap.get(recId) : null) || (recSlug ? candProjMap.get(recSlug) : null);
+        if (candProj && !candProj.isArchived) {
+          const enhancedProj = {
+            ...candProj,
+            name: formatProjectDisplayName(candProj.title || candProj.name),
+            title: formatProjectDisplayName(candProj.title || candProj.name),
+            displayName: formatProjectDisplayName(candProj.title || candProj.name),
+          };
+          if (eligible.length < projectBudget) {
+            eligible.push(enhancedProj);
+            selectionAudit.push({
+              projectName: enhancedProj.name,
+              projectId: enhancedProj.projectId || enhancedProj.id,
+              score: 100,
+              status: 'SELECTED',
+              rejectionReason: null,
+            });
+          }
+        }
+      }
+      selectedProjects = eligible;
     } else if (
       jobPosting &&
       (!jobPosting.requirements || jobPosting.requirements.length === 0) &&
@@ -3132,33 +3159,6 @@ export class CandidateArtifactContentService {
       // Empty selection: candidate has projects, but no analyzer ranking matches or no matching projects
       selectedProjects = [];
       selectionAudit = [];
-    }
-
-    if (
-      selectedProjects.length === 0 &&
-      !options?.projectRankings &&
-      !jobPosting?.projectRankings &&
-      !jobPosting?.jobFitAnalysis?.projectRankings &&
-      typeof this.rankProjectsForJob === 'function' &&
-      (candidateData.projects || []).length > 0 &&
-      jobPosting
-    ) {
-      const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
-        maxProjects: projectBudget,
-        recommendedProjects: jobPosting?.recommendedProjects,
-      });
-      const rawSelected =
-        rankedProjects.selectedProjects ||
-        (Array.isArray(rankedProjects) ? rankedProjects.slice(0, projectBudget) : []);
-      if (rawSelected.length > 0) {
-        selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
-          ...p,
-          name: formatProjectDisplayName(p.title || p.name),
-          title: formatProjectDisplayName(p.title || p.name),
-          displayName: formatProjectDisplayName(p.title || p.name),
-        }));
-        selectionAudit = rankedProjects.selectionAudit || selectionAudit;
-      }
     }
 
     // Explicitly track any recommended projects that were omitted for budget reasons
@@ -3251,7 +3251,11 @@ export class CandidateArtifactContentService {
     if (experience.length > 0) {
       lines.push('## Professional Experience');
       lines.push('');
-      for (const exp of experience) {
+      const composedExperience = composeExperienceRecords({
+        candidateExperiences: experience,
+        jobPosting,
+      });
+      for (const exp of composedExperience) {
         const title = exp.title || exp.role;
         const company = exp.company || exp.employer;
         const start = formatMonthYear(exp.startDate);
@@ -3545,13 +3549,69 @@ export class CandidateArtifactContentService {
     const experienceCompany = experience?.company || experience?.employer || null;
 
     // Real project evidence ranked by job relevance (strictly deduplicated)
-    const topProjects =
-      options?.selectedProjects ||
-      this.rankProjectsForJob(candidateData, jobPosting, {
-        maxProjects: 3,
-        recommendedProjects: jobPosting?.recommendedProjects,
-      }).selectedProjects ||
-      [];
+    let topProjects = options?.selectedProjects;
+    if (!topProjects || topProjects.length === 0) {
+      if (options?.projectRankings || jobPosting?.projectRankings) {
+        const rankings = options?.projectRankings || jobPosting?.projectRankings;
+        const candProjMap = new Map();
+        for (const p of candidateData.projects || []) {
+          const pId = p.id || p.projectId;
+          if (pId) candProjMap.set(pId, p);
+          const slug = slugifyProject(p.name || p.title || p.displayName || '');
+          if (slug) candProjMap.set(slug, p);
+        }
+        topProjects = rankings
+          .filter(
+            (r) =>
+              r.status !== 'REJECTED' && r.status !== 'OMITTED' && r.status !== 'OMITTED_BUDGET'
+          )
+          .slice(0, 3)
+          .map(
+            (r) =>
+              candProjMap.get(r.projectId || r.id) ||
+              candProjMap.get(slugifyProject(r.projectName || ''))
+          )
+          .filter(Boolean);
+      } else if (
+        Array.isArray(candidateData.projects) &&
+        candidateData.projects.length > 0 &&
+        jobPosting
+      ) {
+        try {
+          const tenantId = options.tenantId || candidateData.tenantId || 'tenant-default';
+          const candidateId = candidateData.id || candidateData.candidateId || 'candidate-default';
+          const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+            { tenantId },
+            jobPosting,
+            candidateData.projects,
+            { candidateId, skills: candidateData.skills || [] }
+          );
+          const candProjMap = new Map();
+          for (const p of candidateData.projects) {
+            const pId = p.id || p.projectId;
+            if (pId) candProjMap.set(pId, p);
+            const slug = slugifyProject(p.name || p.title || p.displayName || '');
+            if (slug) candProjMap.set(slug, p);
+          }
+          topProjects = (projectAnalysis.projectRankings || [])
+            .filter(
+              (r) =>
+                r.status !== 'REJECTED' && r.status !== 'OMITTED' && r.status !== 'OMITTED_BUDGET'
+            )
+            .slice(0, 3)
+            .map(
+              (r) =>
+                candProjMap.get(r.projectId || r.id) ||
+                candProjMap.get(slugifyProject(r.projectName || ''))
+            )
+            .filter(Boolean);
+        } catch {
+          topProjects = (candidateData.projects || []).slice(0, 3);
+        }
+      } else {
+        topProjects = (candidateData.projects || []).slice(0, 3);
+      }
+    }
 
     const topProjectNames = topProjects.map((p) => formatProjectDisplayName(p.name || p.title));
     const projectUrlByName = Object.fromEntries(

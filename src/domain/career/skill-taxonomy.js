@@ -619,6 +619,19 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
+  opencv: {
+    slug: 'opencv',
+    name: 'OpenCV',
+    category: 'FRAMEWORK',
+    description: 'Open source computer vision and machine learning software library.',
+    aliases: ['opencv', 'cv2', 'open-cv', 'opencv-python', 'opencv2', 'opencv4'],
+    relationships: {
+      builtOn: ['python', 'cpp'],
+      ecosystemOf: ['python'],
+      implements: ['computer-vision', 'image-processing', 'machine-learning'],
+      parentOf: [],
+    },
+  },
   dotnet: {
     slug: 'dotnet',
     name: '.NET',
@@ -2098,7 +2111,34 @@ export const CANONICAL_SKILLS = Object.freeze({
       builtOn: [],
       ecosystemOf: [],
       implements: [],
-      parentOf: ['deep-learning'],
+      parentOf: ['deep-learning', 'computer-vision'],
+    },
+  },
+  'computer-vision': {
+    slug: 'computer-vision',
+    name: 'Computer Vision',
+    category: 'CONCEPT',
+    description:
+      'Interdisciplinary scientific field dealing with how computers gain high-level understanding from digital images or videos.',
+    aliases: ['computer-vision', 'cv', 'vision-ai', 'machine-vision', 'computer vision'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: ['machine-learning'],
+      parentOf: ['image-processing', 'opencv'],
+    },
+  },
+  'image-processing': {
+    slug: 'image-processing',
+    name: 'Image Processing',
+    category: 'CONCEPT',
+    description: 'Use of digital computers to perform image processing on digital images.',
+    aliases: ['image-processing', 'digital-image-processing', 'image processing'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: ['computer-vision'],
+      parentOf: ['opencv'],
     },
   },
   'acid-compliance': {

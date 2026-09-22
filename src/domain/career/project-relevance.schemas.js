@@ -124,6 +124,14 @@ export const ProjectRelevanceSchema = z.strictObject({
     .min(0.0, { message: 'confidence must be >= 0.0' })
     .max(1.0, { message: 'confidence cannot exceed 1.0' }),
   resourcesCount: z.number().int().nonnegative().default(1),
+  rank: z.number().int().positive().optional().nullable(),
+  selectionStatus: z
+    .enum(['SELECTED', 'REJECTED', 'OMITTED_BUDGET', 'ELIGIBLE'])
+    .optional()
+    .nullable(),
+  matchedTechnologies: z.array(z.string()).default([]).optional(),
+  selectionReason: z.string().optional().nullable(),
+  rejectionReason: z.string().optional().nullable(),
 });
 
 // ---------------------------------------------------------------------------
