@@ -21,6 +21,7 @@ import { normalizeSkill } from '../../src/domain/career/skill-taxonomy.js';
 import { EvidenceMatchingService } from '../../src/services/evidence-matching.service.js';
 import { PrimaryEvidenceSelector } from '../../src/services/evidence/primary-evidence-selector.js';
 import { handleAnalyzeJobFit } from '../../src/mcp/tools/career-read-tools.js';
+import { pool, closeDatabase } from '../../src/db/index.js';
 
 const TENANT_ID = '24d53f53-780e-4431-b065-32180c354175';
 const CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
@@ -460,7 +461,7 @@ Requirements:
     });
   });
 
-  after(() => {
-    process.exit(0);
+  after(async () => {
+    await closeDatabase(pool);
   });
 });
