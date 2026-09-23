@@ -98,7 +98,7 @@ Node.js, TypeScript, PostgreSQL, REST APIs, automated testing, cloud infrastruct
         `qualityLevel=${report.qualityLevel}`,
         `criticalFailures=${JSON.stringify(report.criticalFailures)}`,
         `breakdown=${JSON.stringify(report.breakdown)}`,
-      ].join('\n'),
+      ].join('\n')
     );
     assert.ok(report.score >= 75);
     assert.ok(['EXCELLENT', 'GOOD'].includes(report.qualityLevel));
