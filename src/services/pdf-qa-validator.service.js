@@ -37,6 +37,38 @@ export function normalizePdfText(value = '') {
     .replace(/\bveriied\b/g, 'verified');
 }
 
+/**
+ * Determines whether an authoritative candidate email is present in extracted
+ * PDF text, tolerating whitespace that PDF text extraction may inject around
+ * punctuation (e.g. "vishwanatnishad@gmail. com" or across line breaks).
+ *
+ * Email addresses contain no whitespace, so comparing on a whitespace-stripped
+ * form is a lossless fallback that cannot weaken the authenticity gate: the full
+ * address sequence must still be present.
+ *
+ * @param {string} extractedText Raw text extracted from the compiled PDF
+ * @param {string} expectedEmail Authoritative candidate email
+ * @returns {boolean} True when the email is present (or when none is expected)
+ */
+export function extractedTextContainsEmail(extractedText, expectedEmail) {
+  const email = String(expectedEmail || '')
+    .trim()
+    .toLowerCase();
+  if (!email) return true;
+
+  const text = String(extractedText || '').toLowerCase();
+  if (!text) return false;
+
+  // Fast path: exact occurrence after canonical whitespace normalization.
+  if (normalizePdfText(text).includes(email)) return true;
+
+  // Tolerant path: allow extraction-inserted whitespace anywhere within the
+  // address by comparing on a whitespace-free representation.
+  const compactEmail = email.replace(/\s+/g, '');
+  const compactText = text.replace(/\s+/g, '');
+  return compactEmail.length > 0 && compactText.includes(compactEmail);
+}
+
 export class PdfQaValidatorService {
   /**
    * @param {object} [dependencies={}]
@@ -175,8 +207,9 @@ export class PdfQaValidatorService {
     }
 
     // Check 2B: Authoritative Candidate Email
-    const normExpectedEmail = normalizePdfText(expectedCandidate?.email);
-    const hasCandidateEmail = !normExpectedEmail || normalizedText.includes(normExpectedEmail);
+    // Tolerant of PDF extraction formatting (whitespace injected around email
+    // punctuation) while still requiring the full authoritative address.
+    const hasCandidateEmail = extractedTextContainsEmail(extractedText, expectedCandidate?.email);
     if (!hasCandidateEmail) {
       contentIntegrity -= 20;
       criticalFailures.push(
@@ -380,6 +413,15 @@ export class PdfQaValidatorService {
       const normText = norm(cleanText);
       const normHyphenPreservedText = normHyphenPreserved(cleanText);
 
+      // Whitespace-free projections tolerate whitespace that PDF extraction may
+      // inject around punctuation (e.g. "vishwanatnishad@gmail. com"). They are
+      // applied only to tokens that are themselves whitespace-free (email, URL,
+      // identifier), where the comparison is lossless: a genuine occurrence
+      // contains no internal whitespace, so the full character sequence must
+      // still be present. Multi-word tokens keep the strict single-space match.
+      const compactText = normText.replace(/\s+/g, '');
+      const compactHyphenPreservedText = normHyphenPreservedText.replace(/\s+/g, '');
+
       // Token expectation groups: every selected element must survive extraction.
       const expectationGroups = [
         {
@@ -411,8 +453,18 @@ export class PdfQaValidatorService {
       for (const group of expectationGroups) {
         for (const token of Array.isArray(group.tokens) ? group.tokens : []) {
           const t = norm(token);
+          if (!t) continue;
           const tHyphen = normHyphenPreserved(token);
-          if (t && !normText.includes(t) && !normHyphenPreservedText.includes(tHyphen)) {
+          const whitespaceFree = !/\s/.test(String(token));
+          const compactToken = t.replace(/\s+/g, '');
+          const compactTokenHyphen = tHyphen.replace(/\s+/g, '');
+          const found =
+            normText.includes(t) ||
+            normHyphenPreservedText.includes(tHyphen) ||
+            (whitespaceFree &&
+              ((compactToken && compactText.includes(compactToken)) ||
+                (compactTokenHyphen && compactHyphenPreservedText.includes(compactTokenHyphen))));
+          if (!found) {
             traceability.missing.push({ kind: group.label, token });
           }
         }
