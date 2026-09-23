@@ -37,7 +37,7 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres_ci_password@localhost:5432/career_hub_test
       DATABASE_SSL: 'false'
       DATABASE_POOL_MIN: 0
-      DATABASE_POOL_MAX: 20
+      DATABASE_POOL_MAX: 3
       DATABASE_STATEMENT_TIMEOUT_MS: 30000
       LOG_LEVEL: warn
       ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
