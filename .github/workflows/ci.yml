@@ -36,9 +36,9 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgres://postgres:postgres_ci_password@localhost:5432/career_hub_test
       DATABASE_SSL: 'false'
-      DATABASE_POOL_MIN: 1
-      DATABASE_POOL_MAX: 5
-      DATABASE_STATEMENT_TIMEOUT_MS: 10000
+      DATABASE_POOL_MIN: 0
+      DATABASE_POOL_MAX: 20
+      DATABASE_STATEMENT_TIMEOUT_MS: 30000
       LOG_LEVEL: warn
       ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
       SESSION_COOKIE_SECRET: 'mock-ci-session-cookie-secret-minimum-32-chars-long'
