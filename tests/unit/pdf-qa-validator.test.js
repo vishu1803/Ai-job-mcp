@@ -25,7 +25,32 @@ describe('PdfQaValidatorService', () => {
     },
     tailoredResume: {
       title: 'Resume',
-      markdownContent: 'Experienced backend engineer with proven cloud systems expertise.',
+      markdownContent: `
+## Summary
+
+Backend and infrastructure engineer experienced in building reliable cloud services,
+APIs, and data systems.
+
+## Experience
+
+### Infrastructure Engineer — Example Systems
+
+- Built Node.js services backed by PostgreSQL for internal production workflows.
+- Designed API integrations and automated test suites that improved release confidence.
+- Improved service reliability through monitoring, failure handling, and operational runbooks.
+
+## Projects
+
+### Cloud Job Processing Platform
+
+- Developed a TypeScript service for processing asynchronous job workflows.
+- Added PostgreSQL persistence, retry handling, and structured error reporting.
+- Reduced manual processing by automating validation and delivery steps.
+
+## Skills
+
+Node.js, TypeScript, PostgreSQL, REST APIs, automated testing, cloud infrastructure.
+`,
       contentHash: 'hash1',
       fitScore: 88,
     },
@@ -65,7 +90,16 @@ describe('PdfQaValidatorService', () => {
       documentType: 'RESUME',
     });
 
-    assert.equal(report.passed, true);
+    assert.equal(
+      report.passed,
+      true,
+      [
+        `score=${report.score}`,
+        `qualityLevel=${report.qualityLevel}`,
+        `criticalFailures=${JSON.stringify(report.criticalFailures)}`,
+        `breakdown=${JSON.stringify(report.breakdown)}`,
+      ].join('\n'),
+    );
     assert.ok(report.score >= 75);
     assert.ok(['EXCELLENT', 'GOOD'].includes(report.qualityLevel));
     assert.ok(report.breakdown.parsingCompatibility > 0);
