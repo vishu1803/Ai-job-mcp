@@ -682,6 +682,12 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
           status: 'AUTHENTICATED',
           user: controller.currentUser,
         }),
+        getAssistantContext: async () => ({
+          applicationReadiness: null,
+          missingInformation: [],
+          conflicts: [],
+          aiHelp: { available: false },
+        }),
         analyzeJob: async (job) => ({
           analysisSnapshotId: 'snap-p79',
           title: job.title,

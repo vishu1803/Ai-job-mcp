@@ -817,11 +817,19 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
   \\input{glyphtounicode.tex}
   \\pdfgentounicode=1
 \\fi
-\\usepackage[margin=0.52in]{geometry}
+\\usepackage[
+  top=0.38in,
+  bottom=0.38in,
+  left=0.48in,
+  right=0.48in
+]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{0pt}
+\\setlength{\\itemsep}{0pt}
+\\setlength{\\parsep}{0pt}
+\\setlength{\\topsep}{0pt}
 
 \\hypersetup{
   colorlinks=true,

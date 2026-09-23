@@ -216,6 +216,12 @@ describe('Part 68 — Final Detection Race Elimination & Repeated Live Reliabili
 
     // Hook backendClient
     controller.backendClient = {
+      getAssistantContext: async () => ({
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: { available: false },
+      }),
       analyzeJob: async () => {
         analyzeCalls++;
         await new Promise((r) => setTimeout(r, 10));

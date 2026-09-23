@@ -368,6 +368,12 @@ describe('P75: Production Side Panel Parity & Fresh-State Verification', () => {
         status: 'AUTHENTICATED',
         user: controller.currentUser,
       }),
+      getAssistantContext: async () => ({
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: { available: false },
+      }),
       analyzeJob: async () => ({
         fitAnalysis: {
           overallScore: 85,

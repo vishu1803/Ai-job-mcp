@@ -3,6 +3,36 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-23*
 
+### Phase P53: Assistant Context Contract, PDF QA Placeholder Normalization & 1-Page Chrome Resume Fallback
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-23
+**Scope:** Resolved 3 concrete defects identified in the CI unit test suite across assistant context contract availability, PDF QA text/placeholder normalization, and 1-page resume layout under Headless Chrome vector printing fallback and Tectonic:
+
+1. **Extension Assistant Context Contract & Defensive Sidebar Guard (`extension/api/backend-client.js`, `extension/sidebar/sidebar.js`, extension test suites):**
+   - Implemented `getAssistantContext({ job, formFields = [], applicationAnswers = {} })` in `BackendClient` along with `_request()` alias, returning structured fallback readiness context on failure or unavailability.
+   - Added defensive guard in `SidebarController.loadAssistantContext` (`if (typeof this.backendClient?.getAssistantContext !== 'function') return;`) to ensure sidebar operations never crash if client stubs omit the method.
+   - Added `getAssistantContext` mock stubs across all 10 extension unit test suites (`tests/unit/p61-calm-workflow-and-ui.test.js`, `p67`, `p68`, `p69`, `p71`, `p72`, `p75`, `p77`, `p78`, `p79`). Verified: **182/182 PASS (100%)**.
+
+2. **PDF QA Text Normalization & Generic Placeholder Detection (`src/services/pdf-qa-validator.service.js`):**
+   - Exported and implemented `normalizePdfText(value = '')` handling soft hyphens (`\u00ad`), line-break hyphenations, whitespace collapsing, case normalization, and LaTeX ligature dropping (`\bveriied\b` -> `verified`).
+   - Hardened `GENERIC_PLACEHOLDER_PATTERNS` to catch generic placeholder text (`verified track record of delivering high-impact solutions`, `demonstrated ability to lead cross-functional teams`) with ligature tolerance (`ver[if]+ed`) while avoiding false rejections on clean resumes.
+   - Updated candidate name and email presence checks to operate over normalized PDF text.
+   - Verified `tests/unit/pdf-qa-validator.test.js`: **4/4 PASS (100%)**.
+
+3. **1-Page Resume Layout under Chrome Vector Printing Fallback & Tectonic (`src/services/latex-compiler.service.js`, `src/services/resume-parser.service.js`, `src/services/latex-document-generator.service.js`, `src/services/legacy-latex-generator.service.js`):**
+   - Overhauled `LatexCompilerService._convertLatexToAtsHtml`: Replaced raw `<pre>` fallback dump with clean ATS-optimized HTML layout matching sections, headlines, contacts, and bullets with compact single-page CSS (`@page { size: letter; margin: 0.38in 0.48in; }`, `font-size: 9pt; line-height: 1.22;`), preventing multi-page overflow in headless Chrome printing.
+   - Hardened `ResumeParserService`: Added font-size tracking (`Tf`) in `_extractTextFromPdf` and dynamic `prevGapThreshold` / `charWidthEstimate` in `joinRuns`, eliminating character-splitting spaces (`D e d ic a t e d`) on single-character runs emitted by Chrome.
+   - Updated LaTeX preamble geometry in `src/services/latex-document-generator.service.js` and `src/services/legacy-latex-generator.service.js` to `top=0.38in, bottom=0.38in, left=0.48in, right=0.48in` with zero parindent/parskip/itemsep/parsep/topsep.
+   - Verified `tests/unit/resume-quality-assessment.test.js`: **17/17 PASS (100%)**, Scenario A = 1 page (ATS score 100/100), Scenario B = 1 page.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/pdf-qa-validator.test.js`: **4/4 PASS (100%)**
+- `tests/unit/resume-quality-assessment.test.js`: **17/17 PASS (100%)**
+- Extension Unit Test Battery (10 suites): **182/182 PASS (100%)**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 119 warnings)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+
 ### Phase P52: CI Environment Resilience, S3 Provider Implementation & Database UUID Hardening
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-23

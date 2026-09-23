@@ -519,6 +519,12 @@ describe('Part 67 — Detection Delivery Convergence & LinkedIn Hydration Reliab
     it('explicit click on Analyze Job Match makes exactly 1 server call and blocks double-click', async () => {
       let analyzeCalls = 0;
       controller.backendClient = {
+        getAssistantContext: async () => ({
+          applicationReadiness: null,
+          missingInformation: [],
+          conflicts: [],
+          aiHelp: { available: false },
+        }),
         analyzeJob: async () => {
           analyzeCalls++;
           await new Promise((r) => setTimeout(r, 20));

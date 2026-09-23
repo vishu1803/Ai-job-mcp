@@ -219,6 +219,12 @@ function createMockController(options = {}) {
       status: 'AUTHENTICATED',
       user: { id: 'u1' },
     }),
+    getAssistantContext: async () => ({
+      applicationReadiness: null,
+      missingInformation: [],
+      conflicts: [],
+      aiHelp: { available: false },
+    }),
     analyzeJob: async () => {
       analyzeCalls++;
       return { success: true };

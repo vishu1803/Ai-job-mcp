@@ -686,6 +686,12 @@ describe('P69 Unit Tests: Fix LinkedIn False Negatives & ChatGPT False Positives
         jobData: null,
       };
       controller.backendClient = {
+        getAssistantContext: async () => ({
+          applicationReadiness: null,
+          missingInformation: [],
+          conflicts: [],
+          aiHelp: { available: false },
+        }),
         analyzeJob: async () => {
           analyzeCalls++;
           return {

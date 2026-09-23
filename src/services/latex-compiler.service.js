@@ -282,9 +282,171 @@ export class LatexCompilerService {
    * @returns {string} Clean HTML
    */
   _convertLatexToAtsHtml(texContent) {
+    const cleanLatexText = (text) => {
+      if (!text) return '';
+      return text
+        .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '<a href="$1">$2</a>')
+        .replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>')
+        .replace(/\\textit\{([^}]+)\}/g, '<em>$1</em>')
+        .replace(/\\emph\{([^}]+)\}/g, '<em>$1</em>')
+        .replace(/\\setlength\s*\\[a-zA-Z]+\s*\{?[^}\s]*\}?/g, '')
+        .replace(/\\setlength\{?\\[a-zA-Z]+\}?\{?[^}\s]*\}?/g, '')
+        .replace(/\\small\b/g, '')
+        .replace(/\\large\b/g, '')
+        .replace(/\\Huge\b/g, '')
+        .replace(/\\LARGE\b/g, '')
+        .replace(/\\normalsize\b/g, '')
+        .replace(/\\scshape\b/g, '')
+        .replace(/\\bfseries\b/g, '')
+        .replace(/\\itshape\b/g, '')
+        .replace(/\\noindent\b/g, '')
+        .replace(/\\centering\b/g, '')
+        .replace(/\\raggedright\b/g, '')
+        .replace(/\\hfill\b/g, ' ')
+        .replace(/\\par\b/g, '')
+        .replace(/\\vspace\{[^}]+\}/g, '')
+        .replace(/\\hspace\{[^}]+\}/g, '')
+        .replace(/\\hrule\s+height\s+[^\\ \n]+/g, '')
+        .replace(/\\hrule\b/g, '')
+        .replace(/\\\\/g, '<br>')
+        .replace(/\\&/g, '&')
+        .replace(/\\%/g, '%')
+        .replace(/\\\$/g, '$')
+        .replace(/\\#/g, '#')
+        .replace(/\\_/g, '_')
+        .replace(/\\\{/g, '{')
+        .replace(/\\\}/g, '}')
+        .replace(/\\textasciitilde\{\}/g, '~')
+        .replace(/\\textasciicircum\{\}/g, '^')
+        .replace(/\$\\cdot\$/g, '·')
+        .replace(/\\cdot\b/g, '·')
+        .replace(/---/g, '—')
+        .replace(/--/g, '–')
+        .replace(/\\[a-zA-Z]+/g, '')
+        .replace(/\{([^{}]+)\}/g, '$1')
+        .replace(/\{|\}/g, '')
+        .trim();
+    };
+
+    // Extract body between \begin{document} and \end{document}
+    let body = texContent;
+    const docMatch = texContent.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+    if (docMatch) {
+      body = docMatch[1];
+    }
+
+    // Remove LaTeX comments
+    body = body
+      .split('\n')
+      .map((line) => line.replace(/(^|[^\\])%.*$/, '$1'))
+      .join('\n');
+
     // Extract candidate name
-    const nameMatch = texContent.match(/\\Huge\s*\\textbf\{([^}]+)\}/);
-    const candidateName = nameMatch ? nameMatch[1] : 'Candidate';
+    let candidateName = '';
+    const nameMatch =
+      body.match(/\\(?:Huge|LARGE|large)\s*\\textbf\{([^}]+)\}/) ||
+      body.match(/\\textbf\{\\Huge\s+([^}]+)\}/) ||
+      body.match(/\\textbf\{([^}]+)\}/);
+    if (nameMatch) {
+      candidateName = cleanLatexText(nameMatch[1]);
+    } else {
+      const firstLine =
+        body
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)[0] || '';
+      candidateName = cleanLatexText(firstLine) || 'Candidate';
+    }
+
+    // Extract headline if present
+    let headline = '';
+    const headlineMatch = body.match(/\\(?:large|normalsize)\s*\\textbf\{([^}]+)\}/);
+    if (headlineMatch && cleanLatexText(headlineMatch[1]) !== candidateName) {
+      headline = cleanLatexText(headlineMatch[1]);
+    }
+
+    // Split into sections
+    const sectionSplitter = /\\(?:atsfirstsection|atssection|section\*?)\{([^}]+)\}/g;
+    const sections = [];
+    let preHeader = '';
+
+    const headerEnd = body.search(/\\(?:atsfirstsection|atssection|section\*?)\{/);
+    if (headerEnd !== -1) {
+      preHeader = body.slice(0, headerEnd);
+      sectionSplitter.lastIndex = headerEnd;
+    } else {
+      preHeader = body;
+    }
+
+    // Extract contact line from preHeader
+    let contactHtml = '';
+    const contactLines = preHeader
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.includes(candidateName) && (!headline || !l.includes(headline)));
+    if (contactLines.length > 0) {
+      const rawContact = contactLines.join(' ');
+      contactHtml = cleanLatexText(rawContact);
+    }
+
+    let match;
+    while ((match = sectionSplitter.exec(body)) !== null) {
+      const title = match[1];
+      const startIndex = sectionSplitter.lastIndex;
+      const nextMatch = body
+        .slice(startIndex)
+        .search(/\\(?:atsfirstsection|atssection|section\*?)\{/);
+      const content =
+        nextMatch !== -1 ? body.slice(startIndex, startIndex + nextMatch) : body.slice(startIndex);
+      sections.push({ title: cleanLatexText(title), content });
+    }
+
+    let htmlBody = `<div class="header">
+    <h1 class="candidate-name">${candidateName}</h1>
+    ${headline ? `<div class="candidate-headline">${headline}</div>` : ''}
+    ${contactHtml ? `<div class="contact-line">${contactHtml}</div>` : ''}
+  </div>`;
+
+    if (sections.length === 0) {
+      const cleaned = cleanLatexText(body);
+      htmlBody += `<div class="content">${cleaned
+        .split('\n\n')
+        .map((p) => `<p>${cleanLatexText(p)}</p>`)
+        .join('')}</div>`;
+    } else {
+      for (const sec of sections) {
+        htmlBody += `<div class="section">
+        <div class="section-title">${sec.title}</div>`;
+
+        const chunks = sec.content.split(/\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/);
+        for (let i = 0; i < chunks.length; i++) {
+          if (i % 2 === 1) {
+            const items = chunks[i]
+              .split(/\\item\b/)
+              .map((it) => it.trim())
+              .filter(Boolean);
+            if (items.length > 0) {
+              htmlBody += `<ul>${items.map((it) => `<li>${cleanLatexText(it)}</li>`).join('')}</ul>`;
+            }
+          } else {
+            const textChunk = chunks[i].trim();
+            if (textChunk) {
+              const paragraphs = textChunk
+                .split(/(?:\\par|\n\s*\n)/)
+                .map((p) => p.trim())
+                .filter(Boolean);
+              for (const p of paragraphs) {
+                const cleanedP = cleanLatexText(p);
+                if (cleanedP) {
+                  htmlBody += `<p>${cleanedP}</p>`;
+                }
+              }
+            }
+          }
+        }
+        htmlBody += `</div>`;
+      }
+    }
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -294,54 +456,73 @@ export class LatexCompilerService {
   <style>
     @page {
       size: letter;
-      margin: 0.6in;
+      margin: 0.38in 0.48in;
     }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      color: #000;
-      background: #fff;
-      line-height: 1.35;
-      font-size: 10pt;
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
       margin: 0;
       padding: 0;
-    }
-    h1 {
-      font-size: 22pt;
-      font-weight: 700;
-      text-align: center;
-      margin: 0 0 4px;
-    }
-    .contact {
-      text-align: center;
+      background: #ffffff;
+      color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       font-size: 9pt;
-      color: #222;
-      margin-bottom: 12px;
+      line-height: 1.22;
+      -webkit-font-smoothing: antialiased;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 3pt;
+    }
+    .candidate-name {
+      font-size: 16pt;
+      font-weight: 700;
+      margin: 0 0 1pt;
+      line-height: 1.1;
+      text-align: center;
+    }
+    .candidate-headline {
+      font-size: 9.5pt;
+      font-weight: 600;
+      margin: 0 0 1pt;
+      text-align: center;
+    }
+    .contact-line {
+      font-size: 8.5pt;
+      color: #222222;
+      margin: 0 0 3pt;
+      text-align: center;
+    }
+    .section {
+      margin-top: 3pt;
     }
     .section-title {
-      font-size: 11pt;
+      font-size: 9.5pt;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid #000;
-      padding-bottom: 2px;
-      margin: 14px 0 6px;
+      border-bottom: 0.5pt solid #000000;
+      padding-bottom: 1pt;
+      margin: 3.5pt 0 1.5pt;
     }
-    p { margin: 0 0 6px; }
-    ul { margin: 2px 0 6px 18px; padding: 0; }
-    li { margin-bottom: 2px; }
-    .flex-row { display: flex; justify-content: space-between; font-weight: 700; }
-    .flex-sub { display: flex; justify-content: space-between; font-style: italic; margin-bottom: 4px; }
+    p {
+      margin: 0 0 1.5pt;
+    }
+    ul {
+      margin: 1pt 0 2pt 14pt;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 0.5pt;
+      line-height: 1.2;
+    }
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-  <h1>${candidateName}</h1>
-  <div class="content">
-    <pre style="white-space:pre-wrap; font-family:inherit; margin:0;">${texContent
-      .replace(/\\begin\{document\}[\s\S]*?\\begin\{center\}/, '')
-      .replace(/\\end\{document\}/, '')
-      .replace(/\\[a-zA-Z]+(\[[^\]]*\])?(\{([^}]*)\})?/g, '$3')
-      .trim()}</pre>
-  </div>
+  ${htmlBody}
 </body>
 </html>`;
   }

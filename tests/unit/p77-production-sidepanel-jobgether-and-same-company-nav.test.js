@@ -416,6 +416,12 @@ describe('P77: Production Side-Panel Parity & Same-Company Navigation', () => {
         status: 'AUTHENTICATED',
         user: controller.currentUser,
       }),
+      getAssistantContext: async () => ({
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: { available: false },
+      }),
       analyzeJob: async () => ({
         fitAnalysis: {
           overallScore: 85,

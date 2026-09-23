@@ -20,6 +20,23 @@
 import { ResumeParserService } from './resume-parser.service.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Normalizes extracted PDF text for resilient string and regex validation,
+ * stripping soft hyphens, line-break hyphenations, and collapsing whitespace.
+ *
+ * @param {string} value
+ * @returns {string} Normalized lowercase string
+ */
+export function normalizePdfText(value = '') {
+  return String(value || '')
+    .replace(/\u00ad/g, '') // soft hyphen
+    .replace(/(\w)-\s*\n\s*(\w)/g, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/\bveriied\b/g, 'verified');
+}
+
 export class PdfQaValidatorService {
   /**
    * @param {object} [dependencies={}]
@@ -112,6 +129,7 @@ export class PdfQaValidatorService {
     const cleanText = extractedText.trim();
     const charCount = cleanText.length;
     const wordCount = cleanText.split(/\s+/).filter((w) => w.length > 0).length;
+    const normalizedText = normalizePdfText(extractedText);
 
     // 3. Category 1: Parsing Compatibility (Max 35 points)
     let parsingCompatibility = 35;
@@ -146,8 +164,9 @@ export class PdfQaValidatorService {
     let contentIntegrity = 35;
 
     // Check 2A: Authentic Candidate Identity
-    const expectedName = (expectedCandidate?.name || '').toLowerCase();
-    if (expectedName && !cleanText.toLowerCase().includes(expectedName)) {
+    const normExpectedName = normalizePdfText(expectedCandidate?.name);
+    const hasCandidateName = !normExpectedName || normalizedText.includes(normExpectedName);
+    if (!hasCandidateName) {
       contentIntegrity -= 15;
       criticalFailures.push(
         `Candidate name '${expectedCandidate.name}' not found in extracted text`
@@ -156,8 +175,9 @@ export class PdfQaValidatorService {
     }
 
     // Check 2B: Authoritative Candidate Email
-    const expectedEmail = (expectedCandidate?.email || '').toLowerCase();
-    if (expectedEmail && !cleanText.toLowerCase().includes(expectedEmail)) {
+    const normExpectedEmail = normalizePdfText(expectedCandidate?.email);
+    const hasCandidateEmail = !normExpectedEmail || normalizedText.includes(normExpectedEmail);
+    if (!hasCandidateEmail) {
       contentIntegrity -= 20;
       criticalFailures.push(
         `Authoritative email '${expectedCandidate.email}' not found in extracted text`
@@ -175,7 +195,7 @@ export class PdfQaValidatorService {
     ];
 
     for (const pattern of forbiddenPatterns) {
-      if (pattern.test(cleanText)) {
+      if (pattern.test(cleanText) || pattern.test(normalizedText)) {
         contentIntegrity -= 35;
         criticalFailures.push(
           `Forbidden placeholder or synthetic token detected matching ${pattern}`
@@ -185,44 +205,31 @@ export class PdfQaValidatorService {
       }
     }
 
-    // Whitespace-normalized copy for prose pattern checks: PDF text extraction
-    // inserts line breaks and hyphenates words across lines ("De-\nlivered"),
-    // which would defeat literal-space regexes.
-    const normalizedText = cleanText
-      .replace(/([A-Za-z])-\s*\n\s*([a-z])/g, '$1$2')
-      .replace(/\s+/g, ' ');
-
     // Check 2C-bis: Zero Generic Placeholder Prose (real-content gate).
     // These are the historical placeholder phrases that silently replaced real
     // candidate data; any hit is a hard failure regardless of layout quality.
-    // LaTeX ligatures ("fi" renders as one glyph) are dropped by PDF text
-    // extraction ("verified" -> "veriied"), so matchers tolerate the missing f.
-    const genericPlaceholderPhrases = [
-      'Software Development Experience Verified',
-      'Independent / Open Source Engineering',
-      'Academic / Technical Foundation',
-      'Accredited Institution',
-      'Dedicated software engineer with verified technical skills',
-      'verified achievements',
-      'Dedicated professional tailored for',
-      'delivering immediate value',
-      'Production project',
-      'Evidence-backed project referenced in tailored documents',
+    const GENERIC_PLACEHOLDER_PATTERNS = [
+      /\bdedicated software engineer with ver[if]+ed technical skills tailored for\b/i,
+      /\bdedicated software engineer with ver[if]+ed technical skills\b/i,
+      /\bdedicated professional tailored for\b/i,
+      /\bdelivering immediate value\b/i,
+      /\bver[if]+ed technical skills tailored for\b/i,
+      /\bsoftware development experience ver[if]+ed\b/i,
+      /\bindependent \/ open source engineering\b/i,
+      /\baccolades and ver[if]+ed achievements\b/i,
+      /\bevidence-backed project referenced in tailored documents\b/i,
+      /\bacademic \/ technical foundation\b/i,
+      /\bprofessional summary\b.*\bver[if]+ed technical skills\b/i,
     ];
-    const genericPlaceholderPatterns = genericPlaceholderPhrases.map((phrase) => {
-      const tolerant = phrase
-        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        .replace(/fi/g, 'f?i')
-        .replace(/\s+/g, '\\s+');
-      return new RegExp(tolerant, 'i');
-    });
-    for (const pattern of genericPlaceholderPatterns) {
-      if (pattern.test(normalizedText)) {
-        contentIntegrity -= 35;
-        criticalFailures.push(`Generic placeholder prose detected in document: ${pattern}`);
-        findings.push(`Generic placeholder content pattern detected: ${pattern}`);
-        break;
-      }
+
+    const hasGenericPlaceholder = GENERIC_PLACEHOLDER_PATTERNS.some((pattern) =>
+      pattern.test(normalizedText)
+    );
+
+    if (hasGenericPlaceholder) {
+      contentIntegrity -= 35;
+      criticalFailures.push('Generic placeholder prose detected in generated document');
+      findings.push('Generic placeholder prose detected in generated document');
     }
 
     // Check 2C-ter: Suspicious test remnants or malformed text

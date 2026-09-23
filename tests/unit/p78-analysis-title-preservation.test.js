@@ -288,6 +288,12 @@ describe('P78: Analysis Title Preservation & Passive Detection Protection', () =
         status: 'AUTHENTICATED',
         user: controller.currentUser,
       }),
+      getAssistantContext: async () => ({
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: { available: false },
+      }),
       analyzeJob: async (job) => {
         return {
           analysisSnapshotId: 'snap-4466834190',

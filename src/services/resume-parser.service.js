@@ -309,6 +309,7 @@ export class ResumeParserService {
       let ctm = [1, 0, 0, 1, 0, 0];
       let textMatrix = [1, 0, 0, 1, 0, 0];
       let lineMatrix = [1, 0, 0, 1, 0, 0];
+      let currentFontSize = 10;
       const operandStack = [];
 
       for (let i = 0; i < tokens.length; i++) {
@@ -336,6 +337,14 @@ export class ResumeParserService {
           operandStack.length = 0;
         } else if (tok === 'ET') {
           operandStack.length = 0;
+        } else if (tok === 'Tf') {
+          if (operandStack.length >= 2) {
+            const sizeVal = parseFloat(operandStack.pop());
+            if (!Number.isNaN(sizeVal) && sizeVal > 0) {
+              currentFontSize = sizeVal;
+            }
+            operandStack.pop();
+          }
         } else if (tok === 'Tm') {
           if (operandStack.length >= 6) {
             const f = parseFloat(operandStack.pop());
@@ -367,7 +376,7 @@ export class ResumeParserService {
             if (str) {
               const textPos = this._transformPoint(textMatrix, 0, 0);
               const finalPos = this._transformPoint(ctm, textPos.x, textPos.y);
-              elements.push({ x: finalPos.x, y: finalPos.y, text: str });
+              elements.push({ x: finalPos.x, y: finalPos.y, text: str, fontSize: currentFontSize });
             }
           }
         } else if (tok === 'TJ') {
@@ -392,7 +401,7 @@ export class ResumeParserService {
             if (str) {
               const textPos = this._transformPoint(textMatrix, 0, 0);
               const finalPos = this._transformPoint(ctm, textPos.x, textPos.y);
-              elements.push({ x: finalPos.x, y: finalPos.y, text: str });
+              elements.push({ x: finalPos.x, y: finalPos.y, text: str, fontSize: currentFontSize });
             }
           }
         } else {
@@ -463,15 +472,12 @@ export class ResumeParserService {
     const joinRuns = (group) => {
       let lineText = '';
       let prevEndX = null;
-      let prevGapThreshold = MIN_GAP_PT;
       for (const c of group) {
+        const fontSize = c.fontSize || 10;
+        const prevGapThreshold = Math.max(MIN_GAP_PT, fontSize * GAP_RATIO);
         if (lineText.length > 0 && prevEndX !== null && c.x !== undefined) {
           const gap = c.x - prevEndX;
-          if (
-            gap > Math.max(MIN_GAP_PT, prevGapThreshold * GAP_RATIO) &&
-            !/\s$/.test(lineText) &&
-            !/^\s/.test(c.text)
-          ) {
+          if (gap > prevGapThreshold && !/\s$/.test(lineText) && !/^\s/.test(c.text)) {
             lineText += ' ';
           }
         }
@@ -479,7 +485,7 @@ export class ResumeParserService {
         // Track approximate run end using character-count heuristic when the
         // parser lacks glyph widths (elements carry start x only).
         if (c.x !== undefined) {
-          const charWidthEstimate = prevGapThreshold;
+          const charWidthEstimate = Math.max(MIN_GAP_PT, fontSize * 0.48);
           prevEndX = c.x + c.text.length * charWidthEstimate;
         }
       }

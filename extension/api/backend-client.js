@@ -115,6 +115,17 @@ export class BackendClient {
   }
 
   /**
+   * Alias for _fetch to satisfy external request contracts.
+   *
+   * @param {string} endpoint
+   * @param {RequestInit} [options={}]
+   * @returns {Promise<any>}
+   */
+  async _request(endpoint, options = {}) {
+    return this._fetch(endpoint, options);
+  }
+
+  /**
    * Retrieves active session authentication state.
    *
    * @returns {Promise<{ status: string, authenticated: boolean, user?: object, tenant?: object, candidate?: object }>}
@@ -307,18 +318,33 @@ export class BackendClient {
 
   /**
    * Fetches the compact 5-dimension AI assistant context for the active job.
+   * Fails gracefully if the backend route is unavailable or errors out.
    *
-   * @param {object} params
-   * @param {object} params.job
-   * @param {Array<object>} [params.formFields]
-   * @param {object} [params.applicationAnswers]
+   * @param {object} [payload={}]
+   * @param {object} [payload.job]
+   * @param {Array<object>} [payload.formFields]
+   * @param {object} [payload.applicationAnswers]
    * @returns {Promise<object>} Compact context (jobMatch, applicationReadiness, missingInformation, conflicts, aiHelp, autofillPlan)
    */
-  async getAssistantContext({ job, formFields = [], applicationAnswers = {} }) {
-    return this._fetch('/api/extension/assistant/context', {
-      method: 'POST',
-      body: { job, formFields, applicationAnswers },
-    });
+  async getAssistantContext(payload = {}) {
+    const { job, formFields = [], applicationAnswers = {} } = payload || {};
+    try {
+      return await this._fetch('/api/extension/assistant/context', {
+        method: 'POST',
+        body: { job, formFields, applicationAnswers },
+      });
+    } catch (error) {
+      return {
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: {
+          available: false,
+          fallbackNotice: 'AI assistant context is temporarily unavailable.',
+        },
+        error,
+      };
+    }
   }
 
   /**

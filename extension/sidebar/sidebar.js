@@ -1862,6 +1862,7 @@ class SidebarController {
    */
   async loadAssistantContext() {
     if (!this.isAuthenticated || !this.activeJob) return;
+    if (typeof this.backendClient?.getAssistantContext !== 'function') return;
 
     try {
       const context = await this.backendClient.getAssistantContext({

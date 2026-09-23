@@ -298,6 +298,12 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
           canonicalEmail: 'vishwanatnishad@gmail.com',
         },
       }),
+      getAssistantContext: async () => ({
+        applicationReadiness: null,
+        missingInformation: [],
+        conflicts: [],
+        aiHelp: { available: false },
+      }),
       analyzeJob: async (job) => {
         backendCalls.analyzeJob++;
         return {
