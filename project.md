@@ -3,6 +3,32 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-23*
 
+### Phase P56: PDF QA Email Text Extraction in Chrome Vector Fallback & Regression Assertions
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-23
+**Scope:** Resolved CI unit test failure at `tests/unit/pdf-qa-validator.test.js:72` where the Headless Chrome vector printer fallback rendered candidate contact links inside `<a>` tags that placed text into link annotations rather than the primary PDF content stream, causing the authoritative candidate email to be omitted during PDF text extraction:
+
+1. **Plain Selectable Contact Line in Chrome Fallback (`src/services/latex-compiler.service.js`):**
+   - Stripped HTML tags (e.g. `<a>` produced by `\href`) from the rendered `contactHtml` in `_convertLatexToAtsHtml`, ensuring email and phone numbers are emitted as plain, selectable text in the PDF content stream.
+   - Added `\texttt{...}` unwrapping in `cleanLatexText` to cleanly preserve monospace email literals.
+
+2. **Exposed Extracted Text in PDF QA Report (`src/services/pdf-qa-validator.service.js`):**
+   - Added `extractedText: cleanText` to the validation report return object in `PdfQaValidatorService.validatePdf()`, enabling callers and test assertions to inspect the actual extracted document text.
+
+3. **Explicit Regression Assertion (`tests/unit/pdf-qa-validator.test.js`):**
+   - Added `assert.match(report.extractedText ?? '', /vishwanatnishad@gmail\.com/i)` to ensure the authoritative candidate email is guaranteed to be present and extractable from clean compiled resume PDFs under both Tectonic and Headless Chrome vector printing engines.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/pdf-qa-validator.test.js`: **4/4 PASS (100%)**
+  - Test 1 (clean resume with explicit email assertion): PASS
+  - Test 2 (missing email rejection): PASS
+  - Test 3 (corrupted PDF rejection): PASS
+  - Test 4 (placeholder prose hard rejection): PASS
+- Chrome Headless Fallback Compilation: **PASS** (Score: 93/100, Quality: EXCELLENT, Email Present: true)
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 120 warnings)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+
 ### Phase P55: PDF QA Validator Test Fixture Enrichment & Diagnostic Improvement
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-23

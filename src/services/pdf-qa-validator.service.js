@@ -501,6 +501,7 @@ export class PdfQaValidatorService {
       findings,
       criticalFailures,
       traceability,
+      extractedText: cleanText,
       auditedAt: new Date().toISOString(),
     };
   }

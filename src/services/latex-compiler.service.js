@@ -324,6 +324,7 @@ export class LatexCompilerService {
         .replace(/\\cdot\b/g, '·')
         .replace(/---/g, '—')
         .replace(/--/g, '–')
+        .replace(/\\texttt\{([^}]+)\}/g, '$1')
         .replace(/\\[a-zA-Z]+/g, '')
         .replace(/\{([^{}]+)\}/g, '$1')
         .replace(/\{|\}/g, '')
@@ -388,7 +389,11 @@ export class LatexCompilerService {
       .filter((l) => l && !l.includes(candidateName) && (!headline || !l.includes(headline)));
     if (contactLines.length > 0) {
       const rawContact = contactLines.join(' ');
-      contactHtml = cleanLatexText(rawContact);
+      // Strip HTML tags (especially <a> from \href) so the email and phone render as
+      // plain selectable text in Chrome's PDF content stream. Chrome sometimes encodes
+      // <a> tag text as link annotation text rather than content-stream text, making it
+      // invisible to PDF stream text extractors.
+      contactHtml = cleanLatexText(rawContact).replace(/<[^>]+>/g, '');
     }
 
     let match;

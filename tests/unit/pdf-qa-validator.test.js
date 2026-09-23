@@ -106,6 +106,7 @@ Node.js, TypeScript, PostgreSQL, REST APIs, automated testing, cloud infrastruct
     assert.ok(report.breakdown.contentIntegrity > 0);
     assert.ok(report.breakdown.readability > 0);
     assert.equal(report.criticalFailures.length, 0);
+    assert.match(report.extractedText ?? '', /vishwanatnishad@gmail\.com/i);
   });
 
   it('2. fails validation if candidate authentic email is missing from PDF', async () => {
