@@ -17,11 +17,37 @@
  */
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
+import process from 'node:process';
 import { logger } from '../utils/logger.js';
+
+/**
+ * Resolves the Chrome or Chromium executable across Windows, Linux, and CI environments.
+ *
+ * @returns {string} Executable path
+ */
+export function resolveChromeExecutable() {
+  const configured = process.env.CHROME_BIN;
+  if (configured && fsSync.existsSync(configured)) return configured;
+
+  if (process.platform === 'win32') {
+    return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  }
+
+  for (const candidate of [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+  ]) {
+    if (fsSync.existsSync(candidate)) return candidate;
+  }
+
+  throw new Error('Chrome/Chromium executable not found. Set CHROME_BIN or install Chromium.');
+}
 
 export class LatexCompilerService {
   /**
@@ -33,8 +59,15 @@ export class LatexCompilerService {
     this.logger = logger.child({ module: 'LatexCompilerService' });
     this.tectonicPath =
       options.tectonicPath || path.resolve(process.cwd(), 'tools', 'bin', 'tectonic.exe');
-    this.chromePath =
-      options.chromePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    if (options.chromePath) {
+      this.chromePath = options.chromePath;
+    } else {
+      try {
+        this.chromePath = resolveChromeExecutable();
+      } catch {
+        this.chromePath = null;
+      }
+    }
   }
 
   /**
@@ -122,11 +155,13 @@ export class LatexCompilerService {
       const htmlPath = path.join(workDir, `${jobName}.html`);
       await fs.writeFile(htmlPath, fallbackHtml, 'utf8');
 
+      const executable = this.chromePath || resolveChromeExecutable();
       const chromeResult = await this._runCommand(
-        this.chromePath,
+        executable,
         [
           '--headless=new',
           '--disable-gpu',
+          '--no-sandbox',
           '--no-pdf-header-footer',
           `--print-to-pdf=${pdfFilePath}`,
           htmlPath,

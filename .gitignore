@@ -80,8 +80,8 @@ road.md
 roadmap.md
 
 # Document Storage & Upload Blobs
-storage/
-!storage/.gitkeep
+/storage/
+!/storage/.gitkeep
 
 
 

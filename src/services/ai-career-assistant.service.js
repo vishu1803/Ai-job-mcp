@@ -1302,7 +1302,11 @@ export class AiCareerAssistantService {
 
     // 1. Fetch candidate profile if not provided
     let profile = candidateProfile;
-    if (!profile && candidateId && tenantId) {
+    const isValidUuid = (val) =>
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    if (!profile && candidateId && tenantId && isValidUuid(candidateId) && isValidUuid(tenantId)) {
       try {
         const ctx = context || { tenantId, userId, role: 'MEMBER' };
         profile = await this.candidateProfileService.getCareerProfile(ctx, candidateId);

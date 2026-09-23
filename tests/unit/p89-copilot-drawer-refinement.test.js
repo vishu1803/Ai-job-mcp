@@ -137,8 +137,8 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
       const service = new AiCareerAssistantService({ aiProvider: mockProvider });
       const res = await service.handleUserMessage({
         message: 'How do my repositories support my application?',
-        tenantId: 't-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         candidateProfile: {
           displayName: 'Vishwanath Nishad',
           targetRoles: ['Backend Engineer'],
@@ -192,8 +192,8 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
       const service = new AiCareerAssistantService();
       const res = await service.handleUserMessage({
         message: 'Please submit my job application now',
-        tenantId: 't-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
       });
 
       assert.match(

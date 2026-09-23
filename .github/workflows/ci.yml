@@ -27,7 +27,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d career_hub_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -43,6 +43,7 @@ jobs:
       ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
       SESSION_COOKIE_SECRET: 'mock-ci-session-cookie-secret-minimum-32-chars-long'
       AUTH_SECRET: 'mock-ci-auth-secret-minimum-32-chars-long'
+      CHROME_BIN: /usr/bin/chromium
 
     steps:
       - name: Checkout repository
@@ -77,6 +78,12 @@ jobs:
 
       - name: Seed test database fixtures
         run: npm run db:seed:test
+
+      - name: Install Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium
+          command -v chromium
 
       - name: Execute unit test suite
         run: npm run test:unit

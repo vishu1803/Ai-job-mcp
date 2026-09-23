@@ -87,9 +87,13 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
     it('removes permanent Section 4 Copilot marketing card from dashboard page', () => {
       const dashHtml = renderDashboardPage({
-        user: { id: 'u-1', displayName: 'Test User', email: 'test@example.com' },
-        tenant: { id: 't-1', name: 'Test Tenant' },
-        candidate: { id: 'c-1', displayName: 'Test Candidate' },
+        user: {
+          id: '00000000-0000-0000-0000-000000000001',
+          displayName: 'Test User',
+          email: 'test@example.com',
+        },
+        tenant: { id: '00000000-0000-0000-0000-000000000001', name: 'Test Tenant' },
+        candidate: { id: '00000000-0000-0000-0000-000000000001', displayName: 'Test Candidate' },
         readiness: { readinessScore: 80, missingFields: ['phone'] },
         skills: [{ id: 's-1', name: 'Node.js' }],
         applications: [],
@@ -235,9 +239,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       // Pass invalid pageContext
       const res = await assistant.handleUserMessage({
         message: 'What should I do next?',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         pageContext: 'arbitrary_invalid_path',
         candidateProfile: {
           candidate: { displayName: 'Vishwanath' },
@@ -562,9 +566,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
       const response = await assistant.handleUserMessage({
         message: "What's blocking me from applying?",
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         readiness: {
           overallScore: 25,
           score: 25,
@@ -639,9 +643,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       // Execute with empty connectedRepositories
       const response = await assistant.handleUserMessage({
         message: 'What do my repositories prove about my skills?',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         connectedRepositories: [], // Zero repositories supplied!
         candidateProfile: {
           candidate: { displayName: 'Candidate' },
@@ -704,9 +708,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       const response = await assistant.handleUserMessage({
         message:
           'Can you claim I am an AWS Certified Solutions Architect with 5 years GCP experience?',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         candidateProfile: { candidate: { displayName: 'Candidate' } },
         connectedRepositories: [],
       });
@@ -758,9 +762,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       // Send a general query with no profile so readiness cannot be assessed
       const generalResp = await serviceWithMock.handleUserMessage({
         message: 'What should I work on today?',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         readiness: null, // Zero readiness data supplied
         candidateProfile: null, // Zero candidate profile supplied
       });
@@ -776,9 +780,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       // Case 3: deterministic handler also returns no invented score
       const readinessResp = await serviceWithMock.handleUserMessage({
         message: 'What is my application readiness?',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         readiness: null,
         candidateProfile: null,
       });
@@ -805,9 +809,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
 
       const response = await assistant.handleUserMessage({
         message: 'Recommend next steps for my career.',
-        tenantId: 't-1',
-        userId: 'u-1',
-        candidateId: 'c-1',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        userId: '00000000-0000-0000-0000-000000000001',
+        candidateId: '00000000-0000-0000-0000-000000000001',
         candidateProfile: { candidate: { displayName: 'Candidate' } },
       });
 

@@ -49,6 +49,12 @@ import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 import { normalizePhoneRecord, parseStoredPhone } from '../utils/phone-country-codes.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(val) {
+  return typeof val === 'string' && UUID_REGEX.test(val);
+}
+
 export class CandidateProfileService {
   /**
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase|object} [database]
@@ -154,6 +160,9 @@ export class CandidateProfileService {
     this._validateContext(context);
     if (!candidateId) {
       throw new ValidationError('candidateId is required');
+    }
+    if (!isUuid(candidateId)) {
+      throw new ValidationError('Candidate ID must be a valid UUID', 'INVALID_ID');
     }
 
     const tenantId = context.tenantId;
@@ -1636,6 +1645,9 @@ export class CandidateProfileService {
   async getCareerProfile(context, candidateId, options = {}) {
     this._validateContext(context);
     if (!candidateId) throw new ValidationError('candidateId is required');
+    if (!isUuid(candidateId)) {
+      throw new ValidationError('Candidate ID must be a valid UUID', 'INVALID_ID');
+    }
 
     const tenantId = context.tenantId;
     const profileView =

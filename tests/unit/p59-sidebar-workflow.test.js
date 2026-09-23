@@ -234,9 +234,13 @@ describe('P59: Sidebar Workflow Completion & Authentication', () => {
       controller.backendClient.getAuthStatus = async () => ({
         status: 'AUTHENTICATED',
         authenticated: true,
-        user: { id: 'u-1', email: 'vishwanath@example.com', displayName: 'Vishwanath' },
+        user: {
+          id: '00000000-0000-0000-0000-000000000001',
+          email: 'vishwanath@example.com',
+          displayName: 'Vishwanath',
+        },
         candidate: {
-          id: 'c-1',
+          id: '00000000-0000-0000-0000-000000000001',
           canonicalEmail: 'vishwanath@example.com',
           displayName: 'Vishwanath Nishad',
         },
