@@ -34,6 +34,53 @@ import { ResumeLayoutEngine } from './resume-layout-engine.service.js';
 import { LegacyLatexGenerator } from './legacy-latex-generator.service.js';
 import { isMeaningfulDsa } from './resume-content-strategy.service.js';
 
+export const FROZEN_RESUME_MARGIN = '0.52in';
+
+/**
+ * Resolves candidate identity defensively from structuredResume or top-level applicationPackage fields.
+ *
+ * @param {object} [applicationPackage={}]
+ * @returns {{ name: string, email: string, phone: string }}
+ */
+export function resolveCandidateIdentity(applicationPackage = {}) {
+  const resume =
+    applicationPackage.structuredResume ||
+    applicationPackage.tailoredResume?.structuredResume ||
+    {};
+
+  return {
+    name:
+      resume.candidateIdentity?.displayName ||
+      resume.candidateIdentity?.fullName ||
+      resume.candidate?.name ||
+      resume.name ||
+      applicationPackage.candidateName ||
+      '',
+    email:
+      resume.candidateIdentity?.email ||
+      resume.candidate?.email ||
+      resume.email ||
+      applicationPackage.candidateEmail ||
+      '',
+    phone:
+      resume.candidateIdentity?.phone ||
+      resume.candidate?.phone ||
+      resume.phone ||
+      applicationPackage.candidatePhone ||
+      '',
+    headline:
+      resume.candidateIdentity?.headline ||
+      resume.headline ||
+      applicationPackage.candidateHeadline ||
+      '',
+    links:
+      (Array.isArray(resume.candidateIdentity?.links) && resume.candidateIdentity.links) ||
+      (Array.isArray(resume.links) && resume.links) ||
+      (Array.isArray(applicationPackage.links) && applicationPackage.links) ||
+      [],
+  };
+}
+
 /**
  * Escapes reserved LaTeX characters in dynamic user strings and safely
  * normalizes smart quotes, Unicode dashes, and problematic characters.
@@ -287,6 +334,8 @@ export class LatexDocumentGenerator {
       throw new ValidationError('applicationPackage is required to generate resume LaTeX');
     }
 
+    const identity = resolveCandidateIdentity(applicationPackage);
+
     const structuredResume =
       applicationPackage.tailoredResume?.structuredResume ||
       applicationPackage.structuredResume ||
@@ -335,10 +384,13 @@ export class LatexDocumentGenerator {
     const targetCompany = targetJob.company || '';
 
     // 1. Authoritative Candidate Identity & Contact from structured snapshot
-    const identity = structuredResume.candidateIdentity || {};
+    const identity = resolveCandidateIdentity(applicationPackage);
     const candidateName =
-      identity.displayName || identity.fullName || applicationPackage.candidateName || null;
-    const candidateEmail = identity.email || applicationPackage.candidateEmail || null;
+      identity.name ||
+      structuredResume.candidateIdentity?.displayName ||
+      structuredResume.candidateIdentity?.fullName ||
+      null;
+    const candidateEmail = identity.email || structuredResume.candidateIdentity?.email || null;
 
     if (!candidateName) {
       throw new ValidationError(
@@ -356,9 +408,10 @@ export class LatexDocumentGenerator {
       );
     }
 
-    const candidatePhone = identity.phone || '';
-    const candidateLocation = identity.location || '';
-    const candidateHeadline = identity.headline || targetRole || '';
+    const candidatePhone = identity.phone || structuredResume.candidateIdentity?.phone || '';
+    const candidateLocation = structuredResume.candidateIdentity?.location || '';
+    const candidateHeadline =
+      identity.headline || structuredResume.candidateIdentity?.headline || targetRole || '';
 
     // Contact line
     const contactElements = [];
@@ -373,7 +426,11 @@ export class LatexDocumentGenerator {
 
     // Profile links directly from snapshot with parseable visible URLs (Section 18.C)
     const profileLinkElements = [];
-    const links = Array.isArray(identity.links) ? identity.links : [];
+    const links =
+      (Array.isArray(identity.links) && identity.links.length > 0 && identity.links) ||
+      (Array.isArray(structuredResume.candidateIdentity?.links) &&
+        structuredResume.candidateIdentity.links) ||
+      [];
     for (const link of links) {
       if (link && link.url && isRealUrl(link.url)) {
         let label = link.label || link.platform || 'Link';
@@ -804,12 +861,14 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
 \\ifxetex
   \\usepackage{fontspec}
   % File-based loading: Latin Modern Roman classic serif typeface matching visual authority
-  \\setmainfont{lmroman10-regular.otf}[
+  \\setmainfont[
+    Ligatures = NoCommon,
     BoldFont=lmroman10-bold.otf,
     ItalicFont=lmroman10-italic.otf,
-    BoldItalicFont=lmroman10-bolditalic.otf,
-    Ligatures=NoCommon
-  ]
+    BoldItalicFont=lmroman10-bolditalic.otf
+  ]{lmroman10-regular.otf}
+  \\newfontfamily\\atsboldfont{lmroman10-bold.otf}
+  \\newfontfamily\\atsitalicfont{lmroman10-italic.otf}
 \\else
   \\usepackage[utf8]{inputenc}
   \\usepackage[T1]{fontenc}
@@ -817,12 +876,7 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
   \\input{glyphtounicode.tex}
   \\pdfgentounicode=1
 \\fi
-\\usepackage[
-  top=0.38in,
-  bottom=0.38in,
-  left=0.48in,
-  right=0.48in
-]{geometry}
+\\usepackage[margin=${FROZEN_RESUME_MARGIN}]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}

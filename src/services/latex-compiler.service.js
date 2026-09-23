@@ -318,6 +318,8 @@ export class LatexCompilerService {
         .replace(/\\\}/g, '}')
         .replace(/\\textasciitilde\{\}/g, '~')
         .replace(/\\textasciicircum\{\}/g, '^')
+        .replace(/\\textbar\{\}/g, ' · ')
+        .replace(/\\textbar\b/g, ' · ')
         .replace(/\$\\cdot\$/g, '·')
         .replace(/\\cdot\b/g, '·')
         .replace(/---/g, '—')

@@ -140,9 +140,30 @@ export class LegacyLatexGenerator {
     // 1. Authoritative Candidate Identity & Contact.
     // Fail-closed: a real name and email are mandatory. Rendering a document for
     // "Candidate" would fabricate an identity, so we refuse instead.
-    const candidateName = applicationPackage.candidateName || candidateProfile?.displayName || null;
-    const candidateEmail =
-      applicationPackage.candidateEmail || candidateProfile?.primaryEmail || null;
+    const identity = {
+      name:
+        applicationPackage.structuredResume?.candidate?.name ||
+        applicationPackage.structuredResume?.name ||
+        applicationPackage.candidateName ||
+        candidateProfile?.displayName ||
+        '',
+      email:
+        applicationPackage.structuredResume?.candidate?.email ||
+        applicationPackage.structuredResume?.email ||
+        applicationPackage.candidateEmail ||
+        candidateProfile?.primaryEmail ||
+        '',
+      phone:
+        applicationPackage.structuredResume?.candidate?.phone ||
+        applicationPackage.structuredResume?.phone ||
+        applicationPackage.candidatePhone ||
+        candidateProfile?.candidatePhone ||
+        candidateProfile?.phone ||
+        '',
+    };
+
+    const candidateName = identity.name || null;
+    const candidateEmail = identity.email || null;
     if (!candidateName) {
       throw new ValidationError(
         'Real candidate name is required to generate resume LaTeX; refusing to render placeholder identity'
@@ -154,9 +175,7 @@ export class LegacyLatexGenerator {
       );
     }
     const candidatePhone =
-      applicationPackage.candidatePhone ||
-      candidateProfile?.candidatePhone ||
-      candidateProfile?.phone ||
+      identity.phone ||
       candidateProfile?.candidate?.profileMetadata?.userCustom?.phone ||
       candidateProfile?.profileMetadata?.userCustom?.phone ||
       candidateProfile?.candidate?.phone ||
@@ -1086,12 +1105,7 @@ ${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.tit
 \\usepackage[utf8]{inputenc}
 \\usepackage[T1]{fontenc}
 \\renewcommand{\\familydefault}{\\sfdefault}
-\\usepackage[
-  top=0.38in,
-  bottom=0.38in,
-  left=0.48in,
-  right=0.48in
-]{geometry}
+\\usepackage[margin=0.52in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}

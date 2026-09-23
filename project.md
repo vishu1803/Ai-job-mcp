@@ -3,6 +3,34 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-23*
 
+### Phase P54: Frozen LaTeX Margin Contract, XeTeX Font Declarations & Legacy Candidate Identity Resolution
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-23
+**Scope:** Resolved the 15 test failures in CI across `p56-resume-grounding-correctness.test.js`, `p50-production-resume-tailoring.test.js`, and `pdf-qa-validator.test.js`:
+
+1. **Frozen LaTeX Margin Contract & XeTeX Typography (`src/services/latex-document-generator.service.js`, `src/services/legacy-latex-generator.service.js`):**
+   - Exported and integrated `FROZEN_RESUME_MARGIN = '0.52in'`, emitting `\usepackage[margin=0.52in]{geometry}` across both `LatexDocumentGenerator` and `LegacyLatexGenerator`. Satisfies both P56 frozen margin assertions and P50 exact `/margin=0\.52in/` contract.
+   - Emitted canonical Latin Modern Roman XeTeX fontspec declarations: `\usepackage{fontspec}`, `\setmainfont[ Ligatures = NoCommon ... ]{lmroman10-regular.otf}`, `\newfontfamily\atsboldfont{lmroman10-bold.otf}`, and `\newfontfamily\atsitalicfont{lmroman10-italic.otf}`.
+
+2. **Defensive Candidate Identity Resolution & Package Compatibility (`src/services/latex-document-generator.service.js`, `src/services/legacy-latex-generator.service.js`):**
+   - Exported `resolveCandidateIdentity(applicationPackage)` to resolve authoritative candidate name, email, phone, headline, and profile links from `applicationPackage.structuredResume`, `applicationPackage.tailoredResume.structuredResume`, or top-level package fields (`candidateName`, `candidateEmail`, `candidatePhone`).
+   - Cleanly routed application packages without `structuredResume` to `LegacyLatexGenerator.generateFromLegacyPackage` without synthesizing empty dummy objects, ensuring all legacy fixtures and Quality Gate tests preserve their real projects and experiences.
+   - Preserved `$\cdot$` delimiter for contact information and profile links to maintain visual-authority consistency across phone country code and high-density content test suites.
+
+3. **HTML Fallback Vector Printer Delimiter Support (`src/services/latex-compiler.service.js`):**
+   - Extended `LatexCompilerService.cleanLatexText` to normalize `\textbar{}` and `\textbar` into centered bullet dots (` · `) when compiling via the Headless Chrome vector printer fallback.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/p56-resume-grounding-correctness.test.js`: **13/13 PASS (100%)**
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS (100%)**
+- `tests/unit/pdf-qa-validator.test.js`: **4/4 PASS (100%)**
+- `tests/unit/resume-quality-assessment.test.js`: **17/17 PASS (100%)**
+- `tests/unit/p16-006-high-density-grounded-content.test.js`: **10/10 PASS (100%)**
+- `tests/unit/profile-phone-country-code.test.js`: **10/10 PASS (100%)**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 120 warnings)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+
 ### Phase P53: Assistant Context Contract, PDF QA Placeholder Normalization & 1-Page Chrome Resume Fallback
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-23
