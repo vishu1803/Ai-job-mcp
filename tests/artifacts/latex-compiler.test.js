@@ -4,7 +4,10 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { LatexCompilerService } from '../../src/services/latex-compiler.service.js';
+import {
+  LatexCompilerService,
+  resolveTectonicExecutable,
+} from '../../src/services/latex-compiler.service.js';
 
 describe('LatexCompilerService', () => {
   const compiler = new LatexCompilerService();
@@ -34,7 +37,39 @@ Selectable text content for automated testing.
     await assert.rejects(() => compiler.compileLatexToPdf({ texContent: '' }), /non-empty string/);
   });
 
-  it('3. normalizes compiler-generated PDF timestamps without changing byte length', () => {
+  it('3. uses the hermetic Tectonic engine when the TeX toolchain is required', async () => {
+    // The compiler degrades Tectonic -> pdflatex -> headless Chromium, so a broken
+    // TeX toolchain would otherwise still yield a PDF and look like success. CI sets
+    // REQUIRE_TECTONIC_ENGINE=true to turn that silent degradation into a hard
+    // failure: the toolchain *setup* steps can then be non-blocking without ever
+    // weakening the PDF compilation contract.
+    const required = process.env.REQUIRE_TECTONIC_ENGINE === 'true';
+    const tectonicPath = resolveTectonicExecutable();
+
+    if (!tectonicPath && !required) {
+      // No TeX toolchain in this environment: the documented fallback is allowed.
+      return;
+    }
+
+    assert.ok(
+      tectonicPath,
+      'REQUIRE_TECTONIC_ENGINE=true but no Tectonic binary could be resolved'
+    );
+
+    const result = await compiler.compileLatexToPdf({
+      texContent: sampleTex,
+      jobName: 'engine-check',
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(
+      result.compilerUsed,
+      'tectonic',
+      'PDF compilation must use the hermetic Tectonic engine, not a fallback'
+    );
+  });
+
+  it('4. normalizes compiler-generated PDF timestamps without changing byte length', () => {
     const first = Buffer.from(
       "/CreationDate (D:20260906092310+00'00')\n/ModDate (D:20260906092310+00'00')",
       'latin1'

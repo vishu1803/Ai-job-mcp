@@ -15,10 +15,13 @@ jobs:
   verify:
     name: Code Quality, Migration & Test Verification
     runs-on: ubuntu-latest
-    # Three verification layers (unit, artifact/PDF, integration) plus two
-    # toolchain installs run in this job, so the ceiling is explicit rather than
-    # tight enough to fail a healthy run.
-    timeout-minutes: 30
+    # Every step carries its own timeout-minutes guard, so a single hung or broken
+    # step fails fast and specifically instead of silently consuming the job's
+    # budget (an unbounded integration suite previously ran for 4.6h before the
+    # job was cancelled). This job-level ceiling is the outer backstop: it sits
+    # well above the observed end-to-end time (~10 min on ubuntu-latest) so it can
+    # never truncate the test chain, while still bounding a runaway to one hour.
+    timeout-minutes: 60
 
     services:
       postgres:
@@ -57,49 +60,73 @@ jobs:
       # headless-Chromium fallback so no engine depends on an inline hard-coded
       # 15-second browser timeout.
       TECTONIC_BIN: /usr/local/bin/tectonic
+      # CI declares the hermetic TeX engine mandatory. The artifact suite asserts the
+      # compiler really reports `compilerUsed: tectonic`, so the toolchain *setup*
+      # steps below can stay non-blocking without ever letting PDF compilation
+      # degrade silently to the headless-Chromium fallback.
+      REQUIRE_TECTONIC_ENGINE: 'true'
       PDF_COMPILE_TECTONIC_TIMEOUT_MS: '180000'
       PDF_COMPILE_PDFLATEX_TIMEOUT_MS: '120000'
       PDF_COMPILE_CHROME_TIMEOUT_MS: '90000'
 
     steps:
+      # Guarding policy for this workflow: the fast, deterministic quality gates
+      # below stay blocking (failing them early is cheap and desirable). The
+      # toolchain setup steps marked continue-on-error derive their guarantees from
+      # the test suites instead, so a download, apt, or relay problem can no longer
+      # skip all three verification layers the way it did in runs #162/#163.
       - name: Checkout repository
         uses: actions/checkout@v5
+        timeout-minutes: 5
 
       - name: Setup Node.js runtime
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
+        timeout-minutes: 10
 
       - name: Install dependencies (deterministic)
         run: npm ci
+        timeout-minutes: 10
 
       - name: Verify code formatting (Prettier)
         run: npm run format:check
+        timeout-minutes: 5
 
       - name: Run static analysis (ESLint)
         run: npm run lint
+        timeout-minutes: 10
 
       - name: Run automated dependency vulnerability audit (npm audit)
         run: npm run audit:deps
+        timeout-minutes: 5
 
       - name: Scan repository for secret & credential leaks
         run: npm run scan:secrets
+        timeout-minutes: 5
 
       - name: Validate Drizzle ORM configuration & schema
         run: npm run db:check
+        timeout-minutes: 5
 
       - name: Execute database migrations from scratch
         run: npm run db:migrate
+        timeout-minutes: 10
 
       - name: Seed test database fixtures
         run: npm run db:seed:test
+        timeout-minutes: 10
 
       # Deterministic Linux LaTeX engine. The repository's Windows-only
       # tools/bin/tectonic.exe is never used on Linux; the compiler service
       # resolves TECTONIC_BIN / PATH instead, so PDF compilation is hermetic and
-      # never silently falls through to headless Chromium in CI.
+      # never silently falls through to headless Chromium in CI. Non-blocking: the
+      # artifact suite fails loudly via REQUIRE_TECTONIC_ENGINE if the engine is
+      # absent, so verification still runs and still reports the truth.
       - name: Install Tectonic (deterministic LaTeX engine)
+        continue-on-error: true
+        timeout-minutes: 10
         env:
           # Pinned to the engine version the document pipeline is validated against.
           TECTONIC_VERSION: '0.15.0'
@@ -113,7 +140,13 @@ jobs:
           command -v tectonic
           tectonic --version
 
+      # Pure cache prime, never a correctness gate: the artifact suite compiles real
+      # documents regardless, so a relay hiccup here must not be able to skip the
+      # verification layers. Non-blocking, with bounded retries for transient CDN
+      # failures.
       - name: Warm Tectonic bundle cache (offline-ready formats)
+        continue-on-error: true
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           # Tectonic does NOT create its --outdir: when the directory is missing
@@ -127,7 +160,9 @@ jobs:
             > "$warmup_dir/warmup.tex"
           # Prime the shared bundle cache so the PDF QA suites do not pay the
           # first-run bundle download. Bounded retries absorb transient relay/CDN
-          # hiccups; a persistent failure still fails the job loudly.
+          # hiccups; because this step is non-blocking, even a persistent failure is
+          # surfaced as a warned step instead of skipping the test chain, and the
+          # artifact suite independently asserts the engine actually works.
           for attempt in 1 2 3; do
             if tectonic "$warmup_dir/warmup.tex" --outdir "$warmup_dir" --keep-logs; then
               break
@@ -144,7 +179,12 @@ jobs:
           test -f "$warmup_dir/warmup.pdf"
           echo "Tectonic bundle cache warmed: $(tectonic --version)"
 
+      # Chromium is needed only by the PDF observer and as the compiler's last-resort
+      # fallback, both of which fail loudly in the suites if it is missing. Making
+      # the install non-blocking keeps apt flakiness from skipping verification.
       - name: Install Chromium
+        continue-on-error: true
+        timeout-minutes: 15
         run: |
           sudo apt-get update
           sudo apt-get install -y chromium
@@ -152,9 +192,12 @@ jobs:
 
       - name: Execute unit test suite
         run: npm run test:unit
+        timeout-minutes: 20
 
       - name: Execute PDF artifact & document QA suite
         run: npm run test:artifacts
+        timeout-minutes: 15
 
       - name: Execute live integration test suite
         run: npm run test:integration
+        timeout-minutes: 30
