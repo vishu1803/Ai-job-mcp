@@ -5,8 +5,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { PdfQaValidatorService } from '../../src/services/pdf-qa-validator.service.js';
+import { ResumePdfObserver } from '../../src/services/resume-pdf-observer.service.js';
+import { ResumeParserService } from '../../src/services/resume-parser.service.js';
 import { LatexCompilerService } from '../../src/services/latex-compiler.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
+import { extractedTextContainsEmail } from '../../src/utils/pdf-text-normalization.js';
 
 describe('PdfQaValidatorService', () => {
   const qaValidator = new PdfQaValidatorService();
@@ -74,6 +77,14 @@ Node.js, TypeScript, PostgreSQL, REST APIs, automated testing, cloud infrastruct
       applicationPackage: mockPkg,
     });
 
+    // Generator-level regression: the authoritative candidate email must be
+    // rendered verbatim from applicationPackage.candidateEmail. This guards the
+    // source contract independently of any PDF extraction behavior.
+    assert.ok(
+      texContent.includes('vishwanatnishad@gmail.com'),
+      'Generated LaTeX must contain the literal canonical candidate email'
+    );
+
     const { pdfBuffer } = await compiler.compileLatexToPdf({
       texContent,
       jobName: 'clean-qa-test',
@@ -106,7 +117,44 @@ Node.js, TypeScript, PostgreSQL, REST APIs, automated testing, cloud infrastruct
     assert.ok(report.breakdown.contentIntegrity > 0);
     assert.ok(report.breakdown.readability > 0);
     assert.equal(report.criticalFailures.length, 0);
-    assert.match(report.extractedText ?? '', /vishwanatnishad@gmail\.com/i);
+
+    // Artifact-level regression: the compiled PDF must actually contain the
+    // canonical email once extracted. Matching tolerates only extraction-injected
+    // whitespace inside the address; the complete address sequence is required,
+    // so unrelated or corrupt text can never satisfy this assertion.
+    assert.ok(
+      extractedTextContainsEmail(report.extractedText, 'vishwanatnishad@gmail.com'),
+      `Compiled PDF must contain the canonical email. Extracted text: ${report.extractedText}`
+    );
+  });
+
+  it('1b. compiled PDF artifact + independent observer both expose the canonical email', async () => {
+    const { texContent } = generator.generateTailoredResumeLatex({
+      applicationPackage: mockPkg,
+    });
+    const { pdfBuffer } = await compiler.compileLatexToPdf({
+      texContent,
+      jobName: 'observer-email-test',
+    });
+
+    // Independent extraction path (parser service) must observe the email.
+    const extracted = new ResumeParserService().extractRawText({
+      buffer: pdfBuffer,
+      format: 'PDF',
+    });
+    assert.ok(
+      extractedTextContainsEmail(extracted, 'vishwanatnishad@gmail.com'),
+      `Raw PDF extraction must contain the canonical email. Extracted: ${extracted}`
+    );
+
+    // Observer contact detection must not be defeated by extractor whitespace.
+    const observed = new ResumePdfObserver().observe(pdfBuffer, { targetPageCount: 1 });
+    assert.equal(observed.contactInfo.hasEmail, true);
+    assert.equal(
+      String(observed.contactInfo.email).toLowerCase(),
+      'vishwanatnishad@gmail.com',
+      `Observer must report the canonical email, got: ${observed.contactInfo.email}`
+    );
   });
 
   it('2. fails validation if candidate authentic email is missing from PDF', async () => {

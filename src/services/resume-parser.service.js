@@ -15,6 +15,7 @@ import zlib from 'node:zlib';
 import { ValidationError, SecurityError } from '../errors/index.js';
 import { ResumeEntityResolver } from '../domain/career/resume-entity-resolver.js';
 import { EducationNormalizer } from '../utils/education-normalizer.js';
+import { decodePdfLiteralString } from '../utils/pdf-text-normalization.js';
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -369,7 +370,7 @@ export class ResumeParserService {
             const raw = operandStack.pop();
             let str = '';
             if (raw.startsWith('(')) {
-              str = raw.slice(1, -1).replace(/\\([()\\])/g, '$1');
+              str = decodePdfLiteralString(raw.slice(1, -1));
             } else if (raw.startsWith('<')) {
               str = decodeHex(raw.slice(1, -1).replace(/\s+/g, ''));
             }
@@ -388,7 +389,7 @@ export class ResumeParserService {
             while ((elm = elReg.exec(arrContent)) !== null) {
               const el = elm[0];
               if (el.startsWith('(')) {
-                str += el.slice(1, -1).replace(/\\([()\\])/g, '$1');
+                str += decodePdfLiteralString(el.slice(1, -1));
               } else if (el.startsWith('<')) {
                 str += decodeHex(el.slice(1, -1).replace(/\s+/g, ''));
               } else {

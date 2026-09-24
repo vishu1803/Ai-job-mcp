@@ -19,55 +19,10 @@
 
 import { ResumeParserService } from './resume-parser.service.js';
 import { logger } from '../utils/logger.js';
+import { normalizePdfText, extractedTextContainsEmail } from '../utils/pdf-text-normalization.js';
 
-/**
- * Normalizes extracted PDF text for resilient string and regex validation,
- * stripping soft hyphens, line-break hyphenations, and collapsing whitespace.
- *
- * @param {string} value
- * @returns {string} Normalized lowercase string
- */
-export function normalizePdfText(value = '') {
-  return String(value || '')
-    .replace(/\u00ad/g, '') // soft hyphen
-    .replace(/(\w)-\s*\n\s*(\w)/g, '$1$2')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .replace(/\bveriied\b/g, 'verified');
-}
-
-/**
- * Determines whether an authoritative candidate email is present in extracted
- * PDF text, tolerating whitespace that PDF text extraction may inject around
- * punctuation (e.g. "vishwanatnishad@gmail. com" or across line breaks).
- *
- * Email addresses contain no whitespace, so comparing on a whitespace-stripped
- * form is a lossless fallback that cannot weaken the authenticity gate: the full
- * address sequence must still be present.
- *
- * @param {string} extractedText Raw text extracted from the compiled PDF
- * @param {string} expectedEmail Authoritative candidate email
- * @returns {boolean} True when the email is present (or when none is expected)
- */
-export function extractedTextContainsEmail(extractedText, expectedEmail) {
-  const email = String(expectedEmail || '')
-    .trim()
-    .toLowerCase();
-  if (!email) return true;
-
-  const text = String(extractedText || '').toLowerCase();
-  if (!text) return false;
-
-  // Fast path: exact occurrence after canonical whitespace normalization.
-  if (normalizePdfText(text).includes(email)) return true;
-
-  // Tolerant path: allow extraction-inserted whitespace anywhere within the
-  // address by comparing on a whitespace-free representation.
-  const compactEmail = email.replace(/\s+/g, '');
-  const compactText = text.replace(/\s+/g, '');
-  return compactEmail.length > 0 && compactText.includes(compactEmail);
-}
+// Re-exported for backwards compatibility with existing importers.
+export { normalizePdfText, extractedTextContainsEmail };
 
 export class PdfQaValidatorService {
   /**

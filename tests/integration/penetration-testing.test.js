@@ -46,7 +46,7 @@ import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { config } from '../../src/config/env.js';
-import { pool, closeDatabase } from '../../src/db/index.js';
+import { pool, closeDatabase, getPoolConfig } from '../../src/db/index.js';
 import * as schema from '../../src/db/schema.js';
 import {
   tenants,
@@ -187,9 +187,13 @@ describe('P14-002: Automated Penetration Testing & Cross-Tenant Attack Hardening
     mainUrlParsed.searchParams.delete('sslmode');
     mainUrlParsed.searchParams.delete('ssl');
 
+    // Provider-neutral TLS resolution identical to the application pool: TLS is negotiated when
+    // DATABASE_URL requires it or targets a remote host, and skipped for local/cluster Postgres.
+    const dbSsl = getPoolConfig().ssl;
+
     adminPool = new pg.Pool({
       connectionString: mainUrlParsed.toString(),
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       lookup: resilientLookup,
       max: 2,
       statement_timeout: 10000,
@@ -277,7 +281,7 @@ describe('P14-002: Automated Penetration Testing & Cross-Tenant Attack Hardening
 
     penPool = new pg.Pool({
       connectionString: rawPenDbUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       lookup: resilientLookup,
       min: 1,
       max: 10,

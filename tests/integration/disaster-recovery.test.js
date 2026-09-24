@@ -19,7 +19,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { config } from '../../src/config/env.js';
 import { schema } from '../../src/db/schema.js';
-import { closeDatabase } from '../../src/db/index.js';
+import { closeDatabase, getPoolConfig } from '../../src/db/index.js';
 import { BackupExportService } from '../../src/services/backup-export.service.js';
 import { BackupRestoreService } from '../../src/services/backup-restore.service.js';
 import { DocumentStorageService } from '../../src/services/document-storage.service.js';
@@ -37,6 +37,11 @@ describe('P14-005: Disaster Recovery & Independent Backup Integration', () => {
   let mainDbName = null;
   let backupResult = null;
 
+  // Provider-neutral TLS resolution identical to the application pool: TLS is negotiated when
+  // DATABASE_URL demands it (sslmode=require) or targets a remote host. Local/cluster Postgres
+  // instances that do not serve TLS are connected to directly instead of failing the handshake.
+  const dbSsl = getPoolConfig().ssl;
+
   const testTenantId = `tenant-dr-${testRunId}`;
   let syntheticStorageKey = null;
   const originalPlaintext = Buffer.from(`INTEGRATION TEST RESUME PAYLOAD - ${testRunId}`, 'utf-8');
@@ -53,7 +58,7 @@ describe('P14-005: Disaster Recovery & Independent Backup Integration', () => {
 
     adminPool = new pg.Pool({
       connectionString: parsedUrl.toString(),
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       min: 1,
       max: 2,
       statement_timeout: 15000,
@@ -89,7 +94,7 @@ describe('P14-005: Disaster Recovery & Independent Backup Integration', () => {
 
     testPool = new pg.Pool({
       connectionString: testDbUrl.toString(),
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       min: 1,
       max: 5,
       statement_timeout: 15000,

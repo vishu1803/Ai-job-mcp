@@ -172,4 +172,36 @@ describe('LatexDocumentGenerator Service', () => {
 
     assert.equal(first.texContent, second.texContent);
   });
+
+  it('7. REGRESSION: renders applicationPackage.candidateEmail verbatim in resume and cover letter LaTeX', () => {
+    const canonicalEmail = mockApplicationPackage.candidateEmail;
+    assert.equal(canonicalEmail, 'vishwanatnishad@gmail.com');
+
+    const resume = generator.generateTailoredResumeLatex({
+      applicationPackage: mockApplicationPackage,
+      candidateProfile: mockCandidateProfile,
+    });
+    const coverLetter = generator.generateTailoredCoverLetterLatex({
+      applicationPackage: mockApplicationPackage,
+      candidateProfile: mockCandidateProfile,
+    });
+
+    for (const [label, tex] of [
+      ['resume', resume.texContent],
+      ['cover letter', coverLetter.texContent],
+    ]) {
+      // The literal canonical address must survive verbatim into the LaTeX source
+      // (the artifact-level PDF assertion lives in tests/artifacts).
+      assert.ok(
+        tex.includes(canonicalEmail),
+        `${label} LaTeX must contain the literal canonical email '${canonicalEmail}'`
+      );
+      // It must also be rendered as a mailto link so PDF readers expose it as a
+      // real address rather than decorative text.
+      assert.ok(
+        tex.includes(`\\href{mailto:${canonicalEmail}}`),
+        `${label} LaTeX must render a mailto link for the canonical email`
+      );
+    }
+  });
 });

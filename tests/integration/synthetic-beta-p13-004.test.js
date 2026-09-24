@@ -14,7 +14,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { config } from '../../src/config/env.js';
-import { parseSanitizedDbUrl, closeDatabase } from '../../src/db/index.js';
+import { parseSanitizedDbUrl, closeDatabase, getPoolConfig } from '../../src/db/index.js';
 import * as schema from '../../src/db/schema.js';
 import {
   tenants,
@@ -140,9 +140,12 @@ describe('P13-004: Synthetic 5-User Beta Verification in Isolated Database', () 
     mainUrlParsed.searchParams.delete('ssl');
 
     // Admin connection to default database to create isolated DB
+    // Provider-neutral TLS resolution shared with the application pool (see getPoolConfig).
+    const dbSsl = getPoolConfig().ssl;
+
     adminPool = new pg.Pool({
       connectionString: mainUrlParsed.toString(),
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       max: 2,
     });
 
@@ -175,7 +178,7 @@ describe('P13-004: Synthetic 5-User Beta Verification in Isolated Database', () 
     // Connect to isolated beta database
     betaPool = new pg.Pool({
       connectionString: rawBetaDbUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       min: 2,
       max: 10,
     });

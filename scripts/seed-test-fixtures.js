@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pool, closeDatabase } from '../src/db/index.js';
+import { SkillCatalogService } from '../src/services/skill-catalog.service.js';
 
 async function seedTestFixtures() {
   const seedFile = path.resolve('src/db/seeds/test-fixtures.json');
@@ -58,6 +59,16 @@ async function seedTestFixtures() {
     }
 
     await client.query('COMMIT');
+
+    // The canonical skill registry (skill_catalog) is tenant-agnostic reference data that the
+    // Additional Skills UI and the integration suites both read. Seed it from the single
+    // production seed source (SKILL_CATALOG_SEED) so a freshly provisioned environment matches
+    // the runtime contract instead of relying on ambient rows in a developer database.
+    const catalogResult = await new SkillCatalogService().seedCatalog();
+    console.log(
+      `  ✓ skill_catalog: ${catalogResult.inserted} inserted (${catalogResult.existing} existing)`
+    );
+
     console.log('✅ Test fixtures successfully seeded.');
   } catch (err) {
     await client.query('ROLLBACK');

@@ -39,7 +39,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { config } from '../../src/config/env.js';
-import { parseSanitizedDbUrl, closeDatabase } from '../../src/db/index.js';
+import { parseSanitizedDbUrl, closeDatabase, getPoolConfig } from '../../src/db/index.js';
 import * as schema from '../../src/db/schema.js';
 import {
   tenants,
@@ -186,9 +186,13 @@ describe('P13.5-006: End-to-End Multi-Tenant Web, Document & MCP Apps Integratio
     mainUrlParsed.searchParams.delete('sslmode');
     mainUrlParsed.searchParams.delete('ssl');
 
+    // Provider-neutral TLS resolution identical to the application pool: TLS is negotiated when
+    // DATABASE_URL requires it or targets a remote host, and skipped for local/cluster Postgres.
+    const dbSsl = getPoolConfig().ssl;
+
     adminPool = new pg.Pool({
       connectionString: mainUrlParsed.toString(),
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       lookup: resilientLookup,
       max: 2,
     });
@@ -208,7 +212,7 @@ describe('P13.5-006: End-to-End Multi-Tenant Web, Document & MCP Apps Integratio
 
     e2ePool = new pg.Pool({
       connectionString: rawE2eDbUrl,
-      ssl: { rejectUnauthorized: false },
+      ssl: dbSsl,
       lookup: resilientLookup,
       min: 2,
       max: 10,

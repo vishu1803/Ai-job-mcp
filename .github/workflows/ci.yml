@@ -15,7 +15,10 @@ jobs:
   verify:
     name: Code Quality, Migration & Test Verification
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Three verification layers (unit, artifact/PDF, integration) plus two
+    # toolchain installs run in this job, so the ceiling is explicit rather than
+    # tight enough to fail a healthy run.
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -43,7 +46,20 @@ jobs:
       ENCRYPTION_MASTER_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
       SESSION_COOKIE_SECRET: 'mock-ci-session-cookie-secret-minimum-32-chars-long'
       AUTH_SECRET: 'mock-ci-auth-secret-minimum-32-chars-long'
+      # Required configuration for the GitHub webhook ingress contract (HMAC-SHA256
+      # signature verification). Without it the ingress cannot reject unsigned or
+      # forged deliveries and the webhook security suites cannot exercise the
+      # configured-secret path.
+      GITHUB_WEBHOOK_SECRET: 'mock-ci-github-webhook-secret-hmac-sha256'
       CHROME_BIN: /usr/bin/chromium
+      # Explicit, non-brittle PDF compilation ceilings. The canonical CI engine is
+      # Tectonic (installed below); these ceilings also cover pdflatex and the
+      # headless-Chromium fallback so no engine depends on an inline hard-coded
+      # 15-second browser timeout.
+      TECTONIC_BIN: /usr/local/bin/tectonic
+      PDF_COMPILE_TECTONIC_TIMEOUT_MS: '180000'
+      PDF_COMPILE_PDFLATEX_TIMEOUT_MS: '120000'
+      PDF_COMPILE_CHROME_TIMEOUT_MS: '90000'
 
     steps:
       - name: Checkout repository
@@ -79,6 +95,30 @@ jobs:
       - name: Seed test database fixtures
         run: npm run db:seed:test
 
+      # Deterministic Linux LaTeX engine. The repository's Windows-only
+      # tools/bin/tectonic.exe is never used on Linux; the compiler service
+      # resolves TECTONIC_BIN / PATH instead, so PDF compilation is hermetic and
+      # never silently falls through to headless Chromium in CI.
+      - name: Install Tectonic (deterministic LaTeX engine)
+        env:
+          # Pinned to the engine version the document pipeline is validated against.
+          TECTONIC_VERSION: '0.15.0'
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            -o /tmp/tectonic.tar.gz \
+            "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          tar -xzf /tmp/tectonic.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/tectonic /usr/local/bin/tectonic
+          command -v tectonic
+          tectonic --version
+
+      - name: Warm Tectonic bundle cache (offline-ready formats)
+        run: |
+          set -euo pipefail
+          printf '\\documentclass{article}\\begin{document}warmup\\end{document}\n' > /tmp/tectonic-warmup.tex
+          tectonic /tmp/tectonic-warmup.tex --outdir /tmp/tectonic-warmup
+
       - name: Install Chromium
         run: |
           sudo apt-get update
@@ -88,8 +128,8 @@ jobs:
       - name: Execute unit test suite
         run: npm run test:unit
 
+      - name: Execute PDF artifact & document QA suite
+        run: npm run test:artifacts
+
       - name: Execute live integration test suite
         run: npm run test:integration
-
-      - name: Execute complete test suite
-        run: npm test

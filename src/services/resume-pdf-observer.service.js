@@ -26,6 +26,7 @@
 import zlib from 'node:zlib';
 import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 import { ResumeParserService } from './resume-parser.service.js';
+import { findCandidateEmail, decodePdfLiteralString } from '../utils/pdf-text-normalization.js';
 
 const SECTION_PATTERNS = [
   { key: 'SUMMARY', regex: /\b(professional\s+summary|summary|profile|about\s+me)\b/i },
@@ -108,7 +109,10 @@ export class ResumePdfObserver {
     const sectionOrder = detectedSections.map((s) => s.key);
 
     // 4. Contact Information
-    const emailMatch = extractedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    // Email matching tolerates extraction-injected whitespace inside the
+    // address (e.g. "vishwanatnishad@ gmail.com") while still requiring the
+    // complete canonical address sequence.
+    const observedEmail = findCandidateEmail(extractedText);
     const phoneMatch = extractedText.match(
       /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/
     );
@@ -116,8 +120,8 @@ export class ResumePdfObserver {
     const linkedinMatch = extractedText.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
 
     const contactInfo = {
-      hasEmail: Boolean(emailMatch),
-      email: emailMatch ? emailMatch[0] : null,
+      hasEmail: Boolean(observedEmail),
+      email: observedEmail,
       hasPhone: Boolean(phoneMatch),
       hasGithub: Boolean(githubMatch),
       hasLinkedin: Boolean(linkedinMatch),
@@ -363,7 +367,7 @@ export class ResumePdfObserver {
     const tjRegex = /\(([^)]*)\)\s*Tj/g;
     let m;
     while ((m = tjRegex.exec(streamContent)) !== null) {
-      pieces.push(m[1]);
+      pieces.push(decodePdfLiteralString(m[1]));
     }
 
     // Match [(string) ... (string)] TJ
@@ -373,10 +377,10 @@ export class ResumePdfObserver {
       const strRegex = /\(([^)]*)\)/g;
       let s;
       while ((s = strRegex.exec(inner)) !== null) {
-        pieces.push(s[1]);
+        pieces.push(decodePdfLiteralString(s[1]));
       }
     }
 
-    return pieces.join(' ').replace(/\\([()\\])/g, '$1');
+    return pieces.join(' ');
   }
 }

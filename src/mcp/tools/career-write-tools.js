@@ -95,6 +95,42 @@ function normalizeEvidenceRef(e) {
 }
 
 /**
+ * Resolves the GitHub App connector used by the repository write tools.
+ *
+ * Dependency injection always wins: an explicitly injected `connector` or
+ * `authManager` is honored verbatim, so unit/integration tests never need real
+ * GitHub App credentials. Only when neither is injected do we construct a real
+ * `GitHubAppAuthManager`, and that path is fail-closed: without configured
+ * credentials it throws a configuration error instead of fabricating a
+ * placeholder private key (which would surface as a misleading
+ * INVALID_PRIVATE_KEY at construction time).
+ *
+ * @param {object} deps Injected tool dependencies
+ * @returns {GitHubAppConnector} Resolved connector
+ * @throws {ValidationError} When no connector is injected and credentials are absent
+ */
+function resolveGitHubConnector(deps) {
+  if (deps.connector) return deps.connector;
+  if (deps.authManager) return new GitHubAppConnector({ authManager: deps.authManager });
+
+  const appId = process.env.GITHUB_APP_ID;
+  const privateKey =
+    process.env.GITHUB_APP_PRIVATE_KEY || process.env.GITHUB_APP_PRIVATE_KEY_BASE64;
+
+  if (!appId || !privateKey) {
+    throw new ValidationError(
+      'GitHub App credentials are not configured. Set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY (or GITHUB_APP_PRIVATE_KEY_BASE64) to enable repository write tools.',
+      'GITHUB_APP_NOT_CONFIGURED'
+    );
+  }
+
+  const tokenCache = deps.tokenCache || new GitHubTokenCache();
+  return new GitHubAppConnector({
+    authManager: new GitHubAppAuthManager({ appId, privateKey, cache: tokenCache }),
+  });
+}
+
+/**
  * Resolves the target candidate ID for an authenticated request.
  *
  * @param {import('../../domain/mcp/mcp.schemas.js').McpRequestContext} context - Authenticated request context.
@@ -293,15 +329,14 @@ export async function handleProposeProjectImprovement(context, args, deps = {}) 
     deps.recommenderService || new ProjectImprovementRecommenderService({ db });
   const approvalService = deps.approvalService || new ActionApprovalTicketService({ database: db });
 
-  const tokenCache = deps.tokenCache || new GitHubTokenCache();
-  const authManager =
-    deps.authManager ||
-    new GitHubAppAuthManager({
-      appId: process.env.GITHUB_APP_ID || 'dummy-app-id',
-      privateKey: process.env.GITHUB_APP_PRIVATE_KEY || 'dummy-private-key',
-      cache: tokenCache,
-    });
-  const connector = deps.connector || new GitHubAppConnector({ authManager });
+  // Lazily resolve the connector: injected connector/authManager is honored
+  // without constructing real GitHub auth, and the real path only materializes
+  // when a live branch-head lookup is actually required.
+  let connector = deps.connector || null;
+  const getConnector = () => {
+    if (!connector) connector = resolveGitHubConnector(deps);
+    return connector;
+  };
 
   const validatedArgs = ProposeProjectImprovementInputSchema.parse(args || {});
 
@@ -339,7 +374,7 @@ export async function handleProposeProjectImprovement(context, args, deps = {}) 
         .limit(1);
 
       if (connectionRecord && connectionRecord.externalResourceId) {
-        const headRef = await connector.getBranchHeadSha(
+        const headRef = await getConnector().getBranchHeadSha(
           { tenantId: context.tenantId, userId: context.userId, connectionId: connectionRecord.id },
           connectionRecord.credentials || {
             installationId: connectionRecord.externalInstallationId || '12345',
@@ -491,19 +526,13 @@ export async function handleConfirmAndCreatePr(context, args, deps = {}) {
   const approvalService = deps.approvalService || new ActionApprovalTicketService({ database: db });
   const safetyService = deps.safetyService || new GitHubWriteSafetyService();
 
-  const tokenCache = deps.tokenCache || new GitHubTokenCache();
-  const authManager =
-    deps.authManager ||
-    new GitHubAppAuthManager({
-      appId: process.env.GITHUB_APP_ID || 'dummy-app-id',
-      privateKey: process.env.GITHUB_APP_PRIVATE_KEY || 'dummy-private-key',
-      cache: tokenCache,
-    });
-  const connector = deps.connector || new GitHubAppConnector({ authManager });
-
-  const writeService =
-    deps.writeService ||
-    (db
+  // Only construct real GitHub auth when no write service was injected. An
+  // injected writeService (tests, embedded hosts) must never trigger credential
+  // construction; the real path remains fail-closed on missing configuration.
+  let writeService = deps.writeService || null;
+  if (!writeService) {
+    const connector = resolveGitHubConnector(deps);
+    writeService = db
       ? new GitHubWriteService({
           db,
           connector,
@@ -511,7 +540,8 @@ export async function handleConfirmAndCreatePr(context, args, deps = {}) {
           safetyService,
           mcpAuditService: deps.mcpAuditService || null,
         })
-      : null);
+      : null;
+  }
 
   if (!writeService) {
     throw new ValidationError('GitHub write service is unavailable', 'SERVICE_UNAVAILABLE');

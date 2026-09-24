@@ -145,7 +145,7 @@ describe('Overview / Root Route — Authenticated & Public States', () => {
     // Verify /dashboard still works for authenticated users
   });
 
-  test('5. Direct navigation to /dashboard works for authenticated users', async () => {
+  test('5. Direct navigation to /dashboard renders the authenticated candidate workspace shell', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/dashboard',
@@ -155,7 +155,18 @@ describe('Overview / Root Route — Authenticated & Public States', () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.payload, /Candidate Workspace/i);
+    assert.match(response.headers['content-type'], /text\/html/);
+
+    // Stable semantic dashboard contract: the workspace shell intentionally and
+    // unconditionally renders (a) the authenticated identity greeting,
+    // (b) the canonical "Application Readiness" summary used to drive the
+    // candidate's next action, and (c) the workspace document title. The
+    // candidate headline (when one exists) replaces the generic "Candidate
+    // Workspace" fallback label, so the fallback copy is incidental and must not
+    // be asserted on.
+    assert.match(response.payload, /Good (?:morning|afternoon|evening),\s*[^<]*/i);
+    assert.match(response.payload, /Application Readiness/i);
+    assert.match(response.payload, /<title>Candidate Dashboard \| AI Careers Hub<\/title>/i);
   });
 
   test('6. Unauthenticated GET /dashboard redirects to /login?returnTo=/dashboard', async () => {

@@ -3,8 +3,10 @@
  *
  * Compiles ATS-oriented LaTeX source documents into standard, selectable-text vector PDFs.
  *
- * Multi-Tier Compilation Strategy:
- * 1. Primary Engine: Tectonic (tools/bin/tectonic.exe or system PATH)
+ * Multi-Tier Compilation Strategy (provider-neutral: every engine is discovered and
+ * invoked through the same abstraction, none is platform-baked):
+ * 1. Primary Engine: Tectonic — resolved from an explicit override, `TECTONIC_BIN`,
+ *    the repo-local `tools/bin/tectonic[.exe]`, or the system PATH.
  *    - Standalone, hermetic XeTeX-based compiler with local format caching.
  * 2. Secondary Engine: System pdflatex / xelatex (if present on PATH).
  * 3. Resilient Fallback: Headless Chrome vector printer (--headless=new --print-to-pdf)
@@ -12,7 +14,7 @@
  *
  * Security & Sandboxing:
  * - Isolated temporary build directories per compilation job.
- * - Strict timeout enforcement (15s ceiling).
+ * - Explicit, configurable per-engine timeouts (options or PDF_COMPILE_*_TIMEOUT_MS env).
  * - Automatic cleanup of all build artifacts (.aux, .log, .out, .xdv).
  */
 
@@ -26,39 +28,139 @@ import process from 'node:process';
 import { logger } from '../utils/logger.js';
 
 /**
+ * Locates an executable on the system PATH without shelling out.
+ *
+ * @param {string} name Bare executable name (e.g. 'tectonic')
+ * @returns {string|null} Absolute path when found, otherwise null
+ */
+function findExecutableOnPath(name) {
+  const pathExt = process.platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : [''];
+  const separator = process.platform === 'win32' ? ';' : ':';
+  const dirs = (process.env.PATH || '').split(separator).filter(Boolean);
+
+  for (const dir of dirs) {
+    for (const ext of pathExt) {
+      const candidate = path.join(dir, `${name}${ext}`);
+      try {
+        if (fsSync.existsSync(candidate)) return candidate;
+      } catch {
+        // Unreadable PATH entry; keep searching
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Resolves the Chrome or Chromium executable across Windows, Linux, and CI environments.
  *
  * @returns {string} Executable path
+ * @throws {Error} When no Chrome/Chromium installation can be located
  */
 export function resolveChromeExecutable() {
   const configured = process.env.CHROME_BIN;
   if (configured && fsSync.existsSync(configured)) return configured;
 
-  if (process.platform === 'win32') {
-    return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const platformCandidates =
+    process.platform === 'win32'
+      ? [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ]
+      : [
+          '/usr/bin/chromium',
+          '/usr/bin/chromium-browser',
+          '/usr/bin/google-chrome',
+          '/usr/bin/google-chrome-stable',
+        ];
+
+  for (const candidate of platformCandidates) {
+    if (fsSync.existsSync(candidate)) return candidate;
   }
 
-  for (const candidate of [
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-  ]) {
-    if (fsSync.existsSync(candidate)) return candidate;
+  // Final resort: PATH lookup by conventional binary name.
+  for (const name of ['chromium', 'chromium-browser', 'google-chrome', 'chrome']) {
+    const resolved = findExecutableOnPath(name);
+    if (resolved) return resolved;
   }
 
   throw new Error('Chrome/Chromium executable not found. Set CHROME_BIN or install Chromium.');
 }
+
+/**
+ * Resolves the Tectonic executable deterministically across platforms.
+ *
+ * Precedence:
+ * 1. Explicit `options.tectonicPath` (test/embedding override)
+ * 2. `TECTONIC_BIN` environment variable (used by Linux CI installs)
+ * 3. Repo-local `tools/bin/tectonic[.exe]`
+ * 4. System PATH
+ *
+ * @param {string} [override] Explicit path override
+ * @returns {string|null} Resolved executable path, or null when unavailable
+ */
+export function resolveTectonicExecutable(override) {
+  const explicit = [override, process.env.TECTONIC_BIN].filter(Boolean);
+  for (const candidate of explicit) {
+    try {
+      if (fsSync.existsSync(candidate)) return candidate;
+    } catch {
+      // Invalid override; fall through to conventional locations
+    }
+  }
+
+  const localBinary = path.resolve(
+    process.cwd(),
+    'tools',
+    'bin',
+    process.platform === 'win32' ? 'tectonic.exe' : 'tectonic'
+  );
+  if (fsSync.existsSync(localBinary)) return localBinary;
+
+  return findExecutableOnPath('tectonic');
+}
+
+/**
+ * Resolves an explicit, configurable timeout in milliseconds.
+ * Explicit constructor options win, then environment overrides, then the fallback.
+ *
+ * @param {number|undefined} optionValue Explicit per-instance value
+ * @param {string} envName Environment variable name
+ * @param {number} fallback Default ceiling
+ * @returns {number} Positive timeout in milliseconds
+ */
+function resolveTimeoutMs(optionValue, envName, fallback) {
+  const raw = optionValue ?? process.env[envName];
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * Default per-engine compile ceilings. These are deliberately generous: TeX engines
+ * may need to bootstrap their format/bundle cache on a cold CI runner, and headless
+ * Chromium cold-starts slowly in constrained containers. Every ceiling is explicitly
+ * overridable per instance or through the environment rather than hard-coded inline.
+ */
+export const DEFAULT_COMPILE_TIMEOUTS_MS = Object.freeze({
+  tectonic: 180000,
+  pdflatex: 120000,
+  chrome: 90000,
+});
 
 export class LatexCompilerService {
   /**
    * @param {object} [options={}]
    * @param {string} [options.tectonicPath] Override path to tectonic binary
    * @param {string} [options.chromePath] Override path to chrome binary
+   * @param {string} [options.pdflatexPath] Override path to pdflatex binary
+   * @param {number} [options.tectonicTimeoutMs] Explicit Tectonic compile ceiling
+   * @param {number} [options.pdflatexTimeoutMs] Explicit pdflatex compile ceiling
+   * @param {number} [options.chromeTimeoutMs] Explicit headless-Chrome compile ceiling
    */
   constructor(options = {}) {
     this.logger = logger.child({ module: 'LatexCompilerService' });
-    this.tectonicPath =
-      options.tectonicPath || path.resolve(process.cwd(), 'tools', 'bin', 'tectonic.exe');
+    this.tectonicPath = resolveTectonicExecutable(options.tectonicPath);
+    this.pdflatexPath = options.pdflatexPath || 'pdflatex';
     if (options.chromePath) {
       this.chromePath = options.chromePath;
     } else {
@@ -68,6 +170,24 @@ export class LatexCompilerService {
         this.chromePath = null;
       }
     }
+
+    this.timeouts = {
+      tectonic: resolveTimeoutMs(
+        options.tectonicTimeoutMs,
+        'PDF_COMPILE_TECTONIC_TIMEOUT_MS',
+        DEFAULT_COMPILE_TIMEOUTS_MS.tectonic
+      ),
+      pdflatex: resolveTimeoutMs(
+        options.pdflatexTimeoutMs,
+        'PDF_COMPILE_PDFLATEX_TIMEOUT_MS',
+        DEFAULT_COMPILE_TIMEOUTS_MS.pdflatex
+      ),
+      chrome: resolveTimeoutMs(
+        options.chromeTimeoutMs,
+        'PDF_COMPILE_CHROME_TIMEOUT_MS',
+        DEFAULT_COMPILE_TIMEOUTS_MS.chrome
+      ),
+    };
   }
 
   /**
@@ -94,13 +214,14 @@ export class LatexCompilerService {
 
     try {
       // 1. Attempt Primary: Tectonic Compiler
-      const tectonicAvailable = await this._binaryExists(this.tectonicPath);
+      const tectonicAvailable =
+        Boolean(this.tectonicPath) && (await this._binaryExists(this.tectonicPath));
       if (tectonicAvailable) {
         try {
           const result = await this._runCommand(
             this.tectonicPath,
             [texFilePath, '--outdir', workDir],
-            { cwd: workDir, timeoutMs: 25000 }
+            { cwd: workDir, timeoutMs: this.timeouts.tectonic }
           );
 
           if (result.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
@@ -127,9 +248,9 @@ export class LatexCompilerService {
       // 2. Attempt Secondary: System pdflatex
       try {
         const pdflatexResult = await this._runCommand(
-          'pdflatex',
+          this.pdflatexPath,
           ['-interaction=nonstopmode', '-output-directory', workDir, texFilePath],
-          { cwd: workDir, timeoutMs: 20000 }
+          { cwd: workDir, timeoutMs: this.timeouts.pdflatex }
         );
 
         if (pdflatexResult.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
@@ -166,7 +287,7 @@ export class LatexCompilerService {
           `--print-to-pdf=${pdfFilePath}`,
           htmlPath,
         ],
-        { cwd: workDir, timeoutMs: 15000 }
+        { cwd: workDir, timeoutMs: this.timeouts.chrome }
       );
 
       if (chromeResult.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
@@ -179,7 +300,14 @@ export class LatexCompilerService {
         };
       }
 
-      throw new Error('All LaTeX and PDF compilation engines failed to produce output');
+      const attempted = [
+        tectonicAvailable ? `tectonic (${this.tectonicPath})` : 'tectonic (unavailable)',
+        `pdflatex (${this.pdflatexPath})`,
+        `chrome (${executable}, exit ${chromeResult.exitCode})`,
+      ].join(', ');
+      throw new Error(
+        `All LaTeX and PDF compilation engines failed to produce output. Tried: ${attempted}`
+      );
     } finally {
       // Safe cleanup of sandbox directory
       try {
