@@ -116,8 +116,33 @@ jobs:
       - name: Warm Tectonic bundle cache (offline-ready formats)
         run: |
           set -euo pipefail
-          printf '\\documentclass{article}\\begin{document}warmup\\end{document}\n' > /tmp/tectonic-warmup.tex
-          tectonic /tmp/tectonic-warmup.tex --outdir /tmp/tectonic-warmup
+          # Tectonic does NOT create its --outdir: when the directory is missing
+          # it aborts immediately with
+          #   error: output directory "<path>" does not exist
+          # so the directory has to exist before the first compile. The input is
+          # placed inside that directory so the input/output paths cannot drift.
+          warmup_dir=/tmp/tectonic-warmup
+          mkdir -p "$warmup_dir"
+          printf '\\documentclass{article}\\begin{document}warmup\\end{document}\n' \
+            > "$warmup_dir/warmup.tex"
+          # Prime the shared bundle cache so the PDF QA suites do not pay the
+          # first-run bundle download. Bounded retries absorb transient relay/CDN
+          # hiccups; a persistent failure still fails the job loudly.
+          for attempt in 1 2 3; do
+            if tectonic "$warmup_dir/warmup.tex" --outdir "$warmup_dir" --keep-logs; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Tectonic bundle warm-up failed after ${attempt} attempts"
+              exit 1
+            fi
+            echo "Warm-up attempt ${attempt} failed; retrying in 10s"
+            sleep 10
+          done
+          # Assert the warm-up actually produced a document, so a silently
+          # non-compiling cache prime can never pass as success.
+          test -f "$warmup_dir/warmup.pdf"
+          echo "Tectonic bundle cache warmed: $(tectonic --version)"
 
       - name: Install Chromium
         run: |
