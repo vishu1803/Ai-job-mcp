@@ -243,6 +243,7 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
   function createMockWorkflowService({
     candidateData = sampleCandidateData,
     dbCandidate = null,
+    candidateProfileService = null,
   } = {}) {
     const mockDb = {
       select: () => ({
@@ -330,8 +331,35 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       }),
     };
 
+    // The workflow refuses to build documents when the canonical profile cannot be loaded,
+    // so a thin database stub is no longer an acceptable stand-in for one: it would make the
+    // profile read throw and every snapshot assertion fail. Inject the canonical view through
+    // the same seam production uses, derived from the same fixture, so these tests exercise a
+    // populated profile rather than the degraded empty-projects fallback they used to hit.
+    const mockCandidateProfileService = candidateProfileService || {
+      getProfile: async () => ({
+        candidate: {
+          ...candidateData,
+          id: candidateId,
+          tenantId,
+          userId,
+          profileMetadata: candidateData,
+        },
+        skills: candidateData.skills,
+        projects: candidateData.projects,
+        experience: candidateData.experience,
+        education: candidateData.education,
+        certifications: candidateData.certifications,
+        dsa: candidateData.problemSolving,
+        links: candidateData.portfolioLinks,
+        portfolioLinks: candidateData.portfolioLinks,
+        resumeSections: [],
+      }),
+    };
+
     return new JobApplicationWorkflowService({
       database: mockDb,
+      candidateProfileService: mockCandidateProfileService,
       candidateArtifactContentService: mockContentService,
       applicationTrackingService: mockTrackingService,
       aiProvider: false,
@@ -786,6 +814,32 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
       pkgWithStructured.packageHash,
       hashWith,
       'Persisted packageHash must match computed canonical hash'
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Test S: a failed profile load refuses to build a package
+  // ---------------------------------------------------------------------------
+  it('S. prepareJobApplication fails closed when the canonical profile cannot be loaded', async () => {
+    const failure = Object.assign(new Error('db unreachable'), { code: '57014' });
+    const service = createMockWorkflowService({
+      candidateProfileService: {
+        getProfile: async () => {
+          throw failure;
+        },
+      },
+    });
+
+    // The service used to swallow this and synthesize a profile with no projects, experience,
+    // education or certifications, so the candidate silently received a degraded package.
+    await assert.rejects(
+      () =>
+        service.prepareJobApplication({
+          tenantId,
+          candidateId,
+          jobPosting: sampleJob,
+        }),
+      (err) => err === failure
     );
   });
 });

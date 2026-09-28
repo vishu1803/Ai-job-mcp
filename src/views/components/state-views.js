@@ -92,16 +92,3 @@ export function renderAIUnavailableCard({
     </div>
   `;
 }
-
-/**
- * Renders an inline skeleton placeholder block.
- *
- * @param {object} [params={}]
- * @param {string} [params.height='20px']
- * @param {string} [params.width='100%']
- * @param {string} [params.borderRadius='4px']
- * @returns {string} HTML string
- */
-export function renderSkeleton({ height = '20px', width = '100%', borderRadius = '4px' } = {}) {
-  return `<div class="ui-skeleton" style="height: ${height}; width: ${width}; border-radius: ${borderRadius}; background: rgba(255, 255, 255, 0.06); animation: pulse 1.5s infinite ease-in-out;" aria-hidden="true"></div>`;
-}

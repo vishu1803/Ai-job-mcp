@@ -58,7 +58,16 @@ export class JobAnalysisSnapshotService {
         );
       `);
       this._tableEnsured = true;
-    } catch {
+    } catch (err) {
+      // This is only a safety net for environments that never ran the migrations; the table
+      // and its indexes come from 0013_job_analysis_snapshots. A failure here used to be
+      // swallowed silently, which turned an actionable DDL error into a later, confusing
+      // "relation does not exist". Log it with context instead. Suppression of further
+      // attempts is kept: re-running the DDL on every call would spam a failing schema.
+      logger.warn(
+        { err },
+        'Could not ensure job_analysis_snapshots exists; snapshot persistence will fail if the migration was not applied'
+      );
       this._tableEnsured = true;
     }
   }

@@ -18,6 +18,18 @@ import { skillCatalog } from '../db/schema.js';
 import { logger } from '../utils/logger.js';
 import { SKILL_CATALOG_SEED } from './skill-catalog.seed.js';
 
+/**
+ * Process-wide reference cache shared by every SkillCatalogService instance.
+ *
+ * Module scope is deliberate: `web.routes.js` and `candidate-additional-skills.service.js`
+ * build a new catalog service per request, so an instance-scoped cache was recreated on
+ * every call and could never hit. The catalog is tenant-agnostic, slow-changing reference
+ * data, so a single shared entry set is safe across tenants.
+ *
+ * @type {Map<string, { loadedAt: number, value: unknown }>}
+ */
+const sharedReferenceCache = new Map();
+
 export class SkillCatalogService {
   /**
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase|object} [database]
@@ -37,8 +49,6 @@ export class SkillCatalogService {
     // route registrar) and never stores candidate-specific data.
     this.referenceCacheTtlMs = options.referenceCacheTtlMs ?? 60000;
     this.referenceCacheEnabled = options.disableReferenceCache !== true;
-    /** @type {Map<string, { loadedAt: number, value: unknown }>} */
-    this._referenceCache = new Map();
   }
 
   get _db() {
@@ -52,10 +62,10 @@ export class SkillCatalogService {
    */
   _cacheGet(key) {
     if (!this.referenceCacheEnabled) return undefined;
-    const entry = this._referenceCache.get(key);
+    const entry = sharedReferenceCache.get(key);
     if (!entry) return undefined;
     if (Date.now() - entry.loadedAt > this.referenceCacheTtlMs) {
-      this._referenceCache.delete(key);
+      sharedReferenceCache.delete(key);
       return undefined;
     }
     return entry.value;
@@ -68,7 +78,7 @@ export class SkillCatalogService {
    */
   _cacheSet(key, value) {
     if (!this.referenceCacheEnabled) return;
-    this._referenceCache.set(key, { loadedAt: Date.now(), value });
+    sharedReferenceCache.set(key, { loadedAt: Date.now(), value });
   }
 
   /**
@@ -76,7 +86,7 @@ export class SkillCatalogService {
    * @private
    */
   _invalidateReferenceCache() {
-    this._referenceCache.clear();
+    sharedReferenceCache.clear();
   }
 
   /**

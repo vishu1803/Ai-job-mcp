@@ -315,6 +315,8 @@ export const sessions = pgTable(
   (table) => [
     index('idx_sessions_user_id').on(table.userId),
     index('idx_sessions_expires_at').on(table.expiresAt),
+    // Backs the tenant CASCADE: deleting a tenant must not scan every session row.
+    index('idx_sessions_tenant_id').on(table.tenantId),
   ]
 );
 
@@ -343,6 +345,9 @@ export const auditLogs = pgTable(
     index('idx_audit_logs_tenant_created').on(table.tenantId, table.createdAt.desc()),
     index('idx_audit_logs_tenant_event').on(table.tenantId, table.eventType),
     index('idx_audit_logs_request_id').on(table.requestId),
+    // Backs the user SET NULL: the audit log is the fastest-growing table here, so an
+    // unindexed user delete means a full scan of it.
+    index('idx_audit_logs_user_id').on(table.userId),
   ]
 );
 
@@ -768,6 +773,9 @@ export const actionApprovalTickets = pgTable(
     index('idx_approval_tickets_resource').on(table.resourceId),
     index('idx_approval_tickets_expires_at').on(table.expiresAt),
     uniqueIndex('uq_approval_tickets_idempotency').on(table.tenantId, table.idempotencyKey),
+    // Back the user CASCADE / SET NULL rules on both requester and approver.
+    index('idx_action_approval_tickets_user_id').on(table.userId),
+    index('idx_action_approval_tickets_approved_by_user_id').on(table.approvedByUserId),
   ]
 );
 
@@ -1146,6 +1154,9 @@ export const candidateClaims = pgTable(
     index('idx_candidate_claims_tenant_candidate').on(table.tenantId, table.candidateId),
     index('idx_candidate_claims_resume').on(table.resumeId),
     index('idx_candidate_claims_status').on(table.tenantId, table.provenanceStatus),
+    // Backs the evidence SET NULL: evidence rows are replaced on every re-extraction,
+    // and each delete otherwise scans the whole claims table.
+    index('idx_candidate_claims_corroborating_evidence_id').on(table.corroboratingEvidenceId),
   ]
 );
 

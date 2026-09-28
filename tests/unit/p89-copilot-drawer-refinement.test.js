@@ -189,7 +189,18 @@ describe('P89 UI/UX Correction: Career Copilot Drawer Refinement', () => {
     });
 
     it('blocks automatic job application submissions safely', async () => {
-      const service = new AiCareerAssistantService();
+      // Offline unit test: handleUserMessage preloads the candidate profile before
+      // the safety gate runs, so inject a stub profile service (and no real
+      // provider) to keep this hermetic. The gate below returns before either the
+      // profile or the provider is used.
+      const service = new AiCareerAssistantService({
+        aiProvider: null,
+        candidateProfileService: {
+          async getCareerProfile() {
+            return null;
+          },
+        },
+      });
       const res = await service.handleUserMessage({
         message: 'Please submit my job application now',
         tenantId: '00000000-0000-0000-0000-000000000001',

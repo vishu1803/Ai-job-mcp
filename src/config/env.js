@@ -44,6 +44,9 @@ if (explicitEnvFile) {
  * @property {number} DATABASE_POOL_MAX
  * @property {boolean} DATABASE_SSL
  * @property {number} DATABASE_STATEMENT_TIMEOUT_MS
+ * @property {'true' | 'false'} [READ_CACHE_ENABLED]
+ * @property {number} READ_CACHE_TTL_MS
+ * @property {number} READ_CACHE_MAX_ENTRIES
  * @property {string} ENCRYPTION_MASTER_KEY
  * @property {string} ENCRYPTION_KEY_VERSION
  * @property {string} GITHUB_CLIENT_ID
@@ -69,6 +72,12 @@ const envSchema = z
       .default('false')
       .transform((val) => val === 'true' || val === 'require'),
     DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+    // In-process read cache for hot read paths. Enabled when unset for development and
+    // production, and disabled under NODE_ENV=test so read-after-write behaviour in the
+    // suite stays deterministic; set to 'true'/'false' to override either way.
+    READ_CACHE_ENABLED: z.enum(['true', 'false']).optional(),
+    READ_CACHE_TTL_MS: z.coerce.number().int().nonnegative().default(5000),
+    READ_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(500),
     ENCRYPTION_MASTER_KEY: z
       .string()
       .optional()

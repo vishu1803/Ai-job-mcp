@@ -98,6 +98,29 @@ jobs:
         run: npm run lint
         timeout-minutes: 10
 
+      # Static analysis of source against the real schema: a reference to a table
+      # column that does not exist evaluates to `undefined` and only fails deep
+      # inside drizzle's query builder at execution time, so a swallowed rejection
+      # turns it into a silently empty read. Blocking and dependency-free.
+      - name: Audit drizzle table column references against the schema
+        run: npm run audit:drizzle-columns
+        timeout-minutes: 5
+
+      # Static counterpart to the live drift check further down: fails on a foreign key
+      # with no covering index and on an update() that leaves updated_at stale.
+      - name: Audit schema integrity (indexes and updatedAt maintenance)
+        run: npm run audit:schema-integrity
+        timeout-minutes: 5
+
+      # Static audit of the integration suite's teardown hooks (ADR-048). Every
+      # integration test that opens a pool must drain it; a missing closeDatabase()
+      # leaks connections and only shows up as an unrelated later failure. Runs
+      # before any test step so a leak is attributed to the file that causes it
+      # rather than to whatever ran out of connections first. Dependency-free.
+      - name: Audit integration test database lifecycle compliance
+        run: npm run test:db-lifecycle-check
+        timeout-minutes: 5
+
       - name: Run automated dependency vulnerability audit (npm audit)
         run: npm run audit:deps
         timeout-minutes: 5
@@ -117,6 +140,14 @@ jobs:
       - name: Seed test database fixtures
         run: npm run db:seed:test
         timeout-minutes: 10
+
+      # Compares the migrated database against src/db/schema.js. `db:check` only validates
+      # journal/snapshot consistency, so it cannot see an orphaned migration whose tables or
+      # indexes never reach the database -- which is exactly how the job_analysis_snapshots
+      # indexes silently went missing. Blocking, since the database is now fully migrated.
+      - name: Audit live database against the schema (drift)
+        run: npm run audit:db-drift
+        timeout-minutes: 5
 
       # Deterministic Linux LaTeX engine. The repository's Windows-only
       # tools/bin/tectonic.exe is never used on Linux; the compiler service

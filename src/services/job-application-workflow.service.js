@@ -797,22 +797,25 @@ export class JobApplicationWorkflowService {
           profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
         };
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      // Fail closed. Synthesizing a profile here silently drops the projects, experience,
+      // education and certifications that document generation reads, so the candidate would
+      // receive an application package assembled from a degraded profile. Mirrors
+      // ApplicationHandoffService, which already refuses to build a kit without a loadable
+      // canonical profile.
+      this.logger.error(
+        { err, tenantId, candidateId },
+        'Candidate profile load failed; refusing to generate application documents from a degraded profile'
+      );
+      throw err;
     }
 
     if (!candidateProfileInput) {
-      candidateProfileInput = {
-        ...cand,
-        userId: cand.userId,
-        displayName: cand.displayName || 'Candidate',
-        canonicalEmail: candidateEmail,
-        email: candidateEmail,
-        phone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
-        skills: verifiedSkills.concat(claimedSkills),
-        projects: [],
-        profileMetadata: cand.profileMetadata || {},
-      };
+      // Unreachable while CandidateProfileService.getProfile throws NotFoundError instead of
+      // resolving null, but kept as an explicit refusal rather than the degraded synthesis this
+      // used to perform. That synthesis hard-coded `projects: []` and carried no experience,
+      // education or certifications, so document generation would misrepresent the candidate.
+      throw new NotFoundError('Canonical candidate profile could not be resolved');
     }
 
     // Resolve or compute Job Fit Analysis upfront (strictly analyze_job_fit passthrough)
@@ -1659,23 +1662,22 @@ export class JobApplicationWorkflowService {
             profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
           };
         }
-      } catch {
-        // Fallback
+      } catch (err) {
+        // Fail closed for the same reason as prepareJobApplication: document generation must
+        // never run against a profile that failed to load, because the fabricated fallback
+        // omits education, experience and certifications entirely.
+        this.logger.error(
+          { err, tenantId, candidateId },
+          'Candidate profile load failed during package regeneration; refusing to generate documents from a degraded profile'
+        );
+        throw err;
       }
     }
 
     if (!candidateProfileInput) {
-      candidateProfileInput = {
-        ...cand,
-        userId: cand.userId,
-        displayName: cand.displayName || 'Candidate',
-        canonicalEmail: candidateEmail,
-        email: candidateEmail,
-        phone: cand.phone || undefined,
-        skills: verifiedSkills.concat(claimedSkills),
-        projects: selectedProjectsList,
-        profileMetadata: cand.profileMetadata || {},
-      };
+      // Same refusal as prepareJobApplication: a package regenerated from a profile that never
+      // loaded would ship documents with no projects, experience, education or certifications.
+      throw new NotFoundError('Canonical candidate profile could not be resolved');
     }
 
     const authoritativeDraftRankings =

@@ -791,6 +791,7 @@ export class OAuthAuthorizationService {
         .set({
           isRevoked: true,
           revokedAt: now,
+          updatedAt: now,
         })
         .where(eq(oauthTokens.familyId, tokenRecord.familyId));
 
@@ -827,6 +828,7 @@ export class OAuthAuthorizationService {
       .set({
         isRevoked: true,
         revokedAt: now,
+        updatedAt: now,
       })
       .where(eq(oauthTokens.id, tokenRecord.id));
 
@@ -913,6 +915,7 @@ export class OAuthAuthorizationService {
         .set({
           isRevoked: true,
           revokedAt: now,
+          updatedAt: now,
         })
         .where(eq(oauthTokens.id, accessMatch.id));
       return { revoked: true };
@@ -931,6 +934,7 @@ export class OAuthAuthorizationService {
         .set({
           isRevoked: true,
           revokedAt: now,
+          updatedAt: now,
         })
         .where(eq(oauthTokens.familyId, refreshMatch.familyId));
       return { revoked: true };

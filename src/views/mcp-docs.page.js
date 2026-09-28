@@ -1585,7 +1585,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
           <!-- Real-Time Tool Search Filter -->
           <div style="min-width: 260px;">
-            <input type="text" id="toolSearchInput" onkeyup="filterTools()" placeholder="Filter tools (e.g. search_jobs, resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
+            <input type="text" id="toolSearchInput" aria-label="Filter tools" onkeyup="filterTools()" placeholder="Filter tools (e.g. search_jobs, resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
           </div>
         </div>
 

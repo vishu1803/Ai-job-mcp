@@ -194,6 +194,8 @@ export class ApplicationTrackingService {
           updates.normalizedJobUrl = normalizedJobUrl;
         }
         if (Object.keys(updates).length > 0) {
+          // Only stamped when a backfill actually happens, so the guard above keeps its meaning.
+          updates.updatedAt = new Date();
           const [updated] = await tx
             .update(jobApplications)
             .set(updates)
@@ -737,6 +739,7 @@ export class ApplicationTrackingService {
       if (!app.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
       if (!app.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
       if (Object.keys(updates).length > 0) {
+        updates.updatedAt = new Date();
         const [updated] = await this.db
           .update(jobApplications)
           .set(updates)
@@ -814,6 +817,7 @@ export class ApplicationTrackingService {
       if (!matched.normalizedJobUrl && normalizedJobUrl)
         updates.normalizedJobUrl = normalizedJobUrl;
       if (Object.keys(updates).length > 0) {
+        updates.updatedAt = new Date();
         const [updated] = await this.db
           .update(jobApplications)
           .set(updates)

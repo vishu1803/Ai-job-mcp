@@ -686,7 +686,7 @@ export function renderHandoffPage({
               <option value="Shortened summary / bullet points">Shortened summary / bullet points</option>
               <option value="Fixed typo / wording correction">Fixed typo / wording correction</option>
             </select>
-            <input type="text" id="reasonInput" name="reason" placeholder="e.g. Updated GitHub profile URL" style="width:100%; box-sizing:border-box; padding:9px 12px; background:#0B0F19; border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-main); font-size:0.85rem;" />
+            <input type="text" id="reasonInput" name="reason" aria-label="Custom regeneration reason" placeholder="e.g. Updated GitHub profile URL" style="width:100%; box-sizing:border-box; padding:9px 12px; background:#0B0F19; border:1px solid var(--border-subtle); border-radius:6px; color:var(--text-main); font-size:0.85rem;" />
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:24px;">

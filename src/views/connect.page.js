@@ -208,7 +208,7 @@ export function renderConnectPage({
               Copy your token now. <strong>For security, it will NEVER be displayed again.</strong> If lost, you must revoke this token and generate a new one.
             </p>
             <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <input type="text" readonly value="${escapeHtml(newRawToken)}" id="rawTokenInput" style="flex: 1; min-width: 300px; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.6rem 0.85rem; background: var(--bg-surface-elevated); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #4ade80;">
+              <input type="text" readonly value="${escapeHtml(newRawToken)}" id="rawTokenInput" aria-label="Newly issued API token (read-only)" style="flex: 1; min-width: 300px; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.6rem 0.85rem; background: var(--bg-surface-elevated); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #4ade80;">
               <button type="button" onclick="copyToClipboard('rawTokenInput', 'copyTokenBtn')" id="copyTokenBtn" class="btn btn-primary btn-sm" style="background: #16a34a; border-color: #22c55e;">
                 Copy Token
               </button>
@@ -233,7 +233,7 @@ export function renderConnectPage({
 
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
           <div style="flex: 1; min-width: 280px; position: relative;">
-            <input type="text" readonly value="${escapeHtml(mcpEndpointUrl)}" id="mcpEndpointInput" style="width: 100%; font-family: var(--font-mono); font-size: 0.9rem; padding: 0.65rem 0.9rem; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: #38bdf8;">
+            <input type="text" readonly value="${escapeHtml(mcpEndpointUrl)}" id="mcpEndpointInput" aria-label="MCP endpoint URL (read-only)" style="width: 100%; font-family: var(--font-mono); font-size: 0.9rem; padding: 0.65rem 0.9rem; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: #38bdf8;">
           </div>
           <button type="button" onclick="copyToClipboard('mcpEndpointInput', 'copyEndpointBtn')" id="copyEndpointBtn" class="btn btn-secondary btn-sm" style="padding: 0.65rem 1.25rem;">
             Copy Endpoint

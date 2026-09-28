@@ -635,22 +635,25 @@ export class AiCareerAssistantService {
   /**
    * Detects conflicts between candidate profile data and application answers or resume.
    *
-   * @param {object} params
-   * @param {object} params.candidateProfile
+   * @param {object} [params]
+   * @param {object|null} [params.candidateProfile] Canonical career profile. Absent or
+   *   `null` (no profile available) is a valid input and yields no conflicts.
    * @param {object} [params.applicationAnswers]
    * @param {object} [params.resumeFacts]
    * @returns {Array<object>} Detected conflicts with resolution options
    */
-  identifyProfileConflicts({
-    candidateProfile = {},
-    applicationAnswers = {},
-    _resumeFacts = null,
-  }) {
+  identifyProfileConflicts(params = {}) {
+    const { candidateProfile, applicationAnswers = {}, _resumeFacts = null } = params;
+
     const conflicts = [];
 
-    const prefs =
-      candidateProfile.jobPreferences || candidateProfile.profileMetadata?.careerPreferences || {};
-    const userCustom = candidateProfile.profileMetadata?.userCustom || {};
+    // Domain contract: an absent or null profile has no conflicts to report.
+    // Default parameters only cover `undefined`, so an explicit `null` (an
+    // unavailable profile) is normalized explicitly rather than dereferenced.
+    const profile = candidateProfile || {};
+
+    const prefs = profile.jobPreferences || profile.profileMetadata?.careerPreferences || {};
+    const userCustom = profile.profileMetadata?.userCustom || {};
 
     // 1. Notice Period Conflict
     const profileNotice = prefs.noticePeriod || userCustom.noticePeriod;
@@ -1297,35 +1300,9 @@ export class AiCareerAssistantService {
       throw new ValidationError('Message cannot be empty.');
     }
 
-    // Normalize pageContext to exact canonical context
-    const validPageContext = normalizeCopilotPageContext(pageContext);
-
-    // 1. Fetch candidate profile if not provided
-    let profile = candidateProfile;
-    const isValidUuid = (val) =>
-      typeof val === 'string' &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-
-    if (!profile && candidateId && tenantId && isValidUuid(candidateId) && isValidUuid(tenantId)) {
-      try {
-        const ctx = context || { tenantId, userId, role: 'MEMBER' };
-        profile = await this.candidateProfileService.getCareerProfile(ctx, candidateId);
-      } catch (err) {
-        this.logger.warn({ err, candidateId }, 'Could not load career profile for assistant');
-      }
-    }
-
-    // Derive or consume authoritative application readiness
-    let readinessData = readiness;
-    if (!readinessData && profile) {
-      try {
-        readinessData = this.identifyMissingInformation({ candidateProfile: profile });
-      } catch {
-        readinessData = null;
-      }
-    }
-
-    // 2. Safety Gate: Check for automatic application submission attempt
+    // Safety gate (fast path): automatic application submission attempts are rejected
+    // before the candidate profile is loaded. The block response is static and never
+    // reads profile data, so skipping the load avoids a needless database round-trip.
     if (/submit (?:my |the )?(?:application|job)|apply for me|submit to/i.test(userText)) {
       const submissionBlock = this.submitApplicationIntent();
       return {
@@ -1353,7 +1330,42 @@ export class AiCareerAssistantService {
       };
     }
 
-    // 3. Check for proposal generation intent (e.g. "I'm looking for backend jobs with remote options and at least ₹10 LPA")
+    // Normalize pageContext to exact canonical context
+    const validPageContext = normalizeCopilotPageContext(pageContext);
+
+    // 1. Fetch candidate profile if not provided
+    let profile = candidateProfile;
+    const isValidUuid = (val) =>
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    if (!profile && candidateId && tenantId && isValidUuid(candidateId) && isValidUuid(tenantId)) {
+      try {
+        const ctx = context || { tenantId, userId, role: 'MEMBER' };
+        profile = await this.candidateProfileService.getCareerProfile(ctx, candidateId);
+      } catch (err) {
+        // Fail closed rather than answering with `profile` left undefined: a degraded answer
+        // here reads as "this candidate has no profile, skills or experience". Callers that
+        // preload a profile never reach this branch, so propagating cannot regress them.
+        this.logger.error(
+          { err, candidateId },
+          'Career profile load failed; refusing to answer the assistant with an unloaded profile'
+        );
+        throw err;
+      }
+    }
+
+    // Derive or consume authoritative application readiness
+    let readinessData = readiness;
+    if (!readinessData && profile) {
+      try {
+        readinessData = this.identifyMissingInformation({ candidateProfile: profile });
+      } catch {
+        readinessData = null;
+      }
+    }
+
+    // 2. Check for proposal generation intent (e.g. "I'm looking for backend jobs with remote options and at least ₹10 LPA")
     const proposalResult = this.proposeProfileUpdates({
       userInput: userText,
       candidateProfile: profile,
@@ -1395,7 +1407,7 @@ export class AiCareerAssistantService {
       };
     }
 
-    // 4. Check for conflict detection intent
+    // 3. Check for conflict detection intent
     if (/conflict|mismatch|discrepancy|notice period conflict/i.test(userText)) {
       const conflicts = this.identifyProfileConflicts({
         candidateProfile: profile,
@@ -1459,7 +1471,7 @@ export class AiCareerAssistantService {
       }
     }
 
-    // 5. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
+    // 4. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
     const explainMatch =
       !/readiness|blocking|ready/i.test(userText) &&
       userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
@@ -1495,7 +1507,7 @@ export class AiCareerAssistantService {
       };
     }
 
-    // 6. Check for resume wording / phrasing intent
+    // 5. Check for resume wording / phrasing intent
     if (/rephrase|improve wording|better way to say|rewrite/i.test(userText)) {
       const wordingResult = this.suggestResumeWording({
         bulletText: userText,
@@ -1561,10 +1573,10 @@ export class AiCareerAssistantService {
       };
     }
 
-    // 7. Navigation query
+    // 6. Navigation query
     const navSuggestions = this.navigatePortal(userText);
 
-    // 8. Evidence-grounded response via active AI provider (with rich application context)
+    // 7. Evidence-grounded response via active AI provider (with rich application context)
     const provider = this._getProvider();
     if (provider) {
       try {
@@ -1702,7 +1714,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
       }
     }
 
-    // 9. Deterministic Fallbacks when AI Provider is not configured or offline
+    // 8. Deterministic Fallbacks when AI Provider is not configured or offline
     // Check for missing information / readiness intent
     if (
       /missing|readiness|ready to apply|what do i need|check (?:my )?application readiness|what(?:'s| is) blocking me/i.test(

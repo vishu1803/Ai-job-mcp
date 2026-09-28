@@ -1394,12 +1394,16 @@ export class CandidateArtifactContentService {
    * @returns {Promise<object>} candidateData snapshot
    */
   async buildCandidateData({ tenantId, userId, candidateId, jobPosting }) {
-    const profileView = await this.loadCandidateProfile({ tenantId, userId, candidateId });
+    // The profile load and the stored-project load are independent reads (neither
+    // observes the other's result), so they are issued concurrently to avoid paying
+    // two serial round-trips. Both resolve before reconciliation below.
+    const [profileView, storedProjects] = await Promise.all([
+      this.loadCandidateProfile({ tenantId, userId, candidateId }),
+      this.loadStoredProjects({ tenantId, candidateId }),
+    ]);
     const candidate = profileView.candidate || {};
     const metadata = candidate.profileMetadata || {};
     const userCustom = metadata.userCustom || {};
-
-    const storedProjects = await this.loadStoredProjects({ tenantId, candidateId });
     const storedProjectByUrl = new Map();
     for (const project of storedProjects) {
       if (!project.name) continue;

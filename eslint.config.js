@@ -25,6 +25,7 @@ export default [
         URL: 'readonly',
         URLSearchParams: 'readonly',
         crypto: 'readonly',
+        structuredClone: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
         global: 'readonly',

@@ -22,7 +22,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and, or, desc } from 'drizzle-orm';
+import { eq, and, or, desc, inArray } from 'drizzle-orm';
 import {
   validateSession,
   getSessionCookieOptions,
@@ -244,11 +244,19 @@ export default async function webRoutes(app, opts = {}) {
       role: user.role,
     };
 
-    let candidateProfile = null;
+    // A career-profile load failure (e.g. a database statement timeout) is not a
+    // first-run user and must never be downgraded to a silently-empty profile.
+    // Log it with context, then propagate so the global error handler renders the
+    // user-facing failure state instead of a fabricated empty dashboard.
+    let candidateProfile;
     try {
       candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error(
+        { err, candidateId: candidate.id },
+        'Dashboard career profile load failed; refusing to render an empty profile'
+      );
+      throw err;
     }
 
     const readiness = applicationReadinessService.evaluateReadiness({
@@ -1561,67 +1569,106 @@ export default async function webRoutes(app, opts = {}) {
       )
       .orderBy(desc(candidateSkills.confidenceScore));
 
-    // Resolve provenance fallback for any skill where primaryEvidenceId was unlinked
-    for (const row of skillRows) {
-      if (!row.resourceDisplayName && !row.evidenceType && row.skillId) {
-        const [topEvidence] = await database
+    // Resolve provenance fallback for any skill where primaryEvidenceId was unlinked.
+    // Deliberately batched: the previous shape issued one evidence query per skill inside
+    // the loop (28 statements on a typical profile) plus a second query per project, which
+    // dominated this page's latency. Same rows, same precedence, two queries instead of N.
+    const skillsNeedingProvenanceFallback = skillRows.filter(
+      (row) => !row.resourceDisplayName && !row.evidenceType && row.skillId
+    );
+
+    if (skillsNeedingProvenanceFallback.length > 0) {
+      const fallbackSkillIds = [
+        ...new Set(skillsNeedingProvenanceFallback.map((row) => row.skillId)),
+      ];
+
+      const fallbackEvidenceRows = await database
+        .select({
+          skillId: evidenceItems.skillId,
+          id: evidenceItems.id,
+          evidenceType: evidenceItems.evidenceType,
+          sourceLocation: evidenceItems.sourceLocation,
+          excerpt: evidenceItems.excerpt,
+          projectId: evidenceItems.projectId,
+          resourceDisplayName: resources.displayName,
+          resourceUrl: resources.url,
+          resourceName: resources.name,
+          resourceProvider: resources.provider,
+        })
+        .from(evidenceItems)
+        .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+        .where(
+          and(
+            eq(evidenceItems.tenantId, tenant.id),
+            eq(evidenceItems.candidateId, candidate.id),
+            inArray(evidenceItems.skillId, fallbackSkillIds)
+          )
+        )
+        .orderBy(desc(evidenceItems.confidenceScore));
+
+      // Highest-confidence evidence per skill, matching the old ORDER BY ... LIMIT 1.
+      const topEvidenceBySkill = new Map();
+      for (const evidence of fallbackEvidenceRows) {
+        if (!topEvidenceBySkill.has(evidence.skillId)) {
+          topEvidenceBySkill.set(evidence.skillId, evidence);
+        }
+      }
+
+      // Evidence rows that point at a project rather than a resource, resolved together.
+      const projectIdsNeedingResource = [
+        ...new Set(
+          [...topEvidenceBySkill.values()]
+            .filter((evidence) => !evidence.resourceDisplayName && evidence.projectId)
+            .map((evidence) => evidence.projectId)
+        ),
+      ];
+
+      const projectResourceByProject = new Map();
+      if (projectIdsNeedingResource.length > 0) {
+        const projectResourceRows = await database
           .select({
-            id: evidenceItems.id,
-            evidenceType: evidenceItems.evidenceType,
-            sourceLocation: evidenceItems.sourceLocation,
-            excerpt: evidenceItems.excerpt,
-            projectId: evidenceItems.projectId,
-            resourceDisplayName: resources.displayName,
-            resourceUrl: resources.url,
-            resourceName: resources.name,
-            resourceProvider: resources.provider,
+            projectId: projectResources.projectId,
+            displayName: resources.displayName,
+            url: resources.url,
+            name: resources.name,
+            provider: resources.provider,
           })
-          .from(evidenceItems)
-          .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+          .from(projectResources)
+          .innerJoin(resources, eq(projectResources.resourceId, resources.id))
           .where(
             and(
-              eq(evidenceItems.tenantId, tenant.id),
-              eq(evidenceItems.candidateId, candidate.id),
-              eq(evidenceItems.skillId, row.skillId)
+              eq(projectResources.tenantId, tenant.id),
+              inArray(projectResources.projectId, projectIdsNeedingResource)
             )
-          )
-          .orderBy(desc(evidenceItems.confidenceScore))
-          .limit(1);
+          );
 
-        if (topEvidence) {
-          row.evidenceType = topEvidence.evidenceType;
-          row.sourceLocation = topEvidence.sourceLocation;
-          row.excerpt = topEvidence.excerpt;
-          row.resourceDisplayName = topEvidence.resourceDisplayName;
-          row.resourceUrl = topEvidence.resourceUrl;
-          row.resourceName = topEvidence.resourceName;
-          row.resourceProvider = topEvidence.resourceProvider;
+        for (const projectResource of projectResourceRows) {
+          if (!projectResourceByProject.has(projectResource.projectId)) {
+            projectResourceByProject.set(projectResource.projectId, projectResource);
+          }
+        }
+      }
 
-          // If resourceId was null on evidence, resolve via projectResources
-          if (!row.resourceDisplayName && topEvidence.projectId) {
-            const [projRes] = await database
-              .select({
-                displayName: resources.displayName,
-                url: resources.url,
-                name: resources.name,
-                provider: resources.provider,
-              })
-              .from(projectResources)
-              .innerJoin(resources, eq(projectResources.resourceId, resources.id))
-              .where(
-                and(
-                  eq(projectResources.tenantId, tenant.id),
-                  eq(projectResources.projectId, topEvidence.projectId)
-                )
-              )
-              .limit(1);
+      for (const row of skillsNeedingProvenanceFallback) {
+        const topEvidence = topEvidenceBySkill.get(row.skillId);
+        if (!topEvidence) continue;
 
-            if (projRes) {
-              row.resourceDisplayName = projRes.displayName;
-              row.resourceUrl = projRes.url;
-              row.resourceName = projRes.name;
-              row.resourceProvider = projRes.provider;
-            }
+        row.evidenceType = topEvidence.evidenceType;
+        row.sourceLocation = topEvidence.sourceLocation;
+        row.excerpt = topEvidence.excerpt;
+        row.resourceDisplayName = topEvidence.resourceDisplayName;
+        row.resourceUrl = topEvidence.resourceUrl;
+        row.resourceName = topEvidence.resourceName;
+        row.resourceProvider = topEvidence.resourceProvider;
+
+        // If resourceId was null on evidence, resolve via projectResources
+        if (!row.resourceDisplayName && topEvidence.projectId) {
+          const projRes = projectResourceByProject.get(topEvidence.projectId);
+          if (projRes) {
+            row.resourceDisplayName = projRes.displayName;
+            row.resourceUrl = projRes.url;
+            row.resourceName = projRes.name;
+            row.resourceProvider = projRes.provider;
           }
         }
       }
@@ -5097,11 +5144,19 @@ export default async function webRoutes(app, opts = {}) {
       role: user.role,
     };
 
+    // These reads feed the assistant's answer, so a failure must never be downgraded to
+    // an empty value: the copilot would answer as though the candidate had no profile,
+    // skills, applications or resumes. Log each failure with context and propagate,
+    // matching loadDashboardData, so the caller sees a real failure state.
     let candidateProfile = null;
     try {
       candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error(
+        { err, candidateId: candidate.id },
+        'Copilot career profile load failed; refusing to answer with an unloaded profile'
+      );
+      throw err;
     }
 
     let readiness = null;
@@ -5110,8 +5165,12 @@ export default async function webRoutes(app, opts = {}) {
         candidateProfile,
         candidate,
       });
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error(
+        { err, candidateId: candidate.id },
+        'Copilot application readiness evaluation failed'
+      );
+      throw err;
     }
 
     let connectedRepositories = [];
@@ -5132,8 +5191,12 @@ export default async function webRoutes(app, opts = {}) {
             eq(resources.status, 'ACTIVE')
           )
         );
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error(
+        { err, candidateId: candidate.id },
+        'Copilot connected repositories load failed'
+      );
+      throw err;
     }
 
     let candidateSkillList = [];
@@ -5156,20 +5219,25 @@ export default async function webRoutes(app, opts = {}) {
         )
         .orderBy(desc(candidateSkills.confidenceScore))
         .limit(20);
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error({ err, candidateId: candidate.id }, 'Copilot candidate skills load failed');
+      throw err;
     }
 
     let trackedApplications = [];
     try {
-      trackedApplications = await database
+      // `job_applications` has no `matchScore` column; the match score is derived from the
+      // stored ATS fit snapshot (see the dashboard's recommended-jobs mapping). Select the
+      // real columns and derive the same score so the copilot receives the actual
+      // applications instead of a silently empty list.
+      const applicationRows = await database
         .select({
           id: jobApplications.id,
           jobTitle: jobApplications.jobTitle,
           companyName: jobApplications.companyName,
           status: jobApplications.status,
           location: jobApplications.location,
-          matchScore: jobApplications.matchScore,
+          atsFitSnapshot: jobApplications.atsFitSnapshot,
         })
         .from(jobApplications)
         .where(
@@ -5180,24 +5248,42 @@ export default async function webRoutes(app, opts = {}) {
         )
         .orderBy(desc(jobApplications.updatedAt))
         .limit(5);
-    } catch {
-      // Fallback
+
+      trackedApplications = applicationRows.map((application) => ({
+        id: application.id,
+        jobTitle: application.jobTitle,
+        companyName: application.companyName,
+        status: application.status,
+        location: application.location,
+        matchScore:
+          typeof application.atsFitSnapshot?.overallScore === 'number'
+            ? application.atsFitSnapshot.overallScore
+            : typeof application.atsFitSnapshot?.atsScore === 'number'
+              ? application.atsFitSnapshot.atsScore
+              : null,
+      }));
+    } catch (err) {
+      logger.error({ err, candidateId: candidate.id }, 'Copilot tracked applications load failed');
+      throw err;
     }
 
     let activeResumes = [];
     try {
+      // `resumes` stores its state as `lifecycleState`/`isBaseResume`, not `status`/`isBase`.
+      // Read the real columns and alias them to the shape the assistant consumes.
       activeResumes = await database
         .select({
           id: resumes.id,
           fileName: resumes.fileName,
-          status: resumes.status,
-          isBase: resumes.isBase,
+          status: resumes.lifecycleState,
+          isBase: resumes.isBaseResume,
         })
         .from(resumes)
         .where(and(eq(resumes.tenantId, tenant.id), eq(resumes.candidateId, candidate.id)))
         .limit(3);
-    } catch {
-      // Fallback
+    } catch (err) {
+      logger.error({ err, candidateId: candidate.id }, 'Copilot active resumes load failed');
+      throw err;
     }
 
     const assistantResponse = await aiCareerAssistantService.handleUserMessage({

@@ -450,7 +450,7 @@ export function renderApplyPage({
                       `
                               : `
                         <div style="display:flex; gap:8px; align-items:center;">
-                          <input type="text" name="value" class="form-control" placeholder="Enter ${escapeHtml(item.label.toLowerCase())}..." style="font-size:0.8rem; padding:5px 8px; flex:1;" required>
+                          <input type="text" name="value" class="form-control" aria-label="${escapeHtml(item.label)}" placeholder="Enter ${escapeHtml(item.label.toLowerCase())}..." style="font-size:0.8rem; padding:5px 8px; flex:1;" required>
                           <button type="submit" class="btn btn-primary btn-sm" style="font-size:0.775rem;">Save</button>
                         </div>
                       `
@@ -519,11 +519,11 @@ export function renderApplyPage({
                 .map(
                   (q) => `
                 <div class="form-group" style="background:#0B0F19; border:1px solid var(--border-subtle); border-radius:6px; padding:16px;">
-                  <label class="form-label" style="font-weight:600; font-size:0.875rem; margin-bottom:6px; display:block;">
+                  <label for="custom_${escapeHtml(q.id)}" class="form-label" style="font-weight:600; font-size:0.875rem; margin-bottom:6px; display:block;">
                     ${escapeHtml(q.prompt)} ${q.required ? '<span style="color:#EF4444;">*</span>' : '(optional)'}
                   </label>
                   ${q.helpText ? `<div style="font-size:0.775rem; color:var(--text-dim); margin-bottom:8px;">${escapeHtml(q.helpText)}</div>` : ''}
-                  <input type="text" name="custom_${escapeHtml(q.id)}" class="form-control" value="${escapeHtml(q.answer || '')}" placeholder="Your answer..." ${q.required ? 'required' : ''} style="font-size:0.875rem;">
+                  <input type="text" id="custom_${escapeHtml(q.id)}" name="custom_${escapeHtml(q.id)}" class="form-control" value="${escapeHtml(q.answer || '')}" placeholder="Your answer..." ${q.required ? 'required' : ''} style="font-size:0.875rem;">
                 </div>
               `
                 )

@@ -116,10 +116,10 @@ export function renderRadarPage({
           <form method="GET" action="/apps/radar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
             <input type="hidden" name="tab" value="discover">
             <div style="flex:2; min-width:240px;">
-              <input type="text" name="q" value="${escapeHtml(query)}" placeholder="Role title, skills, keywords (e.g. Distributed Systems, Node.js)..." class="form-control" style="width:100%; font-size:0.875rem;">
+              <input type="text" name="q" aria-label="Role title, skills or keywords" value="${escapeHtml(query)}" placeholder="Role title, skills, keywords (e.g. Distributed Systems, Node.js)..." class="form-control" style="width:100%; font-size:0.875rem;">
             </div>
             <div style="flex:1; min-width:180px;">
-              <input type="text" name="location" value="${escapeHtml(location)}" placeholder="Location (e.g. Remote, San Francisco)..." class="form-control" style="width:100%; font-size:0.875rem;">
+              <input type="text" name="location" aria-label="Location" value="${escapeHtml(location)}" placeholder="Location (e.g. Remote, San Francisco)..." class="form-control" style="width:100%; font-size:0.875rem;">
             </div>
             <div style="min-width:140px;">
               <select name="workplaceType" class="form-select" style="width:100%; font-size:0.875rem;">

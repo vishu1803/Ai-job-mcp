@@ -92,6 +92,20 @@
       "when": 1788109200000,
       "tag": "0012_application_package_payload",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788195600000,
+      "tag": "0013_job_analysis_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788282000000,
+      "tag": "0014_referential_integrity_indexes",
+      "breakpoints": true
     }
   ]
 }

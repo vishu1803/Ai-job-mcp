@@ -245,6 +245,24 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
     assert.match(conflicts[0].notes, /Conflict detected/);
   });
 
+  it('5c. Absent or null profile yields no conflicts and never dereferences null', () => {
+    // A conflict detector has no conflicts to report when there is no profile.
+    // An explicit `null` (unavailable profile) must not bypass the default.
+    assert.deepEqual(assistantService.identifyProfileConflicts({ candidateProfile: null }), []);
+    assert.deepEqual(assistantService.identifyProfileConflicts({}), []);
+    assert.deepEqual(assistantService.identifyProfileConflicts(), []);
+
+    // Even with application answers present, a missing profile produces no
+    // fabricated conflict (there is nothing to compare against).
+    assert.deepEqual(
+      assistantService.identifyProfileConflicts({
+        candidateProfile: null,
+        applicationAnswers: { noticePeriod: 'immediate', workAuthorization: 'US_CITIZEN' },
+      }),
+      []
+    );
+  });
+
   // =========================================================================
   // 6. Adversarial Test: Unauthorized Profile Mutation
   // =========================================================================

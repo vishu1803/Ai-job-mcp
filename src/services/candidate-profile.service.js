@@ -30,6 +30,7 @@ import {
 } from '../db/schema.js';
 import { NotFoundError, ValidationError, AuthorizationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
+import { createReadCache } from '../utils/ttl-cache.js';
 import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
 import { PrimaryEvidenceSelector } from './evidence/primary-evidence-selector.js';
 import {
@@ -54,6 +55,50 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 function isUuid(val) {
   return typeof val === 'string' && UUID_REGEX.test(val);
 }
+
+/**
+ * Maximum number of database round-trips a single profile read may keep in flight
+ * at once. Bounds per-request connection demand so overlapping the independent
+ * reads in `getProfile` cannot starve the shared connection pool under concurrency.
+ */
+const IN_REQUEST_DB_CONCURRENCY = 4;
+
+/**
+ * Runs async task factories with a bounded number in flight, preserving result order.
+ *
+ * @param {Array<() => Promise<unknown>>} tasks Task factories, run at most `limit` at a time
+ * @param {number} limit Maximum concurrent tasks
+ * @returns {Promise<unknown[]>} Results in the same order as `tasks`
+ */
+async function mapWithConcurrency(tasks, limit) {
+  const results = new Array(tasks.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, tasks.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    for (;;) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= tasks.length) return;
+      results[index] = await tasks[index]();
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Process-wide cache of assembled CandidateProfileView payloads, keyed by
+ * `<tenantId>:<candidateId>`.
+ *
+ * Module scope is deliberate: several call sites (MCP tools, route registrars) build a
+ * service instance per request, so an instance-scoped cache would be created and thrown
+ * away on every call and would never actually hit.
+ *
+ * Only the assembled, already-authorized payload is cached. The candidate root read and
+ * the access check that precede it run on every call, so a revoked or re-scoped user can
+ * never be served from cache. Staleness is bounded solely by the TTL.
+ */
+const profileViewCache = createReadCache({ name: 'candidate-profile-view' });
 
 export class CandidateProfileService {
   /**
@@ -179,21 +224,96 @@ export class CandidateProfileService {
 
     await this._assertCanReadCandidate(context, candidate);
 
-    const userEmail = await this._fetchUserEmail(tenantId, candidate.userId);
+    // Access control above is never cached. Everything below this point is the same
+    // tenant/candidate payload for every caller, so it is reused until the TTL expires.
+    const cacheKey = `${tenantId}:${candidateId}`;
+    const cachedProfileView = profileViewCache.get(cacheKey);
+    if (cachedProfileView) return cachedProfileView;
+
+    // 2-5. The independent reads below do not depend on one another, so they are
+    // issued concurrently through a bounded scheduler instead of as a chain of
+    // sequential round-trips. Each query is byte-for-byte unchanged; only the
+    // scheduling is overlapped, and the cap bounds per-request connection demand.
+    const [
+      userEmail,
+      rawIdentities,
+      rawResources,
+      rawProjects,
+      rawCandidateSkills,
+      allEvidenceRows,
+      rawResumeSections,
+    ] = await mapWithConcurrency(
+      [
+        // 1. Linked user email
+        () => this._fetchUserEmail(tenantId, candidate.userId),
+        // 2. Candidate identities (without credentials)
+        () =>
+          this._db
+            .select()
+            .from(candidateIdentities)
+            .where(
+              and(
+                eq(candidateIdentities.tenantId, tenantId),
+                eq(candidateIdentities.candidateId, candidateId)
+              )
+            ),
+        // 3. Connected resources (scrubbed of encryptedCredentials)
+        () =>
+          this._db
+            .select()
+            .from(resources)
+            .where(and(eq(resources.tenantId, tenantId), eq(resources.candidateId, candidateId))),
+        // 4. Projects
+        () =>
+          this._db
+            .select()
+            .from(projects)
+            .where(and(eq(projects.tenantId, tenantId), eq(projects.candidateId, candidateId)))
+            .orderBy(desc(projects.createdAt)),
+        // 5. Skills & claims
+        () =>
+          this._db
+            .select({
+              cs: candidateSkills,
+              skillSlug: skills.slug,
+              skillName: skills.name,
+            })
+            .from(candidateSkills)
+            .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+            .where(
+              and(
+                eq(candidateSkills.tenantId, tenantId),
+                eq(candidateSkills.candidateId, candidateId)
+              )
+            )
+            .orderBy(desc(candidateSkills.confidenceScore), desc(candidateSkills.lastObservedAt)),
+        // 6. All evidence items for the candidate's skills
+        () =>
+          this._db
+            .select()
+            .from(evidenceItems)
+            .where(
+              and(eq(evidenceItems.tenantId, tenantId), eq(evidenceItems.candidateId, candidateId))
+            ),
+        // 7. Master resume sections (structural contract)
+        () =>
+          this._db
+            .select()
+            .from(resumeSections)
+            .where(
+              and(
+                eq(resumeSections.tenantId, tenantId),
+                eq(resumeSections.candidateId, candidateId)
+              )
+            )
+            .orderBy(asc(resumeSections.orderIndex)),
+      ],
+      IN_REQUEST_DB_CONCURRENCY
+    );
+
     const resolvedCanonicalEmail = resolveCandidateEmail(candidate, userEmail, {
       allowNullable: true,
     });
-
-    // 2. Fetch Candidate Identities (without credentials)
-    const rawIdentities = await this._db
-      .select()
-      .from(candidateIdentities)
-      .where(
-        and(
-          eq(candidateIdentities.tenantId, tenantId),
-          eq(candidateIdentities.candidateId, candidateId)
-        )
-      );
 
     const identities = rawIdentities.map((idRow) => ({
       id: idRow.id,
@@ -207,12 +327,6 @@ export class CandidateProfileService {
       verifiedAt: idRow.verifiedAt ? new Date(idRow.verifiedAt).toISOString() : null,
       metadata: idRow.metadata || {},
     }));
-
-    // 3. Fetch Connected Resources (scrubbed of encryptedCredentials)
-    const rawResources = await this._db
-      .select()
-      .from(resources)
-      .where(and(eq(resources.tenantId, tenantId), eq(resources.candidateId, candidateId)));
 
     const resourceList = rawResources.map((resRow) => ({
       id: resRow.id,
@@ -228,15 +342,8 @@ export class CandidateProfileService {
       metadata: resRow.metadata || {},
     }));
 
-    // 4. Fetch Projects & Linked Evidence
-    const rawProjects = await this._db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.tenantId, tenantId), eq(projects.candidateId, candidateId)))
-      .orderBy(desc(projects.createdAt));
-
-    // Batch-fetch per-project linked resources and per-project evidence in two queries
-    // (previously 2 N+1 queries per project). Row ordering semantics are preserved:
+    // 4b. Per-project linked resources and per-project evidence depend on projectIds,
+    // so they run as a second bounded batch. Row ordering semantics are preserved:
     // evidence rows are ordered by (confidenceScore DESC, detectedAt DESC) and grouped
     // per project in encounter order, so each project's evidence array is byte-identical
     // to the previous per-project query results.
@@ -245,25 +352,66 @@ export class CandidateProfileService {
     // P16-001F-5: join resources so each project carries resolved URLs. The
     // prior query fetched only the link rows (resourceId), so the profile view
     // exposed linkedResourceCount but never the repository/portfolio URL itself.
-    const linkedResourceRows =
-      projectIds.length > 0
-        ? await this._db
-            .select({
-              pr: projectResources,
-              resourceUrl: resources.url,
-              resourceType: resources.resourceType,
-              resourceDisplayName: resources.displayName,
-              resourceName: resources.name,
-            })
-            .from(projectResources)
-            .innerJoin(resources, eq(projectResources.resourceId, resources.id))
-            .where(
-              and(
-                eq(projectResources.tenantId, tenantId),
-                inArray(projectResources.projectId, projectIds)
-              )
-            )
-        : [];
+    const [linkedResourceRows, projectEvidenceRows] = await mapWithConcurrency(
+      [
+        () =>
+          projectIds.length > 0
+            ? this._db
+                .select({
+                  pr: projectResources,
+                  resourceUrl: resources.url,
+                  resourceType: resources.resourceType,
+                  resourceDisplayName: resources.displayName,
+                  resourceName: resources.name,
+                })
+                .from(projectResources)
+                .innerJoin(resources, eq(projectResources.resourceId, resources.id))
+                .where(
+                  and(
+                    eq(projectResources.tenantId, tenantId),
+                    inArray(projectResources.projectId, projectIds)
+                  )
+                )
+            : Promise.resolve([]),
+        () =>
+          projectIds.length > 0
+            ? this._db
+                .select({
+                  id: evidenceItems.id,
+                  tenantId: evidenceItems.tenantId,
+                  candidateId: evidenceItems.candidateId,
+                  resourceId: evidenceItems.resourceId,
+                  projectId: evidenceItems.projectId,
+                  skillId: evidenceItems.skillId,
+                  evidenceType: evidenceItems.evidenceType,
+                  sourceProvider: evidenceItems.sourceProvider,
+                  sourceLocation: evidenceItems.sourceLocation,
+                  excerpt: evidenceItems.excerpt,
+                  confidenceScore: evidenceItems.confidenceScore,
+                  metadata: evidenceItems.metadata,
+                  detectedAt: evidenceItems.detectedAt,
+                  skillSlug: skills.slug,
+                  skillName: skills.name,
+                })
+                .from(evidenceItems)
+                .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
+                .where(
+                  and(
+                    eq(evidenceItems.tenantId, tenantId),
+                    eq(evidenceItems.candidateId, candidateId),
+                    inArray(evidenceItems.projectId, projectIds)
+                  )
+                )
+                .orderBy(
+                  desc(evidenceItems.confidenceScore),
+                  desc(evidenceItems.detectedAt),
+                  asc(evidenceItems.id)
+                )
+            : Promise.resolve([]),
+      ],
+      IN_REQUEST_DB_CONCURRENCY
+    );
+
     const linkedResourcesByProjectId = new Map();
     for (const prRow of linkedResourceRows) {
       if (!linkedResourcesByProjectId.has(prRow.pr.projectId)) {
@@ -272,41 +420,6 @@ export class CandidateProfileService {
       linkedResourcesByProjectId.get(prRow.pr.projectId).push(prRow);
     }
 
-    const projectEvidenceRows =
-      projectIds.length > 0
-        ? await this._db
-            .select({
-              id: evidenceItems.id,
-              tenantId: evidenceItems.tenantId,
-              candidateId: evidenceItems.candidateId,
-              resourceId: evidenceItems.resourceId,
-              projectId: evidenceItems.projectId,
-              skillId: evidenceItems.skillId,
-              evidenceType: evidenceItems.evidenceType,
-              sourceProvider: evidenceItems.sourceProvider,
-              sourceLocation: evidenceItems.sourceLocation,
-              excerpt: evidenceItems.excerpt,
-              confidenceScore: evidenceItems.confidenceScore,
-              metadata: evidenceItems.metadata,
-              detectedAt: evidenceItems.detectedAt,
-              skillSlug: skills.slug,
-              skillName: skills.name,
-            })
-            .from(evidenceItems)
-            .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
-            .where(
-              and(
-                eq(evidenceItems.tenantId, tenantId),
-                eq(evidenceItems.candidateId, candidateId),
-                inArray(evidenceItems.projectId, projectIds)
-              )
-            )
-            .orderBy(
-              desc(evidenceItems.confidenceScore),
-              desc(evidenceItems.detectedAt),
-              asc(evidenceItems.id)
-            )
-        : [];
     const evidenceByProjectId = new Map();
     for (const evRow of projectEvidenceRows) {
       if (!evidenceByProjectId.has(evRow.projectId)) {
@@ -411,26 +524,8 @@ export class CandidateProfileService {
       });
     }
 
-    // 5. Fetch Skills & Claims
-    const rawCandidateSkills = await this._db
-      .select({
-        cs: candidateSkills,
-        skillSlug: skills.slug,
-        skillName: skills.name,
-      })
-      .from(candidateSkills)
-      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
-      .where(
-        and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
-      )
-      .orderBy(desc(candidateSkills.confidenceScore), desc(candidateSkills.lastObservedAt));
-
-    // Batch-fetch all evidence items for candidate's skills to ensure high-trust primary selection
-    const allEvidenceRows = await this._db
-      .select()
-      .from(evidenceItems)
-      .where(and(eq(evidenceItems.tenantId, tenantId), eq(evidenceItems.candidateId, candidateId)));
-
+    // 5. Skills & claims and all evidence rows were fetched in the batch above;
+    // evidence is grouped per skill to ensure high-trust primary selection.
     const evidenceBySkillId = new Map();
     for (const row of allEvidenceRows) {
       if (row.skillId) {
@@ -496,15 +591,8 @@ export class CandidateProfileService {
       });
     }
 
-    // P43: Fetch candidate's master resume sections to establish structural contract
-    const rawResumeSections = await this._db
-      .select()
-      .from(resumeSections)
-      .where(
-        and(eq(resumeSections.tenantId, tenantId), eq(resumeSections.candidateId, candidateId))
-      )
-      .orderBy(asc(resumeSections.orderIndex));
-
+    // P43: Master resume sections were fetched in the batch above to establish
+    // the structural contract (no separate round-trip here).
     const meta = candidate.profileMetadata || {};
     const portfolioLinks = meta.portfolioLinks || meta.userCustom?.portfolioLinks || [];
     const leetcodeLink =
@@ -557,7 +645,7 @@ export class CandidateProfileService {
     const education = meta.education || meta.userCustom?.education || [];
     const certifications = meta.certifications || meta.userCustom?.certifications || [];
 
-    return {
+    const profileView = {
       candidate: {
         id: candidate.id,
         tenantId: candidate.tenantId,
@@ -584,6 +672,9 @@ export class CandidateProfileService {
       dsa,
       resumeSections: rawResumeSections,
     };
+
+    profileViewCache.set(cacheKey, profileView);
+    return profileView;
   }
 
   /**
