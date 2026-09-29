@@ -3,6 +3,30 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-29*
 
+### Phase P60: Dependency Vulnerability Remediation (fast-uri CVE Gating) & Sanitizer Warning Cleanup
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-29
+**Scope:** Resolved the high-severity dependency audit failure in `fast-uri` blocking CI at `npm run audit:deps` and cleaned up residual sanitizer linter warnings:
+
+1. **Dependency Security Remediation (`package.json`, `package-lock.json`):**
+   - Remediated high-severity security advisory in `fast-uri` (GHSA-qw65-cvwx-89v3 authority injection and GHSA-58mr-gqgx-xq4g host confusion).
+   - Upgraded transitive dependency `@modelcontextprotocol/sdk -> fast-uri` from `3.1.6` to `3.1.8` (patched release).
+   - Added `"overrides": { "fast-uri": ">=3.1.8" }` to `package.json` to prevent future transitive regressions.
+   - Verified `npm run audit:deps` reports 0 High and 0 Critical vulnerabilities across 379 dependency nodes.
+
+2. **Sanitizer Warning Cleanup (`src/services/user-facing-error.sanitizer.js`):**
+   - Removed unused `USER_FACING_STATE_DEFAULTS` import.
+   - Fixed unneeded escape characters in route pattern regex (`[\w/.-]`).
+
+**Verification Evidence & Test Results:**
+- `npm run audit:deps`: **PASS (0 High, 0 Critical vulnerabilities)**
+- `npm run audit:drizzle-columns`: **PASS (787 files scanned, 0 invalid column references)**
+- `npm run audit:schema-integrity`: **PASS (0 unindexed foreign keys, 0 stale updatedAt paths)**
+- `npm run test:db-lifecycle-check`: **PASS (86 DB integration test files verified, 0 leaks)**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 117 warnings - down from 120)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+
 ### Phase P59: Layout Skeleton CSS Restoration & Application Regeneration Test Contract Alignment
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-29

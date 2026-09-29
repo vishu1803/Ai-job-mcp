@@ -11,7 +11,6 @@
 import {
   UserFacingStateEnum,
   RecoveryActionType,
-  USER_FACING_STATE_DEFAULTS,
 } from '../domain/ui/user-facing-states.js';
 import {
   ValidationError,
@@ -35,7 +34,7 @@ const TECHNICAL_LEAK_PATTERNS = [
   /FastifyError|DrizzleError|PostgresError|PgError|AppError|ZodError/i, // Class names
   /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EAI_AGAIN/i, // OS/Node socket errors
   /HTTP\s+\d{3}|\bstatus\s+code\s+\d{3}\b/i, // HTTP protocol codes
-  /\b(GET|POST|PUT|PATCH|DELETE)\s+\/[\w\/\.-]+/i, // Internal API routes
+  /\b(GET|POST|PUT|PATCH|DELETE)\s+\/[\w/.-]+/i, // Internal API routes
 ];
 
 /**
