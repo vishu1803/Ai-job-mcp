@@ -8,10 +8,7 @@
  * Zod internals, HTTP codes, class names, or raw system exceptions to end users.
  */
 
-import {
-  UserFacingStateEnum,
-  RecoveryActionType,
-} from '../domain/ui/user-facing-states.js';
+import { UserFacingStateEnum, RecoveryActionType } from '../domain/ui/user-facing-states.js';
 import {
   ValidationError,
   AuthenticationError,

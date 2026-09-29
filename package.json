@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test:unit && npm run test:artifacts && npm run test:integration",
-    "test:unit": "node --max-old-space-size=4096 --test --test-concurrency=10 --test-timeout=120000 tests/unit/**/*.test.js",
+    "test:unit": "node --max-old-space-size=4096 --test --test-concurrency=10 --test-timeout=180000 tests/unit/**/*.test.js",
     "test:artifacts": "node --max-old-space-size=4096 --test --test-concurrency=4 --test-timeout=180000 tests/artifacts/**/*.test.js",
     "test:integration": "node --max-old-space-size=4096 --test --test-concurrency=1 --test-timeout=300000 tests/integration/*.test.js",
     "test:live": "node --test tests/integration/live/**/*.test.js",

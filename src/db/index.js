@@ -5,6 +5,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { schema } from './schema.js';
+import { isTestRunner } from '../utils/test-env.js';
 
 try {
   if (typeof dns.setDefaultResultOrder === 'function') {
@@ -101,7 +102,11 @@ export function getPoolConfig(overrides = {}) {
  * @returns {import('pg').Pool} Configured pg Pool instance
  */
 export function createPool(overrides = {}) {
-  const poolConfig = getPoolConfig(overrides);
+  const isTest = isTestRunner();
+  const testDefaults = isTest
+    ? { min: 0, max: Math.min(config.DATABASE_POOL_MAX || 2, 2), idleTimeoutMillis: 1000 }
+    : {};
+  const poolConfig = getPoolConfig({ ...testDefaults, ...overrides });
   const poolInstance = new Pool(poolConfig);
 
   poolInstance.on('error', (err) => {
@@ -190,7 +195,7 @@ export async function closeDatabase(poolInstance = pool) {
     // If the default singleton pool was closed, auto-recreate it so that
     // subsequent imports (e.g. later integration test files) get a working pool.
     if (poolInstance === pool) {
-      pool = createPool({ min: 0 });
+      pool = createPool();
       db = createDb(pool);
     }
     logger.info('PostgreSQL connection pool drained and closed successfully');

@@ -24,23 +24,9 @@
 
 import { config } from '../config/env.js';
 import { logger as defaultLogger } from './logger.js';
+import { isTestRunner } from './test-env.js';
 
-/**
- * Detects the Node test runner.
- *
- * `NODE_ENV=test` is not sufficient on its own: `.env.local` is loaded with
- * `override: true` and sets `NODE_ENV=development`, so a developer running the suite
- * locally would silently get production cache behaviour and hit non-deterministic
- * read-after-write assertions. The runner's own signal is reliable in every environment.
- *
- * @param {NodeJS.ProcessEnv} [env=process.env]
- * @param {string[]} [execArgv=process.execArgv]
- * @returns {boolean}
- */
-export function isTestRunner(env = process.env, execArgv = process.execArgv) {
-  if (env.NODE_TEST_CONTEXT) return true;
-  return execArgv.some((arg) => arg === '--test' || arg.startsWith('--test-'));
-}
+export { isTestRunner };
 
 /**
  * Resolves whether read caching is on.

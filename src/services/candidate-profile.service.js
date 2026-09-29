@@ -49,6 +49,7 @@ import { TenureCalculator } from '../utils/tenure-calculator.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 import { normalizePhoneRecord, parseStoredPhone } from '../utils/phone-country-codes.js';
+import { isTestRunner } from '../utils/test-env.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -61,7 +62,7 @@ function isUuid(val) {
  * at once. Bounds per-request connection demand so overlapping the independent
  * reads in `getProfile` cannot starve the shared connection pool under concurrency.
  */
-const IN_REQUEST_DB_CONCURRENCY = process.env.NODE_ENV === 'test' ? 1 : 2;
+const IN_REQUEST_DB_CONCURRENCY = isTestRunner() ? 1 : 2;
 
 /**
  * Runs async task factories with a bounded number in flight, preserving result order.

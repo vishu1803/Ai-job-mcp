@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { isTestRunner } from '../utils/test-env.js';
 
 // Load base .env if present
 dotenv.config();
@@ -60,7 +61,9 @@ if (explicitEnvFile) {
 
 const envSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    NODE_ENV: z
+      .enum(['development', 'production', 'test'])
+      .default(() => (isTestRunner() ? 'test' : 'development')),
     PORT: z.coerce.number().int().positive().default(3000),
     HOST: z.string().default('0.0.0.0'),
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),

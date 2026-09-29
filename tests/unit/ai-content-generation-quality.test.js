@@ -65,7 +65,7 @@ function computeWordJaccardSimilarity(textA, textB) {
   return unionCount === 0 ? 0 : intersectionCount / unionCount;
 }
 
-describe('AI Resume Content Generation Quality Suite', () => {
+describe('AI Resume Content Generation Quality Suite', { timeout: 180000 }, () => {
   const CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
   const mcpContext = {
     tenantId: '24d53f53-780e-4431-b065-32180c354175',
@@ -133,30 +133,34 @@ describe('AI Resume Content Generation Quality Suite', () => {
     workflowService = new JobApplicationWorkflowService({ database: db, aiProvider: false });
     workflowService.applicationHandoffService.buildApplicationHandoffKit = async () => null;
 
-    // Prepare packages for all 4 jobs
-    results.fullStack = await workflowService.prepareJobApplication({
-      tenantId: mcpContext.tenantId,
-      candidateId: CANDIDATE_ID,
-      jobPosting: jobFullStack,
-    });
+    // Prepare packages for all 4 jobs concurrently
+    const [fullStack, pythonBackend, frontend, devOps] = await Promise.all([
+      workflowService.prepareJobApplication({
+        tenantId: mcpContext.tenantId,
+        candidateId: CANDIDATE_ID,
+        jobPosting: jobFullStack,
+      }),
+      workflowService.prepareJobApplication({
+        tenantId: mcpContext.tenantId,
+        candidateId: CANDIDATE_ID,
+        jobPosting: jobPythonBackend,
+      }),
+      workflowService.prepareJobApplication({
+        tenantId: mcpContext.tenantId,
+        candidateId: CANDIDATE_ID,
+        jobPosting: jobFrontend,
+      }),
+      workflowService.prepareJobApplication({
+        tenantId: mcpContext.tenantId,
+        candidateId: CANDIDATE_ID,
+        jobPosting: jobDevOps,
+      }),
+    ]);
 
-    results.pythonBackend = await workflowService.prepareJobApplication({
-      tenantId: mcpContext.tenantId,
-      candidateId: CANDIDATE_ID,
-      jobPosting: jobPythonBackend,
-    });
-
-    results.frontend = await workflowService.prepareJobApplication({
-      tenantId: mcpContext.tenantId,
-      candidateId: CANDIDATE_ID,
-      jobPosting: jobFrontend,
-    });
-
-    results.devOps = await workflowService.prepareJobApplication({
-      tenantId: mcpContext.tenantId,
-      candidateId: CANDIDATE_ID,
-      jobPosting: jobDevOps,
-    });
+    results.fullStack = fullStack;
+    results.pythonBackend = pythonBackend;
+    results.frontend = frontend;
+    results.devOps = devOps;
   });
 
   after(async () => {

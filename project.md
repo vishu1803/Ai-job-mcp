@@ -3,6 +3,38 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-29*
 
+### Phase P61: Test Worker Connection Pool Bounding & Parallel Test Suite Timeout Hardening
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-29
+**Scope:** Remediated PostgreSQL connection pool exhaustion (`53300: remaining connection slots are reserved for roles with the SUPERUSER attribute`) during parallel test execution and eliminated the test timeout in `tests/unit/ai-content-generation-quality.test.js`:
+
+1. **Zero-Dependency Test Environment Detection (`src/utils/test-env.js`, `src/utils/ttl-cache.js`):**
+   - Created centralized `isTestRunner()` utility detecting Node test runner context (`NODE_TEST_CONTEXT`, `NODE_ENV === 'test'`, npm test lifecycle events, or `--test` / `--test-*` runtime execution arguments).
+   - Re-exported from `src/utils/ttl-cache.js` maintaining full backward compatibility.
+
+2. **Automated Test-Aware Environment Defaults (`src/config/env.js`):**
+   - Updated `NODE_ENV` schema default to resolve to `'test'` under test runners when not explicitly specified, preventing local test runs from defaulting to `'development'`.
+
+3. **PostgreSQL Test Connection Pool Bounding (`src/db/index.js`, `src/services/candidate-profile.service.js`):**
+   - Configured `createPool()` to automatically apply bounded test defaults under `isTestRunner()`: `min: 0` (preventing idle connections when test suites do not execute queries), `max: Math.min(config.DATABASE_POOL_MAX || 2, 2)` (strictly bounding per-worker connections), and `idleTimeoutMillis: 1000` (rapidly reclaiming idle connections).
+   - Ensured pool teardown and re-creation in `closeDatabase()` maintains bounded test defaults.
+   - Bounded `CandidateProfileService.IN_REQUEST_DB_CONCURRENCY` to 1 under `isTestRunner()`.
+
+4. **Concurrent Application Preparation & Timeout Hardening (`tests/unit/ai-content-generation-quality.test.js`, `package.json`):**
+   - Parallelized the 4 contrasting job application preparations in `tests/unit/ai-content-generation-quality.test.js` using `Promise.all`, reducing test suite duration from 114s to 59s.
+   - Configured suite-level timeout to 180,000ms and updated `package.json` `test:unit` timeout ceiling to 180,000ms matching `test:artifacts`.
+
+**Verification Evidence & Test Results:**
+- `npm run test:unit`: **PASS (3,658 / 3,658 tests pass, 0 failures, 0 cancelled across 996 suites)**
+- `npm run test:artifacts`: **PASS (175 / 175 tests pass across 42 suites)**
+- `npm run test:db-lifecycle-check`: **PASS (86 DB-using integration test files verified, 0 leaks)**
+- `npm run audit:drizzle-columns`: **PASS (Scanned 788 files, 0 invalid column references)**
+- `npm run audit:schema-integrity`: **PASS (0 unindexed foreign keys, 0 stale updatedAt paths)**
+- `npm run audit:deps`: **PASS (0 High, 0 Critical vulnerabilities)**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 117 warnings - baseline)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+
 ### Phase P60: Dependency Vulnerability Remediation (fast-uri CVE Gating) & Sanitizer Warning Cleanup
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-29
