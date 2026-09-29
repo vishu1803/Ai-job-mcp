@@ -61,7 +61,7 @@ function isUuid(val) {
  * at once. Bounds per-request connection demand so overlapping the independent
  * reads in `getProfile` cannot starve the shared connection pool under concurrency.
  */
-const IN_REQUEST_DB_CONCURRENCY = 4;
+const IN_REQUEST_DB_CONCURRENCY = process.env.NODE_ENV === 'test' ? 1 : 2;
 
 /**
  * Runs async task factories with a bounded number in flight, preserving result order.

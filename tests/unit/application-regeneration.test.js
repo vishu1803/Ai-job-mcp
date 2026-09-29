@@ -131,6 +131,13 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
           contentHash: 'new-cl-hash',
         },
         evidence: { projectNamesUsed: [] },
+        candidateData: {
+          ...mockCandidate,
+          skills: [],
+          projects: [],
+          experience: [],
+          education: [],
+        },
       }),
     };
 
@@ -151,6 +158,7 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     const mockDb = {
       select: () => ({
         from: () => ({
+          where: () => [mockCandidate],
           leftJoin: () => ({
             where: () => ({
               limit: () => [{ candidate: mockCandidate, userEmail: mockCandidate.canonicalEmail }],
@@ -233,6 +241,13 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
           contentHash: 'new-cl-hash-2',
         },
         evidence: { projectNamesUsed: ['Task Manager'] },
+        candidateData: {
+          ...mockCandidate,
+          skills: [],
+          projects: [],
+          experience: [],
+          education: [],
+        },
       }),
     };
 
@@ -255,6 +270,7 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     const mockDb = {
       select: () => ({
         from: () => ({
+          where: () => [mockCandidate],
           leftJoin: () => ({
             where: () => ({
               limit: () => [{ candidate: mockCandidate, userEmail: mockCandidate.canonicalEmail }],

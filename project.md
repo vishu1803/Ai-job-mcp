@@ -1,7 +1,34 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-28*
+*Last Updated: 2026-09-29*
+
+### Phase P59: Layout Skeleton CSS Restoration & Application Regeneration Test Contract Alignment
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-29
+**Scope:** Remediated the 3 unit test failures blocking the CI test suite (`npm run test:unit`) across layout skeleton CSS tokens, fail-closed application package regeneration, and connection pool isolation under parallel test execution:
+
+1. **Layout Skeleton CSS Tokens (`src/views/layout.js`):**
+   - Restored required skeleton CSS animation and layout tokens (`skeleton-pulse`, `skeleton-card`, `skeleton-text`, `@keyframes skeletonPulse`, and `.skeleton-table-row`) under `Consistent User-Facing State System Tokens (P86 Phase 4)`.
+   - Verified `tests/unit/p86-user-facing-state-system.test.js` passes 14/14 (100%).
+
+2. **Package Regeneration Test Stub & Fail-Closed Compatibility (`tests/unit/application-regeneration.test.js`):**
+   - Added canonical `candidateData` payload to `stubContentService.generateApplicationDocuments` return fixture in Test 3 and Test 4, matching `CandidateArtifactContentService` production return contract.
+   - Added defensive `.where: () => [mockCandidate]` mock handler to `mockDb.from()`, ensuring unit test stubs safely satisfy direct query builder calls.
+   - Verified `tests/unit/application-regeneration.test.js` passes 4/4 (100%).
+
+3. **In-Request DB Concurrency Bounding (`src/services/candidate-profile.service.js`):**
+   - Bounded `IN_REQUEST_DB_CONCURRENCY = process.env.NODE_ENV === 'test' ? 1 : 2;` in `CandidateProfileService`, preventing parallel test worker threads from exhausting PostgreSQL connection slots (`53300: remaining connection slots are reserved for roles with the SUPERUSER attribute`).
+
+**Verification Evidence & Test Results:**
+- `tests/unit/p86-user-facing-state-system.test.js`: **14/14 PASS (100%)**
+- `tests/unit/application-regeneration.test.js`: **4/4 PASS (100%)**
+- `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- `npm run lint`: **PASS (0 errors, 120 baseline warnings)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- `npm run audit:drizzle-columns`: **PASS (Scanned 787 files, no invalid table column references found)**
+- `npm run audit:schema-integrity`: **PASS (0 unindexed foreign keys and no write path leaving updatedAt stale)**
+- `npm run test:db-lifecycle-check`: **PASS (86 DB-using integration test files verified, 0 violations)**
 
 ### Phase P58: Database Performance Optimization, In-Process Read Caching & Static Schema Integrity Verification
 **Status:** COMPLETE & VERIFIED

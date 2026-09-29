@@ -1364,7 +1364,37 @@ export function renderLayout({
        Consistent User-Facing State System Tokens (P86 Phase 4)
        ========================================================================== */
 
-    /* 1. Loading & Double-Submit Prevention */
+    /* 1. Skeletons */
+    @keyframes skeletonPulse {
+      0% { opacity: 0.55; }
+      50% { opacity: 0.25; }
+      100% { opacity: 0.55; }
+    }
+    .skeleton-pulse {
+      animation: skeletonPulse 1.6s ease-in-out infinite;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-xs);
+    }
+    .skeleton-text {
+      height: 14px;
+      margin-bottom: 8px;
+      border-radius: var(--radius-xs);
+    }
+    .skeleton-card {
+      padding: 24px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      margin-bottom: 16px;
+    }
+    .skeleton-table-row {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* 2. Loading & Double-Submit Prevention */
     .btn.is-loading {
       position: relative;
       pointer-events: none;
