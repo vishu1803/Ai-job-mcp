@@ -101,7 +101,29 @@ async function mapWithConcurrency(tasks, limit) {
  */
 const profileViewCache = createReadCache({ name: 'candidate-profile-view' });
 
+/**
+ * Invalidates the cached CandidateProfileView for a specific tenant and candidate.
+ *
+ * @param {string} tenantId
+ * @param {string} candidateId
+ */
+export function invalidateProfileCache(tenantId, candidateId) {
+  if (tenantId && candidateId) {
+    profileViewCache.invalidate(`${tenantId}:${candidateId}`);
+  }
+}
+
 export class CandidateProfileService {
+  /**
+   * Invalidates the profile view cache for a tenant and candidate.
+   *
+   * @param {string} tenantId
+   * @param {string} candidateId
+   */
+  invalidateCache(tenantId, candidateId) {
+    invalidateProfileCache(tenantId, candidateId);
+  }
+
   /**
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase|object} [database]
    */
@@ -869,6 +891,8 @@ export class CandidateProfileService {
       },
       'Candidate profile narrative updated successfully'
     );
+
+    invalidateProfileCache(tenantId, updated.id);
 
     return updated;
   }
@@ -1704,6 +1728,8 @@ export class CandidateProfileService {
       },
       'User-adjustable profile sections updated successfully'
     );
+
+    invalidateProfileCache(context.tenantId, candidateId);
 
     // Minimal response mode: skip expensive getCareerProfile rebuild.
     // The caller can request a full profile rebuild separately if needed.

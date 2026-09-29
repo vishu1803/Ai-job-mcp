@@ -81,17 +81,43 @@ export function getPoolConfig(overrides = {}) {
     // If URL parsing fails, fallback to rawUrl
   }
 
+  let sslConfig = false;
+  if (useSsl) {
+    if (config.NODE_ENV === 'production') {
+      sslConfig = {
+        rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
+        ca: process.env.DATABASE_CA_CERT || undefined,
+      };
+    } else {
+      sslConfig = { rejectUnauthorized: false };
+    }
+  }
+
   return {
     connectionString: cleanConnectionString,
     min: config.DATABASE_POOL_MIN,
     max: config.DATABASE_POOL_MAX,
-    ssl: useSsl ? { rejectUnauthorized: false } : false,
+    ssl: sslConfig,
     statement_timeout: config.DATABASE_STATEMENT_TIMEOUT_MS,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 30000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
     ...overrides,
+  };
+}
+
+/**
+ * Returns non-PII observability metrics for the active connection pool.
+ *
+ * @param {import('pg').Pool} [poolInstance=pool] Target pg Pool instance
+ * @returns {{ total: number, idle: number, waiting: number }}
+ */
+export function getPoolMetrics(poolInstance = pool) {
+  return {
+    total: poolInstance?.totalCount || 0,
+    idle: poolInstance?.idleCount || 0,
+    waiting: poolInstance?.waitingCount || 0,
   };
 }
 

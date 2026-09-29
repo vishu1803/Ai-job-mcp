@@ -272,34 +272,7 @@ export class ApplicationHandoffService {
       applicationPackage.structuredResume ||
       null;
 
-    // 1. Fetch Candidate Profile for canonical metadata.
-    // For legacy packages, without the real candidate profile the generator would fall
-    // back to placeholder content, so a profile failure aborts kit generation.
-    // For structured packages, the snapshot is authoritative and self-contained;
-    // we attempt profile loading for screening evaluation but do not fail kit generation if it fails.
-    let candidateProfile = null;
-    try {
-      candidateProfile = await this.candidateProfileService.getProfile(
-        { tenantId, userId, role: 'MEMBER' },
-        candidateId
-      );
-    } catch (err) {
-      if (!structuredResume) {
-        this.logger.error(
-          { error: err.message, candidateId },
-          'Canonical candidate profile could not be loaded; aborting handoff kit generation (fail-closed, zero placeholder fallback)'
-        );
-        throw new ValidationError(
-          `Cannot generate handoff kit without a loadable canonical candidate profile: ${err.message}`
-        );
-      }
-      this.logger.info(
-        { candidateId, error: err.message },
-        'Candidate profile fetch failed; proceeding with authoritative structuredResume snapshot'
-      );
-    }
-
-    // 2. Idempotency Check: Look up existing application metadata
+    // 1. Idempotency Check FIRST: Look up existing application metadata to reuse valid artifacts immediately
     let existingApp = null;
     if (applicationId) {
       try {
@@ -364,7 +337,7 @@ export class ApplicationHandoffService {
 
     // Artifact reuse requires BOTH identical packageHash AND matching generationContractVersion
     // AND matching structuredResumeSchemaVersion AND valid application binding.
-    // A legacy artifact must NEVER satisfy a structured-package request (P16-001F-3A).
+    // When valid artifact exists, return immediately WITHOUT loading profile/evidence graph!
     if (
       existingKit &&
       hashMatches &&
@@ -395,18 +368,40 @@ export class ApplicationHandoffService {
         {
           applicationId,
           packageHash,
-          existingKitHash: existingKit.packageHash,
-          currentContractVersion,
-          existingKitContract,
-          currentSchemaVersion,
-          existingKitSchemaVersion,
           hashMatches,
           contractMatches,
           schemaMatches,
           hasStorageKey,
           belongsToApp,
         },
-        'Existing handoff kit not reusable due to contract/hash/schema mismatch; regenerating artifacts'
+        'Existing handoff kit cannot be reused; proceeding with artifact generation'
+      );
+    }
+
+    // 2. Artifact generation required: Fetch Candidate Profile for canonical metadata.
+    // For legacy packages, without the real candidate profile the generator would fall
+    // back to placeholder content, so a profile failure aborts kit generation.
+    // For structured packages, the snapshot is authoritative and self-contained;
+    // we attempt profile loading for screening evaluation but do not fail kit generation if it fails.
+    let candidateProfile = null;
+    try {
+      candidateProfile = await this.candidateProfileService.getProfile(
+        { tenantId, userId, role: 'MEMBER' },
+        candidateId
+      );
+    } catch (err) {
+      if (!structuredResume) {
+        this.logger.error(
+          { error: err.message, candidateId },
+          'Canonical candidate profile could not be loaded; aborting handoff kit generation (fail-closed, zero placeholder fallback)'
+        );
+        throw new ValidationError(
+          `Cannot generate handoff kit without a loadable canonical candidate profile: ${err.message}`
+        );
+      }
+      this.logger.info(
+        { candidateId, error: err.message },
+        'Candidate profile fetch failed; proceeding with authoritative structuredResume snapshot'
       );
     }
 

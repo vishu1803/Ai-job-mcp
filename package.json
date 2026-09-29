@@ -47,8 +47,10 @@
   "author": "Antigravity Team",
   "license": "Apache-2.0",
   "dependencies": {
+    "@fastify/compress": "^9.2.0",
     "@fastify/cookie": "^11.1.2",
     "@fastify/multipart": "^10.1.1",
+    "@fastify/static": "^10.1.5",
     "@google/genai": "^2.18.0",
     "@modelcontextprotocol/core": "^2.0.0",
     "@modelcontextprotocol/ext-apps": "^1.7.5",

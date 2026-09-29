@@ -23,6 +23,14 @@ import { GitHubAppConnector } from './connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from './connectors/github/auth.js';
 import { parseFormBody } from './utils/form-parser.js';
 import { registerSecurityHeaders } from './middleware/security-headers.middleware.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { performance } from 'node:perf_hooks';
+import fastifyCompress from '@fastify/compress';
+import fastifyStatic from '@fastify/static';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -143,6 +151,40 @@ export function buildApp(opts = {}) {
     } catch {
       // If URL decoding fails, continue to route handler
     }
+  });
+
+  // Production-Safe Observability: Request Timing & Server-Timing (P21)
+  app.addHook('onRequest', async (req) => {
+    req.reqStartTime = performance.now();
+    req.serverTimings = [];
+    req.addServerTiming = (name, dur) => {
+      if (typeof dur === 'number' && dur >= 0) {
+        req.serverTimings.push({ name, dur: Math.round(dur) });
+      }
+    };
+  });
+
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (req.reqStartTime && !reply.raw.headersSent) {
+      const totalDur = Math.round(performance.now() - req.reqStartTime);
+      const timings = [...(req.serverTimings || []), { name: 'total', dur: totalDur }];
+      reply.header('Server-Timing', timings.map((t) => `${t.name};dur=${t.dur}`).join(', '));
+    }
+    return payload;
+  });
+
+  // HTTP Response Compression (P12) - gzip and brotli for HTML, CSS, JS, JSON
+  app.register(fastifyCompress, {
+    encodings: ['br', 'gzip', 'deflate'],
+    customTypes: /^text\/|\+json$|^application\/json$|^application\/javascript$/,
+  });
+
+  // Static Asset Delivery (P9) - Cacheable CSS & JS
+  app.register(fastifyStatic, {
+    root: path.join(__dirname, '../public'),
+    prefix: '/public/',
+    maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
+    immutable: config.NODE_ENV === 'production',
   });
 
   // Global Cookie Support

@@ -538,10 +538,19 @@ export class JobDiscoveryService {
     this.logger = options.logger || defaultLogger;
     this.fetchTimeoutMs = options.fetchTimeoutMs || 8000;
     this.freshnessDays = options.freshnessDays || DEFAULT_FRESHNESS_DAYS;
-    this.includeSynthetic =
-      typeof options.includeSynthetic === 'boolean'
+
+    const isProd = process.env.NODE_ENV === 'production';
+    const allowSyntheticInDev =
+      process.env.ALLOW_SYNTHETIC_JOBS === 'true' || process.env.ALLOW_SYNTHETIC_JOBS === '1';
+
+    // In production: NEVER allow synthetic jobs under any circumstances (fail-closed truthfulness).
+    // In development/test: only allow if explicitly opted in via ALLOW_SYNTHETIC_JOBS=true or option.
+    this.includeSynthetic = isProd
+      ? false
+      : typeof options.includeSynthetic === 'boolean'
         ? options.includeSynthetic
-        : process.env.NODE_ENV !== 'production';
+        : allowSyntheticInDev;
+
     this.greenhouseBoards = (options.greenhouseBoards || []).map(
       (cfg) =>
         new GreenhouseAdapter({
@@ -699,11 +708,20 @@ export class JobDiscoveryService {
     // Merge: custom jobs + external API jobs + synthetic fallback dataset (test-only)
     const externalJobs = await this._fetchExternalJobs();
     const hasExternalJobs = externalJobs.length > 0;
+    const isProd = process.env.NODE_ENV === 'production';
     const includeSynthetic =
-      params.includeSynthetic !== undefined
+      !isProd &&
+      (params.includeSynthetic !== undefined
         ? Boolean(params.includeSynthetic)
-        : this.includeSynthetic;
-    const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
+        : this.includeSynthetic);
+    const syntheticFeed = includeSynthetic
+      ? SYNTHETIC_JOBS.map((j) => ({
+          ...j,
+          postedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          isSynthetic: true,
+          company: j.company.includes('[Dev Demo]') ? j.company : `${j.company} [Dev Demo]`,
+        }))
+      : [];
     const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 
     // Filter
@@ -772,6 +790,7 @@ export class JobDiscoveryService {
       offset: validated.offset,
       jobs: paginated.map(({ job, score, signals }) => ({
         ...NormalizedJobPostingSchema.parse(job),
+        isSynthetic: Boolean(job.isSynthetic),
         _ranking: { score, signals },
       })),
       sources,
@@ -796,11 +815,19 @@ export class JobDiscoveryService {
   async getJobPosting(params = {}) {
     const validated = GetJobPostingInputSchema.parse(params);
     const externalJobs = await this._fetchExternalJobs();
+    const isProd = process.env.NODE_ENV === 'production';
     const includeSynthetic =
-      params.includeSynthetic !== undefined
+      !isProd &&
+      (params.includeSynthetic !== undefined
         ? Boolean(params.includeSynthetic)
-        : this.includeSynthetic;
-    const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
+        : this.includeSynthetic);
+    const syntheticFeed = includeSynthetic
+      ? SYNTHETIC_JOBS.map((j) => ({
+          ...j,
+          isSynthetic: true,
+          company: j.company.includes('[Dev Demo]') ? j.company : `${j.company} [Dev Demo]`,
+        }))
+      : [];
     const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 
     const found = allJobs.find(
@@ -817,7 +844,11 @@ export class JobDiscoveryService {
       );
     }
 
-    return NormalizedJobPostingSchema.parse(found);
+    const parsed = NormalizedJobPostingSchema.parse(found);
+    if (found.isSynthetic) {
+      parsed.isSynthetic = true;
+    }
+    return parsed;
   }
 
   /**

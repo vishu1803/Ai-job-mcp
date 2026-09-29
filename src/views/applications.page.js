@@ -45,13 +45,15 @@ export function renderApplicationsPage({
   user,
   tenant: _tenant = null,
   applications = [],
+  counts = null,
+  pagination = null,
   activeFilter = 'ALL',
   flashMessage = '',
   errorMessage = '',
 }) {
   const filter = (activeFilter || 'ALL').toUpperCase();
 
-  const counts = {
+  const resolvedCounts = counts || {
     ALL: applications.length,
     SAVED: applications.filter((a) => a.status === 'SAVED').length,
     APPLIED: applications.filter((a) => ['APPLIED', 'SCREENING'].includes(a.status)).length,
@@ -61,15 +63,17 @@ export function renderApplicationsPage({
     REJECTED: applications.filter((a) => ['REJECTED', 'WITHDRAWN'].includes(a.status)).length,
   };
 
-  const filteredApps = applications.filter((a) => {
-    if (filter === 'ALL') return true;
-    if (filter === 'SAVED') return a.status === 'SAVED';
-    if (filter === 'APPLIED') return ['APPLIED', 'SCREENING'].includes(a.status);
-    if (filter === 'INTERVIEWING') return a.status === 'INTERVIEWING';
-    if (filter === 'OFFER') return ['OFFER_RECEIVED', 'OFFER_ACCEPTED'].includes(a.status);
-    if (filter === 'REJECTED') return ['REJECTED', 'WITHDRAWN'].includes(a.status);
-    return true;
-  });
+  const filteredApps = pagination
+    ? applications
+    : applications.filter((a) => {
+        if (filter === 'ALL') return true;
+        if (filter === 'SAVED') return a.status === 'SAVED';
+        if (filter === 'APPLIED') return ['APPLIED', 'SCREENING'].includes(a.status);
+        if (filter === 'INTERVIEWING') return a.status === 'INTERVIEWING';
+        if (filter === 'OFFER') return ['OFFER_RECEIVED', 'OFFER_ACCEPTED'].includes(a.status);
+        if (filter === 'REJECTED') return ['REJECTED', 'WITHDRAWN'].includes(a.status);
+        return true;
+      });
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -166,45 +170,45 @@ export function renderApplicationsPage({
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:24px;">
         <div class="stat-card" style="padding:16px;">
           <span class="stat-label" style="font-size:0.75rem;">Total Pipeline</span>
-          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-main);">${counts.ALL}</div>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-main);">${resolvedCounts.ALL}</div>
         </div>
         <div class="stat-card" style="padding:16px;">
           <span class="stat-label" style="font-size:0.75rem;">Saved &amp; Leads</span>
-          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-muted);">${counts.SAVED}</div>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-muted);">${resolvedCounts.SAVED}</div>
         </div>
         <div class="stat-card" style="padding:16px;">
           <span class="stat-label" style="font-size:0.75rem;">In Screening</span>
-          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-cyan);">${counts.APPLIED}</div>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-cyan);">${resolvedCounts.APPLIED}</div>
         </div>
         <div class="stat-card" style="padding:16px;">
           <span class="stat-label" style="font-size:0.75rem;">Interviewing</span>
-          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-indigo);">${counts.INTERVIEWING}</div>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-indigo);">${resolvedCounts.INTERVIEWING}</div>
         </div>
         <div class="stat-card" style="padding:16px;">
           <span class="stat-label" style="font-size:0.75rem;">Offers</span>
-          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-emerald);">${counts.OFFER}</div>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-emerald);">${resolvedCounts.OFFER}</div>
         </div>
       </div>
 
       <!-- Filter Tabs -->
       <div style="display:flex; gap:8px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px; margin-bottom:20px; flex-wrap:wrap;">
         <a href="/applications" class="btn ${filter === 'ALL' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          All (${counts.ALL})
+          All (${resolvedCounts.ALL})
         </a>
         <a href="/applications?filter=INTERVIEWING" class="btn ${filter === 'INTERVIEWING' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          Interviewing (${counts.INTERVIEWING})
+          Interviewing (${resolvedCounts.INTERVIEWING})
         </a>
         <a href="/applications?filter=APPLIED" class="btn ${filter === 'APPLIED' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          Applied (${counts.APPLIED})
+          Applied (${resolvedCounts.APPLIED})
         </a>
         <a href="/applications?filter=SAVED" class="btn ${filter === 'SAVED' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          Saved (${counts.SAVED})
+          Saved (${resolvedCounts.SAVED})
         </a>
         <a href="/applications?filter=OFFER" class="btn ${filter === 'OFFER' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          Offers (${counts.OFFER})
+          Offers (${resolvedCounts.OFFER})
         </a>
         <a href="/applications?filter=REJECTED" class="btn ${filter === 'REJECTED' ? 'btn-primary' : 'btn-secondary'} btn-sm">
-          Archived (${counts.REJECTED})
+          Archived (${resolvedCounts.REJECTED})
         </a>
       </div>
 
@@ -314,6 +318,29 @@ export function renderApplicationsPage({
             </tbody>
           </table>
         </div>
+        ${
+          pagination && pagination.totalPages > 1
+            ? `
+          <div class="pagination-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; padding:12px 18px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+            <div style="font-size:0.85rem; color:var(--text-muted);">
+              Showing page <strong>${pagination.page}</strong> of <strong>${pagination.totalPages}</strong> (${pagination.totalCount} total application${pagination.totalCount === 1 ? '' : 's'})
+            </div>
+            <div style="display:flex; gap:8px;">
+              ${
+                pagination.hasPrev
+                  ? `<a href="/applications?page=${pagination.page - 1}&filter=${encodeURIComponent(filter)}" class="btn btn-secondary btn-sm" style="text-decoration:none;">&larr; Previous</a>`
+                  : `<button type="button" class="btn btn-secondary btn-sm" disabled style="opacity:0.4; cursor:not-allowed;">&larr; Previous</button>`
+              }
+              ${
+                pagination.hasNext
+                  ? `<a href="/applications?page=${pagination.page + 1}&filter=${encodeURIComponent(filter)}" class="btn btn-secondary btn-sm" style="text-decoration:none;">Next &rarr;</a>`
+                  : `<button type="button" class="btn btn-secondary btn-sm" disabled style="opacity:0.4; cursor:not-allowed;">Next &rarr;</button>`
+              }
+            </div>
+          </div>
+        `
+            : ''
+        }
       `
       }
 

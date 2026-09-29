@@ -80,6 +80,43 @@ export function renderHandoffPage({
   flashMessage = '',
   errorMessage = '',
 }) {
+  if (!handoffKit || handoffKit.isPreparing) {
+    const content = `
+      <div class="container" style="max-width:800px; margin:0 auto; padding:48px 16px;">
+        <div style="margin-bottom:24px;">
+          <a href="/applications" class="back-nav-link" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); text-decoration:none; font-size:0.875rem;">
+            &larr; Back to Applications
+          </a>
+        </div>
+        ${flashMessage ? `<div class="alert alert-success" style="margin-bottom:20px; padding:12px 16px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#10B981; border-radius:6px; font-size:0.875rem;">${escapeHtml(flashMessage)}</div>` : ''}
+        ${errorMessage ? `<div class="alert alert-danger" style="margin-bottom:20px; padding:12px 16px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#EF4444; border-radius:6px; font-size:0.875rem;">${escapeHtml(errorMessage)}</div>` : ''}
+
+        <div class="card" style="text-align:center; padding:48px 24px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+          <div style="font-size:2.5rem; margin-bottom:16px;">📄</div>
+          <h2 style="font-size:1.4rem; font-weight:700; color:var(--text-main); margin-bottom:8px;">Preparing your application documents…</h2>
+          <p style="color:var(--text-muted); max-width:540px; margin:0 auto 24px; font-size:0.95rem; line-height:1.5;">
+            Application documents (tailored resume, cover letter, and screening readiness evaluation) for <strong>${escapeHtml(application.jobTitle || 'Role')}</strong> at <strong>${escapeHtml(application.companyName || 'Company')}</strong> are ready to be compiled.
+          </p>
+          <div style="display:inline-flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
+            <form method="POST" action="/applications/${escapeHtml(application.id)}/regenerate" style="margin:0;">
+              <input type="hidden" name="scope" value="BOTH" />
+              <input type="hidden" name="reason" value="Initial kit preparation" />
+              <button type="submit" class="btn btn-primary" style="padding:10px 24px; font-weight:600;">
+                Generate Handoff Documents Now
+              </button>
+            </form>
+            <a href="/applications" class="btn btn-secondary" style="padding:10px 20px;">Return to Applications</a>
+          </div>
+        </div>
+      </div>
+    `;
+    return renderLayout({
+      title: `Handoff Kit — ${application.companyName || 'Application'}`,
+      user,
+      content,
+    });
+  }
+
   const job = handoffKit.targetJob || {};
   const resume = handoffKit.resume || {};
   const coverLetter = handoffKit.coverLetter || {};

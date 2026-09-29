@@ -146,6 +146,7 @@ export const IGNORED_PATHS = [
   'storage',
   'scratch',
   '.tmp-chrome-profile',
+  '.tmp-perf-chrome',
   '.prettierrc.json',
   '.env.example',
   'package-lock.json',

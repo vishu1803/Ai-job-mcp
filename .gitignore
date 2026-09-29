@@ -95,5 +95,6 @@ chrome/
 .tmp-chrome-profile/
 .tmp-chrome-profile-test/
 .tmp-chrome-profile-fresh/
+.tmp-perf-chrome/
 .tmp-downloads/
 

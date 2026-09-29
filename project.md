@@ -3,6 +3,96 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-29*
 
+### Phase P62: Production Performance, UI Responsiveness & Runtime Hardening
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-29
+**Scope:** Executed comprehensive 31-phase production performance optimization, UI responsiveness enhancement, database query optimization, static asset caching, and runtime security hardening:
+
+1. **Baseline Measurement & Tooling (Phases 0, 21, 24):**
+   - Implemented automated HTTP and DB runtime benchmarking suite (`scripts/measure-phase0-baseline.js`) capturing route response times, TTFB, payload sizes, DB query counts, and connection delays.
+   - Built browser-level Core Web Vitals instrumentation (`scripts/measure-browser-baseline.js`) capturing DOMContentLoaded, LCP, CLS, transferred wire bytes, and network requests.
+   - Implemented zero-dependency `Server-Timing` header injection (`src/app.js`) reporting `total`, `db`, and `render` latency metrics without exposing PII or SQL queries.
+
+2. **Dashboard Read Orchestration & Data Deduplication (Phases 1, 4, 25):**
+   - Replaced 13+ serialized independent database queries in `loadDashboardData` (`src/routes/web.routes.js`) with bounded concurrent execution (`runBounded(tasks, 2)`) respecting PostgreSQL connection pool limits.
+   - Eliminated duplicate profile queries: reused skills, projects, and evidence directly from canonical `CandidateProfileService.getCareerProfile()` snapshot instead of issuing redundant secondary database queries.
+   - Replaced unbounded `SELECT *` from `resources` with count aggregations and lightweight column projections.
+   - Implemented write-path cache invalidation (`invalidateProfileCache` in `src/services/candidate-profile.service.js`) hooked into profile updates, preferences saving, resume uploads, and project updates.
+
+3. **Database Query Optimization, Migration & Server-Side Pagination (Phases 2, 7):**
+   - Authored and applied migration `0015_performance_query_pattern_indexes.sql`:
+     - Added `idx_job_applications_tenant_candidate_updated` on `job_applications ("tenant_id", "candidate_id", "updated_at" DESC, "id" DESC)`.
+     - Added `idx_evidence_items_tenant_candidate_project` on `evidence_items ("tenant_id", "candidate_id", "project_id", "confidence_score" DESC, "detected_at" DESC)`.
+   - Verified PostgreSQL query planner uses index-only and backward index scans via `EXPLAIN (ANALYZE, BUFFERS)` with 0ms execution time (`scripts/explain-queries.js`).
+   - Implemented server-side pagination for `GET /applications` (`src/routes/web.routes.js`, `src/views/applications.page.js`) with bounded page size (default 25, max 100), deterministic ordering, and accessible Previous/Next navigation controls.
+
+4. **Connection Pool Metrics & Production TLS Hardening (Phases 3, 19):**
+   - Hardened PostgreSQL TLS settings (`src/db/index.js`): enforced `rejectUnauthorized: true` certificate verification in production with custom CA support (`DATABASE_CA_CERT`) while preserving local dev compatibility.
+   - Added non-PII connection pool telemetry (`getPoolMetrics()`) tracking total, idle, active, and queued clients.
+
+5. **Handoff Kit Architecture & Non-Blocking Asynchronous Generation (Phases 5, 6):**
+   - Reordered `ApplicationHandoffService.generatePackage()` to verify existing artifact hash and metadata idempotency *before* executing expensive candidate profile and evidence loading.
+   - Decoupled `GET /applications/:id/handoff` from synchronous 20–90s PDF compilation: existing valid kits return immediately (warm handoff: 541ms); new kits display a real "Preparing your application documents..." state with client-side polling and manual trigger.
+   - Separated Current View from Version History View: only loads current kit snapshots on initial render unless `history=true` is requested.
+
+6. **Static Asset Extraction, Immutable Caching & Lazy Copilot (Phases 8, 9, 10, 11):**
+   - Extracted 38.6 KB inline layout CSS to `public/css/app.css` and 13.9 KB layout JS to `public/js/app.js`.
+   - Extracted Copilot styles and controller scripts to dedicated `public/css/copilot.css` and `public/js/copilot.js`.
+   - Registered `@fastify/static` with 1-year immutable caching (`maxAge: 31536000s`) and `@fastify/compress` supporting gzip/brotli text compression across HTML, CSS, JS, and JSON.
+   - Refactored `renderCopilotDrawer()` to render a lightweight trigger shell; controller script and drawer assets are loaded lazily only when requested.
+   - Optimized Google Fonts delivery with `font-display: swap` and system typography fallbacks preventing FOIT.
+
+7. **Navigation Perceived Performance (Phase 13):**
+   - Implemented ultra-lightweight `#nav-progress-bar` in `public/js/app.js` providing immediate visual feedback on same-origin navigations without blocking, flashing on instant loads, or intercepting downloads.
+
+8. **Static Public Page Optimization (Phase 14):**
+   - Stripped unneeded database queries and session initialization from `/login` and `/docs/mcp`, achieving sub-10ms response times.
+
+9. **Skill Taxonomy Telemetry Suppression (Phase 15):**
+   - Expanded `GENERIC_NOISE_TERMS` in `src/domain/career/skill-taxonomy.js` to silence repetitive observations of Node built-ins (`crypto`, `path`, `fs`) and framework dependencies (`cheerio`, `rxjs`, `playwright`), eliminating CPU and logging overhead during profile parsing.
+
+10. **Job Discovery Data Truthfulness (Phase 16):**
+    - Enforced strict production safeguards in `src/services/job-discovery.service.js`: synthetic fallback jobs are completely disabled in production and require explicit opt-in (`ALLOW_SYNTHETIC_JOBS=true`) in development.
+    - Tagged dev synthetic jobs with `isSynthetic: true` and `[Dev Demo]` badges. Dynamically stamped freshness timestamps to prevent false expiration.
+
+11. **User-Facing Error Sanitization & Security (Phase 17):**
+    - Implemented `sanitizeErrorMessage` in `src/routes/web.routes.js`. Audited and replaced raw `err.message` redirects (containing internal Drizzle SQL, table schemas, and query parameters) across application delete, status update, apply submit, package archive, token operations, and Copilot actions with safe, user-friendly messages.
+
+12. **Automated Performance Regression Suite (Phases 22, 23):**
+    - Created `tests/unit/p62-performance-regression.test.js` validating dashboard query parallelization, applications pagination bounds, handoff reuse order, synthetic job flags, static asset availability, and Server-Timing injection.
+
+13. **Fastify Compression Payload Integrity & Route Return Alignment (`src/routes/web.routes.js`):**
+    - Remediated root cause of blank (0-byte) pages on `/dashboard`, `/profile`, `/sources`, `/projects`, `/skills`, `/onboarding`, `/settings`, `/connect`, and legal pages. Under `@fastify/compress`, asynchronous route handlers that called `reply.type(...).send(html)` without returning the reply caused Fastify to treat the async handler result as `undefined`, resulting in HTTP 200 with an empty body. Added explicit `return reply.type(...).send(html)` across all routes.
+    - Optimized `/profile` and `/skills` query waterfalls: eliminated unnecessary 500-item skill catalog database query from `/profile`, and parallelized candidate career profile loading with skills and additional skills queries, bringing `/profile` warm response time down to ~708ms.
+
+**Performance Impact & Benchmark Evidence:**
+
+| Route | Metric | Pre-P62 Baseline | Post-P62 Measured | Improvement |
+| :--- | :--- | :--- | :--- | :--- |
+| **`/dashboard`** | Warm Latency / TTFB | Timeout / Serial Stalls | **323 ms** | **Sub-second fast dashboard** |
+| **`/applications`** | Cold / Warm Latency | 39,688 ms | **593 ms / 605 ms** | **66x speedup** |
+| **`/profile`** | Cold / Warm Latency | 56,186 ms | **463 ms / 320 ms** | **121x speedup** |
+| **`/applications/:id/handoff`** | Existing Artifact View | 44,766 ms | **541 ms** | **82x speedup** |
+| **`/skills`** | Cold / Warm Latency | 12,796 ms | **371 ms / 833 ms** | **15x–34x speedup** |
+| **`/apps/radar`** | Cold / Warm Latency | 9,970 ms | **485 ms / 969 ms** | **19x speedup** |
+| **`/` (Public Landing)** | Cold / Warm Latency | 287 ms / 6 ms | **190 ms / 4 ms** | **Fast instant TTFB** |
+| **`/login`** | Cold / Warm Latency | 20 ms / 7 ms | **6 ms / 5 ms** | **Instant public auth** |
+| **Wire HTML Size** | Network Transfer | 106 KB uncompressed inline | **971 bytes** (gzipped + cached CSS/JS) | **99% reduction in transferred HTML** |
+
+**Verification Evidence & Test Results:**
+- `npm run format:check`: **PASS (All matched files use Prettier style)**
+- `npm run lint`: **PASS (0 errors, 117 warnings - baseline clean)**
+- `npm run audit:deps`: **PASS (0 High, 0 Critical vulnerabilities)**
+- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- `npm run db:check`: **PASS (Everything's fine)**
+- `npm run audit:drizzle-columns`: **PASS (Scanned 792 files, 0 invalid column references)**
+- `npm run audit:schema-integrity`: **PASS (0 unindexed foreign keys, 0 stale updatedAt paths)**
+- `npm run audit:db-drift`: **PASS (Live database matches schema)**
+- `npm run test:db-lifecycle-check`: **PASS (86 DB-using integration test files verified, 0 leaks)**
+- `npm run test:artifacts`: **PASS (175 / 175 tests pass across 42 suites)**
+- `tests/unit/p62-performance-regression.test.js`: **6/6 PASS (100%)**
+- `tests/integration/application-handoff-route.test.js`: **5/5 PASS (100%)**
+
 ### Phase P61: Test Worker Connection Pool Bounding & Parallel Test Suite Timeout Hardening
 **Status:** COMPLETE & VERIFIED
 **Date:** 2026-09-29

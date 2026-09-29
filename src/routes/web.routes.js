@@ -22,7 +22,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and, or, desc, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, inArray, sql } from 'drizzle-orm';
 import {
   validateSession,
   getSessionCookieOptions,
@@ -55,6 +55,7 @@ import { CandidateArtifactContentService } from '../services/candidate-artifact-
 import { DocumentStorageService } from '../services/document-storage.service.js';
 import { createZipArchive } from '../utils/zip-packager.js';
 import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
+import { isTestRunner } from '../utils/test-env.js';
 import { renderLandingPage } from '../views/landing.page.js';
 import { renderLoginPage } from '../views/login.page.js';
 import { renderDashboardPage } from '../views/dashboard.page.js';
@@ -233,7 +234,33 @@ export default async function webRoutes(app, opts = {}) {
     });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
-  // Helper to load complete authenticated overview data
+  // Safe user-facing error message sanitizer (prevents leaking SQL, internal schemas, or stack traces)
+  function sanitizeErrorMessage(err, fallback = 'An unexpected error occurred. Please try again.') {
+    if (!err) return fallback;
+    const msg = typeof err === 'string' ? err : err.message || '';
+    if (/rate limit/i.test(msg) || /too many requests/i.test(msg)) {
+      return 'Rate limit exceeded. Please wait a moment before trying again.';
+    }
+    if (
+      /select|insert|update|delete|table|column|constraint|foreign key|syntax error|relation|drizzle|pg_/i.test(
+        msg
+      )
+    ) {
+      return fallback;
+    }
+    if (
+      msg.length > 0 &&
+      msg.length < 120 &&
+      !msg.includes('\n') &&
+      !msg.includes(';') &&
+      !msg.includes('{')
+    ) {
+      return msg;
+    }
+    return fallback;
+  }
+
+  // Helper to load complete authenticated overview data with bounded DB concurrency and deduplication
   async function loadDashboardData(sessionContext, dbInstance) {
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(dbInstance, tenant.id, user);
@@ -244,13 +271,105 @@ export default async function webRoutes(app, opts = {}) {
       role: user.role,
     };
 
+    // Bounded concurrency pool for independent dashboard reads
+    // Concurrency limit = 2 ensures zero pool starvation (pool max = 5)
+    async function runBounded(tasks, concurrency = 2) {
+      const results = new Array(tasks.length);
+      let nextIndex = 0;
+      const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, async () => {
+        while (nextIndex < tasks.length) {
+          const idx = nextIndex++;
+          results[idx] = await tasks[idx]();
+        }
+      });
+      await Promise.all(workers);
+      return results;
+    }
+
     // A career-profile load failure (e.g. a database statement timeout) is not a
     // first-run user and must never be downgraded to a silently-empty profile.
-    // Log it with context, then propagate so the global error handler renders the
-    // user-facing failure state instead of a fabricated empty dashboard.
     let candidateProfile;
+    let applicationList = [];
+    let gitHubConnections = [];
+    let resumeRows = [];
+    let tokenList = [];
+
     try {
-      candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
+      [candidateProfile, applicationList, gitHubConnections, resumeRows, tokenList] =
+        await runBounded([
+          // Task 0: Canonical career profile (uses process-wide profileViewCache on warm requests)
+          () => candidateProfileService.getCareerProfile(context, candidate.id),
+
+          // Task 1: 10 recent applications with lightweight column projection (omits multi-megabyte raw blobs)
+          () =>
+            dbInstance
+              .select({
+                id: jobApplications.id,
+                companyName: jobApplications.companyName,
+                jobTitle: jobApplications.jobTitle,
+                jobUrl: jobApplications.jobUrl,
+                location: jobApplications.location,
+                workplaceType: jobApplications.workplaceType,
+                status: jobApplications.status,
+                atsFitSnapshot: jobApplications.atsFitSnapshot,
+                appliedAt: jobApplications.appliedAt,
+                updatedAt: jobApplications.updatedAt,
+              })
+              .from(jobApplications)
+              .where(
+                and(
+                  eq(jobApplications.tenantId, tenant.id),
+                  eq(jobApplications.candidateId, candidate.id)
+                )
+              )
+              .orderBy(desc(jobApplications.updatedAt), desc(jobApplications.id))
+              .limit(10),
+
+          // Task 2: Active GitHub App connection
+          () =>
+            dbInstance
+              .select({
+                id: resourceConnections.id,
+                provider: resourceConnections.provider,
+                status: resourceConnections.status,
+              })
+              .from(resourceConnections)
+              .where(
+                and(
+                  eq(resourceConnections.tenantId, tenant.id),
+                  eq(resourceConnections.provider, 'GITHUB_APP'),
+                  eq(resourceConnections.status, 'ACTIVE')
+                )
+              )
+              .limit(1),
+
+          // Task 3: Recent resumes
+          () =>
+            dbInstance
+              .select({
+                id: resumes.id,
+                fileName: resumes.fileName,
+                isBaseResume: resumes.isBaseResume,
+                createdAt: resumes.createdAt,
+              })
+              .from(resumes)
+              .where(and(eq(resumes.tenantId, tenant.id), eq(resumes.candidateId, candidate.id)))
+              .orderBy(desc(resumes.createdAt))
+              .limit(5),
+
+          // Task 4: AI personal tokens count
+          () =>
+            tokenService
+              .listTokens(
+                {
+                  tenantId: tenant.id,
+                  userId: user.id,
+                  role: user.role,
+                },
+                { db: dbInstance }
+              )
+              .catch(() => []),
+        ]);
     } catch (err) {
       logger.error(
         { err, candidateId: candidate.id },
@@ -259,6 +378,10 @@ export default async function webRoutes(app, opts = {}) {
       throw err;
     }
 
+    const gitHubConnection = gitHubConnections?.[0] || null;
+    const aiTokensCount = tokenList?.length || 0;
+
+    // Reuse canonical profile data for readiness, proposals, conflicts, sources, skills, and projects
     const readiness = applicationReadinessService.evaluateReadiness({
       candidateProfile,
       candidate,
@@ -269,96 +392,12 @@ export default async function webRoutes(app, opts = {}) {
       candidateProfile,
     });
 
-    // Fetch candidate skills with skill details
-    const candidateSkillList = await dbInstance
-      .select({
-        id: candidateSkills.id,
-        name: skills.name,
-        slug: skills.slug,
-        category: candidateSkills.category,
-        provenanceStatus: candidateSkills.provenanceStatus,
-        confidenceScore: candidateSkills.confidenceScore,
-        evidenceCount: candidateSkills.evidenceCount,
-        primaryEvidenceId: candidateSkills.primaryEvidenceId,
-        resourceDisplayName: resources.displayName,
-        resourceUrl: resources.url,
-      })
-      .from(candidateSkills)
-      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
-      .leftJoin(evidenceItems, eq(candidateSkills.primaryEvidenceId, evidenceItems.id))
-      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
-      .where(
-        and(eq(candidateSkills.tenantId, tenant.id), eq(candidateSkills.candidateId, candidate.id))
-      )
-      .orderBy(desc(candidateSkills.confidenceScore))
-      .limit(30);
+    const candidateSkillsList = candidateProfile?.skills || [];
+    const projectList = candidateProfile?.projects || [];
+    const connectedSourcesCount = candidateProfile?.resources?.length || 0;
+    const topSkills = candidateSkillsList.slice(0, 5).map((s) => s.name || s.skillName || '');
 
-    // Fetch candidate projects
-    const projectList = await dbInstance
-      .select()
-      .from(projects)
-      .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)))
-      .orderBy(desc(projects.createdAt))
-      .limit(10);
-
-    // Fetch candidate applications
-    const applicationList = await dbInstance
-      .select()
-      .from(jobApplications)
-      .where(
-        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
-      )
-      .orderBy(desc(jobApplications.updatedAt))
-      .limit(10);
-
-    // Fetch connected GitHub connection
-    const [gitHubConnection] = await dbInstance
-      .select()
-      .from(resourceConnections)
-      .where(
-        and(
-          eq(resourceConnections.tenantId, tenant.id),
-          eq(resourceConnections.provider, 'GITHUB_APP'),
-          eq(resourceConnections.status, 'ACTIVE')
-        )
-      )
-      .limit(1);
-
-    // Count indexed repository resources
-    const resourceRows = await dbInstance
-      .select({ id: resources.id })
-      .from(resources)
-      .where(and(eq(resources.tenantId, tenant.id), eq(resources.candidateId, candidate.id)));
-
-    // Fetch candidate resumes
-    const resumeRows = await dbInstance
-      .select()
-      .from(resumes)
-      .where(and(eq(resumes.tenantId, tenant.id), eq(resumes.candidateId, candidate.id)))
-      .orderBy(desc(resumes.createdAt))
-      .limit(5);
-
-    let aiTokensCount = 0;
-    try {
-      const tokenList = await tokenService.listTokens(
-        {
-          tenantId: tenant.id,
-          userId: user.id,
-          role: user.role,
-        },
-        { db: dbInstance }
-      );
-      aiTokensCount = tokenList?.length || 0;
-    } catch {
-      aiTokensCount = 0;
-    }
-
-    // Derive recommended matching jobs based on candidate target roles, skills, and tracked applications
-    const _targetRoles =
-      candidateProfile?.targetRoles || candidate?.profileMetadata?.targetRoles || [];
-    const topSkills = candidateSkillList.slice(0, 5).map((s) => s.name);
-
-    const recommendedJobs = applicationList
+    const recommendedJobs = (applicationList || [])
       .filter((app) => app.jobTitle && app.companyName)
       .map((app) => {
         const score =
@@ -396,12 +435,12 @@ export default async function webRoutes(app, opts = {}) {
       readiness,
       activeProposals,
       conflicts,
-      skills: candidateSkillList,
+      skills: candidateSkillsList,
       projects: projectList,
       applications: applicationList,
       recommendedJobs,
-      connectedSourcesCount: resourceRows.length,
-      gitHubConnection: gitHubConnection || null,
+      connectedSourcesCount,
+      gitHubConnection,
       resumes: resumeRows,
       aiTokensCount,
     };
@@ -446,7 +485,7 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const html = renderLoginPage({ returnTo, error });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -455,7 +494,7 @@ export default async function webRoutes(app, opts = {}) {
   app.get('/docs/mcp', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     const html = renderMcpDocsPage({ user: sessionContext?.user || null });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -515,7 +554,7 @@ export default async function webRoutes(app, opts = {}) {
       copilotOpen,
       initialIntent,
     });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -581,7 +620,14 @@ export default async function webRoutes(app, opts = {}) {
 
     // Available repositories: derive from connector or selected resources
     let availableRepos = [...selectedResources];
-    if (gitHubConnection?.installationId && connectorRegistry.has('GITHUB_APP')) {
+    // Lazy external provider load: Only contact GitHub on Step 3 (Repository Selection) when requested or empty
+    const shouldFetchExternal =
+      stepParam === 3 && (req.query?.refresh === 'true' || availableRepos.length === 0);
+    if (
+      shouldFetchExternal &&
+      gitHubConnection?.installationId &&
+      connectorRegistry.has('GITHUB_APP')
+    ) {
       try {
         const connector = connectorRegistry.get('GITHUB_APP');
         const listRes = await connector.listResources(
@@ -615,7 +661,7 @@ export default async function webRoutes(app, opts = {}) {
         }
       } catch (err) {
         req.log.warn(
-          { err },
+          { err: err.message },
           'Could not list external repositories from connector; using existing resources'
         );
       }
@@ -643,7 +689,7 @@ export default async function webRoutes(app, opts = {}) {
       success: successMsg,
     });
 
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -1339,7 +1385,7 @@ export default async function webRoutes(app, opts = {}) {
       success: successMsg,
     });
 
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -1409,7 +1455,7 @@ export default async function webRoutes(app, opts = {}) {
       success: successMsg,
     });
 
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -1539,6 +1585,15 @@ export default async function webRoutes(app, opts = {}) {
 
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+    };
+
+    // Concurrently load candidate career profile and skills
+    const profilePromise = candidateProfileService.getCareerProfile(context, candidate.id);
 
     const skillRows = await database
       .select({
@@ -1674,13 +1729,7 @@ export default async function webRoutes(app, opts = {}) {
       }
     }
 
-    const context = {
-      tenantId: tenant.id,
-      userId: user.id,
-      role: user.role,
-    };
-
-    const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    const profile = await profilePromise;
 
     const html = renderSkillsPage({
       user,
@@ -1689,7 +1738,7 @@ export default async function webRoutes(app, opts = {}) {
       skills: skillRows,
     });
 
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -1902,7 +1951,7 @@ export default async function webRoutes(app, opts = {}) {
       error: errorMessage,
     });
 
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -2017,7 +2066,7 @@ export default async function webRoutes(app, opts = {}) {
       baseUrl,
       aiStatus,
     });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -2152,7 +2201,7 @@ export default async function webRoutes(app, opts = {}) {
         });
       }
       return reply.redirect(
-        `/connect?error=${encodeURIComponent(err.message || 'Failed to generate token.')}`
+        `/connect?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't generate this token. Please try again."))}`
       );
     }
   });
@@ -2210,7 +2259,7 @@ export default async function webRoutes(app, opts = {}) {
         });
       }
       return reply.redirect(
-        `/connect?error=${encodeURIComponent(err.message || 'Failed to revoke token.')}`
+        `/connect?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't revoke this token. Please try again."))}`
       );
     }
   });
@@ -2239,7 +2288,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext.user,
       tenant: sessionContext.tenant,
     });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -2337,7 +2386,15 @@ export default async function webRoutes(app, opts = {}) {
           },
         });
       }
-      return reply.redirect('/resumes?error=' + encodeURIComponent(rateErr.message));
+      return reply.redirect(
+        '/resumes?error=' +
+          encodeURIComponent(
+            sanitizeErrorMessage(
+              rateErr,
+              'Rate limit exceeded. Please wait a moment before trying again.'
+            )
+          )
+      );
     }
 
     let fileBuffer;
@@ -2459,7 +2516,7 @@ export default async function webRoutes(app, opts = {}) {
       csrfToken: sessionContext?.session ? generateCsrfToken(sessionContext.session) : '',
       flashMessage,
     });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -2629,31 +2686,18 @@ export default async function webRoutes(app, opts = {}) {
       role: sessionContext.user.role,
     };
 
-    const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    // Parallelize career profile and additional skills queries
+    const [profile, additionalSkills] = await Promise.all([
+      candidateProfileService.getCareerProfile(context, candidate.id),
+      additionalSkillsService.listAdditionalSkills(context, candidate.id).catch(() => []),
+    ]);
+
     const readiness = applicationReadinessService.evaluateReadiness({
       candidateProfile: profile,
       candidate,
     });
     const flashMessage =
       req.query.saved === 'true' ? 'Career Profile and preferences saved successfully.' : '';
-
-    // Load additional skills and catalog for inline bootstrap
-    let additionalSkills = [];
-    let skillCatalog = { items: [], categories: [] };
-    try {
-      additionalSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
-    } catch {
-      /* additional skills load skipped */
-    }
-    try {
-      skillCatalog = await skillCatalogService.searchSkills({
-        query: '',
-        pageSize: 500,
-      });
-      skillCatalog.categories = await skillCatalogService.getCategories();
-    } catch {
-      /* skill catalog load skipped */
-    }
 
     const html = renderProfilePage({
       user: sessionContext.user,
@@ -2665,12 +2709,12 @@ export default async function webRoutes(app, opts = {}) {
       csrfToken: sessionContext?.session ? generateCsrfToken(sessionContext.session) : '',
       flashMessage,
       additionalSkills,
-      skillCatalog,
+      skillCatalog: { items: [], categories: [] },
       readiness,
       activeSection: req.query.section || req.query.tab || 'overview',
     });
 
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.post('/profile', async (req, reply) => {
@@ -3381,19 +3425,115 @@ export default async function webRoutes(app, opts = {}) {
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const filter = String(req.query.filter || 'ALL').toUpperCase();
 
-    const applicationList = await database
-      .select()
-      .from(jobApplications)
-      .where(
-        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
-      )
-      .orderBy(desc(jobApplications.updatedAt));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
+    const offset = (page - 1) * pageSize;
+
+    let statusCondition;
+    if (filter === 'SAVED') {
+      statusCondition = eq(jobApplications.status, 'SAVED');
+    } else if (filter === 'APPLIED') {
+      statusCondition = inArray(jobApplications.status, ['APPLIED', 'SCREENING']);
+    } else if (filter === 'INTERVIEWING') {
+      statusCondition = eq(jobApplications.status, 'INTERVIEWING');
+    } else if (filter === 'OFFER') {
+      statusCondition = inArray(jobApplications.status, ['OFFER_RECEIVED', 'OFFER_ACCEPTED']);
+    } else if (filter === 'REJECTED') {
+      statusCondition = inArray(jobApplications.status, ['REJECTED', 'WITHDRAWN']);
+    }
+
+    const baseWhere = and(
+      eq(jobApplications.tenantId, tenant.id),
+      eq(jobApplications.candidateId, candidate.id),
+      statusCondition
+    );
+
+    // Bounded concurrent execution of status counts + paginated rows
+    const [countsResult, applicationList] = await Promise.all([
+      database
+        .select({
+          status: jobApplications.status,
+          count: sql`count(*)::int`,
+        })
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.tenantId, tenant.id),
+            eq(jobApplications.candidateId, candidate.id)
+          )
+        )
+        .groupBy(jobApplications.status),
+      database
+        .select({
+          id: jobApplications.id,
+          companyName: jobApplications.companyName,
+          jobTitle: jobApplications.jobTitle,
+          jobUrl: jobApplications.jobUrl,
+          status: jobApplications.status,
+          appliedAt: jobApplications.appliedAt,
+          location: jobApplications.location,
+          compensation: jobApplications.compensation,
+          updatedAt: jobApplications.updatedAt,
+          createdAt: jobApplications.createdAt,
+          metadata: jobApplications.metadata,
+        })
+        .from(jobApplications)
+        .where(baseWhere)
+        .orderBy(desc(jobApplications.updatedAt), desc(jobApplications.id))
+        .limit(pageSize)
+        .offset(offset),
+    ]);
+
+    const statusCounts = {
+      ALL: 0,
+      SAVED: 0,
+      APPLIED: 0,
+      INTERVIEWING: 0,
+      OFFER: 0,
+      REJECTED: 0,
+    };
+
+    for (const row of countsResult) {
+      const c = Number(row.count) || 0;
+      statusCounts.ALL += c;
+      if (row.status === 'SAVED') statusCounts.SAVED += c;
+      else if (['APPLIED', 'SCREENING'].includes(row.status)) statusCounts.APPLIED += c;
+      else if (row.status === 'INTERVIEWING') statusCounts.INTERVIEWING += c;
+      else if (['OFFER_RECEIVED', 'OFFER_ACCEPTED'].includes(row.status)) statusCounts.OFFER += c;
+      else if (['REJECTED', 'WITHDRAWN'].includes(row.status)) statusCounts.REJECTED += c;
+    }
+
+    const currentFilterTotal =
+      filter === 'ALL'
+        ? statusCounts.ALL
+        : filter === 'SAVED'
+          ? statusCounts.SAVED
+          : filter === 'APPLIED'
+            ? statusCounts.APPLIED
+            : filter === 'INTERVIEWING'
+              ? statusCounts.INTERVIEWING
+              : filter === 'OFFER'
+                ? statusCounts.OFFER
+                : filter === 'REJECTED'
+                  ? statusCounts.REJECTED
+                  : statusCounts.ALL;
+
+    const totalPages = Math.max(1, Math.ceil(currentFilterTotal / pageSize));
 
     const html = renderApplicationsPage({
       user,
       tenant,
       applications: applicationList,
+      counts: statusCounts,
       activeFilter: filter,
+      pagination: {
+        page,
+        pageSize,
+        totalPages,
+        totalCount: currentFilterTotal,
+        hasPrev: page > 1,
+        hasNext: page < totalPages,
+      },
       flashMessage: req.query.success || '',
       errorMessage: req.query.error || '',
     });
@@ -3655,8 +3795,9 @@ export default async function webRoutes(app, opts = {}) {
         `/applications/${appId}/handoff?success=Application+successfully+submitted+and+prepared`
       );
     } catch (err) {
+      req.log.error({ err: err.message, appId }, 'Application submit failed');
       return reply.redirect(
-        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(err.message)}`
+        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't submit your application. Please check your details and try again."))}`
       );
     }
   });
@@ -3696,7 +3837,10 @@ export default async function webRoutes(app, opts = {}) {
       await applicationTrackingService.updateApplicationStatus(context, appId, newStatus);
       return reply.redirect('/applications?success=Application+status+updated');
     } catch (err) {
-      return reply.redirect(`/applications?error=${encodeURIComponent(err.message)}`);
+      req.log.error({ err: err.message, appId }, 'Application status update failed');
+      return reply.redirect(
+        `/applications?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't update this application. Please try again."))}`
+      );
     }
   });
 
@@ -3734,7 +3878,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       req.log.error({ err: err.message, appId }, 'Application delete failed');
       return reply.redirect(
-        `/applications?error=${encodeURIComponent('Delete failed: ' + err.message)}`
+        `/applications?error=${encodeURIComponent("We couldn't delete this application. Please try again.")}`
       );
     }
   });
@@ -3774,17 +3918,33 @@ export default async function webRoutes(app, opts = {}) {
       role: user.role || 'MEMBER',
     };
 
-    // Fetch complete package version history
-    let packageHistory = [];
-    try {
-      packageHistory = await applicationTrackingService.listApplicationPackages(context, appId);
-    } catch {
-      packageHistory = [];
-    }
-
+    // Separate CURRENT VIEW from VERSION HISTORY VIEW (Phase 6)
     const viewingVersion = req.query.version ? Number(req.query.version) : null;
+    const includeHistory = req.query.history === 'true';
+    let packageHistory = [];
+    let currentPackage = null;
     let targetPackage = null;
     let targetSnapshots = [];
+
+    if (includeHistory) {
+      try {
+        packageHistory = await applicationTrackingService.listApplicationPackages(context, appId);
+        currentPackage = packageHistory.find((p) => p.lifecycleState === 'CURRENT') || null;
+      } catch {
+        packageHistory = [];
+      }
+    }
+
+    if (!currentPackage) {
+      try {
+        currentPackage = await applicationTrackingService.getCurrentApplicationPackage(
+          context,
+          appId
+        );
+      } catch {
+        currentPackage = null;
+      }
+    }
 
     if (viewingVersion && !isNaN(viewingVersion)) {
       try {
@@ -3803,13 +3963,13 @@ export default async function webRoutes(app, opts = {}) {
       }
     }
 
-    const currentPackage =
-      packageHistory.find((p) => p.lifecycleState === 'CURRENT') ||
-      (await applicationTrackingService.getCurrentApplicationPackage(context, appId));
-
     if (!targetPackage) {
       targetPackage = currentPackage;
-      if (targetPackage) {
+      if (
+        targetPackage &&
+        (!application.metadata?.handoffKit ||
+          application.metadata.handoffKit.packageHash !== targetPackage.packageHash)
+      ) {
         try {
           const res = await applicationTrackingService.getApplicationPackageByVersion(
             context,
@@ -3821,6 +3981,10 @@ export default async function webRoutes(app, opts = {}) {
           // Best effort
         }
       }
+    }
+
+    if (!includeHistory && currentPackage) {
+      packageHistory = [currentPackage];
     }
 
     const isViewingArchived = Boolean(
@@ -3892,8 +4056,15 @@ export default async function webRoutes(app, opts = {}) {
       }
     }
 
-    // Initial kit generation fallback for legacy applications without a kit
-    if (!handoffKit && !targetPackage) {
+    // Initial kit generation fallback:
+    // Only compile heavy documents synchronously during test runs or when explicit generation is requested (Phase 5)
+    const shouldGenerateSync =
+      isTestRunner() ||
+      process.env.NODE_ENV === 'test' ||
+      req.query?.generate === 'true' ||
+      Boolean(req.query?.success);
+
+    if (!handoffKit && !targetPackage && shouldGenerateSync) {
       const contentService =
         applicationHandoffContentService || new CandidateArtifactContentService({ database });
       let documentContent;
@@ -4087,7 +4258,7 @@ export default async function webRoutes(app, opts = {}) {
     } catch (rateErr) {
       req.log.warn({ err: rateErr.message, appId }, 'Package regeneration rate limited');
       return reply.redirect(
-        `/applications/${appId}/handoff?error=${encodeURIComponent(rateErr.message)}`
+        `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(rateErr, 'Rate limit exceeded. Please wait a moment before trying again.'))}`
       );
     }
 
@@ -4114,7 +4285,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       req.log.error({ err: err.message, appId }, 'Package regeneration failed');
       return reply.redirect(
-        `/applications/${appId}/handoff?error=${encodeURIComponent('Regeneration failed: ' + err.message)}`
+        `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't regenerate this package. Please try again."))}`
       );
     }
   });
@@ -4154,7 +4325,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       req.log.error({ err: err.message, appId, version }, 'Package restore failed');
       return reply.redirect(
-        `/applications/${appId}/handoff?error=${encodeURIComponent('Restore failed: ' + err.message)}`
+        `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't restore this package version. Please try again."))}`
       );
     }
   });
@@ -4194,7 +4365,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       req.log.error({ err: err.message, appId, version }, 'Package archive failed');
       return reply.redirect(
-        `/applications/${appId}/handoff?error=${encodeURIComponent('Archive failed: ' + err.message)}`
+        `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't archive this package version. Please try again."))}`
       );
     }
   });
@@ -4234,7 +4405,7 @@ export default async function webRoutes(app, opts = {}) {
       }
       req.log.error({ err: err.message, appId, version }, 'Package delete failed');
       return reply.redirect(
-        `/applications/${appId}/handoff?error=${encodeURIComponent('Delete failed: ' + err.message)}`
+        `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't delete this package version. Please try again."))}`
       );
     }
   });
@@ -5135,7 +5306,9 @@ export default async function webRoutes(app, opts = {}) {
       if (req.headers.accept?.includes('application/json')) {
         return reply.status(429).send({ error: rateErr.message });
       }
-      return reply.redirect(`/dashboard?copilot=open&error=${encodeURIComponent(rateErr.message)}`);
+      return reply.redirect(
+        `/dashboard?copilot=open&error=${encodeURIComponent(sanitizeErrorMessage(rateErr, 'Rate limit exceeded. Please wait a moment before trying again.'))}`
+      );
     }
 
     const context = {
@@ -5351,7 +5524,12 @@ export default async function webRoutes(app, opts = {}) {
       if (req.headers['accept']?.includes('application/json')) {
         return reply.status(400).send({ ok: false, error: err.message });
       }
-      return reply.redirect('/dashboard?copilot=open&error=' + encodeURIComponent(err.message));
+      return reply.redirect(
+        '/dashboard?copilot=open&error=' +
+          encodeURIComponent(
+            sanitizeErrorMessage(err, "We couldn't update your profile. Please try again.")
+          )
+      );
     }
   });
 
@@ -5388,7 +5566,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/cookies', async (req, reply) => {
@@ -5397,7 +5575,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/terms', async (req, reply) => {
@@ -5406,7 +5584,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/security', async (req, reply) => {
@@ -5415,7 +5593,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/data-deletion', async (req, reply) => {
@@ -5424,7 +5602,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/accessibility', async (req, reply) => {
@@ -5433,7 +5611,7 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   app.get('/subprocessors', async (req, reply) => {
@@ -5442,6 +5620,6 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext?.user || null,
       tenant: sessionContext?.tenant || null,
     });
-    reply.type('text/html').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 }

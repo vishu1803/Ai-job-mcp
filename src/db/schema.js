@@ -674,6 +674,13 @@ export const evidenceItems = pgTable(
     index('idx_evidence_items_tenant_resource').on(table.tenantId, table.resourceId),
     index('idx_evidence_items_tenant_project').on(table.tenantId, table.projectId),
     index('idx_evidence_items_tenant_skill').on(table.tenantId, table.skillId),
+    index('idx_evidence_items_tenant_candidate_project').on(
+      table.tenantId,
+      table.candidateId,
+      table.projectId,
+      table.confidenceScore.desc(),
+      table.detectedAt.desc()
+    ),
   ]
 );
 
@@ -916,6 +923,12 @@ export const jobApplications = pgTable(
     index('idx_job_applications_tenant_status').on(table.tenantId, table.status),
     index('idx_job_applications_tenant_company').on(table.tenantId, table.companyName),
     index('idx_job_applications_tenant_applied').on(table.tenantId, table.appliedAt.desc()),
+    index('idx_job_applications_tenant_candidate_updated').on(
+      table.tenantId,
+      table.candidateId,
+      table.updatedAt.desc(),
+      table.id.desc()
+    ),
     uniqueIndex('uq_job_applications_active_canonical_job')
       .on(table.tenantId, table.candidateId, table.canonicalJobId)
       .where(
