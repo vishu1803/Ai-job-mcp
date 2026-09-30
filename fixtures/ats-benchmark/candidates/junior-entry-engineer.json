@@ -32,9 +32,7 @@
       "name": "Todo List App",
       "description": "Simple to-do app built following an online YouTube tutorial.",
       "technologies": ["HTML", "CSS", "JavaScript"],
-      "bullets": [
-        "Created a basic todo list stored in browser local storage."
-      ]
+      "bullets": ["Created a basic todo list stored in browser local storage."]
     }
   ],
   "openSourceContributions": []

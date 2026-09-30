@@ -12,6 +12,7 @@ import { atsMultiDimensionalIntelligenceService } from '../../src/services/ats-m
 import { candidateQualityRubricService } from '../../src/services/candidate-quality-rubric.service.js';
 import { applicationReadinessScoreService } from '../../src/services/application-readiness-score.service.js';
 import { computeRetrievalMetrics, computeNdcg } from './metrics.js';
+import { runScoreCalibrationComparison } from '../../src/domain/career/score-calibration-benchmark.js';
 
 export class AtsBenchmarkRunner {
   constructor(baseDir = process.cwd()) {
@@ -154,6 +155,20 @@ export class AtsBenchmarkRunner {
     const spamCandidate = candidateResults.find((c) => c.candidateId === 'cand-keyword-stuffed');
     const spamProtected = spamCandidate.fitScore < seniorCandidate.fitScore;
 
+    // ── Metric 5: Statistical Calibration & Correlation (Integrated with P82) ──
+    const benchmarkGroundTruthScores = candidateResults.map((c) => {
+      const rel = relevanceMap[c.candidateId] ?? 0;
+      if (rel === 3) return 90.0;
+      if (rel === 1) return 55.0;
+      return 20.0;
+    });
+    const engineFitScores = candidateResults.map((c) => c.fitScore);
+    const calibration = runScoreCalibrationComparison({
+      engineScores: engineFitScores,
+      benchmarkScores: benchmarkGroundTruthScores,
+      threshold: 50.0,
+    });
+
     return {
       suiteName: 'ATS Industry Intelligence Benchmark Suite',
       evaluatedCandidatesCount: candidates.length,
@@ -163,6 +178,7 @@ export class AtsBenchmarkRunner {
         retrieval: retrievalMetrics,
         ndcg,
         variance,
+        calibration,
         stabilityPassed: variance === 0.0,
         antiGamingPassed: spamProtected,
       },

@@ -31,6 +31,7 @@ import {
 import { openSourceIntelligenceService } from '../../src/services/open-source-intelligence.service.js';
 import { projectQualityEngineService } from '../../src/services/project-quality-engine.service.js';
 import { productionExperienceIntelligenceService } from '../../src/services/production-experience-intelligence.service.js';
+import { AtsFitScoreService } from '../../src/services/ats-fit-score.service.js';
 
 describe('Advanced Career Intelligence Engines (Phases 6 - 9)', () => {
   // =========================================================================
@@ -103,6 +104,85 @@ describe('Advanced Career Intelligence Engines (Phases 6 - 9)', () => {
         'embedded_engineer'
       );
     });
+
+    it('dynamically configures AtsFitScoreService component weights by roleProfile while preserving 100.0 invariant', () => {
+      const mockContext = { tenantId: '00000000-0000-0000-0000-000000000001' };
+      const mockJob = {
+        id: '00000000-0000-0000-0000-000000000002',
+        tenantId: mockContext.tenantId,
+        title: 'Frontend Lead',
+      };
+      const mockCandidate = {
+        id: '00000000-0000-0000-0000-000000000003',
+        tenantId: mockContext.tenantId,
+      };
+      const mockMatch = {
+        candidateId: mockCandidate.id,
+        jobDescriptionId: mockJob.id,
+        tenantId: mockContext.tenantId,
+        requirementMatches: [
+          {
+            importance: 'REQUIRED',
+            category: 'SKILL',
+            matchStatus: 'MATCHED',
+            weight: 1.0,
+            extractedValue: 'React',
+          },
+          {
+            importance: 'PREFERRED',
+            category: 'SKILL',
+            matchStatus: 'MATCHED',
+            weight: 1.0,
+            extractedValue: 'Tailwind',
+          },
+          {
+            importance: 'REQUIRED',
+            category: 'EXPERIENCE',
+            matchStatus: 'MATCHED',
+            weight: 1.0,
+            extractedValue: '5 years',
+          },
+          {
+            importance: 'REQUIRED',
+            category: 'EDUCATION',
+            matchStatus: 'MATCHED',
+            weight: 1.0,
+            extractedValue: 'BS CS',
+          },
+          {
+            importance: 'REQUIRED',
+            category: 'LOCATION',
+            matchStatus: 'MATCHED',
+            weight: 1.0,
+            extractedValue: 'Remote',
+          },
+        ],
+        skillGaps: [],
+      };
+      const mockProj = {
+        candidateId: mockCandidate.id,
+        jobDescriptionId: mockJob.id,
+        tenantId: mockContext.tenantId,
+        projectRankings: [{ id: 'p1', relevanceScore: 85.0 }],
+      };
+
+      const result = AtsFitScoreService.calculateCandidateJobFit(
+        mockContext,
+        mockJob,
+        mockMatch,
+        mockProj,
+        mockCandidate,
+        { roleProfile: 'frontend_engineer' }
+      );
+
+      assert.ok(result);
+      const audit = result.scoreBreakdown.denominatorAudit;
+      // In frontend_engineer: requiredSkills max is 35.0, preferredSkills max is 10.0, projectRelevance max is 20.0
+      assert.strictEqual(audit.requiredSkills.possiblePoints, 35.0);
+      assert.strictEqual(audit.preferredSkills.possiblePoints, 10.0);
+      assert.strictEqual(audit.projectRelevance.possiblePoints, 20.0);
+      assert.strictEqual(audit.totalPossiblePoints, 100.0);
+    });
   });
 
   // =========================================================================
@@ -172,6 +252,53 @@ describe('Advanced Career Intelligence Engines (Phases 6 - 9)', () => {
       assert.ok(report.score <= 30.0, 'Personal-only score must be capped <= 30.0');
       assert.strictEqual(report.contributionTier, 'PERSONAL_ONLY');
       assert.ok(report.warnings.some((w) => w.includes('capped at 30.0')));
+    });
+
+    it('evaluates exact canonical roles (REVIEWER, ORGANIZATION_CONTRIBUTOR, EXTERNAL_CONTRIBUTION) and discounts vanity stars', () => {
+      const candidateWithRoles = {
+        openSourceContributions: [
+          {
+            repository: 'nodejs/node',
+            role: 'REVIEWER',
+            codeReviewsCount: 12,
+            description: 'Reviewed async_hooks and crypto stream performance PRs',
+            technologies: ['C++', 'JavaScript'],
+            starsCount: 110000,
+          },
+          {
+            repository: 'facebook/react',
+            role: 'EXTERNAL_CONTRIBUTION',
+            mergedPrCount: 2,
+            meaningfulPrCount: 2,
+            description: 'Fixed concurrent server components hydration edge cases',
+            technologies: ['JavaScript', 'React'],
+            starsCount: 220000,
+          },
+        ],
+      };
+
+      const report = openSourceIntelligenceService.analyzeOpenSourceContributions({
+        canonicalProfile: candidateWithRoles,
+        githubActivities: [
+          {
+            repository: 'my-org/shared-infra',
+            organization: 'my-org',
+            role: 'ORGANIZATION_CONTRIBUTOR',
+            isExternal: false,
+            commits: 40,
+            summary: 'Maintained shared internal infra tooling',
+          },
+        ],
+      });
+
+      assert.ok(report.score >= 50.0);
+      const roles = report.activities.map((a) => a.role);
+      assert.ok(roles.includes('REVIEWER'), 'Must support REVIEWER role');
+      assert.ok(roles.includes('EXTERNAL_CONTRIBUTION'), 'Must support EXTERNAL_CONTRIBUTION role');
+      assert.ok(
+        roles.includes('ORGANIZATION_CONTRIBUTOR'),
+        'Must support ORGANIZATION_CONTRIBUTOR role'
+      );
     });
   });
 

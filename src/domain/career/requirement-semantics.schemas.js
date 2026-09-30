@@ -24,7 +24,13 @@ export const ExtendedRequirementImportanceEnum = z.enum([
   'OPTIONAL',
 ]);
 
-export const RequirementLogicalOperatorEnum = z.enum(['AND', 'OR', 'EQUIVALENT', 'NONE']);
+export const RequirementLogicalOperatorEnum = z.enum([
+  'AND',
+  'OR',
+  'OPTIONAL',
+  'EQUIVALENT',
+  'NONE',
+]);
 
 export const SemanticRequirementItemSchema = z
   .object({
@@ -32,16 +38,18 @@ export const SemanticRequirementItemSchema = z
     name: z.string().trim().min(1).max(255),
     slug: SafeSlugSchema.optional(),
     importance: ExtendedRequirementImportanceEnum.default('REQUIRED'),
-    category: z.enum([
-      'SKILL',
-      'EXPERIENCE',
-      'EDUCATION',
-      'DOMAIN',
-      'LOCATION',
-      'ELIGIBILITY',
-      'CERTIFICATION',
-      'OTHER',
-    ]).default('SKILL'),
+    category: z
+      .enum([
+        'SKILL',
+        'EXPERIENCE',
+        'EDUCATION',
+        'DOMAIN',
+        'LOCATION',
+        'ELIGIBILITY',
+        'CERTIFICATION',
+        'OTHER',
+      ])
+      .default('SKILL'),
     allowsEquivalent: z.boolean().default(false),
     approvedEquivalents: z.array(z.string().trim()).default([]),
     weight: z.number().nonnegative().default(1.0),

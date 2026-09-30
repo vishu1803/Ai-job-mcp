@@ -22,6 +22,8 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { renderCopilotDrawer } from '../../src/views/components/copilot-drawer.js';
 import { renderProfilePage } from '../../src/views/profile.page.js';
 import {
@@ -86,27 +88,35 @@ describe('P90 LIVE BUG FIX — Copilot Scroll Isolation & Profile Save Enum Norm
 
     it('attaches non-passive wheel and touch event scroll boundary isolation script', () => {
       const html = renderCopilotDrawer({ pageContext: 'profile' });
+      const copilotJs = fs.existsSync(path.resolve(process.cwd(), 'public/js/copilot.js'))
+        ? fs.readFileSync(path.resolve(process.cwd(), 'public/js/copilot.js'), 'utf-8')
+        : '';
+      const source = html + copilotJs;
 
       // Wheel boundary isolation
       assert.match(
-        html,
-        /drawerEl\.addEventListener\('wheel',[\s\S]*?\{\s*passive:\s*false\s*\}\)/,
+        source,
+        /drawerEl\.addEventListener\(\s*['"]wheel['"],[\s\S]*?\{\s*passive:\s*false\s*\}\s*\)/,
         'Drawer must attach non-passive wheel listener to isolate scroll'
       );
 
       // Touch boundary isolation
       assert.match(
-        html,
-        /drawerEl\.addEventListener\('touchmove',[\s\S]*?\{\s*passive:\s*false\s*\}\)/,
+        source,
+        /drawerEl\.addEventListener\(\s*['"]touchmove['"],[\s\S]*?\{\s*passive:\s*false\s*\}\s*\)/,
         'Drawer must attach non-passive touchmove listener to isolate mobile scroll'
       );
 
       // Boundary calculation checks
-      assert.match(html, /bodyEl\.scrollTop/, 'Must inspect internal scrollTop');
-      assert.match(html, /bodyEl\.scrollHeight/, 'Must inspect internal scrollHeight');
-      assert.match(html, /bodyEl\.clientHeight/, 'Must inspect internal clientHeight');
-      assert.match(html, /e\.preventDefault\(\)/, 'Must cancel default scroll action when leaking');
-      assert.match(html, /e\.stopPropagation\(\)/, 'Must stop event propagation to window');
+      assert.match(source, /bodyEl\.scrollTop/, 'Must inspect internal scrollTop');
+      assert.match(source, /bodyEl\.scrollHeight/, 'Must inspect internal scrollHeight');
+      assert.match(source, /bodyEl\.clientHeight/, 'Must inspect internal clientHeight');
+      assert.match(
+        source,
+        /e\.preventDefault\(\)/,
+        'Must cancel default scroll action when leaking'
+      );
+      assert.match(source, /e\.stopPropagation\(\)/, 'Must stop event propagation to window');
     });
 
     it('does NOT inject crude document.body { overflow: hidden } on desktop', () => {

@@ -122,6 +122,22 @@ export class RequirementSemanticsService {
       });
     }
 
+    if (group.operator === 'OPTIONAL') {
+      const passed = matchCount >= 1;
+      return GroupMatchEvaluationSchema.parse({
+        groupId: group.id,
+        groupName: group.name,
+        operator: 'OPTIONAL',
+        status: passed ? (matchCount === totalReqs ? 'MATCHED' : 'PARTIAL') : 'MISSING',
+        earnedScoreRatio: totalReqs > 0 ? Math.round((matchCount / totalReqs) * 100) / 100 : 1.0,
+        matchedRequirements,
+        missingRequirements,
+        reason: passed
+          ? `Satisfied optional group (${matchCount}/${totalReqs}): matched ${matchedRequirements.join(', ')}`
+          : `Optional group not matched; no penalty applied`,
+      });
+    }
+
     // Default: 'AND' Operator
     if (matchCount === totalReqs) {
       return GroupMatchEvaluationSchema.parse({

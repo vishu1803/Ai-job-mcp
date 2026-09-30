@@ -18,10 +18,19 @@
 
 import { AtsProfileEvaluationSchema } from '../domain/career/ats-compatibility-profiles.schemas.js';
 import { defaultAtsParseabilityService } from './resume-ats-parseability.service.js';
+import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
+import { PdfQaValidatorService } from './pdf-qa-validator.service.js';
+import { ResumeIntegrityAuditService } from './resume-integrity-audit.service.js';
+import { atsExtractionModelService } from './ats-extraction-model.service.js';
 
 export class AtsCompatibilityProfilesService {
   constructor(dependencies = {}) {
     this.atsParseability = dependencies.atsParseability || defaultAtsParseabilityService;
+    this.pdfGeometryAnalyzer = dependencies.pdfGeometryAnalyzer || new PdfGeometryAnalyzer();
+    this.pdfQaValidator = dependencies.pdfQaValidator || new PdfQaValidatorService();
+    this.resumeIntegrityAudit =
+      dependencies.resumeIntegrityAudit || new ResumeIntegrityAuditService();
+    this.atsExtractionModel = dependencies.atsExtractionModel || atsExtractionModelService;
   }
 
   /**
@@ -60,9 +69,23 @@ export class AtsCompatibilityProfilesService {
         return this._evaluateIcimsProfile(canonicalProfile, text, parseability, pdfBuffer);
       case 'TALEO_COMPATIBILITY':
         return this._evaluateTaleoProfile(canonicalProfile, text, parseability, pdfBuffer);
+      case 'GENERIC':
+        return this._evaluateGenericAtsProfile(
+          canonicalProfile,
+          text,
+          parseability,
+          pdfBuffer,
+          'GENERIC'
+        );
       case 'GENERIC_ATS':
       default:
-        return this._evaluateGenericAtsProfile(canonicalProfile, text, parseability, pdfBuffer);
+        return this._evaluateGenericAtsProfile(
+          canonicalProfile,
+          text,
+          parseability,
+          pdfBuffer,
+          'GENERIC_ATS'
+        );
     }
   }
 
@@ -93,7 +116,7 @@ export class AtsCompatibilityProfilesService {
   // Profile Implementations
   // ---------------------------------------------------------------------------
 
-  _evaluateGenericAtsProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateGenericAtsProfile(profile, text, parseability, pdfBuffer, profileId = 'GENERIC_ATS') {
     const risks = [];
     const guidance = [];
     let score = parseability.atsParseabilityScore || 80.0;
@@ -136,17 +159,20 @@ export class AtsCompatibilityProfilesService {
 
     const finalScore = Math.max(0, Math.min(100, Math.round(score)));
     return this._formatEvaluation(
-      'GENERIC_ATS',
+      profileId,
       'Generic ATS Compatibility',
       finalScore,
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _evaluateWorkdayProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateWorkdayProfile(profile, text, parseability, pdfBuffer) {
     const risks = [];
     const guidance = [];
     let score = parseability.atsParseabilityScore || 85.0;
@@ -199,11 +225,14 @@ export class AtsCompatibilityProfilesService {
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _evaluateGreenhouseProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateGreenhouseProfile(profile, text, parseability, pdfBuffer) {
     const risks = [];
     const guidance = [];
     let score = parseability.atsParseabilityScore || 85.0;
@@ -258,11 +287,14 @@ export class AtsCompatibilityProfilesService {
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _evaluateLeverProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateLeverProfile(profile, text, parseability, pdfBuffer) {
     const risks = [];
     const guidance = [];
     let score = parseability.atsParseabilityScore || 88.0;
@@ -309,11 +341,14 @@ export class AtsCompatibilityProfilesService {
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _evaluateIcimsProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateIcimsProfile(profile, text, parseability, pdfBuffer) {
     const risks = [];
     const guidance = [];
     let score = parseability.atsParseabilityScore || 82.0;
@@ -355,11 +390,14 @@ export class AtsCompatibilityProfilesService {
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _evaluateTaleoProfile(profile, text, parseability, _pdfBuffer) {
+  _evaluateTaleoProfile(profile, text, parseability, pdfBuffer) {
     const risks = [];
     const guidance = [];
     let score = (parseability.atsParseabilityScore || 80.0) - 5.0; // Taleo has strictest legacy constraints
@@ -407,11 +445,48 @@ export class AtsCompatibilityProfilesService {
       profile,
       risks,
       constraints,
-      guidance
+      guidance,
+      parseability?.issues || [],
+      text,
+      pdfBuffer
     );
   }
 
-  _formatEvaluation(profileId, profileName, score, profile, risks, constraints, guidance) {
+  _formatEvaluation(
+    profileId,
+    profileName,
+    score,
+    profile,
+    risks,
+    constraints,
+    guidance,
+    additionalWarnings = [],
+    text = '',
+    pdfBuffer = null
+  ) {
+    if (
+      pdfBuffer &&
+      this.pdfGeometryAnalyzer &&
+      typeof this.pdfGeometryAnalyzer.analyze === 'function'
+    ) {
+      try {
+        const geoReport = this.pdfGeometryAnalyzer.analyze({ pdfBuffer });
+        if (geoReport?.sectionOrdering?.violations?.length > 0) {
+          risks.push({
+            code: 'GEOMETRY_SECTION_ORDER_VIOLATION',
+            severity: 'MEDIUM',
+            dimension: 'geometry',
+            description: `Section ordering issue detected: ${geoReport.sectionOrdering.violations.join('; ')}`,
+            impact: 'Non-standard section order can confuse sequential ATS parsers.',
+            remediation:
+              'Follow standard sequential section order: Summary, Skills, Experience, Education.',
+          });
+        }
+      } catch {
+        // gracefully ignore
+      }
+    }
+
     let compatibilityTier = 'OPTIMAL';
     if (score < 50) compatibilityTier = 'HIGH_RISK';
     else if (score < 70) compatibilityTier = 'MODERATE_RISK';
@@ -458,6 +533,24 @@ export class AtsCompatibilityProfilesService {
       overallExtraction: Math.round((score / 100) * 100) / 100,
     };
 
+    const warnings = [
+      ...risks
+        .filter((r) => r.severity === 'HIGH' || r.severity === 'CRITICAL')
+        .map((r) => r.description),
+      ...additionalWarnings,
+    ];
+
+    let fieldExtraction = {};
+    if (this.atsExtractionModel && profile) {
+      try {
+        fieldExtraction = this.atsExtractionModel.buildExtractionModelFromProfile(profile, {
+          text,
+        });
+      } catch {
+        fieldExtraction = {};
+      }
+    }
+
     return AtsProfileEvaluationSchema.parse({
       profile: profileId,
       profileName,
@@ -465,6 +558,8 @@ export class AtsCompatibilityProfilesService {
       confidence: 0.92,
       compatibilityTier,
       risks,
+      warnings,
+      fieldExtraction,
       extraction,
       fieldConfidence,
       constraintsEvaluated: constraints,

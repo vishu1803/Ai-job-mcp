@@ -19,6 +19,7 @@ import {
   validateScoringInvariants,
   roundScore,
 } from '../domain/career/scoring-policy.js';
+import { getRoleAtsWeights } from '../domain/career/role-scoring-profiles.js';
 
 export { ATS_SCORE_WEIGHTS, EVIDENCE_TYPE_QUALITY_WEIGHTS };
 
@@ -216,8 +217,41 @@ export class AtsFitScoreService {
       return CandidateJobFitAnalysisSchema.parse(result);
     }
 
+    // Resolve role-specific or custom weights (strictly invariant summing to 100.0)
+    let effectiveWeights = {
+      requiredSkills: 40.0,
+      preferredSkills: 15.0,
+      projectRelevance: 20.0,
+      experience: 10.0,
+      education: 5.0,
+      location: 5.0,
+      evidenceConfidence: 5.0,
+    };
+
+    if (options.roleProfile) {
+      effectiveWeights = getRoleAtsWeights(options.roleProfile);
+    } else if (options.weights && typeof options.weights === 'object') {
+      effectiveWeights = {
+        requiredSkills: options.weights.requiredSkills ?? 40.0,
+        preferredSkills: options.weights.preferredSkills ?? 15.0,
+        projectRelevance: options.weights.projectRelevance ?? 20.0,
+        experience: options.weights.experience ?? 10.0,
+        education: options.weights.education ?? 5.0,
+        location: options.weights.location ?? 5.0,
+        evidenceConfidence: options.weights.evidenceConfidence ?? 5.0,
+      };
+    }
+
+    const maxReq = effectiveWeights.requiredSkills;
+    const maxPref = effectiveWeights.preferredSkills;
+    const maxProj = effectiveWeights.projectRelevance;
+    const maxExp = effectiveWeights.experience;
+    const maxEdu = effectiveWeights.education;
+    const maxLoc = effectiveWeights.location;
+    const maxEv = effectiveWeights.evidenceConfidence;
+
     // -------------------------------------------------------------------------
-    // 2. Component 1: Required Skills Coverage (40 Points Max)
+    // 2. Component 1: Required Skills Coverage (maxReq Points Max)
     // -------------------------------------------------------------------------
     const requiredSkillMatches = requirementMatches.filter(
       (m) => m.importance === 'REQUIRED' && m.category === 'SKILL'
@@ -260,7 +294,7 @@ export class AtsFitScoreService {
 
       requiredSkillsScore =
         totalReqWeight > 0
-          ? round(Math.min(40.0, Math.max(0.0, 40.0 * (totalReqCovered / totalReqWeight))), 2)
+          ? round(Math.min(maxReq, Math.max(0.0, maxReq * (totalReqCovered / totalReqWeight))), 2)
           : 0.0;
     }
 
@@ -308,12 +342,15 @@ export class AtsFitScoreService {
 
       preferredSkillsScore =
         totalPrefWeight > 0
-          ? round(Math.min(15.0, Math.max(0.0, 15.0 * (totalPrefCovered / totalPrefWeight))), 2)
+          ? round(
+              Math.min(maxPref, Math.max(0.0, maxPref * (totalPrefCovered / totalPrefWeight))),
+              2
+            )
           : 0.0;
     }
 
     // -------------------------------------------------------------------------
-    // 4. Component 3: Project Relevance & Architecture Depth (20 Points Max)
+    // 4. Component 3: Project Relevance & Architecture Depth (maxProj Points Max)
     // -------------------------------------------------------------------------
     const s1 = topThreeProjects[0]?.relevanceScore ?? 0.0;
     const s2 = topThreeProjects[1]?.relevanceScore ?? 0.0;
@@ -329,12 +366,12 @@ export class AtsFitScoreService {
     }
 
     const projectRelevanceScore = round(
-      Math.min(20.0, Math.max(0.0, 20.0 * (projectAggregate / 100.0))),
+      Math.min(maxProj, Math.max(0.0, maxProj * (projectAggregate / 100.0))),
       2
     );
 
     // -------------------------------------------------------------------------
-    // 5. Component 4: Professional Experience Tenure Fit (10 Points Max)
+    // 5. Component 4: Professional Experience Tenure Fit (maxExp Points Max)
     // -------------------------------------------------------------------------
     const experienceMatches = requirementMatches.filter((m) => m.category === 'EXPERIENCE');
     let experienceFitScore = 0.0;
@@ -353,11 +390,11 @@ export class AtsFitScoreService {
         }
       }
       const avgExp = expScoreSum / experienceMatches.length;
-      experienceFitScore = round(Math.min(10.0, Math.max(0.0, 10.0 * avgExp)), 2);
+      experienceFitScore = round(Math.min(maxExp, Math.max(0.0, maxExp * avgExp)), 2);
     }
 
     // -------------------------------------------------------------------------
-    // 6. Component 5: Education Alignment Fit (5 Points Max)
+    // 6. Component 5: Education Alignment Fit (maxEdu Points Max)
     // -------------------------------------------------------------------------
     const educationMatches = requirementMatches.filter((m) => m.category === 'EDUCATION');
     let educationFitScore = 0.0;
@@ -376,11 +413,11 @@ export class AtsFitScoreService {
         }
       }
       const avgEdu = eduScoreSum / educationMatches.length;
-      educationFitScore = round(Math.min(5.0, Math.max(0.0, 5.0 * avgEdu)), 2);
+      educationFitScore = round(Math.min(maxEdu, Math.max(0.0, maxEdu * avgEdu)), 2);
     }
 
     // -------------------------------------------------------------------------
-    // 7. Component 6: Location & Work Authorization Fit (5 Points Max)
+    // 7. Component 6: Location & Work Authorization Fit (maxLoc Points Max)
     // -------------------------------------------------------------------------
     const locationMatches = requirementMatches.filter(
       (m) => m.category === 'LOCATION' || m.category === 'ELIGIBILITY'
@@ -401,11 +438,11 @@ export class AtsFitScoreService {
         }
       }
       const avgLoc = locScoreSum / locationMatches.length;
-      locationFitScore = round(Math.min(5.0, Math.max(0.0, 5.0 * avgLoc)), 2);
+      locationFitScore = round(Math.min(maxLoc, Math.max(0.0, maxLoc * avgLoc)), 2);
     }
 
     // -------------------------------------------------------------------------
-    // 8. Component 7: Evidence Confidence & Provenance Depth (5 Points Max)
+    // 8. Component 7: Evidence Confidence & Provenance Depth (maxEv Points Max)
     // -------------------------------------------------------------------------
     const citedEvidenceMap = new Map();
 
@@ -439,7 +476,7 @@ export class AtsFitScoreService {
         totalQuality += typeWeight * confidence;
       }
       const avgQuality = totalQuality / uniqueCitedEvidence.length;
-      evidenceConfidenceScore = round(Math.min(5.0, Math.max(0.0, 5.0 * avgQuality)), 2);
+      evidenceConfidenceScore = round(Math.min(maxEv, Math.max(0.0, maxEv * avgQuality)), 2);
     } else {
       // If 0 evidence cited, score is 0.0
       evidenceConfidenceScore = 0.0;
@@ -452,7 +489,7 @@ export class AtsFitScoreService {
     let reqEarned = 0.0;
     let reqStatus = 'NOT_APPLICABLE';
     if (requiredSkillMatches.length > 0) {
-      reqPossible = 40.0;
+      reqPossible = maxReq;
       reqEarned = requiredSkillsScore;
       if (reqEarned > 0) {
         reqStatus = 'EVALUATED';
@@ -467,7 +504,7 @@ export class AtsFitScoreService {
     let prefEarned = 0.0;
     let prefStatus = 'NOT_APPLICABLE';
     if (preferredMatches.length > 0) {
-      prefPossible = 15.0;
+      prefPossible = maxPref;
       prefEarned = preferredSkillsScore;
       if (prefEarned > 0) {
         prefStatus = 'EVALUATED';
@@ -478,7 +515,7 @@ export class AtsFitScoreService {
       }
     }
 
-    const projPossible = 20.0;
+    const projPossible = maxProj;
     const projEarned = projectRelevanceScore;
     const projStatus = 'EVALUATED';
 
@@ -486,7 +523,7 @@ export class AtsFitScoreService {
     let expEarned = 0.0;
     let expStatus = 'NOT_APPLICABLE';
     if (experienceMatches.length > 0) {
-      expPossible = 10.0;
+      expPossible = maxExp;
       expEarned = experienceFitScore;
       if (expEarned > 0) {
         expStatus = 'EVALUATED';
@@ -501,7 +538,7 @@ export class AtsFitScoreService {
     let eduEarned = 0.0;
     let eduStatus = 'NOT_APPLICABLE';
     if (educationMatches.length > 0) {
-      eduPossible = 5.0;
+      eduPossible = maxEdu;
       eduEarned = educationFitScore;
       if (eduEarned > 0) {
         eduStatus = 'EVALUATED';
@@ -516,7 +553,7 @@ export class AtsFitScoreService {
     let locEarned = 0.0;
     let locStatus = 'NOT_APPLICABLE';
     if (locationMatches.length > 0) {
-      locPossible = 5.0;
+      locPossible = maxLoc;
       locEarned = locationFitScore;
       if (locEarned > 0) {
         locStatus = 'EVALUATED';
@@ -527,7 +564,7 @@ export class AtsFitScoreService {
       }
     }
 
-    const evPossible = 5.0;
+    const evPossible = maxEv;
     const evEarned = evidenceConfidenceScore;
     const evStatus = uniqueCitedEvidence.length > 0 ? 'EVALUATED' : 'MISSING';
 
@@ -780,19 +817,22 @@ export class AtsFitScoreService {
       analyzedAt,
     };
 
-    validateScoringInvariants({
-      requiredSkillsScore,
-      preferredSkillsScore,
-      projectRelevanceScore,
-      experienceFitScore,
-      educationFitScore,
-      locationFitScore,
-      evidenceConfidenceScore,
-      rawScore,
-      overallScore,
-      criticalGapCount,
-      denominatorAudit,
-    });
+    validateScoringInvariants(
+      {
+        requiredSkillsScore,
+        preferredSkillsScore,
+        projectRelevanceScore,
+        experienceFitScore,
+        educationFitScore,
+        locationFitScore,
+        evidenceConfidenceScore,
+        rawScore,
+        overallScore,
+        criticalGapCount,
+        denominatorAudit,
+      },
+      { weights: effectiveWeights }
+    );
 
     return CandidateJobFitAnalysisSchema.parse(result);
   }

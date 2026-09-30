@@ -59,6 +59,30 @@ describe('Requirement Semantics & Recruiter Search Simulation (Phases 10 & 11)',
       assert.equal(miss.earnedScoreRatio, 0.0);
     });
 
+    it('evaluates OPTIONAL logic rewarding matches without failing or gating when missing', () => {
+      const group = {
+        id: 'grp-cloud-certs',
+        name: 'Cloud Certifications',
+        operator: 'OPTIONAL',
+        requirements: [
+          { id: 'r1', name: 'AWS Certified Solutions Architect', importance: 'OPTIONAL' },
+          { id: 'r2', name: 'GCP Professional Cloud Architect', importance: 'OPTIONAL' },
+        ],
+      };
+
+      const match = requirementSemanticsService.evaluateRequirementGroup(group, [
+        'AWS Certified Solutions Architect',
+      ]);
+      assert.equal(match.status, 'PARTIAL');
+      assert.equal(match.earnedScoreRatio, 0.5);
+      assert.ok(match.matchedRequirements.includes('AWS Certified Solutions Architect'));
+
+      const miss = requirementSemanticsService.evaluateRequirementGroup(group, []);
+      assert.equal(miss.status, 'MISSING');
+      assert.equal(miss.earnedScoreRatio, 0.0);
+      assert.doesNotMatch(miss.status, /UNSATISFIED_GATE/);
+    });
+
     it('handles EQUIVALENT logic only when explicitly declared', () => {
       const group = {
         id: 'grp-db',

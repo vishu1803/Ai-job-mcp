@@ -516,6 +516,17 @@ export class CandidateQualityRubricService {
         experiences.length < 2 ? ['Continue expanding organizational footprint and impact'] : [],
     };
   }
+
+  /**
+   * Alias for evaluateCandidateQuality adhering to standard analysis naming.
+   *
+   * @param {object} params
+   * @returns {object} Validated CandidateQualityAnalysis
+   */
+  analyzeCandidateQuality(params) {
+    return this.evaluateCandidateQuality(params);
+  }
 }
 
 export const candidateQualityRubricService = new CandidateQualityRubricService();
+export const CandidateQualityAnalysis = CandidateQualityRubricReportSchema;

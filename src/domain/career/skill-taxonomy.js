@@ -17,6 +17,11 @@ const _observedTermsCache = new Map();
 const TELEMETRY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
+ * Canonical Skill Taxonomy Version
+ */
+export const SKILL_TAXONOMY_VERSION = '1.0.0';
+
+/**
  * Maximum permitted raw input string length for skill normalizer.
  */
 export const MAX_SKILL_INPUT_LENGTH = 100;

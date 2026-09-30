@@ -9,7 +9,10 @@
  */
 
 import crypto from 'node:crypto';
-import { OpenSourceIntelligenceReportSchema } from '../domain/career/open-source-intelligence.schemas.js';
+import {
+  OpenSourceContributionAnalysisSchema,
+  OpenSourceIntelligenceReportSchema,
+} from '../domain/career/open-source-intelligence.schemas.js';
 
 export class OpenSourceIntelligenceService {
   /**
@@ -19,7 +22,7 @@ export class OpenSourceIntelligenceService {
    * @param {object} [params.canonicalProfile] Canonical profile from Phase 3 parser
    * @param {Array<object>} [params.githubActivities] Ingested GitHub activity items
    * @param {Array<object>} [params.resources] Connected GitHub resources
-   * @returns {object} Validated OpenSourceIntelligenceReport
+   * @returns {object} Validated OpenSourceContributionAnalysis
    */
   evaluateOpenSourceContributions({
     canonicalProfile = null,
@@ -33,19 +36,58 @@ export class OpenSourceIntelligenceService {
     // 1. Process explicit open source contributions from canonical profile
     const profileContributions = canonicalProfile?.openSourceContributions || [];
     for (const c of profileContributions) {
-      const isExternal = c.role === 'EXTERNAL_CONTRIBUTOR' || c.role === 'ORGANIZATION_MEMBER';
+      const rawRole = String(c.role || '').toUpperCase();
+      let role = 'PERSONAL_PROJECT';
+      let isExternal = false;
+
+      if (rawRole === 'MAINTAINER') {
+        role = 'MAINTAINER';
+      } else if (rawRole === 'REVIEWER') {
+        role = 'REVIEWER';
+        isExternal = true;
+      } else if (rawRole === 'ORGANIZATION_CONTRIBUTOR' || rawRole === 'ORGANIZATION_MEMBER') {
+        role = 'ORGANIZATION_CONTRIBUTOR';
+      } else if (
+        rawRole === 'EXTERNAL_CONTRIBUTION' ||
+        rawRole === 'EXTERNAL_CONTRIBUTOR' ||
+        rawRole === 'EXTERNAL_OPEN_SOURCE_CONTRIBUTION'
+      ) {
+        role = 'EXTERNAL_CONTRIBUTION';
+        isExternal = true;
+      } else {
+        isExternal = Boolean(c.isExternal);
+        role = isExternal ? 'EXTERNAL_CONTRIBUTION' : 'PERSONAL_PROJECT';
+      }
+
+      const mergedPrs = c.mergedPrCount || (isExternal ? 1 : 0);
+      const isTypoPr = /typo|spelling|readme\s+fix|formatting/i.test(c.description || '');
+      const meaningfulPrs =
+        c.meaningfulPrCount !== undefined ? c.meaningfulPrCount : isTypoPr ? 0 : mergedPrs;
+      const longevityMonths = c.longevityMonths || 0;
+      const repositoryRelevance =
+        typeof c.repositoryRelevance === 'number'
+          ? Math.max(0, Math.min(1.0, c.repositoryRelevance))
+          : 1.0;
+      const hasMaintenanceActivity = Boolean(
+        c.hasMaintenanceActivity || (c.mergedPrCount && c.mergedPrCount > 2)
+      );
+
       activities.push({
         id: crypto.randomUUID(),
         repository: c.repository,
         organization: c.organization || null,
         isFork: false,
         isExternal,
-        role: isExternal ? 'EXTERNAL_OPEN_SOURCE_CONTRIBUTION' : 'MAINTAINER',
-        mergedPullRequestsCount: c.mergedPrCount || (isExternal ? 1 : 0),
+        role,
+        mergedPullRequestsCount: mergedPrs,
+        meaningfulPrsCount: meaningfulPrs,
         openPullRequestsCount: 0,
         acceptedCommitsCount: isExternal ? 5 : 20,
-        codeReviewsCount: 0,
-        issuesResolvedCount: 0,
+        codeReviewsCount: c.codeReviewsCount || 0,
+        issuesResolvedCount: c.issuesResolvedCount || 0,
+        longevityMonths,
+        repositoryRelevance,
+        hasMaintenanceActivity,
         repositoryStars: c.starsCount || 0,
         technologies: c.technologies || [],
         evidenceUrl: c.prUrl || null,
@@ -56,23 +98,57 @@ export class OpenSourceIntelligenceService {
 
     // 2. Process connected GitHub activities/resources
     for (const act of githubActivities) {
-      const isExternal = Boolean(act.isExternal);
+      const rawRole = String(act.role || '').toUpperCase();
+      let isExternal = Boolean(act.isExternal);
+      let role = 'PERSONAL_PROJECT';
+
+      if (
+        rawRole === 'REVIEWER' ||
+        act.isReviewer ||
+        ((act.reviews || 0) > 0 && (act.commits || 0) === 0)
+      ) {
+        role = 'REVIEWER';
+        isExternal = true;
+      } else if (rawRole === 'MAINTAINER' || act.isMaintainer) {
+        role = 'MAINTAINER';
+      } else if (rawRole === 'ORGANIZATION_CONTRIBUTOR' || (act.organization && !isExternal)) {
+        role = 'ORGANIZATION_CONTRIBUTOR';
+      } else if (rawRole === 'EXTERNAL_CONTRIBUTION' || isExternal) {
+        role = 'EXTERNAL_CONTRIBUTION';
+        isExternal = true;
+      } else {
+        role = 'PERSONAL_PROJECT';
+      }
+
+      const mergedPrs = act.mergedPrs || act.mergedPullRequestsCount || 0;
+      const isTypoPr = /typo|spelling|readme\s+fix|formatting/i.test(act.summary || '');
+      const meaningfulPrs =
+        act.meaningfulPrsCount !== undefined ? act.meaningfulPrsCount : isTypoPr ? 0 : mergedPrs;
+      const longevityMonths = act.longevityMonths || act.contributorLongevityMonths || 0;
+      const repositoryRelevance =
+        typeof act.repositoryRelevance === 'number'
+          ? Math.max(0, Math.min(1.0, act.repositoryRelevance))
+          : 1.0;
+      const hasMaintenanceActivity = Boolean(
+        act.hasMaintenanceActivity || act.issuesResolved || (act.commits && act.commits > 5)
+      );
+
       activities.push({
         id: crypto.randomUUID(),
         repository: act.repository || 'unknown/repo',
         organization: act.organization || null,
         isFork: Boolean(act.isFork),
         isExternal,
-        role: isExternal
-          ? 'EXTERNAL_OPEN_SOURCE_CONTRIBUTION'
-          : act.isMaintainer
-            ? 'MAINTAINER'
-            : 'PERSONAL_PROJECT',
-        mergedPullRequestsCount: act.mergedPrs || 0,
+        role,
+        mergedPullRequestsCount: mergedPrs,
+        meaningfulPrsCount: meaningfulPrs,
         openPullRequestsCount: act.openPrs || 0,
         acceptedCommitsCount: act.commits || 0,
         codeReviewsCount: act.reviews || 0,
         issuesResolvedCount: act.issuesResolved || 0,
+        longevityMonths,
+        repositoryRelevance,
+        hasMaintenanceActivity,
         repositoryStars: act.stars || 0,
         technologies: act.technologies || [],
         evidenceUrl: act.url || null,
@@ -83,10 +159,13 @@ export class OpenSourceIntelligenceService {
 
     // 3. Compute Component Scores
     let totalExternalPrs = 0;
+    let totalMeaningfulPrs = 0;
     let totalReviews = 0;
     let totalAcceptedCommits = 0;
     let maintainerCount = 0;
     let maxRepoStars = 0;
+    let maxLongevityMonths = 0;
+    let hasActiveMaintenance = false;
 
     let personalCount = 0;
     let externalCount = 0;
@@ -95,8 +174,11 @@ export class OpenSourceIntelligenceService {
       if (a.isExternal) {
         externalCount++;
         totalExternalPrs += a.mergedPullRequestsCount;
+        totalMeaningfulPrs += a.meaningfulPrsCount;
         totalReviews += a.codeReviewsCount;
         totalAcceptedCommits += a.acceptedCommitsCount;
+        if (a.longevityMonths > maxLongevityMonths) maxLongevityMonths = a.longevityMonths;
+        if (a.hasMaintenanceActivity) hasActiveMaintenance = true;
       } else {
         personalCount++;
         if (a.role === 'MAINTAINER') maintainerCount++;
@@ -108,9 +190,12 @@ export class OpenSourceIntelligenceService {
 
     // Scoring formula:
     // externalMergedPrsScore (0-35)
+    // Values meaningful PRs at full weight, discounts cosmetic/typo PRs
     const externalMergedPrsScore = Math.min(
       35.0,
-      totalExternalPrs * 10.0 + (externalCount > 0 ? 5.0 : 0.0)
+      totalMeaningfulPrs * 10.0 +
+        (totalExternalPrs - totalMeaningfulPrs) * 2.0 +
+        (externalCount > 0 ? 5.0 : 0.0)
     );
 
     // codeQualityAndReviewsScore (0-25)
@@ -120,13 +205,18 @@ export class OpenSourceIntelligenceService {
     );
 
     // maintainerLeadershipScore (0-20)
-    const maintainerLeadershipScore = Math.min(20.0, maintainerCount * 10.0);
+    const maintainerLeadershipScore = Math.min(
+      20.0,
+      maintainerCount * 10.0 + (hasActiveMaintenance ? 5.0 : 0.0)
+    );
 
     // contributionConsistencyScore (0-10)
     const contributionConsistencyScore =
-      activities.length > 0 ? Math.min(10.0, activities.length * 2.5) : 0.0;
+      activities.length > 0
+        ? Math.min(10.0, activities.length * 2.0 + Math.min(4.0, maxLongevityMonths * 0.5))
+        : 0.0;
 
-    // repositoryAdoptionScore (0-10)
+    // repositoryAdoptionScore (0-10) - Strictly bounded, vanity stars alone do not score
     const repositoryAdoptionScore = Math.min(10.0, Math.floor(maxRepoStars / 10));
 
     let rawScore =
@@ -169,7 +259,7 @@ export class OpenSourceIntelligenceService {
       keyAchievements.push(`Active maintainer of ${maintainerCount} public code repositories.`);
     }
 
-    return OpenSourceIntelligenceReportSchema.parse({
+    return OpenSourceContributionAnalysisSchema.parse({
       score: finalScore,
       confidence: activities.length > 0 ? 0.92 : 0.5,
       contributionTier,
@@ -189,6 +279,17 @@ export class OpenSourceIntelligenceService {
       warnings,
     });
   }
+
+  /**
+   * Alias for evaluateOpenSourceContributions adhering to standard analysis naming.
+   *
+   * @param {object} params
+   * @returns {object} Validated OpenSourceContributionAnalysis
+   */
+  analyzeOpenSourceContributions(params) {
+    return this.evaluateOpenSourceContributions(params);
+  }
 }
 
 export const openSourceIntelligenceService = new OpenSourceIntelligenceService();
+export const OpenSourceContributionAnalysis = OpenSourceContributionAnalysisSchema;

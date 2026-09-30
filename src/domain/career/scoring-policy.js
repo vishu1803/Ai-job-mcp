@@ -274,7 +274,16 @@ export function resolveFitBand(score) {
  * @returns {boolean} true if all invariants hold
  */
 export function validateScoringInvariants(breakdown, options = {}) {
-  const weights = options.weights || DEFAULT_COMPONENT_WEIGHTS;
+  const rawW = options.weights || DEFAULT_COMPONENT_WEIGHTS;
+  const weights = {
+    REQUIRED_SKILLS: rawW.REQUIRED_SKILLS ?? rawW.requiredSkills ?? 40.0,
+    PREFERRED_SKILLS: rawW.PREFERRED_SKILLS ?? rawW.preferredSkills ?? 15.0,
+    PROJECT_RELEVANCE: rawW.PROJECT_RELEVANCE ?? rawW.projectRelevance ?? 20.0,
+    EXPERIENCE_FIT: rawW.EXPERIENCE_FIT ?? rawW.experience ?? 10.0,
+    EDUCATION_FIT: rawW.EDUCATION_FIT ?? rawW.education ?? 5.0,
+    LOCATION_FIT: rawW.LOCATION_FIT ?? rawW.location ?? 5.0,
+    EVIDENCE_CONFIDENCE: rawW.EVIDENCE_CONFIDENCE ?? rawW.evidenceConfidence ?? 5.0,
+  };
   const criticalGapCount = options.criticalGapCount ?? breakdown.criticalGapCount ?? 0;
 
   if (!breakdown || typeof breakdown !== 'object') {

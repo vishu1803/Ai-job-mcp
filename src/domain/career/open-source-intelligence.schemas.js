@@ -11,9 +11,11 @@ import { ConfidenceScoreSchema } from '../candidate/candidate.schemas.js';
 
 export const OpenSourceContributionTypeEnum = z.enum([
   'PERSONAL_PROJECT',
-  'EXTERNAL_OPEN_SOURCE_CONTRIBUTION',
+  'EXTERNAL_CONTRIBUTION',
+  'EXTERNAL_OPEN_SOURCE_CONTRIBUTION', // backward compatibility alias
   'MAINTAINER',
   'ORGANIZATION_CONTRIBUTOR',
+  'REVIEWER',
 ]);
 
 export const OpenSourceActivityItemSchema = z
@@ -25,10 +27,14 @@ export const OpenSourceActivityItemSchema = z
     isExternal: z.boolean().default(false),
     role: OpenSourceContributionTypeEnum,
     mergedPullRequestsCount: z.number().int().nonnegative().default(0),
+    meaningfulPrsCount: z.number().int().nonnegative().default(0),
     openPullRequestsCount: z.number().int().nonnegative().default(0),
     acceptedCommitsCount: z.number().int().nonnegative().default(0),
     codeReviewsCount: z.number().int().nonnegative().default(0),
     issuesResolvedCount: z.number().int().nonnegative().default(0),
+    longevityMonths: z.number().int().nonnegative().default(0),
+    repositoryRelevance: z.number().min(0).max(1.0).default(1.0),
+    hasMaintenanceActivity: z.boolean().default(false),
     repositoryStars: z.number().int().nonnegative().default(0),
     technologies: z.array(z.string().trim()).default([]),
     evidenceUrl: z.string().trim().url().nullable().optional(),
@@ -49,11 +55,17 @@ export const OpenSourceScoreBreakdownSchema = z
   })
   .strict();
 
-export const OpenSourceIntelligenceReportSchema = z
+export const OpenSourceContributionAnalysisSchema = z
   .object({
     score: z.number().min(0).max(100),
     confidence: ConfidenceScoreSchema,
-    contributionTier: z.enum(['PROLIFIC_CONTRIBUTOR', 'ACTIVE_CONTRIBUTOR', 'OCCASIONAL_CONTRIBUTOR', 'PERSONAL_ONLY', 'NO_EVIDENCE']),
+    contributionTier: z.enum([
+      'PROLIFIC_CONTRIBUTOR',
+      'ACTIVE_CONTRIBUTOR',
+      'OCCASIONAL_CONTRIBUTOR',
+      'PERSONAL_ONLY',
+      'NO_EVIDENCE',
+    ]),
     scoreBreakdown: OpenSourceScoreBreakdownSchema,
     totalExternalContributionsCount: z.number().int().nonnegative().default(0),
     totalPersonalReposCount: z.number().int().nonnegative().default(0),
@@ -62,3 +74,5 @@ export const OpenSourceIntelligenceReportSchema = z
     warnings: z.array(z.string()).default([]),
   })
   .strict();
+
+export const OpenSourceIntelligenceReportSchema = OpenSourceContributionAnalysisSchema;

@@ -7,11 +7,7 @@
 
 import { z } from 'zod';
 
-export const ReadinessBandEnum = z.enum([
-  'READY_TO_APPLY',
-  'APPLY_WITH_CAUTION',
-  'NOT_READY',
-]);
+export const ReadinessBandEnum = z.enum(['READY_TO_APPLY', 'APPLY_WITH_CAUTION', 'NOT_READY']);
 
 export const SubmissionRecommendationEnum = z.enum([
   'RECOMMENDED',

@@ -20,6 +20,7 @@ import { ConfidenceScoreSchema } from '../candidate/candidate.schemas.js';
 export const ATS_PROFILE_SCHEMA_VERSION = '1.0.0';
 
 export const AtsProfileIdEnum = z.enum([
+  'GENERIC',
   'GENERIC_ATS',
   'WORKDAY_COMPATIBILITY',
   'GREENHOUSE_COMPATIBILITY',
@@ -88,8 +89,10 @@ export const AtsProfileEvaluationSchema = z
     confidence: ConfidenceScoreSchema,
     compatibilityTier: CompatibilityTierEnum,
     risks: z.array(AtsRiskItemSchema).default([]),
-    extraction: AtsSimulatedExtractionSchema,
-    fieldConfidence: FieldConfidenceSchema,
+    warnings: z.array(z.string()).default([]),
+    fieldExtraction: z.record(z.any()).default({}),
+    extraction: AtsSimulatedExtractionSchema.optional(),
+    fieldConfidence: FieldConfidenceSchema.optional(),
     constraintsEvaluated: z.array(z.string()).default([]),
     remediationGuidance: z.array(z.string()).default([]),
   })
@@ -126,14 +129,16 @@ export const AtsExtractionReportSchema = z
     fieldsAmbiguousCount: z.number().int().nonnegative(),
     fieldsFailedCount: z.number().int().nonnegative(),
     fields: z.array(ExtractionFieldReportItemSchema),
-    ambiguousEntities: z.array(
-      z.object({
-        entityType: z.string(),
-        rawText: z.string(),
-        possibleInterpretations: z.array(z.string()),
-        warning: z.string(),
-      })
-    ).default([]),
+    ambiguousEntities: z
+      .array(
+        z.object({
+          entityType: z.string(),
+          rawText: z.string(),
+          possibleInterpretations: z.array(z.string()),
+          warning: z.string(),
+        })
+      )
+      .default([]),
     summary: z.string(),
   })
   .strict();

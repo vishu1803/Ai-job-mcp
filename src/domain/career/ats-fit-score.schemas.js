@@ -44,31 +44,31 @@ export const FitScoreBreakdownSchema = z.strictObject({
   requiredSkillsScore: z
     .number()
     .min(0.0, { message: 'requiredSkillsScore must be >= 0.0' })
-    .max(40.0, { message: 'requiredSkillsScore cannot exceed 40.0' }),
+    .max(100.0, { message: 'requiredSkillsScore cannot exceed 100.0' }),
   preferredSkillsScore: z
     .number()
     .min(0.0, { message: 'preferredSkillsScore must be >= 0.0' })
-    .max(15.0, { message: 'preferredSkillsScore cannot exceed 15.0' }),
+    .max(100.0, { message: 'preferredSkillsScore cannot exceed 100.0' }),
   projectRelevanceScore: z
     .number()
     .min(0.0, { message: 'projectRelevanceScore must be >= 0.0' })
-    .max(20.0, { message: 'projectRelevanceScore cannot exceed 20.0' }),
+    .max(100.0, { message: 'projectRelevanceScore cannot exceed 100.0' }),
   experienceFitScore: z
     .number()
     .min(0.0, { message: 'experienceFitScore must be >= 0.0' })
-    .max(10.0, { message: 'experienceFitScore cannot exceed 10.0' }),
+    .max(100.0, { message: 'experienceFitScore cannot exceed 100.0' }),
   educationFitScore: z
     .number()
     .min(0.0, { message: 'educationFitScore must be >= 0.0' })
-    .max(5.0, { message: 'educationFitScore cannot exceed 5.0' }),
+    .max(100.0, { message: 'educationFitScore cannot exceed 100.0' }),
   locationFitScore: z
     .number()
     .min(0.0, { message: 'locationFitScore must be >= 0.0' })
-    .max(5.0, { message: 'locationFitScore cannot exceed 5.0' }),
+    .max(100.0, { message: 'locationFitScore cannot exceed 100.0' }),
   evidenceConfidenceScore: z
     .number()
     .min(0.0, { message: 'evidenceConfidenceScore must be >= 0.0' })
-    .max(5.0, { message: 'evidenceConfidenceScore cannot exceed 5.0' }),
+    .max(100.0, { message: 'evidenceConfidenceScore cannot exceed 100.0' }),
   rawScore: z
     .number()
     .min(0.0, { message: 'rawScore must be >= 0.0' })

@@ -113,16 +113,18 @@ export const CanonicalSkillItemSchema = z
     id: z.string().trim().min(1),
     name: z.string().trim().min(1).max(255),
     slug: SafeSlugSchema.optional(),
-    category: z.enum([
-      'LANGUAGE',
-      'FRAMEWORK',
-      'DATABASE',
-      'CLOUD_DEVOPS',
-      'TOOL',
-      'ARCHITECTURE',
-      'CONCEPT',
-      'OTHER',
-    ]).default('OTHER'),
+    category: z
+      .enum([
+        'LANGUAGE',
+        'FRAMEWORK',
+        'DATABASE',
+        'CLOUD_DEVOPS',
+        'TOOL',
+        'ARCHITECTURE',
+        'CONCEPT',
+        'OTHER',
+      ])
+      .default('OTHER'),
     yearsOfExperience: z.number().nonnegative().nullable().optional(),
     lastUsed: z.string().trim().nullable().optional(),
     context: z.string().trim().nullable().optional(),
@@ -187,15 +189,9 @@ export const CanonicalProjectEntrySchema = z
     url: z.string().trim().url().nullable().optional(),
     githubUrl: z.string().trim().url().nullable().optional(),
     bullets: z.array(z.string().trim()).default([]),
-    projectType: z.enum([
-      'APPLICATION',
-      'LIBRARY',
-      'TOOL',
-      'RESEARCH',
-      'OPEN_SOURCE',
-      'TUTORIAL',
-      'OTHER',
-    ]).default('APPLICATION'),
+    projectType: z
+      .enum(['APPLICATION', 'LIBRARY', 'TOOL', 'RESEARCH', 'OPEN_SOURCE', 'TUTORIAL', 'OTHER'])
+      .default('APPLICATION'),
     complexityLevel: ProjectComplexityLevelEnum.default('INTERMEDIATE'),
   })
   .strict();

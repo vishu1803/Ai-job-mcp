@@ -41,6 +41,14 @@ describe('ATS Benchmark & Scoring Stability Framework (Phases 17 & 18)', () => {
       // Verify anti-gaming: spam candidate ranked lower than authentic senior candidate
       assert.equal(benchmark.metrics.antiGamingPassed, true);
 
+      // Verify statistical calibration integration (P82)
+      assert.ok(benchmark.metrics.calibration);
+      assert.equal(typeof benchmark.metrics.calibration.spearmanRho, 'number');
+      assert.equal(typeof benchmark.metrics.calibration.pearsonR, 'number');
+      assert.ok(benchmark.metrics.calibration.mae >= 0);
+      assert.ok(benchmark.metrics.calibration.rmse >= 0);
+      assert.ok(benchmark.metrics.calibration.classificationMetrics);
+
       // Senior backend engineer is top ranked
       assert.equal(benchmark.results[0].candidateId, 'cand-senior-backend');
       assert.ok(benchmark.results[0].fitScore >= 75.0);

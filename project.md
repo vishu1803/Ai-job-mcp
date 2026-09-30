@@ -3,6 +3,86 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-30*
 
+### Phase P64: Industrial-Grade ATS Intelligence Main Branch Alignment & Capabilities Integration
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-30  
+**Scope:** Aligned and completed all 12 requested industrial ATS intelligence capabilities directly on `main` without replacing authoritative scoring foundations (`CandidateMatchAnalysis` $\to$ `ProjectRelevanceAnalysis` $\to$ `AtsFitScoreService` $\to$ `scoring-policy.js`):
+
+1. **Base Branch Gap Analysis & Classification (`docs/ats-main-branch-gap-analysis.md`):**
+   - Conducted systematic audit of `main` across all 12 requested capabilities.
+   - Classified each capability as `ALREADY COMPLETE`, `PARTIALLY IMPLEMENTED`, `NEEDS REFACTOR`, or `NEEDS INTEGRATION`.
+   - Reused existing deterministic scoring, magic-byte parsing, geometry analyzer, and integrity firewall without introducing parallel scoring engines.
+
+2. **Priority 1: ATS Extraction Model (`src/domain/career/ats-extraction-model.schemas.js`, `src/services/ats-extraction-model.service.js`):**
+   - Implemented typed canonical extraction model wrapping parsed candidate profile data.
+   - Enveloped all extracted fields in uniform source metadata: `{ value, confidence, source: { page, section, textRange } }`.
+   - Covers: identity, contact, location, authorization, summary, skills, employment, job titles, employers, dates, tenure, education, certifications, projects, links (GitHub, LinkedIn, portfolio), achievements.
+   - Verified with `tests/unit/ats-extraction-model.test.js` (1/1 PASS).
+
+3. **Priority 2: ATS Compatibility Profiles (`src/domain/career/ats-compatibility-profiles.schemas.js`, `src/services/ats-compatibility-profiles.service.js`):**
+   - Standardized output contract to `{ profile, score, fieldExtraction, risks, warnings }`.
+   - Supports 6 profiles: `GENERIC`, `WORKDAY`, `GREENHOUSE`, `LEVER`, `ICIMS`, `TALEO`.
+   - Directly integrated with `PdfGeometryAnalyzer`, `PdfQaValidatorService`, `ResumeIntegrityAuditService`, and `AtsExtractionModelService`.
+   - Verified with `tests/unit/ats-compatibility-and-simulation.test.js` (4/4 PASS).
+
+4. **Priority 3: Role-Specific Scoring Profiles (`src/domain/career/role-scoring-profiles.js`, `src/domain/career/ats-fit-score.schemas.js`, `src/domain/career/scoring-policy.js`, `src/services/ats-fit-score.service.js`):**
+   - Injected role profile weights dynamically into `AtsFitScoreService.calculateCandidateJobFit(..., { roleProfile, weights })`.
+   - Extended `validateScoringInvariants` to validate custom weights sum strictly to 100.0.
+   - Component scores scale dynamically according to role profile allocations without violating mathematical scoring invariants.
+   - Verified with `tests/unit/career-intelligence-engines.test.js` and `tests/unit/ats-fit-score.service.test.js` (33/33 PASS).
+
+5. **Priority 4: Open-Source Contribution Intelligence (`src/domain/career/open-source-intelligence.schemas.js`, `src/services/open-source-intelligence.service.js`):**
+   - Enforced 5 exact canonical roles: `PERSONAL_PROJECT`, `EXTERNAL_CONTRIBUTION`, `MAINTAINER`, `ORGANIZATION_CONTRIBUTOR`, `REVIEWER`.
+   - Evaluates verifiable merged PRs, meaningful PRs (excluding typo/cosmetic fixes), issues, reviews, contributor longevity, repository relevance, and maintenance activity.
+   - Enforced strict invariant: vanity star count alone is NOT scored as candidate quality; personal-only footprints capped at $\le 30.0$.
+   - Formally exported `OpenSourceContributionAnalysis`.
+   - Verified with `tests/unit/career-intelligence-engines.test.js` (11/11 PASS).
+
+6. **Priority 5: Candidate Quality Analysis (`src/domain/career/candidate-quality-rubric.schemas.js`, `src/services/candidate-quality-rubric.service.js`):**
+   - Formally exported `CandidateQualityAnalysis` answering *"How strong is this candidate independent of this specific job?"*.
+   - Evaluates 10 deterministic dimensions: technical depth, production experience, project depth, open source credibility, ownership, leadership, writing/communication, engineering rigor, education, and career trajectory.
+   - Kept strictly decoupled from `CandidateJobFit`.
+   - Verified with `tests/unit/candidate-quality-rubric-and-bonus-deduction.test.js` (4/4 PASS).
+
+7. **Priority 6: Requirement Semantics (`src/domain/career/requirement-semantics.schemas.js`, `src/services/requirement-semantics.service.js`):**
+   - Added `OPTIONAL` logical operator to `RequirementLogicalOperatorEnum` alongside `AND`, `OR`, `EQUIVALENT`.
+   - Evaluates optional groups rewarding candidate matches without failing or gating applications when missing.
+   - Verified with `tests/unit/requirement-and-recruiter-search.test.js` (8/8 PASS).
+
+8. **Priorities 7 & 8: Recruiter Search Simulation & Multi-Dimensional Readiness:**
+   - Confirmed Boolean recruiter search queries with alias recognition and anti-gaming protections (`RELATED != EXACT`).
+   - Verified all 8 distinct dimensions remain exposed and uncollapsed in `AtsMultiDimensionalIntelligenceService`.
+   - Verified with `tests/unit/ats-multi-dimensional-intelligence.test.js` (3/3 PASS) and `tests/unit/score-explainability-and-application-readiness.test.js` (5/5 PASS).
+
+9. **Priority 9: Benchmarking & Calibration Integration (`evaluation/benchmark/ats-benchmark-runner.js`, `src/domain/career/score-calibration-benchmark.js`):**
+   - Connected `AtsBenchmarkRunner.runSuite()` directly to `score-calibration-benchmark.js`.
+   - Computes Spearman rank correlation ($\rho$), Pearson linear correlation ($r$), Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and binary classification accuracy alongside retrieval metrics (Precision, Recall, F1) and ranking correlation (NDCG).
+   - Verified with `tests/unit/ats-benchmark-and-stability.test.js` (3/3 PASS).
+
+10. **Priority 10: Versioned Reproducibility (`src/domain/career/analysis-metadata.js`, `src/domain/career/skill-taxonomy.js`):**
+    - Created unified analysis metadata module tracking:
+      - `parserVersion` (`1.0.0`)
+      - `taxonomyVersion` (`1.0.0`)
+      - `scoringPolicyVersion` (`p83.0`)
+      - `roleProfileVersion` (`1.0.0`)
+      - `evidencePolicyVersion` (`1.0.0`)
+      - `atsProfileVersion` (`1.0.0`)
+    - Exported `AtsAnalysisMetadataSchema` and `createAtsAnalysisMetadata()`.
+    - Verified with `tests/unit/analysis-metadata.test.js` (2/2 PASS).
+
+11. **Priority 11: Optimization Loop Pipeline:**
+    - Verified `ResumeOptimizationLoopService` executes the complete feedback $\to$ tailoring $\to$ re-scoring pipeline with zero hallucination.
+    - Verified with `tests/unit/resume-optimization-loop.test.js` (3/3 PASS).
+
+12. **Priority 12: Regression Audits & Verification:**
+    - Fixed Copilot drawer DOM contract alignment under performance-optimized static asset delivery (`src/views/components/copilot-drawer.js`, `tests/unit/p90-profile-enum-copilot-scroll.test.js`).
+    - Core ATS and intelligence suites pass 100%: 52 / 52 tests pass across 23 suites.
+    - Full Copilot and UI suites pass 100%: 74 / 74 tests pass across 27 suites.
+    - `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**.
+    - `npm run audit:drizzle-columns`: **PASS (Scanned 836 files, 0 invalid column references)**.
+    - `npm run format:check`: **PASS (All matched files use Prettier code style)**.
+    - `npm run lint`: **PASS (0 errors, 156 baseline warnings)**.
+
 ### Phase P63: Industrial-Grade ATS Intelligence & Candidate-Job Matching Platform Upgrade
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-30  

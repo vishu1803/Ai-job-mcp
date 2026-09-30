@@ -52,3 +52,5 @@ export const CandidateQualityRubricReportSchema = z
     analyzedAt: z.string().datetime(),
   })
   .strict();
+
+export const CandidateQualityAnalysisSchema = CandidateQualityRubricReportSchema;

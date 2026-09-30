@@ -355,3 +355,32 @@ export function resolveRoleFromJobTitle(jobTitle) {
 }
 
 export const inferRoleProfile = resolveRoleFromJobTitle;
+
+export const ROLE_PROFILE_VERSION = '1.0.0';
+
+/**
+ * Resolves a role profile into canonical 7-component weights summing strictly to 100.0.
+ *
+ * @param {string} roleName
+ * @returns {object} Canonical 7-component weights
+ */
+export function getRoleAtsWeights(roleName) {
+  const profile = getRoleProfile(roleName);
+  const w = profile.weights;
+  return {
+    requiredSkills: w.requiredSkills,
+    preferredSkills: w.preferredSkills,
+    projectRelevance: w.projectRelevance,
+    experience: w.experience,
+    education: w.education,
+    location: w.location,
+    evidenceConfidence:
+      Math.round(
+        (w.evidenceConfidence +
+          (w.technicalDepth || 0) +
+          (w.openSource || 0) +
+          (w.certification || 0)) *
+          100
+      ) / 100,
+  };
+}

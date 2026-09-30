@@ -175,4 +175,35 @@ Engineer | Company A | Jan 2021 - Present
     );
     assert.ok(projectConfusion, 'Should detect projects containing employment terms');
   });
+
+  it('evaluates GENERIC profile returning the canonical { profile, score, fieldExtraction, risks, warnings } contract', async () => {
+    const canonicalProfile = await canonicalAtsParserService.parseDocumentToCanonicalProfile({
+      rawText: SAMPLE_CLEAN_RESUME,
+      fileName: 'sarah_connor.txt',
+    });
+
+    const genericEval = atsCompatibilityProfilesService.evaluateProfile('GENERIC', {
+      canonicalProfile,
+      extractedText: SAMPLE_CLEAN_RESUME,
+    });
+
+    assert.strictEqual(genericEval.profile, 'GENERIC');
+    assert.strictEqual(typeof genericEval.score, 'number');
+    assert.ok(genericEval.score >= 80);
+    assert.ok(Array.isArray(genericEval.risks));
+    assert.ok(Array.isArray(genericEval.warnings));
+    assert.ok(genericEval.fieldExtraction);
+    assert.strictEqual(genericEval.fieldExtraction.identity?.name?.value, 'Sarah Connor');
+
+    const workdayEval = atsCompatibilityProfilesService.evaluateProfile('WORKDAY_COMPATIBILITY', {
+      canonicalProfile,
+      extractedText: SAMPLE_CLEAN_RESUME,
+    });
+
+    assert.strictEqual(workdayEval.profile, 'WORKDAY_COMPATIBILITY');
+    assert.strictEqual(typeof workdayEval.score, 'number');
+    assert.ok(Array.isArray(workdayEval.risks));
+    assert.ok(Array.isArray(workdayEval.warnings));
+    assert.ok(workdayEval.fieldExtraction);
+  });
 });
