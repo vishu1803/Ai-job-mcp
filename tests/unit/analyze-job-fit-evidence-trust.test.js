@@ -241,8 +241,8 @@ describe('Canonical Provenance Preservation', () => {
       emptyResourceMap
     );
 
-    // CLAIMED skills should be PARTIAL, not MATCHED/VERIFIED
-    assert.equal(result.match.matchStatus, 'PARTIAL');
+    // CLAIMED skills should be UNVERIFIED_CLAIM, not MATCHED/VERIFIED
+    assert.equal(result.match.matchStatus, 'UNVERIFIED_CLAIM');
     assert.notEqual(result.match.candidateProvenance, 'VERIFIED');
     assert.equal(result.match.isUserClaim, true);
   });

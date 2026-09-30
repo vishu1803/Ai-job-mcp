@@ -163,7 +163,7 @@ Requirements:
 
     const expectedProjectIds = [
       '95a13c93-a198-4473-bf64-5b8a50cbd3b9', // Product Data Explorer
-      'ea5137c3-2f7f-4e29-a884-28ff3c659ebf', // AI-Powered Code Review Assistant
+      '389d1357-156a-4296-a1bb-603140897bc3', // Collaborative Task Manager
     ];
     assert.deepStrictEqual(
       extProjectIds,
@@ -184,7 +184,7 @@ Requirements:
     // 4. Project Names parity
     const extProjectNames = extStructured.projects.map((p) => p.name || p.displayName);
     const mcpProjectNames = mcpResult.resume.projects.map((p) => p.name || p.displayName);
-    const expectedProjectNames = ['Product Data Explorer', 'AI-Powered Code Review Assistant'];
+    const expectedProjectNames = ['Product Data Explorer', 'Collaborative Task Manager'];
     assert.deepStrictEqual(
       extProjectNames,
       expectedProjectNames,

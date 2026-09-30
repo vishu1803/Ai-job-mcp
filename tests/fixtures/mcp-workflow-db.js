@@ -40,6 +40,19 @@ export function createMcpWorkflowDbFixture({
 
     if (table === candidateSkills && joins.some((join) => join.table === skills)) {
       return candidateSkillRows.map((row) => ({
+        cs: {
+          id: row.id || row.skillId,
+          skillId: row.skillId,
+          category: row.category || 'TOOL',
+          confidenceScore: row.confidenceScore ?? 1.0,
+          provenanceStatus: row.provenanceStatus || 'CLAIMED',
+          evidenceCount: row.evidenceCount ?? (row.evidenceId ? 1 : 0),
+          primaryEvidenceId: row.evidenceId || row.primaryEvidenceId || null,
+        },
+        skillSlug:
+          row.slug ||
+          row.skillSlug ||
+          (row.name || row.skillName || '').toLowerCase().replace(/\s+/g, '-'),
         skillName: row.name || row.skillName,
         provenanceStatus: row.provenanceStatus || 'CLAIMED',
         evidenceId: row.evidenceId || row.primaryEvidenceId || null,
@@ -53,6 +66,8 @@ export function createMcpWorkflowDbFixture({
   };
 
   const createQuery = (table, joins = []) => {
+    let limitVal;
+    let offsetVal;
     const query = {
       leftJoin(joinTable) {
         joins.push({ table: joinTable, type: 'left' });
@@ -68,19 +83,45 @@ export function createMcpWorkflowDbFixture({
       orderBy() {
         return query;
       },
-      limit() {
-        return Promise.resolve(rowsFor(table, joins).slice(0, 1));
+      offset(n) {
+        offsetVal = n;
+        return query;
+      },
+      limit(n) {
+        limitVal = n;
+        return query;
       },
       then(resolve, reject) {
-        return Promise.resolve(rowsFor(table, joins)).then(resolve, reject);
+        const rows = rowsFor(table, joins);
+        const start = offsetVal || 0;
+        const end = limitVal !== undefined ? start + limitVal : undefined;
+        return Promise.resolve(rows.slice(start, end)).then(resolve, reject);
       },
     };
     return query;
   };
 
   return {
-    select: () => ({
-      from: (table) => createQuery(table),
-    }),
+    select: (fields) => {
+      const isCount = fields && (fields.total !== undefined || fields.count !== undefined);
+      return {
+        from: (table) => {
+          if (isCount) {
+            const countResult = [
+              { total: candidateSkillRows.length, count: candidateSkillRows.length },
+            ];
+            const countQuery = {
+              leftJoin: () => countQuery,
+              innerJoin: () => countQuery,
+              where: () => countQuery,
+              limit: () => Promise.resolve(countResult),
+              then: (resolve, reject) => Promise.resolve(countResult).then(resolve, reject),
+            };
+            return countQuery;
+          }
+          return createQuery(table);
+        },
+      };
+    },
   };
 }

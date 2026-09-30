@@ -154,7 +154,7 @@ describe('Evidence Matching — SELF_DECLARED Skills', () => {
     };
   }
 
-  it('SELF_DECLARED skill produces PARTIAL match for REQUIRED requirement', () => {
+  it('SELF_DECLARED skill produces UNVERIFIED_CLAIM match for REQUIRED requirement', () => {
     const selfDeclaredSkill = createMockCandidateSkill('aws', 'SELF_DECLARED', {
       proficiency: 'PROFICIENT',
       source: 'CANDIDATE_DECLARED',
@@ -165,7 +165,7 @@ describe('Evidence Matching — SELF_DECLARED Skills', () => {
 
     const result = EvidenceMatchingService._evaluateSkillRequirement(req, skillsBySlug, new Map());
 
-    assert.strictEqual(result.match.matchStatus, 'PARTIAL');
+    assert.strictEqual(result.match.matchStatus, 'UNVERIFIED_CLAIM');
     assert.strictEqual(result.match.candidateProvenance, 'SELF_DECLARED');
     assert.strictEqual(result.match.isUserClaim, true);
     assert.ok(result.match.explanation.includes('Self-Declared'));

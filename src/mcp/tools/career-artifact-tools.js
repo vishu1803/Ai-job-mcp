@@ -841,7 +841,10 @@ export async function handleDraftCoverLetter(context, rawArgs, deps = {}) {
       paragraphId: p.id || p.paragraphId || crypto.randomUUID(),
       paragraphType: p.paragraphType,
       text: SecretScrubber.scrub(p.text || ''),
-      status: p.status || 'VERIFIED',
+      status: (() => {
+        const norm = normalizeTruthCategory(p.status);
+        return ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(norm) ? norm : 'CLAIMED';
+      })(),
       evidenceRefs: (p.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean).slice(0, 5),
       matchedKeywords: p.matchedKeywords || [],
       claimLabel: p.claimLabel || null,
@@ -900,6 +903,27 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
   const experienceBullets = (structured.experience || []).flatMap(
     (experience) => experience.bullets || []
   );
+  const candidateProfileService =
+    deps.candidateProfileService || new CandidateProfileService(dbClient);
+  let candidateSkills = [];
+  try {
+    const profileView = await candidateProfileService.getProfile(
+      { tenantId: context.tenantId, userId: context.userId, role: 'MEMBER' },
+      candidateId
+    );
+    candidateSkills = profileView?.skills || [];
+  } catch {
+    // best-effort profile load
+  }
+
+  const canonicalCandidateSkillMap = new Map();
+  for (const cs of candidateSkills) {
+    const nameKey = (cs.name || cs.skillName || '').toLowerCase().trim();
+    const slugKey = (cs.slug || '').toLowerCase().trim();
+    if (nameKey) canonicalCandidateSkillMap.set(nameKey, cs);
+    if (slugKey) canonicalCandidateSkillMap.set(slugKey, cs);
+  }
+
   const output = {
     resumeId: structured.documentId,
     candidateId,
@@ -941,15 +965,64 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
       skills: (structured.skills?.categories || []).map((category) => ({
         category: category.categoryName,
         skills: (category.skills || []).map((skill) => {
-          const mappedProvenance = normalizeTruthCategory(
-            skill.truthCategory || skill.provenanceStatus
+          const sNameKey = (skill.name || '').toLowerCase().trim();
+          const sSlugKey = (skill.slug || '').toLowerCase().trim();
+          const canonicalCandidateSkill =
+            canonicalCandidateSkillMap.get(sSlugKey) || canonicalCandidateSkillMap.get(sNameKey);
+
+          const rawStatus =
+            canonicalCandidateSkill?.truthCategory ||
+            canonicalCandidateSkill?.provenanceStatus ||
+            skill.truthCategory ||
+            skill.provenanceStatus;
+
+          const isCanonicalClaimed =
+            canonicalCandidateSkill?.provenanceStatus === 'SELF_DECLARED' ||
+            canonicalCandidateSkill?.provenanceStatus === 'CLAIMED' ||
+            canonicalCandidateSkill?.truthCategory === 'CLAIMED';
+
+          const hasRealEvidence = Boolean(
+            canonicalCandidateSkill?.primaryEvidence ||
+            canonicalCandidateSkill?.evidenceId ||
+            skill.evidenceId ||
+            (canonicalCandidateSkill &&
+              canonicalCandidateSkill.evidenceCount > 0 &&
+              !isCanonicalClaimed) ||
+            (!canonicalCandidateSkill &&
+              skill.evidenceCount &&
+              skill.evidenceCount > 0 &&
+              (rawStatus === 'VERIFIED' || rawStatus === 'CORROBORATED'))
           );
+
+          let mappedProvenance = normalizeTruthCategory(rawStatus);
+          if (isCanonicalClaimed && !hasRealEvidence) {
+            mappedProvenance = 'CLAIMED';
+          }
+          if (
+            mappedProvenance === 'VERIFIED' &&
+            !hasRealEvidence &&
+            (rawStatus === 'CLAIMED' || rawStatus === 'SELF_DECLARED')
+          ) {
+            mappedProvenance = 'CLAIMED';
+          }
+          const isVerified = mappedProvenance === 'VERIFIED';
           return {
             skillSlug: skill.slug || skill.name,
             skillName: skill.name,
             provenance: mappedProvenance,
-            confidenceScore: skill.confidenceScore ?? 1,
-            evidenceCount: skill.evidenceId ? 1 : 0,
+            confidenceScore:
+              typeof skill.confidenceScore === 'number'
+                ? isVerified
+                  ? skill.confidenceScore
+                  : Math.min(skill.confidenceScore, 0.7)
+                : isVerified
+                  ? 1.0
+                  : canonicalCandidateSkill?.confidenceScore
+                    ? Math.min(canonicalCandidateSkill.confidenceScore, 0.7)
+                    : 0.5,
+            evidenceCount: hasRealEvidence
+              ? canonicalCandidateSkill?.evidenceCount || skill.evidenceCount || 1
+              : 0,
             claimLabel:
               skill.claimLabel ||
               (mappedProvenance === 'CLAIMED' ? '[Unverified User Claim]' : null),
@@ -967,17 +1040,23 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
           .map((bullet) => {
             const st = bullet.status;
+            const hasEvidence =
+              Array.isArray(bullet.evidenceRefs) && bullet.evidenceRefs.length > 0;
             const mappedStatus =
-              st === 'USER_PROVIDED'
+              st === 'USER_PROVIDED' || st === 'CLAIMED' || st === 'SELF_DECLARED'
                 ? 'CLAIMED'
-                : ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(st)
+                : ['VERIFIED', 'INFERRED'].includes(st)
                   ? st
-                  : 'VERIFIED';
+                  : hasEvidence
+                    ? 'VERIFIED'
+                    : 'CLAIMED';
+            const defaultConfidence =
+              mappedStatus === 'VERIFIED' ? 1.0 : mappedStatus === 'INFERRED' ? 0.75 : 0.5;
             return {
               bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
               text: SecretScrubber.scrub(bullet.text || ''),
               status: mappedStatus,
-              confidenceScore: bullet.confidenceScore ?? 1,
+              confidenceScore: bullet.confidenceScore ?? defaultConfidence,
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],
@@ -998,17 +1077,23 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
           .map((bullet) => {
             const st = bullet.status;
+            const hasEvidence =
+              Array.isArray(bullet.evidenceRefs) && bullet.evidenceRefs.length > 0;
             const mappedStatus =
-              st === 'USER_PROVIDED'
+              st === 'USER_PROVIDED' || st === 'CLAIMED' || st === 'SELF_DECLARED'
                 ? 'CLAIMED'
-                : ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(st)
+                : ['VERIFIED', 'INFERRED'].includes(st)
                   ? st
-                  : 'VERIFIED';
+                  : hasEvidence
+                    ? 'VERIFIED'
+                    : 'CLAIMED';
+            const defaultConfidence =
+              mappedStatus === 'VERIFIED' ? 1.0 : mappedStatus === 'INFERRED' ? 0.75 : 0.5;
             return {
               bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
               text: SecretScrubber.scrub(bullet.text || ''),
               status: mappedStatus,
-              confidenceScore: bullet.confidenceScore ?? 1,
+              confidenceScore: bullet.confidenceScore ?? defaultConfidence,
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],

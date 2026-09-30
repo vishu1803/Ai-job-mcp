@@ -73,12 +73,12 @@ const SECTION_PATTERNS = Object.freeze([
   {
     name: 'PREFERRED_QUALIFICATIONS',
     regex:
-      /^(?:#{1,6}\s*)?(?:preferred|desired|nice\s*[- ]\s*to\s*[- ]\s*have|bonus|pluses|additional|good\s*[- ]\s*to\s*[- ]\s*have|optional)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:preferred|desired|nice\s*[- ]\s*to\s*[- ]\s*have|bonus|pluses|additional|good\s*[- ]\s*to\s*[- ]\s*have|optional)(?:\s+(?:qualifications?|skills?|experience|requirements?))?\b[:\s-]*/i,
   },
   {
     name: 'REQUIREMENTS',
     regex:
-      /^(?:#{1,6}\s*)?(?:(?:minimum|basic|key|core|technical|mandatory)\s+)?(?:required|requirements|qualifications|skills|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|what\s+you\s+bring|you\s+have|your\s+background|about\s+you|must\s*[- ]\s*haves?)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:(?:minimum|basic|key|core|technical|mandatory)\s+)?(?:required|requirements?|qualifications?|skills?|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|what\s+you\s+bring|(?:you\s+)?must\s*[- ]\s*haves?|you\s+must\s+have|you\s+have|your\s+background|about\s+you)(?:\s+(?:qualifications?|skills?|experience|requirements?))?\b[:\s-]*/i,
   },
   {
     name: 'RESPONSIBILITIES',

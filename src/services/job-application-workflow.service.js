@@ -11,9 +11,9 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, users, jobApplications, candidateSkills, skills } from '../db/schema.js';
+import { candidates, users, jobApplications, applicationPackages, candidateSkills, skills } from '../db/schema.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
@@ -196,6 +196,8 @@ async function persistPreparedPackage({
     logger.warn(
       {
         error: err.message,
+        cause: err.cause?.message || String(err.cause || ''),
+        stack: err.stack,
         packageHash: preparedPackage.packageHash,
         candidateId,
       },
@@ -718,6 +720,99 @@ export class JobApplicationWorkflowService {
     const userEmail = candRow.userEmail || null;
     const candidateEmail = resolveCandidateEmail(cand, userEmail);
 
+    // Canonical Identity & URL resolution for target job
+    const directUrl =
+      jobPosting?.directPortalUrl || jobPosting?.applicationUrl || jobPosting?.sourceUrl || null;
+    const normalizedJobUrl = directUrl ? normalizeJobUrl(directUrl) : null;
+    const resolvedCanonicalJobId =
+      jobPosting?.canonicalJobId ||
+      deriveCanonicalJobId({
+        canonicalJobId: jobPosting?.canonicalJobId,
+        jobId: jobPosting?.id,
+        source: jobPosting?.source,
+        provider: jobPosting?.provider,
+        externalJobId: jobPosting?.externalJobId,
+        directPortalUrl: directUrl,
+        applicationUrl: directUrl,
+        sourceUrl: jobPosting?.sourceUrl,
+        company: jobPosting?.company || jobPosting?.companyName,
+        title: jobPosting?.title,
+        jobPosting,
+      });
+
+    // Check if an active application with a CURRENT package already exists for this candidate & job target
+    let existingAppRow = null;
+    if (applicationId) {
+      const [appRow] = await this.db
+        .select()
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+        .limit(1);
+      existingAppRow = appRow;
+    } else if (resolvedCanonicalJobId || normalizedJobUrl) {
+      const activeRows = await this.db
+        .select()
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.tenantId, tenantId),
+            eq(jobApplications.candidateId, candidateId),
+            sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
+          )
+        )
+        .orderBy(desc(jobApplications.updatedAt));
+
+      existingAppRow = activeRows.find(
+        (row) =>
+          (resolvedCanonicalJobId &&
+            (row.canonicalJobId === resolvedCanonicalJobId ||
+              row.metadata?.canonicalJobId === resolvedCanonicalJobId)) ||
+          (normalizedJobUrl &&
+            (row.normalizedJobUrl === normalizedJobUrl ||
+              normalizeJobUrl(row.jobUrl) === normalizedJobUrl))
+      );
+    }
+
+    if (existingAppRow && !answers?.forceRegenerate) {
+      const [currentPkgRow] = await this.db
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.tenantId, tenantId),
+            eq(applicationPackages.applicationId, existingAppRow.id),
+            eq(applicationPackages.lifecycleState, 'CURRENT')
+          )
+        )
+        .limit(1);
+
+      if (currentPkgRow && currentPkgRow.packagePayload) {
+        const payload = currentPkgRow.packagePayload;
+        const existingKit =
+          existingAppRow.metadata?.handoffKit || existingAppRow.metadata?.handoffPackage || null;
+        return {
+          ...payload,
+          applicationId: existingAppRow.id,
+          canonicalJobId:
+            resolvedCanonicalJobId || existingAppRow.canonicalJobId || payload.canonicalJobId,
+          jobId: payload.targetJob?.id || resolvedCanonicalJobId || existingAppRow.canonicalJobId,
+          packageVersion: currentPkgRow.version,
+          packageHash: currentPkgRow.packageHash || payload.packageHash,
+          packageStatus: existingAppRow.status || 'SAVED',
+          artifactStatus:
+            existingKit?.status === 'HANDOFF_READY' || payload.artifactsReady ? 'READY' : 'BLOCKED',
+          lifecycleAction: 'REUSED',
+          documentsStatus:
+            payload.documentsStatus ||
+            (existingKit?.status === 'HANDOFF_READY' ? 'DOCUMENTS_READY' : 'DOCUMENTS_BLOCKED'),
+          artifactsReady:
+            payload.artifactsReady !== undefined
+              ? payload.artifactsReady
+              : Boolean(existingKit?.status === 'HANDOFF_READY'),
+        };
+      }
+    }
+
     // 2. Fetch candidate skills & verified evidence
     const candidateSkillsList = await this.db
       .select({
@@ -829,8 +924,8 @@ export class JobApplicationWorkflowService {
 
     const canonicalJob = normalizeJobInput(jobPosting);
     const targetJobPosting = {
-      id: jobPosting?.id || jobPosting?.canonicalJobId || crypto.randomUUID(),
-      canonicalJobId: jobPosting?.canonicalJobId || jobPosting?.id,
+      id: resolvedCanonicalJobId || jobPosting?.id || jobPosting?.canonicalJobId || canonicalJob?.canonicalJobId || crypto.randomUUID(),
+      canonicalJobId: resolvedCanonicalJobId || jobPosting?.canonicalJobId || jobPosting?.id || canonicalJob?.canonicalJobId,
       source: jobPosting?.source || 'MANUAL',
       provider: jobPosting?.provider || jobPosting?.source || 'MANUAL',
       applicationUrl:
@@ -884,6 +979,7 @@ export class JobApplicationWorkflowService {
             requirements: targetJobPosting.requirements || [],
             skills: targetJobPosting.skills || [],
             description: targetJobPosting.description || '',
+            normalizedRequirements: targetJobPosting.normalizedRequirements || [],
           },
           candidateProfileInput.projects,
           { candidateId, skills: candidateProfileInput.skills }

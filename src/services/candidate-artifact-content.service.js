@@ -616,7 +616,9 @@ export function reconcileCandidateProjects({
     if (!isRealUrl(repoUrl)) repoUrl = null;
     const cleanBullets = [];
     for (const b of rp.bullets || []) {
-      const bText = String(b).trim();
+      const bText = (
+        typeof b === 'object' && b !== null ? b.text || b.description || '' : String(b || '')
+      ).trim();
       const match = /^(?:Project Link|Source Code):\s*(https?:\/\/\S+)/i.exec(bText);
       if (match) {
         const link = match[1].replace(/\/+$/, '');
@@ -625,7 +627,7 @@ export function reconcileCandidateProjects({
         } else if (isRealUrl(link)) {
           liveUrl = link;
         }
-      } else {
+      } else if (bText) {
         cleanBullets.push(bText);
       }
     }
@@ -861,27 +863,36 @@ export function groundAndSanitizeProject(project) {
   const evidence = Array.isArray(project.evidence) ? project.evidence : [];
 
   // Filter raw link-only bullets (URLs masquerading as content) and unsupported quantitative claims
-  const cleanBullets = (project.bullets || []).filter((b) => {
-    if (!b || typeof b !== 'string' || b.trim().length === 0) return false;
-    if (
-      /^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(b) ||
-      /^https?:\/\//i.test(b)
-    ) {
-      return false;
-    }
-    // Reject unsupported quantitative impact claims (e.g. percentages, team productivity scale)
-    // unless supported by candidate project evidence
-    if (QUANTITATIVE_METRIC_REGEX.test(b)) {
-      const isEvidenced = evidence.some(
-        (ev) =>
-          (ev.contextSnippet && QUANTITATIVE_METRIC_REGEX.test(ev.contextSnippet)) ||
-          (ev.claimText && QUANTITATIVE_METRIC_REGEX.test(ev.claimText)) ||
-          (ev.description && QUANTITATIVE_METRIC_REGEX.test(ev.description))
-      );
-      if (!isEvidenced) return false;
-    }
-    return true;
-  });
+  const cleanBullets = (project.bullets || [])
+    .map((b) =>
+      typeof b === 'object' && b !== null
+        ? b.text || b.description || ''
+        : typeof b === 'string'
+          ? b
+          : ''
+    )
+    .filter((bText) => {
+      const b = bText.trim();
+      if (!b) return false;
+      if (
+        /^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(b) ||
+        /^https?:\/\//i.test(b)
+      ) {
+        return false;
+      }
+      // Reject unsupported quantitative impact claims (e.g. percentages, team productivity scale)
+      // unless supported by candidate project evidence
+      if (QUANTITATIVE_METRIC_REGEX.test(b)) {
+        const isEvidenced = evidence.some(
+          (ev) =>
+            (ev.contextSnippet && QUANTITATIVE_METRIC_REGEX.test(ev.contextSnippet)) ||
+            (ev.claimText && QUANTITATIVE_METRIC_REGEX.test(ev.claimText)) ||
+            (ev.description && QUANTITATIVE_METRIC_REGEX.test(ev.description))
+        );
+        if (!isEvidenced) return false;
+      }
+      return true;
+    });
 
   // Collect all authentic candidate-owned content as bullet candidates.
   // Candidate-authored accomplishment content is the primary resume prose.
@@ -2630,17 +2641,18 @@ export class CandidateArtifactContentService {
           '-'
         );
         selectedSkillSlugs.push(skillSlug);
+        const statusForSchema = s.provenance === 'SELF_DECLARED' ? 'CLAIMED' : s.provenance;
         selectedSkills.push({
           slug: skillSlug,
           name: canonicalName,
           category: cat,
-          provenanceStatus: normalizeTruthCategory(s.provenance),
+          provenanceStatus: statusForSchema,
           evidenceCount: s.evidenceCount || 0,
           evidenceId: s.evidenceId || null,
           relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
           matchedRequirementId: s.matchedRequirementId || null,
           confidenceScore:
-            s.provenance === 'VERIFIED' ? 1.0 : s.provenance === 'CORROBORATED' ? 0.9 : 0.7,
+            s.provenance === 'VERIFIED' ? 1.0 : s.provenance === 'CORROBORATED' ? 0.85 : 0.5,
           order: currentOrder++,
         });
 

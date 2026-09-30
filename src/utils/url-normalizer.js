@@ -12,6 +12,10 @@
  */
 
 import { generateCanonicalJobId } from '../services/job-discovery.service.js';
+export {
+  deriveJobFingerprint,
+  normalizeJobPostingUrl,
+} from '../../extension/lib/job-identity.js';
 
 /**
  * Normalizes a job portal or posting URL for deterministic equality comparisons.

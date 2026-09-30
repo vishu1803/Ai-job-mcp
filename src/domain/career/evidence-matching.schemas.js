@@ -22,6 +22,7 @@ import {
   DateOrIsoStringSchema,
 } from '../candidate/candidate.schemas.js';
 import { RequirementCategoryEnum, RequirementImportanceEnum } from './job-requirement.schemas.js';
+import { CanonicalTruthCategoryEnum } from './truth-category.js';
 
 // ---------------------------------------------------------------------------
 // 1. Enumerations
@@ -141,6 +142,7 @@ export const CandidateRequirementMatchSchema = z
       ])
       .default('NONE')
       .optional(),
+    truthCategory: CanonicalTruthCategoryEnum.optional(),
     provenanceTrustClass: z.enum(['HIGH_TRUST', 'LOW_TRUST', 'NO_EVIDENCE']).optional(),
     matchedSkillSlug: SafeSlugSchema.nullable().optional(),
     relationshipType: MatchRelationshipTypeEnum.default('NONE'),

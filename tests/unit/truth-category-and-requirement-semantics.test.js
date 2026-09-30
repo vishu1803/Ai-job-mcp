@@ -423,11 +423,11 @@ FastAPI
       assert.equal(matchesBySlug.get('rest-api')?.matchStatus, 'MATCHED');
       assert.equal(matchesBySlug.get('rest-api')?.required, true);
 
-      // 6. Node.js (REQUIRED): PARTIAL with UNVERIFIED_CLAIM / self-declared
+      // 6. Node.js (REQUIRED): UNVERIFIED_CLAIM / self-declared
       const nodeMatch = matchesBySlug.get('node-js');
       assert.ok(nodeMatch, 'Node.js requirement match exists');
       assert.equal(nodeMatch.required, true);
-      assert.equal(nodeMatch.matchStatus, 'PARTIAL');
+      assert.equal(nodeMatch.matchStatus, 'UNVERIFIED_CLAIM');
       assert.equal(nodeMatch.isUserClaim, true);
       assert.equal(nodeMatch.claimLabel, '[Self-Declared Skill]');
       assert.notEqual(
@@ -444,11 +444,11 @@ FastAPI
       assert.equal(matchesBySlug.get('fastapi')?.matchStatus, 'MATCHED');
       assert.equal(matchesBySlug.get('fastapi')?.required, false);
 
-      // 9. Docker (PREFERRED): PARTIAL with UNVERIFIED_CLAIM / self-declared
+      // 9. Docker (PREFERRED): UNVERIFIED_CLAIM / self-declared
       const dockerMatch = matchesBySlug.get('docker');
       assert.ok(dockerMatch, 'Docker requirement match exists');
       assert.equal(dockerMatch.required, false);
-      assert.equal(dockerMatch.matchStatus, 'PARTIAL');
+      assert.equal(dockerMatch.matchStatus, 'UNVERIFIED_CLAIM');
       assert.equal(dockerMatch.isUserClaim, true);
       assert.equal(dockerMatch.claimLabel, '[Self-Declared Skill]');
 
@@ -462,11 +462,11 @@ FastAPI
       // Verify Aggregation Invariants
       const summary = matchAnalysis.summary;
       assert.equal(summary.matchedCount, 7); // JS, React, PostgreSQL, Git, REST APIs, Next.js, FastAPI
-      assert.equal(summary.partialCount, 2); // Node.js, Docker
+      assert.equal(summary.partialCount, 0);
       assert.equal(summary.missingCount, 1); // TypeScript
       assert.equal(summary.unverifiedClaimCount, 2); // Node.js and Docker
       assert.equal(
-        summary.matchedCount + summary.partialCount + summary.missingCount + summary.unknownCount,
+        summary.matchedCount + summary.partialCount + summary.unverifiedClaimCount + summary.missingCount + summary.unknownCount,
         10
       );
 

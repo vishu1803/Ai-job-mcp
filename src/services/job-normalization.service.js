@@ -26,6 +26,7 @@
 
 import crypto from 'node:crypto';
 import { JobDescriptionParser } from '../domain/career/job-parser.js';
+import { isRequirementRequired } from '../domain/career/job-requirement.schemas.js';
 
 export const GENERIC_REQUIREMENT_TOKENS = new Set([
   'software',
@@ -211,7 +212,7 @@ export function parseJobDescriptionSections(description) {
   let currentSection = null;
 
   const hasSectionHeaders = lines.some((l) =>
-    /^(?:requirements?|qualifications?|must[\s-]have|skills?|preferred|nice[\s-]to[\s-]have|bonus|responsibilities|duties):?/i.test(
+    /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?|preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional|responsibilities|duties):?/i.test(
       l
     )
   );
@@ -234,41 +235,65 @@ export function parseJobDescriptionSections(description) {
 
   for (const line of lines) {
     const inlineReq = line.match(
-      /^(?:requirements?|qualifications?|must[\s-]have|skills?):\s*(.+)$/i
+      /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?):\s*(.+)$/i
     );
     const inlinePref = line.match(
-      /^(?:preferred(?:\s+qualifications?)?|nice[\s-]to[\s-]have|bonus):\s*(.+)$/i
+      /^(?:preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):\s*(.+)$/i
     );
     const inlineResp = line.match(/^(?:responsibilities|duties):\s*(.+)$/i);
 
     if (inlineReq) {
-      const parts = inlineReq[1]
-        .split(/[,;]/)
-        .map((p) => p.trim().replace(/\.$/, ''))
-        .filter(Boolean);
-      for (const p of parts) {
-        items.push({
-          text: p,
-          importance: 'REQUIRED',
-          category: 'SKILL',
-          sectionContext: 'REQUIREMENTS',
-        });
+      const skillsInLine = JobDescriptionParser.extractSkillsFromLine(inlineReq[1]);
+      if (skillsInLine.length > 1 && inlineReq[1].length < 120) {
+        for (const s of skillsInLine) {
+          items.push({
+            text: s.name,
+            importance: 'REQUIRED',
+            category: 'SKILL',
+            sectionContext: 'REQUIREMENTS',
+          });
+        }
+      } else {
+        const parts = inlineReq[1]
+          .split(/[,;]/)
+          .map((p) => p.trim().replace(/\.$/, ''))
+          .filter(Boolean);
+        for (const p of parts) {
+          items.push({
+            text: p,
+            importance: 'REQUIRED',
+            category: 'SKILL',
+            sectionContext: 'REQUIREMENTS',
+          });
+        }
       }
       currentSection = 'REQUIREMENTS';
       continue;
     }
     if (inlinePref) {
-      const parts = inlinePref[1]
-        .split(/[,;]/)
-        .map((p) => p.trim().replace(/\.$/, ''))
-        .filter(Boolean);
-      for (const p of parts) {
-        items.push({
-          text: p,
-          importance: 'PREFERRED',
-          category: 'SKILL',
-          sectionContext: 'PREFERRED',
-        });
+      const skillsInLine = JobDescriptionParser.extractSkillsFromLine(inlinePref[1]);
+      if (skillsInLine.length > 1 && inlinePref[1].length < 120) {
+        for (const s of skillsInLine) {
+          items.push({
+            text: s.name,
+            importance: 'PREFERRED',
+            category: 'SKILL',
+            sectionContext: 'PREFERRED',
+          });
+        }
+      } else {
+        const parts = inlinePref[1]
+          .split(/[,;]/)
+          .map((p) => p.trim().replace(/\.$/, ''))
+          .filter(Boolean);
+        for (const p of parts) {
+          items.push({
+            text: p,
+            importance: 'PREFERRED',
+            category: 'SKILL',
+            sectionContext: 'PREFERRED',
+          });
+        }
       }
       currentSection = 'PREFERRED';
       continue;
@@ -313,11 +338,19 @@ export function parseJobDescriptionSections(description) {
       continue;
     }
 
-    if (/^(?:requirements?|qualifications?|must[\s-]have|skills?):?$/i.test(line)) {
+    if (
+      /^(?:#{1,6}\s*)?(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?):?$/i.test(
+        line
+      )
+    ) {
       currentSection = 'REQUIREMENTS';
       continue;
     }
-    if (/^(?:preferred(?:\s+qualifications?)?|nice[\s-]to[\s-]have|bonus):?$/i.test(line)) {
+    if (
+      /^(?:#{1,6}\s*)?(?:preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):?$/i.test(
+        line
+      )
+    ) {
       currentSection = 'PREFERRED';
       continue;
     }
@@ -343,19 +376,43 @@ export function parseJobDescriptionSections(description) {
     if (!cleanLine) continue;
 
     if (currentSection === 'REQUIREMENTS') {
-      items.push({
-        text: cleanLine,
-        importance: 'REQUIRED',
-        category: 'SKILL',
-        sectionContext: 'REQUIREMENTS',
-      });
+      const skillsInLine = JobDescriptionParser.extractSkillsFromLine(cleanLine);
+      if (skillsInLine.length > 1 && cleanLine.length < 120) {
+        for (const s of skillsInLine) {
+          items.push({
+            text: s.name,
+            importance: 'REQUIRED',
+            category: 'SKILL',
+            sectionContext: 'REQUIREMENTS',
+          });
+        }
+      } else {
+        items.push({
+          text: cleanLine,
+          importance: 'REQUIRED',
+          category: 'SKILL',
+          sectionContext: 'REQUIREMENTS',
+        });
+      }
     } else if (currentSection === 'PREFERRED') {
-      items.push({
-        text: cleanLine,
-        importance: 'PREFERRED',
-        category: 'SKILL',
-        sectionContext: 'PREFERRED',
-      });
+      const skillsInLine = JobDescriptionParser.extractSkillsFromLine(cleanLine);
+      if (skillsInLine.length > 1 && cleanLine.length < 120) {
+        for (const s of skillsInLine) {
+          items.push({
+            text: s.name,
+            importance: 'PREFERRED',
+            category: 'SKILL',
+            sectionContext: 'PREFERRED',
+          });
+        }
+      } else {
+        items.push({
+          text: cleanLine,
+          importance: 'PREFERRED',
+          category: 'SKILL',
+          sectionContext: 'PREFERRED',
+        });
+      }
     } else if (currentSection === 'RESPONSIBILITIES') {
       items.push({
         text: cleanLine,
@@ -490,7 +547,7 @@ export function computeCanonicalJobFingerprint(role, normalizedRequirements) {
  * }}
  */
 export function normalizeJobInput(jobInput) {
-  const jp = jobInput || {};
+  const jp = typeof jobInput === 'string' ? { rawText: jobInput } : jobInput || {};
 
   // If already normalized with canonical contract, return it idempotently
   if (
@@ -631,13 +688,31 @@ export function normalizeJobInput(jobInput) {
           requirementClass,
         });
 
+    const category =
+      raw?.category ||
+      (requirementClass === 'TECHNOLOGY'
+        ? 'SKILL'
+        : requirementClass === 'RESPONSIBILITY'
+          ? 'EXPERIENCE'
+          : requirementClass === 'EDUCATION'
+            ? 'EDUCATION'
+            : 'SKILL');
+
     concepts.push({
       id: deterministicId,
       text,
       normalizedConcept: key,
       aliases: [...uniqueTokens],
       class: requirementClass,
+      category,
+      extractedValue: raw?.extractedValue || text,
+      skillSlug:
+        raw?.skillSlug ||
+        (category === 'SKILL' ? key.toLowerCase().replace(/[^a-z0-9-]/g, '-') : null),
+      rawSnippet: raw?.rawSnippet || text,
+      originalText: raw?.originalText || text,
       importance: importance.label,
+      required: isRequirementRequired(importance.label),
       weight: importance.weight,
       confidence: 1.0,
       source: 'JOB_POSTING',

@@ -45,6 +45,11 @@ import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
+import {
+  deriveCanonicalJobId,
+  deriveJobFingerprint,
+} from '../../utils/url-normalizer.js';
+import { normalizeTruthCategory } from '../../domain/career/truth-category.js';
 import { config } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 import {
@@ -445,7 +450,11 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
               ? p.metadata.technologies.slice(0, 15)
               : [],
         repositoryUrl: repositoryUrl ? String(repositoryUrl) : null,
-        bullets: Array.isArray(p.bullets) ? p.bullets.slice(0, 3) : p.summary ? [p.summary] : [],
+        bullets: Array.isArray(p.bullets)
+          ? p.bullets.slice(0, 3).map((b) => (typeof b === 'string' ? b : b?.text || String(b)))
+          : p.summary
+            ? [p.summary]
+            : [],
         startDate: p.startDate ? String(p.startDate) : null,
         endDate: p.endDate ? String(p.endDate) : null,
         linkedResourceCount: p.linkedResourceCount || (Array.isArray(p.evidence) ? 1 : 0),
@@ -469,7 +478,9 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       endDate: exp.endDate ? String(exp.endDate) : null,
       isCurrent: Boolean(exp.isCurrent),
       rawDateRange: exp.rawDateRange || null,
-      bullets: Array.isArray(exp.bullets) ? exp.bullets.slice(0, 3) : [],
+      bullets: Array.isArray(exp.bullets)
+        ? exp.bullets.slice(0, 3).map((b) => (typeof b === 'string' ? b : b?.text || String(b)))
+        : [],
       technologies: Array.isArray(exp.technologies)
         ? exp.technologies.slice(0, 15)
         : Array.isArray(exp.skills)
@@ -1141,10 +1152,15 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     seenSlugs.add(s.slug);
     const cpSkill = reconciledSkillsMap.get(s.slug);
     if (cpSkill && cpSkill.provenanceStatus) {
+      const resolvedProvenance =
+        (s.provenanceStatus === 'SELF_DECLARED' || s.provenanceStatus === 'LEARNING') &&
+        cpSkill.provenanceStatus === 'CLAIMED'
+          ? s.provenanceStatus
+          : cpSkill.provenanceStatus;
       return {
         ...s,
-        provenanceStatus: cpSkill.provenanceStatus,
-        truthStatus: cpSkill.truthStatus || cpSkill.provenanceStatus,
+        provenanceStatus: resolvedProvenance,
+        truthStatus: cpSkill.truthStatus || resolvedProvenance,
         source: cpSkill.source || s.source,
       };
     }
@@ -1336,10 +1352,10 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       level: args.targetRoleLevel || classification.jobDescription.level || 'MID',
       requirements: classification.requirements || [],
       description: args.jobDescriptionText,
-      externalJobId: null,
-      provider: 'PASTE',
-      sourceUrl: null,
-      applicationUrl: null,
+      externalJobId: args.externalJobId || null,
+      provider: args.provider || 'PASTE',
+      sourceUrl: args.sourceUrl || args.url || null,
+      applicationUrl: args.applicationUrl || null,
     };
     rawRequirements = classification.requirements || [];
   } else {
@@ -1518,11 +1534,13 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       originalRequirement: m.originalRequirement || m.extractedValue || '',
       normalizedRequirement: m.normalizedRequirement || m.extractedValue || '',
       category: m.category || 'SKILL',
-      required: typeof m.required === 'boolean' ? m.required : isRequirementRequired(m.importance),
+      required: isRequirementRequired(m.importance),
+      importance: m.importance || (isRequirementRequired(m.importance) ? 'REQUIRED' : 'PREFERRED'),
       matchStatus: m.matchStatus || 'UNKNOWN',
       matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
       candidateSkills: Array.isArray(m.candidateSkills) ? m.candidateSkills : [],
       candidateProvenance,
+      truthCategory: m.truthCategory || normalizeTruthCategory(candidateProvenance),
       provenanceTrustClass,
       primaryEvidence: m.primaryEvidence || null,
       supportingEvidence,
@@ -1608,8 +1626,35 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
   }
   const totalEvidenceCited = authoritativeEvidenceMap.size;
 
+  const canonicalJobId = deriveCanonicalJobId({
+    canonicalJobId: jobDescription.canonicalJobId,
+    jobId: args.jobId || undefined,
+    jobUrl: jobDescription.sourceUrl || jobDescription.applicationUrl,
+    directPortalUrl: jobDescription.sourceUrl || jobDescription.applicationUrl,
+    sourceUrl: jobDescription.sourceUrl,
+    applicationUrl: jobDescription.applicationUrl,
+    provider: jobDescription.provider,
+    externalJobId: jobDescription.externalJobId,
+    company: jobDescription.companyName,
+    title: jobDescription.title,
+  });
+
+  const jobFingerprint = deriveJobFingerprint({
+    canonicalJobId,
+    provider: jobDescription.provider,
+    externalJobId: jobDescription.externalJobId,
+    title: jobDescription.title,
+    company: jobDescription.companyName,
+    url: jobDescription.sourceUrl || jobDescription.applicationUrl,
+    sourceUrl: jobDescription.sourceUrl,
+  });
+
   const output = {
+    canonicalJobId,
+    jobFingerprint,
     jobContext: {
+      canonicalJobId,
+      jobFingerprint,
       jobId: args.jobId || (jobDescription.id ? jobDescription.id : null),
       externalJobId: jobDescription.externalJobId || null,
       provider: jobDescription.provider || null,
@@ -1638,7 +1683,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
           (requirementSummary.matchedCount || 0) +
           (requirementSummary.partialCount || 0) +
           (requirementSummary.missingCount || 0) +
-          (requirementSummary.unknownCount || 0);
+          (requirementSummary.unknownCount || 0) +
+          (requirementSummary.unverifiedClaimCount || 0) +
+          (requirementSummary.unsupportedCandidateCount || 0);
         if (totalMatches !== countSum) return 'DEGRADED';
 
         // If matched items lack evidence or explanation, flag as DEGRADED
@@ -1795,7 +1842,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     (requirementSummary.matchedCount || 0) +
     (requirementSummary.partialCount || 0) +
     (requirementSummary.missingCount || 0) +
-    (requirementSummary.unknownCount || 0);
+    (requirementSummary.unknownCount || 0) +
+    (requirementSummary.unverifiedClaimCount || 0) +
+    (requirementSummary.unsupportedCandidateCount || 0);
   if (matchesLength !== reqsLength || statusSum !== matchesLength) {
     const catCounts = {};
     for (const m of requirementLevelMatches) {

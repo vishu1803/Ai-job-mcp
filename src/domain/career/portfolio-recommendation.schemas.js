@@ -109,7 +109,7 @@ export const RequirementCoverageItemSchema = z.strictObject({
   requirementTitle: z.string().min(1).max(255),
   skillSlug: SafeSlugSchema.optional().nullable(),
   priority: z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']),
-  status: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN']),
+  status: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN', 'UNVERIFIED_CLAIM']),
   coveredByProjectId: z.string().uuid().optional().nullable(),
   coveredByProjectName: z.string().max(255).optional().nullable(),
   isPrimaryCoverage: z.boolean().default(true),

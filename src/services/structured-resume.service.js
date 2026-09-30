@@ -1419,7 +1419,12 @@ export function buildStructuredResumeDocument({
           provenanceStatus: item.provenanceStatus,
           evidenceId: item.evidenceId || null,
           sourceSkillId: item.sourceSkillId || null,
-          confidenceScore: item.confidenceScore ?? 1.0,
+          confidenceScore:
+            typeof item.confidenceScore === 'number'
+              ? item.confidenceScore
+              : item.provenanceStatus === 'VERIFIED' || item.truthCategory === 'VERIFIED'
+                ? 1.0
+                : 0.5,
           relevanceScore: item.relevanceScore ?? 0,
           matchedRequirementId: item.matchedRequirementId || null,
         })),
@@ -2184,6 +2189,7 @@ export function buildStructuredResumeSnapshot({
           requirements: jobPosting.requirements || [],
           skills: jobPosting.skills || [],
           description: jobPosting.description || '',
+          normalizedRequirements: jobPosting.normalizedRequirements || [],
         },
         normalizedProjects,
         {

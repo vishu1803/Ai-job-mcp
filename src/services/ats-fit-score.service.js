@@ -276,10 +276,7 @@ export class AtsFitScoreService {
         let valueFactor = 0.0;
         if (match.matchStatus === 'MATCHED') {
           valueFactor = 1.0;
-        } else if (
-          match.matchStatus === 'PARTIAL' ||
-          match.matchStatus === 'UNVERIFIED_CLAIM'
-        ) {
+        } else if (match.matchStatus === 'PARTIAL' || match.matchStatus === 'UNVERIFIED_CLAIM') {
           if (
             match.isUserClaim ||
             match.claimLabel === '[Unverified User Claim]' ||
@@ -317,8 +314,10 @@ export class AtsFitScoreService {
     // -------------------------------------------------------------------------
     // 3. Component 2: Preferred Skills Coverage (15 Points Max)
     // -------------------------------------------------------------------------
-    const preferredMatches = requirementMatches.filter((m) =>
-      m.importance ? isRequirementPreferred(m.importance) : m.required === false
+    const preferredMatches = requirementMatches.filter(
+      (m) =>
+        (m.importance ? isRequirementPreferred(m.importance) : m.required === false) &&
+        (m.category === 'SKILL' || !m.category)
     );
 
     let preferredSkillsScore = 0.0;
@@ -334,10 +333,7 @@ export class AtsFitScoreService {
         let valueFactor = 0.0;
         if (match.matchStatus === 'MATCHED') {
           valueFactor = 1.0;
-        } else if (
-          match.matchStatus === 'PARTIAL' ||
-          match.matchStatus === 'UNVERIFIED_CLAIM'
-        ) {
+        } else if (match.matchStatus === 'PARTIAL' || match.matchStatus === 'UNVERIFIED_CLAIM') {
           if (
             match.isUserClaim ||
             match.claimLabel === '[Unverified User Claim]' ||

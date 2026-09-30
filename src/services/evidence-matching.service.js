@@ -208,15 +208,7 @@ export class EvidenceMatchingService {
         matchedCount++;
       } else if (m.matchStatus === 'PARTIAL') {
         partialCount++;
-        if (
-          m.isUserClaim ||
-          m.claimLabel === '[Unverified User Claim]' ||
-          m.claimLabel === '[Self-Declared Skill]'
-        ) {
-          unverifiedClaimCount++;
-        }
       } else if (m.matchStatus === 'UNVERIFIED_CLAIM') {
-        partialCount++;
         unverifiedClaimCount++;
       } else if (m.matchStatus === 'MISSING') {
         missingCount++;
@@ -425,7 +417,15 @@ export class EvidenceMatchingService {
    * @private
    */
   static _evaluateRequirement(req, candidateProfile, skillsBySlug, projectDomainSet, resourceMap) {
-    const category = req.category;
+    const category =
+      req.category ||
+      (req.class === 'TECHNOLOGY'
+        ? 'SKILL'
+        : req.class === 'RESPONSIBILITY'
+          ? 'EXPERIENCE'
+          : req.class === 'EDUCATION'
+            ? 'EDUCATION'
+            : 'SKILL');
 
     switch (category) {
       case 'SKILL':
@@ -578,16 +578,15 @@ export class EvidenceMatchingService {
     const canonicalProvenance = candidateSkill.provenanceStatus || 'NONE';
 
     const hasVerifiedProvenance =
-      canonicalProvenance === 'VERIFIED' ||
-      canonicalProvenance === 'CORROBORATED';
+      canonicalProvenance === 'VERIFIED' || canonicalProvenance === 'CORROBORATED';
 
     const hasQualifyingCodeEvidence =
-      _hasHighTrustEvidence ||
-      (allEvidence.length > 0 && !allEvidenceIsLowTrust);
+      _hasHighTrustEvidence || (allEvidence.length > 0 && !allEvidenceIsLowTrust);
 
     // CASE A: VERIFIED or CORROBORATED with qualifying candidate-authored evidence
     if (
-      (hasVerifiedProvenance || (hasQualifyingCodeEvidence && candidateSkill.confidenceScore >= 0.85)) &&
+      (hasVerifiedProvenance ||
+        (hasQualifyingCodeEvidence && candidateSkill.confidenceScore >= 0.85)) &&
       !isExplicitUserClaim &&
       !allEvidenceIsLowTrust
     ) {
@@ -624,6 +623,7 @@ export class EvidenceMatchingService {
         claimLabel: null,
         candidateSkills: [candidateSkill.name || targetDisplayName],
         candidateProvenance: resolvedProvenance,
+        truthCategory: normalizeTruthCategory(resolvedProvenance),
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence,
@@ -663,6 +663,7 @@ export class EvidenceMatchingService {
         claimLabel: '[Low-Trust Evidence Only]',
         candidateSkills: [candidateSkill.name || targetDisplayName],
         candidateProvenance: 'INFERRED',
+        truthCategory: 'INFERRED',
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence,
@@ -713,23 +714,24 @@ export class EvidenceMatchingService {
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
         extractedValue: req.extractedValue,
-        matchStatus: 'PARTIAL',
+        matchStatus: 'UNVERIFIED_CLAIM',
         matchConfidence,
         isUserClaim: true,
         claimLabel: '[Self-Declared Skill]',
         candidateSkills: [candidateSkill.name || targetDisplayName],
         candidateProvenance: 'SELF_DECLARED',
+        truthCategory: normalizeTruthCategory(candidateSkill.provenanceStatus || 'SELF_DECLARED'),
         provenanceTrustClass: 'LOW_TRUST',
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence: null,
         supportingEvidence: [],
-        explanation: `PARTIAL: Candidate declares ${targetDisplayName} (Self-Declared, proficiency: ${candidateSkill.proficiency || 'WORKING_KNOWLEDGE'}), but no independent evidence exists in connected repositories or resume.`,
+        explanation: `UNVERIFIED_CLAIM: Candidate declares ${targetDisplayName} (Self-Declared, proficiency: ${candidateSkill.proficiency || 'WORKING_KNOWLEDGE'}), but no independent evidence exists in connected repositories or resume.`,
       };
 
       const explanation = {
         requirementId: req.id,
-        status: 'PARTIAL',
+        status: 'UNVERIFIED_CLAIM',
         reason: match.explanation,
         evidenceRefs: [],
         matchConfidence,
@@ -768,7 +770,8 @@ export class EvidenceMatchingService {
         isUserClaim: true,
         claimLabel: '[Currently Learning]',
         candidateSkills: [candidateSkill.name || targetDisplayName],
-        candidateProvenance: 'LEARNING',
+        candidateProvenance: candidateSkill.provenanceStatus || 'LEARNING',
+        truthCategory: normalizeTruthCategory(candidateSkill.provenanceStatus || 'LEARNING'),
         provenanceTrustClass: 'LOW_TRUST',
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
@@ -813,23 +816,24 @@ export class EvidenceMatchingService {
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
         extractedValue: req.extractedValue,
-        matchStatus: 'PARTIAL',
+        matchStatus: 'UNVERIFIED_CLAIM',
         matchConfidence,
         isUserClaim: true,
         claimLabel: '[Unverified User Claim]',
         candidateSkills: [candidateSkill.name || targetDisplayName],
-        candidateProvenance: 'CLAIMED',
+        candidateProvenance: candidateSkill.provenanceStatus || 'CLAIMED',
+        truthCategory: normalizeTruthCategory(candidateSkill.provenanceStatus || 'CLAIMED'),
         provenanceTrustClass: 'LOW_TRUST',
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence: null,
         supportingEvidence: [],
-        explanation: `PARTIAL: Candidate self-claims ${targetDisplayName} ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.`,
+        explanation: `UNVERIFIED_CLAIM: Candidate self-claims ${targetDisplayName} ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.`,
       };
 
       const explanation = {
         requirementId: req.id,
-        status: 'PARTIAL',
+        status: 'UNVERIFIED_CLAIM',
         reason: match.explanation,
         evidenceRefs: [],
         matchConfidence,
@@ -877,6 +881,7 @@ export class EvidenceMatchingService {
       claimLabel: null,
       candidateSkills: [candidateSkill.name || targetDisplayName],
       candidateProvenance: 'INFERRED',
+      truthCategory: 'INFERRED',
       matchedSkillSlug: targetSlug,
       relationshipType: 'EXACT',
       primaryEvidence,
@@ -1022,6 +1027,7 @@ export class EvidenceMatchingService {
           claimLabel: null,
           candidateSkills: [candName],
           candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
+          truthCategory: normalizeTruthCategory(candSkill.provenanceStatus || 'VERIFIED'),
           matchedSkillSlug: candSlug,
           relationshipType: 'PARENT_OF',
           primaryEvidence,
@@ -1236,6 +1242,7 @@ export class EvidenceMatchingService {
       claimLabel: null,
       candidateSkills: [],
       candidateProvenance: 'NONE',
+      truthCategory: 'MISSING_EVIDENCE',
       provenanceTrustClass: 'NO_EVIDENCE',
       matchedSkillSlug: null,
       relationshipType: 'NONE',
@@ -2233,7 +2240,7 @@ export class EvidenceMatchingService {
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
         extractedValue: req.extractedValue,
-        matchStatus: 'PARTIAL',
+        matchStatus: 'UNVERIFIED_CLAIM',
         matchConfidence,
         isUserClaim: true,
         claimLabel: '[Unverified User Claim]',
@@ -2244,12 +2251,12 @@ export class EvidenceMatchingService {
         relationshipType: 'EXACT',
         primaryEvidence: null,
         supportingEvidence: [],
-        explanation: `PARTIAL: Candidate self-claims '${req.extractedValue}' domain experience ([Unverified User Claim]), but no dedicated project evidence was found.`,
+        explanation: `UNVERIFIED_CLAIM: Candidate self-claims '${req.extractedValue}' domain experience ([Unverified User Claim]), but no dedicated project evidence was found.`,
       };
 
       const explanation = {
         requirementId: req.id,
-        status: 'PARTIAL',
+        status: 'UNVERIFIED_CLAIM',
         reason: match.explanation,
         evidenceRefs: [],
         matchConfidence,

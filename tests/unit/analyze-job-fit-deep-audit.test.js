@@ -969,12 +969,13 @@ describe('Parser — Generic Skill Filtering', () => {
   it('filters overly generic skills', () => {
     assert.ok(JobDescriptionParser._isOverlyGenericSkill('cloud-native', 'Cloud Native Computing'));
     assert.ok(JobDescriptionParser._isOverlyGenericSkill('database', 'Database Management'));
-    assert.ok(JobDescriptionParser._isOverlyGenericSkill('rest-api', 'RESTful API'));
+    assert.ok(JobDescriptionParser._isOverlyGenericSkill('api-design', 'API Design'));
     assert.ok(JobDescriptionParser._isOverlyGenericSkill('problem-solving', 'Problem Solving'));
     assert.ok(JobDescriptionParser._isOverlyGenericSkill('communication', 'Communication'));
   });
 
   it('does NOT filter concrete technology skills', () => {
+    assert.ok(!JobDescriptionParser._isOverlyGenericSkill('rest-api', 'RESTful API'));
     assert.ok(!JobDescriptionParser._isOverlyGenericSkill('typescript', 'TypeScript'));
     assert.ok(!JobDescriptionParser._isOverlyGenericSkill('node-js', 'Node.js'));
     assert.ok(!JobDescriptionParser._isOverlyGenericSkill('react', 'React'));

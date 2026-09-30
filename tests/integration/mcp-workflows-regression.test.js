@@ -411,23 +411,23 @@ FastAPI
     assert.equal(matchesByReq.get('git')?.matchStatus, 'MATCHED');
     // REST APIs: MATCHED via taxonomy (FastAPI implements)
     assert.equal(matchesByReq.get('rest apis')?.matchStatus, 'MATCHED');
-    // Node.js: PARTIAL / unverified claim (NOT MATCHED)
-    assert.equal(matchesByReq.get('node.js')?.matchStatus, 'PARTIAL');
+    // Node.js: UNVERIFIED_CLAIM (NOT MATCHED)
+    assert.equal(matchesByReq.get('node.js')?.matchStatus, 'UNVERIFIED_CLAIM');
     assert.notEqual(matchesByReq.get('node.js')?.matchStatus, 'MATCHED');
 
     // Next.js: MATCHED
     assert.equal(matchesByReq.get('next.js')?.matchStatus, 'MATCHED');
     // FastAPI: MATCHED
     assert.equal(matchesByReq.get('fastapi')?.matchStatus, 'MATCHED');
-    // Docker: PARTIAL / unverified claim
-    assert.equal(matchesByReq.get('docker')?.matchStatus, 'PARTIAL');
+    // Docker: UNVERIFIED_CLAIM
+    assert.equal(matchesByReq.get('docker')?.matchStatus, 'UNVERIFIED_CLAIM');
     // TypeScript: MISSING
     assert.equal(matchesByReq.get('typescript')?.matchStatus, 'MISSING');
 
     // 3. Match Counts and Summary Aggregation
     const summary = result.requirementSummary;
     assert.equal(summary.matchedCount, 7);
-    assert.equal(summary.partialCount, 2);
+    assert.equal(summary.partialCount, 0);
     assert.equal(summary.missingCount, 1);
     assert.equal(summary.unverifiedClaimCount, 2);
 

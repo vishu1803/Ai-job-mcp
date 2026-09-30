@@ -678,6 +678,11 @@ export const AnalyzeJobFitInputSchema = z
       .max(10)
       .default(5)
       .describe('Maximum number of prioritized skill gaps to return (maximum 10).'),
+    sourceUrl: z.string().max(2048).optional().describe('Optional source posting URL.'),
+    url: z.string().max(2048).optional().describe('Optional URL alias for sourceUrl.'),
+    applicationUrl: z.string().max(2048).optional().describe('Optional direct application URL.'),
+    provider: z.string().max(50).optional().describe('Optional job provider name (e.g. GREENHOUSE, LEVER, LINKEDIN).'),
+    externalJobId: z.string().max(100).optional().describe('Optional external job identifier.'),
   })
   .strict()
   .refine(
@@ -687,7 +692,11 @@ export const AnalyzeJobFitInputSchema = z
 
 export const AnalyzeJobFitOutputSchema = z
   .object({
+    canonicalJobId: z.string().nullable().optional(),
+    jobFingerprint: z.string().nullable().optional(),
     jobContext: z.object({
+      canonicalJobId: z.string().nullable().optional(),
+      jobFingerprint: z.string().nullable().optional(),
       jobId: z.string().uuid().nullable().optional(),
       externalJobId: z.string().nullable().optional(),
       provider: z.string().nullable().optional(),
@@ -785,6 +794,7 @@ export const AnalyzeJobFitOutputSchema = z
           normalizedRequirement: z.string(),
           category: z.string(),
           required: z.boolean(),
+          importance: z.string().optional(),
           matchStatus: z.enum([
             'MATCHED',
             'PARTIAL',
@@ -810,6 +820,7 @@ export const AnalyzeJobFitOutputSchema = z
               'LEARNING',
             ])
             .default('NONE'),
+          truthCategory: z.string().optional(),
           provenanceTrustClass: z.string().optional(),
           matchConfidence: z.number().min(0).max(1).optional(),
           primaryEvidence: z.any().nullable().optional(),

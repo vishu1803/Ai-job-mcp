@@ -22,7 +22,13 @@ import { db as defaultDb } from '../db/index.js';
 import { candidates, jobApplications, projects } from '../db/schema.js';
 import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
 import { config } from '../config/env.js';
-import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
+import {
+  normalizeJobUrl,
+  deriveCanonicalJobId,
+  deriveJobFingerprint,
+} from '../utils/url-normalizer.js';
+import { isRequirementRequired } from '../domain/career/job-requirement.schemas.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 import { generateCanonicalJobId } from '../services/job-discovery.service.js';
 import { SecretScrubber } from '../extractors/github/security/secret-scrubber.js';
@@ -68,8 +74,16 @@ export function serializeRequirementMatchesForExtension(fitAnalysis) {
 
   const toDisplay = (m) => ({
     requirement: m.normalizedRequirement || m.originalRequirement || m.extractedValue || '',
+    normalizedRequirement: m.normalizedRequirement || m.extractedValue || m.originalRequirement || '',
+    originalRequirement: m.originalRequirement || m.extractedValue || m.normalizedRequirement || '',
+    skillSlug: m.skillSlug || undefined,
     status: m.matchStatus || 'UNKNOWN',
+    matchStatus: m.matchStatus || 'UNKNOWN',
     category: m.category || 'SKILL',
+    required: typeof m.required === 'boolean' ? m.required : isRequirementRequired(m.importance),
+    importance: m.importance || (m.required ? 'REQUIRED' : 'PREFERRED'),
+    candidateProvenance: m.candidateProvenance || 'NONE',
+    truthCategory: normalizeTruthCategory(m.truthCategory || m.candidateProvenance),
     explanation: m.explanation || '',
     matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
   });
@@ -77,18 +91,45 @@ export function serializeRequirementMatchesForExtension(fitAnalysis) {
   const matches = [];
   const partialMatches = [];
   const missingRequirements = [];
+  const unverifiedClaims = [];
   for (const m of requirementMatches) {
     const status = String(m.matchStatus || 'UNKNOWN').toUpperCase();
-    if (status === 'MATCHED') matches.push(toDisplay(m));
-    else if (status === 'PARTIAL') partialMatches.push(toDisplay(m));
-    else if (status === 'MISSING') missingRequirements.push(toDisplay(m));
+    const displayItem = toDisplay(m);
+    if (status === 'MATCHED') {
+      matches.push(displayItem);
+    } else if (status === 'PARTIAL') {
+      partialMatches.push(displayItem);
+    } else if (status === 'UNVERIFIED_CLAIM') {
+      partialMatches.push({
+        ...displayItem,
+        status: 'PARTIAL',
+        originalMatchStatus: 'UNVERIFIED_CLAIM',
+      });
+      unverifiedClaims.push(displayItem);
+    } else if (status === 'MISSING') {
+      missingRequirements.push(displayItem);
+    }
     // UNKNOWN statuses are intentionally not surfaced as hard missing/blocking.
   }
 
   // Hard blockers: critical-priority gaps reported by the matcher, when present.
   const hardBlockers = Array.isArray(fitAnalysis?.hardBlockers) ? fitAnalysis.hardBlockers : [];
 
-  return { matches, partialMatches, missingRequirements, hardBlockers };
+  const res = {
+    matches,
+    partialMatches,
+    missingRequirements,
+    hardBlockers,
+  };
+
+  if (unverifiedClaims.length > 0) {
+    res.unverifiedClaims = unverifiedClaims;
+  }
+  if (requirementMatches.length > 0) {
+    res.requirementMatches = requirementMatches.map(toDisplay);
+  }
+
+  return res;
 }
 
 /**
@@ -590,11 +631,20 @@ export default async function extensionRoutes(app, opts = {}) {
     let fitAnalysis = null;
     let analysisError = null;
     try {
-      const fitResult = await analyzeJobFit(mcpContext, {
-        jobDescriptionText,
-        jobTitle: title,
-        companyName: company,
-      });
+      const fitResult = await analyzeJobFit(
+        mcpContext,
+        {
+          jobDescriptionText,
+          jobTitle: title,
+          companyName: company,
+          sourceUrl: sourceUrl || undefined,
+          url: sourceUrl || undefined,
+          provider: job.provider,
+          externalJobId: job.externalJobId,
+          applicationUrl: job.applicationUrl || sourceUrl || undefined,
+        },
+        { db: database, candidateProfileService }
+      );
       fitAnalysis = fitResult?.structuredData || fitResult;
     } catch (err) {
       req.log.warn(
@@ -808,6 +858,19 @@ export default async function extensionRoutes(app, opts = {}) {
       candidateProjects,
     });
 
+    const jobFingerprint =
+      fitAnalysis?.jobFingerprint ||
+      deriveJobFingerprint({
+        canonicalJobId,
+        provider: job.provider,
+        externalJobId: job.externalJobId,
+        title,
+        company,
+        url: sourceUrl,
+        sourceUrl,
+        normalizedUrl: normalizedJobUrl,
+      });
+
     return reply.send({
       analysisSnapshotId,
       title,
@@ -821,6 +884,7 @@ export default async function extensionRoutes(app, opts = {}) {
         provider: job.provider || 'COMPANY_CAREERS',
         canonicalJobId,
         normalizedJobUrl,
+        jobFingerprint,
       },
       canonicalJob: {
         canonicalJobId,
@@ -831,6 +895,7 @@ export default async function extensionRoutes(app, opts = {}) {
         workplace: job.workplace || 'UNKNOWN',
         employmentType: job.employmentType || 'FULL_TIME',
         provider: job.provider || 'COMPANY_CAREERS',
+        jobFingerprint,
       },
       existingApplication: existingApp,
       existingHandoff: existingHandoff,
@@ -840,6 +905,8 @@ export default async function extensionRoutes(app, opts = {}) {
         jobTitle: title,
         company,
         companyName: company,
+        canonicalJobId,
+        jobFingerprint,
         score: resolvedScore,
         grade: resolvedGrade,
         recommendation: resolvedRecommendation,
@@ -847,6 +914,8 @@ export default async function extensionRoutes(app, opts = {}) {
         missingSkills,
         experienceFit: experienceFitStr,
         rawExperienceFit: rawExpFit,
+        overallFit: fitAnalysis?.overallFit || null,
+        requirementSummary: fitAnalysis?.requirementSummary || null,
         // P16-001F-5: derive from the authoritative requirementMatches contract
         // (matches/partialMatches/missingRequirements never existed on the MCP output).
         ...serializeRequirementMatchesForExtension(fitAnalysis),
@@ -1142,7 +1211,7 @@ export default async function extensionRoutes(app, opts = {}) {
             downloadUrl: `/api/applications/${appId}/artifacts/cover-letter/download?packageHash=${packageHash}`,
           },
           bundle: {
-            filename: `handoff-kit-${appId.slice(0, 8)}.zip`,
+            filename: `handoff-kit-${appId ? appId.slice(0, 8) : 'prepared'}.zip`,
             ready: Boolean(resumeArt && coverLetterArt),
             downloadUrl: `/api/applications/${appId}/artifacts/bundle/download?packageHash=${packageHash}`,
           },

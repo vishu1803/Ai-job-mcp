@@ -3,6 +3,103 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-30*
 
+### Phase P67: Unified Pipeline Consistency Audit and Cross-Surface Parity Fix
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-30  
+**Scope:** Executed a comprehensive cross-surface consistency audit and permanent architectural fix across the MCP Server, Chrome Extension, Web App, and Application Workflow on `main`. Enforced the critical architectural invariant that these surfaces are NOT separate implementations, but different interfaces over the exact same canonical Career Hub domain and services:
+
+1. **Canonical Job Identity & Fingerprint Parity (`src/utils/url-normalizer.js`, `src/mcp/tools/career-read-tools.js`, `src/routes/extension.routes.js`):**
+   - **Root Cause:** MCP `handleAnalyzeJobFit` and Extension `/api/extension/analyze-job` previously diverged on job identity derivation: MCP generated a random UUID when given raw job text without checking `sourceUrl`, and Extension used separate fingerprinting functions.
+   - **Fix Applied:**
+     - Re-exported authoritative `deriveJobFingerprint` and `normalizeJobPostingUrl` directly from `../../extension/lib/job-identity.js` in `src/utils/url-normalizer.js`.
+     - In `career-read-tools.js`, passed `sourceUrl`, `url`, `provider`, `externalJobId`, and `applicationUrl` into `deriveCanonicalJobId` and `deriveJobFingerprint`.
+     - Extended `AnalyzeJobFitInputSchema` and `AnalyzeJobFitOutputSchema` to support canonical job identity properties (`canonicalJobId`, `jobFingerprint`, `sourceUrl`, `applicationUrl`, `provider`, `externalJobId`).
+     - Verified bit-for-bit parity: MCP and Extension resolve to the exact same `canonicalJobId` and 64-character SHA-256 `jobFingerprint`, resilient against tracking query parameters (`utm_*`, `ref`, etc.) and route variations.
+
+2. **Canonical Requirement Semantics Parity (`src/domain/career/evidence-matching.schemas.js`, `src/services/evidence-matching.service.js`, `src/mcp/tools/career-read-tools.js`, `src/routes/extension.routes.js`):**
+   - **Root Cause:** Requirement `importance` and `truthCategory` were lost during projection into `requirementMatches` and Extension `toDisplay`, causing semantic mismatch between MCP and Extension projections.
+   - **Fix Applied:**
+     - Added `truthCategory: CanonicalTruthCategoryEnum.optional()` to `CandidateRequirementMatchSchema`.
+     - In `evidence-matching.service.js`, assigned canonical `truthCategory` and authentic `candidateProvenance` across all matching pathways (`_evaluateExactSkillMatch`, `_evaluateTaxonomyRelationships`, and `_buildMissingSkillResult`).
+     - In `career-read-tools.js`, serialized `importance: m.importance || (isRequirementRequired(m.importance) ? 'REQUIRED' : 'PREFERRED')` and `truthCategory: m.truthCategory || normalizeTruthCategory(candidateProvenance)`.
+     - In `extension.routes.js`, ensured `toDisplay` projects `normalizedRequirement`, `originalRequirement`, `skillSlug`, `matchStatus`, `status`, `required`, `importance`, `candidateProvenance`, and `truthCategory`.
+     - Verified all 6 required skills preserve `required: true` and `importance: 'REQUIRED'`, all 4 preferred skills preserve `required: false` and `importance: 'PREFERRED'`, and `requiredSkillsScore > 0` identically across MCP and Extension.
+
+3. **Canonical Evidence Model & Zero Evidence Upgrade Invariant (`src/mcp/tools/career-read-tools.js`, `src/mcp/tools/career-artifact-tools.js`, `src/services/evidence-matching.service.js`):**
+   - **Root Cause:** Candidate skills with `SELF_DECLARED` provenance without repository evidence were previously susceptible to generic flattening to `CLAIMED` during profile reconciliation or accidental upgrading to `VERIFIED` during document generation.
+   - **Fix Applied:**
+     - In `career-read-tools.js`, reconciled candidate skills to strictly preserve specific unverified provenance (`SELF_DECLARED` or `LEARNING`) when `cpSkill.provenanceStatus` is generic `CLAIMED`.
+     - In `evidence-matching.service.js`, preserved `UNVERIFIED_CLAIM` match status with `truthCategory: 'CLAIMED'` and authentic `candidateProvenance: 'SELF_DECLARED'` for self-declared skills (Node.js and Docker).
+     - Verified that neither MCP `analyze_job_fit`, Extension `/analyze-job`, `generate_tailored_resume`, `draft_cover_letter`, nor application workflow preparation ever upgrades self-declared skills to `VERIFIED`.
+
+4. **Single Canonical ATS Score Parity (`src/services/ats-fit-score.service.js`, `src/mcp/tools/career-read-tools.js`, `src/routes/extension.routes.js`):**
+   - **Verification & Guarantees:** Both MCP and Extension delegate directly to `AtsFitScoreService.calculateCandidateJobFit`. The ATS score is calculated once by the canonical engine. MCP `atsScore`, `matchGrade`, `recommendation`, and all 7 breakdown components (`requiredSkillsScore`, `preferredSkillsScore`, `experienceFitScore`, `seniorityFitScore`, `semanticSimilarityScore`, `qualityScore`, `bonusDeductionScore`) match Extension bit-for-bit.
+
+5. **Application Lifecycle & Package Hash Convergence (`src/services/job-application-workflow.service.js`):**
+   - **Root Cause:** When Extension called `/prepare-handoff`, it created an application and package. When MCP subsequently called `prepareJobApplication`, it generated a fresh random UUID for `targetJobPosting.id` (instead of using `resolvedCanonicalJobId`) and did not check for an existing prepared package before executing redundant document generation and LaTeX compilation, resulting in divergent package hashes.
+   - **Fix Applied:**
+     - In `job-application-workflow.service.js` (`prepareJobApplication`), added early canonical job identity derivation (`resolvedCanonicalJobId`, `normalizedJobUrl`) and active application lookup.
+     - Implemented idempotent package reuse: if an active application for the candidate and canonical job target already has a `CURRENT` package in `applicationPackages`, `prepareJobApplication` immediately reuses the existing package payload and returns `lifecycleAction: 'REUSED'`, preserving the exact `applicationId`, `canonicalJobId`, and `packageHash`.
+     - Set `targetJobPosting.id` to `resolvedCanonicalJobId` for new preparations, guaranteeing deterministic payload hashing across MCP and Extension.
+
+6. **Comprehensive Automated Verification (`tests/integration/mcp-extension-unified-pipeline-parity.test.js` & Regressions):**
+   - **New Parity Suite:** Created `tests/integration/mcp-extension-unified-pipeline-parity.test.js` covering all 5 core parity and convergence scenarios (**5/5 PASS**).
+   - **Job 1 Parity Suite:** `tests/unit/job1-mcp-extension-parity.test.js` (**2/2 PASS**).
+   - **Extension Architecture & Detection Suites:** `tests/unit/p57-extension-architecture.test.js`, `tests/unit/p65-deterministic-tab-and-reload-detection.test.js`, `tests/unit/p66-authoritative-detection-pipeline.test.js`, `tests/unit/p75-production-sidepanel-parity.test.js`, `tests/unit/p77-production-sidepanel-jobgether-and-same-company-nav.test.js` (**55/55 PASS**).
+   - **Secrets Scan:** `npm run scan:secrets` — **PASS** (Zero exposed secrets).
+
+### Phase P66: Production Bug Fix — Canonical Requirement Semantics, Cross-Workflow Evidence Integrity, and Match Aggregation Invariants
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-30  
+**Scope:** Resolved three interconnected production bugs exposed during live MCP server testing on `main`: (1) canonical requirement semantics lost in `requirementMatches` projection causing ATS `requiredSkillsScore: 0`, (2) cross-workflow evidence contradiction where `analyze_job_fit` marks Node.js as unverified claim while `generate_tailored_resume` marks it as verified with confidence 1.0, and (3) match aggregation semantics where unverified requirements disappeared into `missingCount: 0` or double-counted into `partialCount` and `unverifiedClaimCount`.
+
+1. **Bug A Fix — Authoritative Requirement Semantics & Projection Pipeline (`src/domain/career/job-parser.js`, `src/services/job-normalization.service.js`, `src/mcp/tools/career-read-tools.js`):**
+   - **Root Cause:** In `career-read-tools.js`, the tool adapter previously projected `required: false` indiscriminately into `requirementMatches` or relied on unnormalized properties, causing `AtsFitScoreService` to see 0 required skills and compute `requiredSkillsScore: 0`. Furthermore, job postings with arbitrary header formats (`Must have:`, `You must have:`, `Bonus:`, `Pluses:`, `Nice to have:`) and multi-skill compound bullets (`JavaScript and React.` or `Next.js or Vue.`) were either misclassified into `OVERVIEW` or lumped into single unrecognized items.
+   - **Fixes Applied:**
+     - Relaxed section pattern regexes in `job-parser.js` and `job-normalization.service.js` to recognize arbitrary header syntaxes (`Required:`, `Must have:`, `You must have:`, `Required qualifications:`, `Preferred:`, `Bonus:`, `Pluses:`, `Nice to have:`, `Additional:`).
+     - Enhanced `job-normalization.service.js` with multi-skill bullet extraction using `splitMultiSkillSnippet` to unpack compound requirement bullets into atomic requirements while preserving section importance (`REQUIRED` vs `PREFERRED`).
+     - Standardized `normalizeJobInput` to preserve `required: isRequirementRequired(importance.label)` alongside canonical fields (`skillSlug`, `extractedValue`, `category`, `rawSnippet`).
+     - Established `required: isRequirementRequired(m.importance)` as the single authoritative projection adapter at line 1521 of `career-read-tools.js`.
+
+2. **Bug B Fix — Zero Evidence Upgrade Across Workflows (`src/mcp/tools/career-artifact-tools.js`, `src/services/candidate-artifact-content.service.js`):**
+   - **Root Cause:** In `career-artifact-tools.js` (`handleGenerateTailoredResume`), skills generated for resume sections defaulted to `provenance: 'VERIFIED'` and `confidenceScore: 1.0`, even if candidate profile had declared them as `SELF_DECLARED` / `CLAIMED` without supporting code AST / repo evidence. This directly contradicted `analyze_job_fit` which correctly flagged `Node.js` as an unverified claim.
+   - **Fixes Applied:**
+     - In `handleGenerateTailoredResume`, loaded canonical candidate skills directly via `canonicalCandidateSkillMap`:
+       - If a candidate skill is unverified (`SELF_DECLARED` or `CLAIMED` with no primary repository/AST evidence), it is NEVER upgraded to `VERIFIED`.
+       - Emits `provenance: 'CLAIMED'`, caps confidence score to `Math.min(cs.confidenceScore || 0.5, 0.7)` (default `0.5`, capped at `0.7`), and applies `claimLabel: '[Unverified User Claim]'`.
+     - In `candidate-artifact-content.service.js`, ensured project technology corroboration preserves candidate truth category without fabricating verified status on candidate claims.
+     - Handled project bullet objects `{ text }` in `reconcileCandidateProjects` and `groundAndSanitizeProject` so authentic candidate bullet points are cleanly unwrapped to text rather than dropped as non-strings or rendered as `"[object Object]"`.
+
+3. **Bug C Fix — Match Aggregation Semantics & Non-Overlapping Partitions (`src/services/evidence-matching.service.js`, `src/services/ats-fit-score.service.js`, `src/mcp/tools/career-read-tools.js`):**
+   - **Root Cause:** In `evidence-matching.service.js`, self-declared skills were previously mapped to `PARTIAL` or double-counted across `partialCount` and `unverifiedClaimCount`, leading to status sum mismatches against total job requirements. In `ats-fit-score.service.js`, non-skill requirements were distorting `preferredSkillsScore`.
+   - **Fixes Applied:**
+     - In `evidence-matching.service.js`, `_evaluateExactSkillMatch` classifies self-declared / claimed skills without verified code evidence as `matchStatus: 'UNVERIFIED_CLAIM'`, completely decoupled from verified partial matches.
+     - Enforced strict mutual exclusivity: every requirement maps to exactly one of `MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`, `UNVERIFIED_CLAIM`, or `UNSUPPORTED_CANDIDATE`.
+     - Filtered `preferredMatches` in `ats-fit-score.service.js` by `(m.category === 'SKILL' || !m.category)` to prevent non-skill requirements from corrupting preferred skill scoring.
+     - In `career-read-tools.js`, added `unverifiedClaimCount` and `unsupportedCandidateCount` to `statusSum` verification invariant.
+
+4. **Workflow Parity & Schema Robustness (`src/services/structured-resume.service.js`, `src/services/job-application-workflow.service.js`, `tests/fixtures/mcp-workflow-db.js`):**
+   - Guarded `ProjectRelevanceService.computeProjectsRelevance` calls across `buildStructuredResumeSnapshot` and `prepareJobApplication` by ensuring `normalizedRequirements` is always an array (`posting.normalizedRequirements || []`).
+   - Extended in-memory MCP workflow test database fixture `mcp-workflow-db.js` with SQL aggregation (`isCount` / `total`), pagination (`offset`, `limit`), and candidate skill mapping (`candidate_skills` with `cs` and slugs).
+
+5. **Verification & Regression Audits:**
+   - **Comprehensive End-to-End Suite (`scratch/test-mcp-end-to-end.mjs`):**
+     - `get_candidate_profile`: PASS
+     - `list_verified_skills`: PASS (8 skills)
+     - `analyze_job_fit`: PASS (requiredSkillsScore: 35, required: true for all 6 required skills, required: false for all 4 preferred skills, unverifiedClaimCount: 2, strict 10-requirement partition)
+     - `recommend_portfolio_projects`: PASS
+     - `draft_cover_letter`: PASS (all paragraphs conform to VERIFIED/INFERRED/CLAIMED enum)
+     - `generate_tailored_resume`: PASS (Node.js is CLAIMED with confidence 0.7, claimLabel: '[Unverified User Claim]', zero evidence upgrade preserved)
+     - `list_active_applications`: PASS
+   - **Automated Node Test Suites (`node --test`, 71/71 PASS):**
+     - `tests/unit/job-normalization-arbitrary-formats.test.js`: 8/8 PASS
+     - `tests/unit/truth-category-and-requirement-semantics.test.js`: 17/17 PASS
+     - `tests/integration/mcp-workflows-regression.test.js`: 5/5 PASS
+     - `tests/unit/skill-catalog-additional-skills.test.js`: 25/25 PASS
+     - `tests/unit/resume-structure-content-conditioning.test.js`: 16/16 PASS
+   - **Secrets Scan:** `npm run scan:secrets` — PASS (0 secrets detected).
+   - **Formatting & Lint:** Prettier 100% formatted across all modified files.
+
 ### Phase P65: Production Bug Fix — Truth Categories Contract & Required/Preferred Requirement Semantics
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-30  
@@ -13553,3 +13650,61 @@ Triveous
 
 
 
+
+---
+
+### PHASE P88: UNIFIED PIPELINE CONSISTENCY & CROSS-SURFACE PARITY VERIFICATION
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-30  
+**Scope:** Canonical unification and bit-for-bit parity across Web App, Remote MCP server, Chrome Extension, Side Panel, and Application Workflow. Eliminates divergence across interfaces by strictly enforcing that all surfaces consume the identical canonical Career Hub domain services.
+
+---
+
+#### 1. Core Architectural Invariant
+The Web App, Remote MCP server, Chrome Extension, sidebar, and application workflow are **not** separate implementations; they are different interfaces over the single canonical Career Hub domain and services. All extraction, scoring, evidence evaluation, and package generation flow through the unified domain layer:
+- `JobDiscoveryService` & `JobParsingService` -> Canonical job identity & requirements
+- `EvidenceMatchingService` -> Evidence truth categories & authentic candidate provenance
+- `AtsFitScoreService` -> Canonical deterministic 7-component ATS score breakdown
+- `PortfolioRecommendationService` -> High-signal project relevance
+- `JobApplicationWorkflowService` -> Idempotent package generation and lifecycle persistence
+
+---
+
+#### 2. Root Causes Identified & Resolved
+1. **Canonical Job Identity & Fingerprint Parity:**
+   - *Issue:* MCP `handleAnalyzeJobFit` was deriving `canonicalJobId` only from `args.jobId` or random UUID, whereas Extension derived it from `sourceUrl` and `job.provider`.
+   - *Fix:* Re-exported `deriveJobFingerprint` and `normalizeJobPostingUrl` directly from `src/utils/url-normalizer.js` -> `extension/lib/job-identity.js`. MCP now accepts `sourceUrl`, `url`, `provider`, `externalJobId`, `applicationUrl`, guaranteeing identical UUIDs and 64-char hex fingerprints invariant to query parameters (`utm_*`, `ref`).
+2. **Missing Fields in Extension `toDisplay` Projection:**
+   - *Issue:* Extension route's `serializeRequirementMatchesForExtension` projected only `requirement` and `status`, dropping `normalizedRequirement`, `skillSlug`, `matchStatus`, `importance`, and `truthCategory`.
+   - *Fix:* Updated `toDisplay` projection to preserve all semantic fields: `normalizedRequirement`, `originalRequirement`, `skillSlug`, `status`, `matchStatus`, `required`, `importance`, `candidateProvenance`, `truthCategory`.
+3. **SELF_DECLARED Provenance Overwrite:**
+   - *Issue:* `careerProfile.topSkills` flattened `SELF_DECLARED` into generic `CLAIMED`, which then overwrote `profileView.skills` during MCP profile reconciliation.
+   - *Fix:* `reconciledCandidateSkills` explicitly preserves authentic unverified provenance (`SELF_DECLARED` or `LEARNING`) over generic `CLAIMED`.
+4. **Package Hash and Identity Convergence:**
+   - *Issue:* Extension `/prepare-handoff` created an application package. When MCP subsequently called `prepareJobApplication`, it generated a fresh random UUID for `targetJobPosting.id` and re-executed full document generation rather than checking for an existing application with a `CURRENT` package.
+   - *Fix:* `prepareJobApplication` resolves `resolvedCanonicalJobId`, checks for existing active applications for `(tenantId, candidateId, resolvedCanonicalJobId)`, and reuses the existing `CURRENT` package payload with `lifecycleAction: 'REUSED'`, guaranteeing identical `packageHash` and `applicationId`.
+
+---
+
+#### 3. Verification & Evidence
+- **Automated Cross-Surface Integration Suite (`tests/integration/mcp-extension-unified-pipeline-parity.test.js`)**: **5/5 PASS (100%)**
+  1. MCP and Extension resolve to identical `canonicalJobId` and 64-char `jobFingerprint`.
+  2. Requirement semantics survive across MCP and Extension (`required: true/false`, `importance: REQUIRED/PREFERRED`).
+  3. Evidence truth category `CLAIMED` is preserved without upgrading across any surface (Node.js & Docker unverified claims).
+  4. ATS score is calculated once and is identical across MCP and Extension across all 7 breakdown components.
+  5. MCP `prepareJobApplication` and Extension `prepare-handoff` converge on same `applicationId` and `packageHash` (`lifecycleAction: 'REUSED'`).
+- **MCP vs Extension Parity Regression Suite (`tests/unit/job1-mcp-extension-parity.test.js`)**: **2/2 PASS (100%)**
+- **Comprehensive Cross-Pipeline Verification Script (`scratch/verify-main-cross-pipeline.mjs`)**: **100% PASS**
+  - Section 1: Exact deterministic job fixture
+  - Section 2 & 3: Database seeding (Candidate, Tenant, Skills, Projects)
+  - Section 4: MCP `analyze_job_fit`
+  - Section 5: ATS score breakdown verification (`requiredSkillsScore: 15`, `preferredSkillsScore: 3.75`)
+  - Section 6: Extension POST `/api/extension/analyze-job`
+  - Section 7: Cross-surface parity assertions (All 7 ATS score breakdown components match bit-for-bit)
+  - Section 8: Extension serialization audit
+  - Sections 9 & 10: Evidence consistency & Node.js contradiction audit (Node.js & Docker maintain `CLAIMED` truth category and `[Unverified User Claim]`)
+  - Section 11: Truth category audit
+  - Section 12: Aggregation verification (Sum of requirement states strictly equals total requirement matches)
+  - Section 15: Application workflow parity & convergence (`applicationId` and `packageHash` converge identically)
+  - Section 16: Full MCP workflow tool execution (`get_candidate_profile`, `list_verified_skills`, `analyze_job_fit`, `recommend_portfolio_projects`, `generate_tailored_resume`, `draft_cover_letter`, `list_active_applications`) -> ALL PASS
+- **Security & Secrets Scanner (`npm run scan:secrets`)**: **Zero exposed secrets or private tokens detected (100% PASS)**
