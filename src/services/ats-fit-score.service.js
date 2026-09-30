@@ -20,6 +20,10 @@ import {
   roundScore,
 } from '../domain/career/scoring-policy.js';
 import { getRoleAtsWeights } from '../domain/career/role-scoring-profiles.js';
+import {
+  isRequirementRequired,
+  isRequirementPreferred,
+} from '../domain/career/job-requirement.schemas.js';
 
 export { ATS_SCORE_WEIGHTS, EVIDENCE_TYPE_QUALITY_WEIGHTS };
 
@@ -254,7 +258,9 @@ export class AtsFitScoreService {
     // 2. Component 1: Required Skills Coverage (maxReq Points Max)
     // -------------------------------------------------------------------------
     const requiredSkillMatches = requirementMatches.filter(
-      (m) => m.importance === 'REQUIRED' && m.category === 'SKILL'
+      (m) =>
+        (m.importance ? isRequirementRequired(m.importance) : m.required === true) &&
+        m.category === 'SKILL'
     );
 
     let requiredSkillsScore = 0.0;
@@ -270,8 +276,16 @@ export class AtsFitScoreService {
         let valueFactor = 0.0;
         if (match.matchStatus === 'MATCHED') {
           valueFactor = 1.0;
-        } else if (match.matchStatus === 'PARTIAL') {
-          if (match.isUserClaim || match.claimLabel === '[Unverified User Claim]') {
+        } else if (
+          match.matchStatus === 'PARTIAL' ||
+          match.matchStatus === 'UNVERIFIED_CLAIM'
+        ) {
+          if (
+            match.isUserClaim ||
+            match.claimLabel === '[Unverified User Claim]' ||
+            match.claimLabel === '[Self-Declared Skill]' ||
+            match.matchStatus === 'UNVERIFIED_CLAIM'
+          ) {
             valueFactor = 0.25;
           } else if (match.relationshipType === 'BUILT_ON') {
             valueFactor = 0.75;
@@ -283,9 +297,11 @@ export class AtsFitScoreService {
           } else {
             valueFactor = 0.5;
           }
-        } else if (match.matchStatus === 'UNKNOWN') {
-          valueFactor = 0.0; // Rule 23: Unknown skill means insufficient evidence; never silently award full credit
-        } else if (match.matchStatus === 'MISSING') {
+        } else if (
+          match.matchStatus === 'UNKNOWN' ||
+          match.matchStatus === 'UNSUPPORTED_CANDIDATE' ||
+          match.matchStatus === 'MISSING'
+        ) {
           valueFactor = 0.0;
         }
 
@@ -301,8 +317,8 @@ export class AtsFitScoreService {
     // -------------------------------------------------------------------------
     // 3. Component 2: Preferred Skills Coverage (15 Points Max)
     // -------------------------------------------------------------------------
-    const preferredMatches = requirementMatches.filter(
-      (m) => m.importance === 'PREFERRED' || m.importance === 'OPTIONAL'
+    const preferredMatches = requirementMatches.filter((m) =>
+      m.importance ? isRequirementPreferred(m.importance) : m.required === false
     );
 
     let preferredSkillsScore = 0.0;
@@ -318,8 +334,16 @@ export class AtsFitScoreService {
         let valueFactor = 0.0;
         if (match.matchStatus === 'MATCHED') {
           valueFactor = 1.0;
-        } else if (match.matchStatus === 'PARTIAL') {
-          if (match.isUserClaim || match.claimLabel === '[Unverified User Claim]') {
+        } else if (
+          match.matchStatus === 'PARTIAL' ||
+          match.matchStatus === 'UNVERIFIED_CLAIM'
+        ) {
+          if (
+            match.isUserClaim ||
+            match.claimLabel === '[Unverified User Claim]' ||
+            match.claimLabel === '[Self-Declared Skill]' ||
+            match.matchStatus === 'UNVERIFIED_CLAIM'
+          ) {
             valueFactor = 0.25;
           } else if (match.relationshipType === 'BUILT_ON') {
             valueFactor = 0.75;
@@ -331,9 +355,11 @@ export class AtsFitScoreService {
           } else {
             valueFactor = 0.5;
           }
-        } else if (match.matchStatus === 'UNKNOWN') {
-          valueFactor = 0.0; // Rule 23: Unknown preferred skill has insufficient evidence
-        } else if (match.matchStatus === 'MISSING') {
+        } else if (
+          match.matchStatus === 'UNKNOWN' ||
+          match.matchStatus === 'UNSUPPORTED_CANDIDATE' ||
+          match.matchStatus === 'MISSING'
+        ) {
           valueFactor = 0.0;
         }
 

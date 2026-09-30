@@ -43,6 +43,7 @@ import {
   canonicalizeCareerPreferencesInput,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 import { DateRangeNormalizer } from '../utils/date-range-normalizer.js';
 import { EducationNormalizer } from '../utils/education-normalizer.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
@@ -591,6 +592,7 @@ export class CandidateProfileService {
         name: skillName,
         category: cs.category,
         provenanceStatus: cs.provenanceStatus,
+        truthCategory: normalizeTruthCategory(cs.provenanceStatus),
         confidenceScore: typeof cs.confidenceScore === 'number' ? cs.confidenceScore : 0.0,
         evidenceCount: skillEvidenceRows.length || cs.evidenceCount,
         primaryEvidence: primaryEvidenceRef,

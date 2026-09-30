@@ -19,3 +19,4 @@ export * from './project-improvement.schemas.js';
 export * from './approval-ticket.schemas.js';
 export * from './resume-entity-resolver.js';
 export * from './analysis-metadata.js';
+export * from './truth-category.js';

@@ -9,6 +9,9 @@
  */
 
 import { z } from 'zod';
+import { RequirementImportanceEnum } from './job-requirement.schemas.js';
+
+export { RequirementImportanceEnum };
 
 export const RequirementTypeEnum = z.enum([
   'TECHNICAL_SKILL',
@@ -18,8 +21,6 @@ export const RequirementTypeEnum = z.enum([
   'DOMAIN',
   'RESPONSIBILITY',
 ]);
-
-export const RequirementImportanceEnum = z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']);
 
 export const CandidateAuthorizationEnum = z.enum([
   'AUTHORIZED',

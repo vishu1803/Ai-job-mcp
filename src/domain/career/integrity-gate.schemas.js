@@ -18,6 +18,7 @@ import {
   DateOrIsoStringSchema,
 } from '../candidate/candidate.schemas.js';
 import { EvidenceRefSchema } from './evidence-matching.schemas.js';
+import { CanonicalTruthCategoryEnum } from './truth-category.js';
 
 // ---------------------------------------------------------------------------
 // 1. Enumerations
@@ -34,13 +35,7 @@ export const CareerAssertionTypeEnum = z.enum([
   'SUMMARY',
 ]);
 
-export const CareerAssertionStatusEnum = z.enum([
-  'VERIFIED',
-  'INFERRED',
-  'CLAIMED',
-  'MISSING_EVIDENCE',
-  'UNKNOWN',
-]);
+export const CareerAssertionStatusEnum = CanonicalTruthCategoryEnum;
 
 export const IntegrityStatusEnum = z.enum(['PASS', 'PARTIAL', 'BLOCKED']);
 

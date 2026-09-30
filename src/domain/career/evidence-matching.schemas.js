@@ -27,7 +27,16 @@ import { RequirementCategoryEnum, RequirementImportanceEnum } from './job-requir
 // 1. Enumerations
 // ---------------------------------------------------------------------------
 
-export const MatchStatusEnum = z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN']);
+export const CANONICAL_MATCH_STATUSES = Object.freeze([
+  'MATCHED',
+  'PARTIAL',
+  'MISSING',
+  'UNKNOWN',
+  'UNSUPPORTED_CANDIDATE',
+  'UNVERIFIED_CLAIM',
+]);
+
+export const MatchStatusEnum = z.enum(CANONICAL_MATCH_STATUSES);
 
 export const MatchRelationshipTypeEnum = z.enum([
   'EXACT',
@@ -189,6 +198,8 @@ export const CandidateMatchSummarySchema = z
     partialCount: z.number().int().nonnegative(),
     missingCount: z.number().int().nonnegative(),
     unknownCount: z.number().int().nonnegative(),
+    unverifiedClaimCount: z.number().int().nonnegative().optional().default(0),
+    unsupportedCandidateCount: z.number().int().nonnegative().optional().default(0),
     criticalGapsCount: z.number().int().nonnegative(),
     highGapsCount: z.number().int().nonnegative(),
     mediumGapsCount: z.number().int().nonnegative(),

@@ -772,6 +772,8 @@ export const AnalyzeJobFitOutputSchema = z
       partialCount: z.number().int().nonnegative(),
       missingCount: z.number().int().nonnegative(),
       unknownCount: z.number().int().nonnegative(),
+      unverifiedClaimCount: z.number().int().nonnegative().optional().default(0),
+      unsupportedCandidateCount: z.number().int().nonnegative().optional().default(0),
       keyMatchedSkills: z.array(z.string()).max(10),
       keyMissingSkills: z.array(z.string()).max(10),
     }),
@@ -783,7 +785,14 @@ export const AnalyzeJobFitOutputSchema = z
           normalizedRequirement: z.string(),
           category: z.string(),
           required: z.boolean(),
-          matchStatus: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN']),
+          matchStatus: z.enum([
+            'MATCHED',
+            'PARTIAL',
+            'MISSING',
+            'UNKNOWN',
+            'UNSUPPORTED_CANDIDATE',
+            'UNVERIFIED_CLAIM',
+          ]),
           candidateSkills: z.array(z.string()).default([]),
           candidateProvenance: z
             .enum([

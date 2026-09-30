@@ -29,6 +29,7 @@ import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
@@ -2633,7 +2634,7 @@ export class CandidateArtifactContentService {
           slug: skillSlug,
           name: canonicalName,
           category: cat,
-          provenanceStatus: s.provenance === 'SELF_DECLARED' ? 'USER_PROVIDED' : s.provenance,
+          provenanceStatus: normalizeTruthCategory(s.provenance),
           evidenceCount: s.evidenceCount || 0,
           evidenceId: s.evidenceId || null,
           relevanceScore: Math.min(100, Math.max(0, s.score || 0)),

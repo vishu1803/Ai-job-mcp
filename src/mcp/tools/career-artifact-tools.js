@@ -39,6 +39,7 @@ import { SecretScrubber } from '../../extractors/github/security/secret-scrubber
 import { defaultMcpRateLimiter } from '../../security/mcp-rate-limiter.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
+import { normalizeTruthCategory } from '../../domain/career/truth-category.js';
 import {
   buildCanonicalJobRequirements,
   normalizeJobInput,
@@ -558,7 +559,7 @@ function buildCandidateAssertions(candidateProfileObj) {
       assertionType: 'SKILL',
       statement: `Candidate possesses technical skill: ${skill.name || skill.slug}`,
       subjectSlug: safeSlug,
-      status: skill.provenanceStatus || 'VERIFIED',
+      status: normalizeTruthCategory(skill.truthCategory || skill.provenanceStatus),
       confidenceScore: typeof skill.confidenceScore === 'number' ? skill.confidenceScore : 1.0,
       evidenceRefs: rawRefs.map((r) => toCanonicalEvidenceRef(r, skill.name)).filter(Boolean),
     });
@@ -940,13 +941,9 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
       skills: (structured.skills?.categories || []).map((category) => ({
         category: category.categoryName,
         skills: (category.skills || []).map((skill) => {
-          const prov = skill.provenanceStatus;
-          const mappedProvenance =
-            prov === 'USER_PROVIDED'
-              ? 'CLAIMED'
-              : ['VERIFIED', 'CORROBORATED', 'INFERRED', 'CLAIMED'].includes(prov)
-                ? prov
-                : 'VERIFIED';
+          const mappedProvenance = normalizeTruthCategory(
+            skill.truthCategory || skill.provenanceStatus
+          );
           return {
             skillSlug: skill.slug || skill.name,
             skillName: skill.name,

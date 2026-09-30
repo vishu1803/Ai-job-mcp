@@ -33,7 +33,59 @@ export const RequirementCategoryEnum = z.enum([
   'OTHER',
 ]);
 
-export const RequirementImportanceEnum = z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']);
+export const CANONICAL_REQUIREMENT_IMPORTANCES = Object.freeze([
+  'REQUIRED',
+  'PREFERRED',
+  'NICE_TO_HAVE',
+  'CONDITIONAL',
+  'LOCATION_GATED',
+  'AUTHORIZATION_GATED',
+  'EXPERIENCE_GATED',
+  'EDUCATION_GATED',
+  'CERTIFICATION_GATED',
+  'OPTIONAL',
+]);
+
+export const RequirementImportanceEnum = z.enum(CANONICAL_REQUIREMENT_IMPORTANCES);
+
+/**
+ * Derives boolean `required` flag from the canonical requirement priority.
+ *
+ * Hard constraints (REQUIRED, CONDITIONAL, LOCATION_GATED,
+ * AUTHORIZATION_GATED, EXPERIENCE_GATED, EDUCATION_GATED, CERTIFICATION_GATED)
+ * evaluate to `true`.
+ *
+ * Secondary/optional requirements (PREFERRED, NICE_TO_HAVE, OPTIONAL)
+ * evaluate to `false`.
+ *
+ * @param {string} importance
+ * @returns {boolean}
+ */
+export function isRequirementRequired(importance) {
+  if (!importance) return false;
+  const imp = String(importance).trim().toUpperCase();
+  return (
+    imp === 'REQUIRED' ||
+    imp === 'CONDITIONAL' ||
+    imp === 'LOCATION_GATED' ||
+    imp === 'AUTHORIZATION_GATED' ||
+    imp === 'EXPERIENCE_GATED' ||
+    imp === 'EDUCATION_GATED' ||
+    imp === 'CERTIFICATION_GATED'
+  );
+}
+
+/**
+ * Derives boolean `preferred` flag from the canonical requirement priority.
+ *
+ * @param {string} importance
+ * @returns {boolean}
+ */
+export function isRequirementPreferred(importance) {
+  if (!importance) return false;
+  const imp = String(importance).trim().toUpperCase();
+  return imp === 'PREFERRED' || imp === 'NICE_TO_HAVE' || imp === 'OPTIONAL';
+}
 
 // ---------------------------------------------------------------------------
 // 1b. Canonical Bounded-Text Helper (requirement producer contract)

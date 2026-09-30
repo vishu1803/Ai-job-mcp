@@ -24,6 +24,7 @@ import { ProjectRelevanceService } from './project-relevance.service.js';
 import { normalizeJobInput } from './job-normalization.service.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
@@ -746,7 +747,7 @@ export class JobApplicationWorkflowService {
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
       .map((s) => ({
         name: s.skillName,
-        truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
+        truthCategory: normalizeTruthCategory(s.provenanceStatus),
         notes: 'Self-reported in candidate resume / profile',
       }));
 
@@ -1416,7 +1417,7 @@ export class JobApplicationWorkflowService {
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
       .map((s) => ({
         name: s.skillName,
-        truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
+        truthCategory: normalizeTruthCategory(s.provenanceStatus),
         notes: 'Self-reported in candidate resume / profile',
       }));
 

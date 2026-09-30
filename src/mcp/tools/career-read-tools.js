@@ -32,7 +32,10 @@ import {
 import { NotFoundError, ValidationError } from '../../errors/index.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
 import { JobDescriptionParser } from '../../domain/career/job-parser.js';
-import { boundRequirementText } from '../../domain/career/job-requirement.schemas.js';
+import {
+  boundRequirementText,
+  isRequirementRequired,
+} from '../../domain/career/job-requirement.schemas.js';
 import { EvidenceMatchingService } from '../../services/evidence-matching.service.js';
 import {
   ProjectRelevanceService,
@@ -1374,6 +1377,8 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     partialCount: matchAnalysis.summary.partialCount || 0,
     missingCount: matchAnalysis.summary.missingCount || 0,
     unknownCount: matchAnalysis.summary.unknownCount || 0,
+    unverifiedClaimCount: matchAnalysis.summary.unverifiedClaimCount || 0,
+    unsupportedCandidateCount: matchAnalysis.summary.unsupportedCandidateCount || 0,
     keyMatchedSkills: (matchAnalysis.requirementMatches || [])
       .filter(
         (m) =>
@@ -1513,7 +1518,7 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       originalRequirement: m.originalRequirement || m.extractedValue || '',
       normalizedRequirement: m.normalizedRequirement || m.extractedValue || '',
       category: m.category || 'SKILL',
-      required: m.importance === 'REQUIRED',
+      required: typeof m.required === 'boolean' ? m.required : isRequirementRequired(m.importance),
       matchStatus: m.matchStatus || 'UNKNOWN',
       matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
       candidateSkills: Array.isArray(m.candidateSkills) ? m.candidateSkills : [],

@@ -3,6 +3,41 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-30*
 
+### Phase P65: Production Bug Fix — Truth Categories Contract & Required/Preferred Requirement Semantics
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-30  
+**Scope:** Resolved production workflow contract crash in MCP `draft_cover_letter` (`SELF_DECLARED` enum mismatch) and requirement classification collapse in MCP `analyze_job_fit` (`required: false` losing Required/Preferred distinction), ensuring canonical truth category and requirement importance normalization end-to-end:
+
+1. **Bug 1 Fix — Truth Category Canonical Normalization Layer (`src/domain/career/truth-category.js`, `src/domain/career/integrity-gate.schemas.js`, `src/mcp/tools/career-artifact-tools.js`):**
+   - **Root Cause:** Legacy producers emitted `SELF_DECLARED` (and `USER_PROVIDED`), while the integrity schema `CareerAssertionSchema` strictly required canonical `CareerAssertionStatusEnum` (`VERIFIED`, `INFERRED`, `CLAIMED`, `MISSING_EVIDENCE`, `UNKNOWN`). In `buildCandidateAssertions()` and `handleGenerateTailoredResume()`, `skill.provenanceStatus` was passed directly into `CareerAssertionSchema.parse()`, causing an unhandled Zod enum validation crash at runtime.
+   - **Authoritative Normalization Layer:** Created `src/domain/career/truth-category.js` defining canonical `CANONICAL_TRUTH_CATEGORIES` and single-entry-point `normalizeTruthCategory(rawCategory)`:
+     - `SELF_DECLARED`, `USER_PROVIDED`, `LEARNING`, `CANDIDATE_DECLARED` $\to$ `'CLAIMED'`
+     - `CORROBORATED`, `VERIFIED` $\to$ `'VERIFIED'`
+     - `MISSING`, `NO_EVIDENCE`, `NONE`, `UNBACKED` $\to$ `'MISSING_EVIDENCE'`
+     - Fallback / unrecognized $\to$ `'UNKNOWN'`
+   - **Schema & Producer Alignment:** Refactored `CareerAssertionStatusEnum` to directly wrap `CanonicalTruthCategoryEnum`, updated MCP artifact tools to normalize incoming skills prior to assertion creation, and refactored profile/workflow services to emit canonical truth states.
+
+2. **Bug 2 Fix — Requirement Classification & Semantics Pipeline (`src/domain/career/job-parser.js`, `src/domain/career/skill-taxonomy.js`, `src/domain/career/job-requirement.schemas.js`, `src/services/evidence-matching.service.js`, `src/services/ats-fit-score.service.js`):**
+   - **Root Cause:** In `job-parser.js`, `SECTION_PATTERNS.REQUIREMENTS` regex required trailing qualification keywords, failing to match standalone `Required:` headers. As a result, the required section fell into `OVERVIEW`. When `Preferred:` matched, `hasExplicitRequirementSections` triggered and skipped non-technical lines from overview. Furthermore, `rest-api` was improperly classified as an overly generic skill, and `git` was missing from canonical skills.
+   - **Fixes Applied:**
+     - Relaxed `SECTION_PATTERNS` regexes in `job-parser.js` to match standalone `Required:`, `Preferred:`, `Must-have:`, `Nice-to-have:` headers cleanly.
+     - Removed `rest-api` and `restful-api` from generic skills blacklist in `_isOverlyGenericSkill()`.
+     - Added `git` to `CANONICAL_SKILLS` with aliases `['git', 'git-vcs', 'git-scm']` and children `['github', 'gitlab']` without dangling taxonomy edges.
+     - Expanded `RequirementImportanceEnum` with canonical spectrum (`REQUIRED`, `PREFERRED`, `NICE_TO_HAVE`, `CONDITIONAL`, gated requirements, `OPTIONAL`) and exported canonical predicate helpers `isRequirementRequired(importance)` and `isRequirementPreferred(importance)`.
+     - Bound `required: isRequirementRequired(req.importance)` across all evidence matching result pathways and preserved `required` inside MCP tool DTO projections.
+     - Refactored `AtsFitScoreService` to partition required vs preferred skills using `isRequirementRequired` / `isRequirementPreferred`.
+
+3. **Bug 3 Fix — Aggregation Semantics & Match State Invariants (`src/services/evidence-matching.service.js`, `src/domain/career/scoring-policy.js`):**
+   - Expanded `MatchStatusEnum` and `MATCH_STATUS_ENUM` to explicitly include `'UNVERIFIED_CLAIM'` and `'UNSUPPORTED_CANDIDATE'`.
+   - Prevented self-declared skills without repository evidence from being classified as `MATCHED` under high confidence.
+   - Preserved `unverifiedClaimCount` and `unsupportedCandidateCount` in `requirementSummary` without misreporting missing or unverified claims as 0.
+
+4. **Verification & Regression Audits:**
+   - **Unit Suite:** `tests/unit/truth-category-and-requirement-semantics.test.js` (17/17 PASS).
+   - **MCP Tool Suite:** `tests/integration/mcp-workflows-regression.test.js` (5/5 PASS for `get_candidate_profile`, `list_verified_skills`, `analyze_job_fit`, `recommend_portfolio_projects`, `draft_cover_letter`).
+   - **Pre-Existing Suites:** `tests/unit/evidence-matching.service.test.js` (31/31 PASS), `tests/unit/ats-fit-score.service.test.js` (33/33 PASS), `tests/unit/job-application-workflow-corroborated.test.js` + `p86-job-application-workflow.test.js` + `mcp-application-artifact-tools.test.js` (41/41 PASS).
+   - **Code Integrity:** ESLint: 0 errors; Prettier: 100% formatted; Secrets Scan: PASS (0 secrets).
+
 ### Phase P64: Industrial-Grade ATS Intelligence Main Branch Alignment & Capabilities Integration
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-30  

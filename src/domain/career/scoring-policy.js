@@ -19,6 +19,7 @@ export const MATCH_STATUS_ENUM = Object.freeze([
   'MISSING',
   'UNKNOWN',
   'UNSUPPORTED_CANDIDATE',
+  'UNVERIFIED_CLAIM',
 ]);
 
 export const PARTIAL_MATCH_FACTORS = Object.freeze({
@@ -151,7 +152,11 @@ export function resolveMatchFactor(matchStatus, options = {}) {
   }
 
   if (status === 'PARTIAL') {
-    if (options.isUserClaim || options.claimLabel === '[Unverified User Claim]') {
+    if (
+      options.isUserClaim ||
+      options.claimLabel === '[Unverified User Claim]' ||
+      options.claimLabel === '[Self-Declared Skill]'
+    ) {
       return PARTIAL_MATCH_FACTORS.CLAIMED_WITHOUT_EVIDENCE;
     }
     if (options.relationshipType === 'BUILT_ON') {
@@ -184,6 +189,10 @@ export function resolveMatchFactor(matchStatus, options = {}) {
       return PARTIAL_MATCH_FACTORS.ECOSYSTEM_OF;
     }
     return PARTIAL_MATCH_FACTORS.DEFAULT_PARTIAL;
+  }
+
+  if (status === 'UNVERIFIED_CLAIM') {
+    return PARTIAL_MATCH_FACTORS.CLAIMED_WITHOUT_EVIDENCE;
   }
 
   if (status === 'UNKNOWN') {

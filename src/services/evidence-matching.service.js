@@ -21,6 +21,8 @@ import {
   CandidateMatchAnalysisSchema,
   SkillGapSchema,
 } from '../domain/career/evidence-matching.schemas.js';
+import { isRequirementRequired } from '../domain/career/job-requirement.schemas.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 
 // ---------------------------------------------------------------------------
 // 1. Evidence Type Evidentiary Rank (Lower number = higher evidentiary strength)
@@ -198,13 +200,32 @@ export class EvidenceMatchingService {
     let partialCount = 0;
     let missingCount = 0;
     let unknownCount = 0;
+    let unverifiedClaimCount = 0;
+    let unsupportedCandidateCount = 0;
 
     for (const m of requirementMatches) {
-      if (m.matchStatus === 'MATCHED') matchedCount++;
-      else if (m.matchStatus === 'PARTIAL') partialCount++;
-      else if (m.matchStatus === 'MISSING') missingCount++;
-      else if (m.matchStatus === 'UNKNOWN') unknownCount++;
-      else {
+      if (m.matchStatus === 'MATCHED') {
+        matchedCount++;
+      } else if (m.matchStatus === 'PARTIAL') {
+        partialCount++;
+        if (
+          m.isUserClaim ||
+          m.claimLabel === '[Unverified User Claim]' ||
+          m.claimLabel === '[Self-Declared Skill]'
+        ) {
+          unverifiedClaimCount++;
+        }
+      } else if (m.matchStatus === 'UNVERIFIED_CLAIM') {
+        partialCount++;
+        unverifiedClaimCount++;
+      } else if (m.matchStatus === 'MISSING') {
+        missingCount++;
+      } else if (m.matchStatus === 'UNKNOWN') {
+        unknownCount++;
+      } else if (m.matchStatus === 'UNSUPPORTED_CANDIDATE') {
+        unsupportedCandidateCount++;
+        missingCount++;
+      } else {
         // Defensive: unknown status should never occur. Count as UNKNOWN and log.
         unknownCount++;
         logger.warn({
@@ -244,6 +265,8 @@ export class EvidenceMatchingService {
       partialCount,
       missingCount,
       unknownCount,
+      unverifiedClaimCount,
+      unsupportedCandidateCount,
       criticalGapsCount,
       highGapsCount,
       mediumGapsCount,
@@ -537,8 +560,16 @@ export class EvidenceMatchingService {
       allEvidence.length > 0 &&
       allEvidence.every((ev) => EvidenceMatchingService._isLowTrustEvidence(ev));
 
+    const normalizedTruth = normalizeTruthCategory(
+      candidateSkill.truthCategory || candidateSkill.provenanceStatus
+    );
+
     const isExplicitUserClaim =
+      normalizedTruth === 'CLAIMED' ||
       candidateSkill.provenanceStatus === 'CLAIMED' ||
+      candidateSkill.provenanceStatus === 'SELF_DECLARED' ||
+      candidateSkill.provenanceStatus === 'USER_PROVIDED' ||
+      candidateSkill.provenanceStatus === 'LEARNING' ||
       candidateSkill.isUserClaim === true ||
       candidateSkill.metadata?.isUserClaim === true;
 
@@ -546,11 +577,17 @@ export class EvidenceMatchingService {
     // canonical provenanceStatus. Never upgrade CORROBORATED→VERIFIED or CLAIMED→VERIFIED.
     const canonicalProvenance = candidateSkill.provenanceStatus || 'NONE';
 
+    const hasVerifiedProvenance =
+      canonicalProvenance === 'VERIFIED' ||
+      canonicalProvenance === 'CORROBORATED';
+
+    const hasQualifyingCodeEvidence =
+      _hasHighTrustEvidence ||
+      (allEvidence.length > 0 && !allEvidenceIsLowTrust);
+
     // CASE A: VERIFIED or CORROBORATED with qualifying candidate-authored evidence
     if (
-      (canonicalProvenance === 'VERIFIED' ||
-        canonicalProvenance === 'CORROBORATED' ||
-        candidateSkill.confidenceScore >= 0.85) &&
+      (hasVerifiedProvenance || (hasQualifyingCodeEvidence && candidateSkill.confidenceScore >= 0.85)) &&
       !isExplicitUserClaim &&
       !allEvidenceIsLowTrust
     ) {
@@ -576,7 +613,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: targetDisplayName,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -615,7 +652,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: targetDisplayName,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -659,55 +696,6 @@ export class EvidenceMatchingService {
       return { match, explanation, gap };
     }
 
-    // CASE B: CLAIMED Skill (Unverified User Claim)
-    if (isExplicitUserClaim || candidateSkill.provenanceStatus === 'CLAIMED') {
-      const matchConfidence = Number(Math.min(0.5, (req.confidenceScore ?? 0.9) * 0.5).toFixed(2));
-
-      const match = {
-        requirementId: req.id,
-        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
-        normalizedRequirement: targetDisplayName,
-        category: req.category,
-        required: req.importance === 'REQUIRED',
-        importance: req.importance,
-        weight: req.weight ?? 1.0,
-        skillSlug: targetSlug,
-        extractedValue: req.extractedValue,
-        matchStatus: 'PARTIAL',
-        matchConfidence,
-        isUserClaim: true,
-        claimLabel: '[Unverified User Claim]',
-        candidateSkills: [candidateSkill.name || targetDisplayName],
-        candidateProvenance: 'CLAIMED',
-        provenanceTrustClass: 'LOW_TRUST',
-        matchedSkillSlug: targetSlug,
-        relationshipType: 'EXACT',
-        primaryEvidence: null,
-        supportingEvidence: [],
-        explanation: `PARTIAL: Candidate self-claims ${targetDisplayName} ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.`,
-      };
-
-      const explanation = {
-        requirementId: req.id,
-        status: 'PARTIAL',
-        reason: match.explanation,
-        evidenceRefs: [],
-        matchConfidence,
-      };
-
-      const gap = EvidenceMatchingService._createSkillGap(
-        req,
-        targetSlug,
-        targetDisplayName,
-        'PARTIAL',
-        'UNVERIFIED_CLAIM',
-        match.explanation,
-        `Connect a repository containing ${targetDisplayName} code, manifests, or deployment configurations.`
-      );
-
-      return { match, explanation, gap };
-    }
-
     // CASE B2: SELF_DECLARED Skill (Candidate-declared, not evidence-backed)
     if (candidateSkill.provenanceStatus === 'SELF_DECLARED') {
       const matchConfidence = Number(
@@ -720,7 +708,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: targetDisplayName,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -770,7 +758,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: targetDisplayName,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -804,8 +792,57 @@ export class EvidenceMatchingService {
         'MISSING',
         'INSUFFICIENT_EVIDENCE',
         match.explanation,
-        `Build projects or complete training to demonstrate proficiency in ${targetDisplayName}.`,
+        `Continue learning and build projects to gain verified proficiency in ${targetDisplayName}.`,
         'NO_EVIDENCE'
+      );
+
+      return { match, explanation, gap };
+    }
+
+    // CASE B: CLAIMED Skill (Unverified User Claim)
+    if (isExplicitUserClaim || candidateSkill.provenanceStatus === 'CLAIMED') {
+      const matchConfidence = Number(Math.min(0.5, (req.confidenceScore ?? 0.9) * 0.5).toFixed(2));
+
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
+        category: req.category,
+        required: isRequirementRequired(req.importance),
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: targetSlug,
+        extractedValue: req.extractedValue,
+        matchStatus: 'PARTIAL',
+        matchConfidence,
+        isUserClaim: true,
+        claimLabel: '[Unverified User Claim]',
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: 'CLAIMED',
+        provenanceTrustClass: 'LOW_TRUST',
+        matchedSkillSlug: targetSlug,
+        relationshipType: 'EXACT',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: `PARTIAL: Candidate self-claims ${targetDisplayName} ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.`,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'PARTIAL',
+        reason: match.explanation,
+        evidenceRefs: [],
+        matchConfidence,
+      };
+
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        targetSlug,
+        targetDisplayName,
+        'PARTIAL',
+        'UNVERIFIED_CLAIM',
+        match.explanation,
+        `Connect a repository containing ${targetDisplayName} code, manifests, or deployment configurations.`
       );
 
       return { match, explanation, gap };
@@ -829,7 +866,7 @@ export class EvidenceMatchingService {
       originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
       normalizedRequirement: targetDisplayName,
       category: req.category,
-      required: req.importance === 'REQUIRED',
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: targetSlug,
@@ -927,6 +964,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: targetDisplayName,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
@@ -973,6 +1011,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: targetDisplayName,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
@@ -1013,6 +1052,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: targetDisplayName,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
@@ -1067,6 +1107,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: targetDisplayName,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
@@ -1130,6 +1171,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: targetDisplayName,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
@@ -1183,6 +1225,7 @@ export class EvidenceMatchingService {
       originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
       normalizedRequirement: targetDisplayName,
       category: req.category,
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: targetSlug,
@@ -1376,7 +1419,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: req.extractedValue,
           category: req.category,
-          required: req.importance === 'REQUIRED',
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: targetSkillSlug,
@@ -1429,7 +1472,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: req.extractedValue,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSkillSlug,
@@ -1520,6 +1563,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1552,6 +1596,7 @@ export class EvidenceMatchingService {
         const match = {
           requirementId: req.id,
           category: req.category,
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: null,
@@ -1583,6 +1628,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1626,6 +1672,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1721,6 +1768,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1730,7 +1778,7 @@ export class EvidenceMatchingService {
         isUserClaim: false,
         claimLabel: null,
         candidateSkills: [candidateDegreeName],
-        candidateProvenance: 'SELF_DECLARED',
+        candidateProvenance: 'CLAIMED',
         provenanceTrustClass: 'LOW_TRUST',
         matchedSkillSlug: null,
         relationshipType: 'NONE',
@@ -1755,6 +1803,7 @@ export class EvidenceMatchingService {
     const match = {
       requirementId: req.id,
       category: req.category,
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: null,
@@ -1764,7 +1813,7 @@ export class EvidenceMatchingService {
       isUserClaim: false,
       claimLabel: null,
       candidateSkills: [candidateDegreeName],
-      candidateProvenance: 'SELF_DECLARED',
+      candidateProvenance: 'CLAIMED',
       provenanceTrustClass: 'LOW_TRUST',
       matchedSkillSlug: null,
       relationshipType: 'NONE',
@@ -1839,7 +1888,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: req.extractedValue,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1894,7 +1943,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: req.extractedValue,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1941,7 +1990,7 @@ export class EvidenceMatchingService {
         originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
         normalizedRequirement: req.extractedValue,
         category: req.category,
-        required: req.importance === 'REQUIRED',
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1977,7 +2026,7 @@ export class EvidenceMatchingService {
       originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
       normalizedRequirement: req.extractedValue,
       category: req.category,
-      required: req.importance === 'REQUIRED',
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: null,
@@ -2048,7 +2097,7 @@ export class EvidenceMatchingService {
           originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
           normalizedRequirement: req.extractedValue,
           category: req.category,
-          required: req.importance === 'REQUIRED',
+          required: isRequirementRequired(req.importance),
           importance: req.importance,
           weight: req.weight ?? 1.0,
           skillSlug: null,
@@ -2058,7 +2107,7 @@ export class EvidenceMatchingService {
           isUserClaim: false,
           claimLabel: null,
           candidateSkills: [targetCountry],
-          candidateProvenance: 'SELF_DECLARED',
+          candidateProvenance: 'CLAIMED',
           provenanceTrustClass: 'LOW_TRUST',
           matchedSkillSlug: null,
           relationshipType: 'NONE',
@@ -2086,7 +2135,7 @@ export class EvidenceMatchingService {
       originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
       normalizedRequirement: req.extractedValue,
       category: req.category,
-      required: req.importance === 'REQUIRED',
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: null,
@@ -2136,6 +2185,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -2178,6 +2228,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -2221,6 +2272,7 @@ export class EvidenceMatchingService {
     const match = {
       requirementId: req.id,
       category: req.category,
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: targetSlug,
@@ -2279,6 +2331,7 @@ export class EvidenceMatchingService {
       const match = {
         requirementId: req.id,
         category: req.category,
+        required: isRequirementRequired(req.importance),
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -2290,7 +2343,7 @@ export class EvidenceMatchingService {
         candidateSkills: [
           typeof foundCert === 'string' ? foundCert : foundCert.name || req.extractedValue,
         ],
-        candidateProvenance: 'SELF_DECLARED',
+        candidateProvenance: 'CLAIMED',
         provenanceTrustClass: 'LOW_TRUST',
         matchedSkillSlug: null,
         relationshipType: 'NONE',
@@ -2341,6 +2394,7 @@ export class EvidenceMatchingService {
       originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
       normalizedRequirement: req.normalizedCriteria?.skillName || req.extractedValue,
       category: req.category,
+      required: isRequirementRequired(req.importance),
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: req.skillSlug || null,

@@ -1161,6 +1161,19 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: ['gcp'],
     },
   },
+  git: {
+    slug: 'git',
+    name: 'Git',
+    category: 'TOOL',
+    description: 'Distributed version control system for tracking changes in source code.',
+    aliases: ['git', 'git-vcs', 'git-scm'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: [],
+      parentOf: ['github', 'gitlab'],
+    },
+  },
   github: {
     slug: 'github',
     name: 'GitHub',
@@ -1169,7 +1182,7 @@ export const CANONICAL_SKILLS = Object.freeze({
       'Developer platform that allows developers to create, store, manage and share their code.',
     aliases: ['github', 'github-platform'],
     relationships: {
-      builtOn: [],
+      builtOn: ['git'],
       ecosystemOf: [],
       implements: ['ci-cd'],
       parentOf: ['github-actions'],
@@ -1182,7 +1195,7 @@ export const CANONICAL_SKILLS = Object.freeze({
     description: 'Web-based DevOps lifecycle tool that provides a Git-repository manager.',
     aliases: ['gitlab', 'gitlab-platform'],
     relationships: {
-      builtOn: [],
+      builtOn: ['git'],
       ecosystemOf: [],
       implements: ['ci-cd'],
       parentOf: ['gitlab-ci'],

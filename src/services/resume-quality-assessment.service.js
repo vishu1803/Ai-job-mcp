@@ -37,6 +37,7 @@
 
 import zlib from 'node:zlib';
 import { getScoringPolicy, DEFAULT_SCORE_VERSION } from '../domain/career/scoring-policy.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 export { isMeaningfulDsa } from './resume-content-strategy.service.js';
 
 const ASSESSMENT_VERSION = '1.0.0';
@@ -346,8 +347,8 @@ function skillToken(name) {
  * @returns {'EVIDENCE_BACKED'|'CLAIMED'}
  */
 function provenanceToStatus(truthCategory) {
-  const cat = String(truthCategory || '').toUpperCase();
-  if (cat === 'VERIFIED' || cat === 'CORROBORATED') return 'EVIDENCE_BACKED';
+  const norm = normalizeTruthCategory(truthCategory);
+  if (norm === 'VERIFIED') return 'EVIDENCE_BACKED';
   return 'CLAIMED';
 }
 
