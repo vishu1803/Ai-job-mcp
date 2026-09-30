@@ -116,10 +116,19 @@ function mean(nums) {
  * @param {object|null} [params.candidateProfile] Canonical candidate profile (for available-fact coverage)
  * @param {object|null} [params.jobPosting] Target job posting (requirements/skills/title feed job relevance)
  * @param {string} [params.extractedText] Text extracted from the compiled PDF (optional)
- * @param {number|null} [params.pageCount] Physical page count (optional; defaults to 1)
  * @param {object|null} [params.geometry] { pageOccupancyRatio, bottomWhitespacePt } (optional)
  * @returns {{ score: number, version: string, dimensions: object, penalties: object, metrics: object }}
  */
+export class ResumeQualityScoreService {
+  evaluateQuality(params) {
+    const res = computeResumeQualityScore(params);
+    return {
+      qualityScore: res.score,
+      ...res,
+    };
+  }
+}
+
 export function computeResumeQualityScore({
   structuredResume,
   candidateProfile = null,

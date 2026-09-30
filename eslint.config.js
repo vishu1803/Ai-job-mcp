@@ -45,11 +45,15 @@ export default [
     },
   },
   {
-    files: ['src/mcp/apps/**/*.js'],
+    files: ['src/mcp/apps/**/*.js', 'public/**/*.js'],
     languageOptions: {
       globals: {
         window: 'readonly',
         document: 'readonly',
+        navigator: 'readonly',
+        sessionStorage: 'readonly',
+        Event: 'readonly',
+        requestAnimationFrame: 'readonly',
       },
     },
   },

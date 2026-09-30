@@ -1,0 +1,41 @@
+{
+  "id": "cand-junior-entry",
+  "name": "Tom Miller",
+  "email": "tom.miller@example.com",
+  "phone": "+1-555-987-1234",
+  "location": "Austin, TX",
+  "workAuthorization": "US_CITIZEN_OR_PERMANENT_RESIDENT",
+  "skills": ["HTML", "CSS", "JavaScript", "React"],
+  "education": [
+    {
+      "degree": "Coding Bootcamp Certificate",
+      "institution": "Fullstack Academy",
+      "year": "2023"
+    }
+  ],
+  "experience": [
+    {
+      "company": "Local Tech Solutions",
+      "title": "Junior Web Developer Intern",
+      "startDate": "2023-08-01",
+      "endDate": "2023-12-01",
+      "durationMonths": 4,
+      "employmentType": "INTERNSHIP",
+      "bullets": [
+        "Updated client WordPress themes and fixed minor HTML/CSS bugs.",
+        "Assisted senior engineers in testing frontend landing pages."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Todo List App",
+      "description": "Simple to-do app built following an online YouTube tutorial.",
+      "technologies": ["HTML", "CSS", "JavaScript"],
+      "bullets": [
+        "Created a basic todo list stored in browser local storage."
+      ]
+    }
+  ],
+  "openSourceContributions": []
+}

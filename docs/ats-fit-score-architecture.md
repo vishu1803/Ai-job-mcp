@@ -149,9 +149,10 @@ Where:
 * $V_{\text{match}}(r) = 0.50$ for `PARTIAL` with engine abstraction (`IMPLEMENTS` e.g., PostgreSQL for SQL).
 * $V_{\text{match}}(r) = 0.25$ for `PARTIAL` with unverified self-claim (`[Unverified User Claim]`).
 * $V_{\text{match}}(r) = 0.00$ for `MISSING` (0 evidence and 0 claims).
-* $V_{\text{match}}(r) = 1.00$ for `UNKNOWN` (Excluded from penalty denominator).
+* $V_{\text{match}}(r) = 0.00$ for `UNKNOWN` (Rule 23: Insufficient evidence earns 0.0; unknown technical competencies are never silently awarded full credit).
+* $V_{\text{match}}(r) = 0.00$ for `UNSUPPORTED_CANDIDATE` (Resume claim with zero repository proof).
 
-*Default Behavior*: If the job description defines $0$ technical required skills, $S_{\text{req}}$ defaults neutrally to $40.0$.
+*Neutral Non-Penalization Protocol*: If a non-skill category (Education, Location, Preferred Skills) is unstated in the Job Description, it is marked `NOT_APPLICABLE` and excluded from the denominator ($S_{\text{possible}} = 0.0$), ensuring candidates are never penalized for unrequested qualifications. If a category is stated as required in the Job Description but unstated in the candidate profile, it evaluates to `UNKNOWN` with $0.0$ earned points, prompting explicit candidate confirmation.
 
 ---
 
@@ -161,7 +162,7 @@ Consumes requirement matches where `importance === 'PREFERRED'` or `importance =
 
 $$S_{\text{pref}} = 15.0 \times \frac{\sum_{p \in \text{PrefSkills}} W_{\text{tier}}(p) \times V_{\text{match}}(p)}{\sum_{p \in \text{PrefSkills}} W_{\text{tier}}(p)}$$
 
-*Default Behavior*: If the job description defines $0$ preferred skills, $S_{\text{pref}}$ defaults neutrally to $15.0$.
+*Neutral Behavior*: If the job description defines $0$ preferred skills, preferred skills are excluded from the denominator with status `NOT_APPLICABLE` ($S_{\text{possible}} = 0.0$).
 
 ---
 
@@ -189,8 +190,8 @@ Evaluates explicit corporate employment tenure from `candidateProfile.experience
 $$S_{\text{exp}} = \begin{cases}
 10.0 & \text{if matchStatus is MATCHED} \\
 10.0 \times \min\left(1.0, \, \frac{\text{ObservedTenureMonths}}{\text{RequiredTenureMonths}}\right) & \text{if matchStatus is PARTIAL} \\
-0.0 & \text{if matchStatus is MISSING} \\
-10.0 & \text{if matchStatus is UNKNOWN or 0 Experience Requirements}
+0.0 & \text{if matchStatus is MISSING or UNKNOWN} \\
+\text{NOT\_APPLICABLE} & \text{if 0 Experience Requirements in Job Description}
 \end{cases}$$
 
 *Zero Conflation Rule*: Observed Git commit activity duration provides technical skill evidence, but is **never** credited as corporate professional employment tenure without explicit career history records.
@@ -204,11 +205,9 @@ Evaluates degrees recorded in `candidateProfile.education` against job requireme
 $$S_{\text{edu}} = \begin{cases}
 5.0 & \text{if matchStatus is MATCHED (Degree meets/exceeds requirement)} \\
 3.0 & \text{if matchStatus is PARTIAL (e.g. Bachelor's for Master's, or related STEM field)} \\
-0.0 & \text{if matchStatus is MISSING (Explicitly below required minimum degree)} \\
-5.0 & \text{if matchStatus is UNKNOWN (Unstated in candidate profile) or 0 Education Requirements}
+0.0 & \text{if matchStatus is MISSING or UNKNOWN} \\
+\text{NOT\_APPLICABLE} & \text{if 0 Education Requirements in Job Description}
 \end{cases}$$
-
-*Unstated Education Rule*: Candidates who omit education details from their profile evaluate to `UNKNOWN` and receive neutral baseline credit ($5.0$ pts), preventing automatic penalty when education is unstated.
 
 ---
 
@@ -219,8 +218,8 @@ Evaluates geographic and remote alignment from `candidateProfile.location` again
 $$S_{\text{loc}} = \begin{cases}
 5.0 & \text{if matchStatus is MATCHED (Remote role, same metro, or authorized jurisdiction)} \\
 3.75 & \text{if matchStatus is PARTIAL (Hybrid within commutable zone or relocation candidate)} \\
-0.0 & \text{if matchStatus is MISSING (Strict on-site in non-commutable foreign jurisdiction)} \\
-5.0 & \text{if matchStatus is UNKNOWN (Unstated location) or 0 Location Requirements}
+0.0 & \text{if matchStatus is MISSING or UNKNOWN} \\
+\text{NOT\_APPLICABLE} & \text{if 0 Location Requirements in Job Description}
 \end{cases}$$
 
 ---

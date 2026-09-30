@@ -1,0 +1,63 @@
+{
+  "id": "cand-senior-backend",
+  "name": "Sarah Connor",
+  "email": "sarah.connor@example.com",
+  "phone": "+1-555-019-2834",
+  "location": "San Francisco, CA",
+  "workAuthorization": "US_CITIZEN_OR_PERMANENT_RESIDENT",
+  "skills": ["Go", "Kubernetes", "PostgreSQL", "Kafka", "Docker", "AWS", "gRPC", "Prometheus"],
+  "education": [
+    {
+      "degree": "B.S. in Computer Science",
+      "institution": "University of California, Berkeley",
+      "year": "2018"
+    }
+  ],
+  "experience": [
+    {
+      "company": "CloudScale Inc",
+      "title": "Senior Distributed Systems Engineer",
+      "startDate": "2021-01-01",
+      "endDate": "2024-01-01",
+      "durationMonths": 36,
+      "employmentType": "FULL_TIME",
+      "bullets": [
+        "Architected distributed event ingestion pipeline in Go processing 25,000 req/s with 99.99% uptime.",
+        "Scaled PostgreSQL clustering and read-replicas, cutting p99 query latency by 45%.",
+        "Mentored 4 junior backend engineers on concurrent Go patterns and system design."
+      ]
+    },
+    {
+      "company": "DataStream Corp",
+      "title": "Backend Software Engineer",
+      "startDate": "2018-06-01",
+      "endDate": "2020-12-31",
+      "durationMonths": 31,
+      "employmentType": "FULL_TIME",
+      "bullets": [
+        "Developed Kafka streaming consumers in Go and Java handling 10M daily events.",
+        "Automated CI/CD deployment pipelines using GitHub Actions and Kubernetes Helm charts."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Raft Consensus Queue",
+      "description": "Distributed log and leader-election coordinator implementing Raft in Go.",
+      "technologies": ["Go", "Raft", "gRPC", "Docker", "Prometheus"],
+      "bullets": [
+        "Implemented distributed consensus protocol with dynamic node membership and health checks.",
+        "Containerized with Docker and published Prometheus metrics for cluster replication latency."
+      ]
+    }
+  ],
+  "openSourceContributions": [
+    {
+      "repository": "grpc/grpc-go",
+      "role": "EXTERNAL_CONTRIBUTOR",
+      "mergedPrCount": 2,
+      "starsCount": 21000,
+      "description": "Fixed keepalive ping race condition in HTTP/2 transport layer"
+    }
+  ]
+}

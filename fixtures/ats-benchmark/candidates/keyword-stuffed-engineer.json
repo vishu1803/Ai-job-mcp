@@ -1,0 +1,37 @@
+{
+  "id": "cand-keyword-stuffed",
+  "name": "Chad Spammer",
+  "email": "chad.spammer@example.com",
+  "phone": "+1-555-000-1111",
+  "location": "Remote",
+  "workAuthorization": "US_CITIZEN_OR_PERMANENT_RESIDENT",
+  "skills": ["Python", "React", "AWS", "Kubernetes", "Docker", "Machine Learning", "AI", "Kafka", "PostgreSQL", "Go", "Rust", "TypeScript"],
+  "education": [],
+  "experience": [
+    {
+      "company": "Growth Hackers LLC",
+      "title": "Full Stack Hacker",
+      "startDate": "2023-01-01",
+      "endDate": "2023-06-01",
+      "durationMonths": 5,
+      "employmentType": "FULL_TIME",
+      "bullets": [
+        "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI",
+        "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI",
+        "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Ultimate All-in-One Spammed App",
+      "description": "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI Cloud Microservices BigData",
+      "technologies": ["Python", "React", "AWS", "Kubernetes", "Docker", "Kafka", "PostgreSQL", "Go", "Rust"],
+      "bullets": [
+        "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI",
+        "Python React AWS Kubernetes Docker Kafka PostgreSQL Go Rust Machine Learning AI"
+      ]
+    }
+  ],
+  "openSourceContributions": []
+}

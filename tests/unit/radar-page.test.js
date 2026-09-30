@@ -319,4 +319,45 @@ describe('Radar Result Page (renderRadarResultPage)', () => {
 
     assert.ok(html.includes('Analyze Another Job'));
   });
+
+  it('renders 8-dimensional ATS intelligence panel when ATS report is present', () => {
+    const dataWithAts = {
+      ...mockAnalysisData,
+      multiDimensionalAtsReport: {
+        dimensions: {
+          atsParseability: { score: 92 },
+          atsExtraction: { score: 88 },
+          keywordCoverage: { score: 85 },
+          contentQuality: { score: 80 },
+          jobFit: { score: 82 },
+          evidenceConfidence: { score: 90 },
+          candidateQuality: { score: 84 },
+          applicationReadiness: { score: 86 },
+        },
+      },
+      explainability: {
+        lostPointsTotal: 18,
+        topRemediationActions: [
+          'Add quantifiable impact metric to Stripe role',
+          'Include explicit mention of Kafka architecture',
+        ],
+      },
+      applicationReadiness: {
+        readinessBand: 'READY_TO_APPLY',
+      },
+    };
+
+    const html = renderRadarResultPage({
+      user: mockUser,
+      tenant: mockTenant,
+      analysisData: dataWithAts,
+    });
+
+    assert.ok(html.includes('8-Dimensional ATS Intelligence'));
+    assert.ok(html.includes('ATS Parseability'));
+    assert.ok(html.includes('Keyword Coverage'));
+    assert.ok(html.includes('READY TO APPLY'));
+    assert.ok(html.includes('Score Explainability & Lost Points'));
+    assert.ok(html.includes('Add quantifiable impact metric'));
+  });
 });

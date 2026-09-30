@@ -7,40 +7,22 @@
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { CandidateJobFitAnalysisSchema } from '../domain/career/ats-fit-score.schemas.js';
+import {
+  DEFAULT_COMPONENT_WEIGHTS,
+  ATS_SCORE_WEIGHTS,
+  EVIDENCE_TYPE_QUALITY_WEIGHTS,
+  resolveMatchFactor,
+  resolveScoreCap,
+  computeRawScore,
+  computeFinalScore,
+  resolveFitBand,
+  validateScoringInvariants,
+  roundScore,
+} from '../domain/career/scoring-policy.js';
 
-// ---------------------------------------------------------------------------
-// Constants & Weights
-// ---------------------------------------------------------------------------
+export { ATS_SCORE_WEIGHTS, EVIDENCE_TYPE_QUALITY_WEIGHTS };
 
-export const ATS_SCORE_WEIGHTS = Object.freeze({
-  REQUIRED_SKILLS: 40.0,
-  PREFERRED_SKILLS: 15.0,
-  PROJECT_RELEVANCE: 20.0,
-  EXPERIENCE_FIT: 10.0,
-  EDUCATION_FIT: 5.0,
-  LOCATION_FIT: 5.0,
-  EVIDENCE_CONFIDENCE: 5.0,
-});
-
-export const EVIDENCE_TYPE_QUALITY_WEIGHTS = Object.freeze({
-  CODE_USAGE: 1.0,
-  CODE_IMPORT_USAGE: 0.95,
-  CONFIG_SYNTAX_DECLARATION: 0.85,
-  PACKAGE_MANIFEST_DEPENDENCY: 0.75,
-  COMMIT_CONTRIBUTION: 0.7,
-  FILE_PATTERN_MATCH: 0.6,
-  DIRECTORY_STRUCTURE: 0.5,
-  README_SPECIFICATION: 0.3,
-  DOCUMENT_CLAIM: 0.0,
-});
-
-/**
- * Rounds a decimal number to a specified precision.
- */
-function round(num, precision = 2) {
-  const factor = 10 ** precision;
-  return Math.round((num + Number.EPSILON) * factor) / factor;
-}
+const round = roundScore;
 
 // ---------------------------------------------------------------------------
 // AtsFitScoreService Implementation
@@ -605,33 +587,13 @@ export class AtsFitScoreService {
     const highGaps = skillGaps.filter((g) => g.priority === 'HIGH');
     const highGapCount = highGaps.length;
 
-    let scoreCap = null;
-    if (criticalGapCount === 1) {
-      scoreCap = 74.9;
-    } else if (criticalGapCount === 2) {
-      scoreCap = 49.9;
-    } else if (criticalGapCount >= 3) {
-      scoreCap = 24.9;
-    }
-
-    const isCapped = scoreCap !== null && rawScore > scoreCap;
-    const overallScore = isCapped ? scoreCap : rawScore;
+    const scoreCap = resolveScoreCap(criticalGapCount);
+    const { overallScore, isCapped } = computeFinalScore(rawScore, criticalGapCount);
 
     // -------------------------------------------------------------------------
     // 11. Fit Band Assignment
     // -------------------------------------------------------------------------
-    let fitBand = 'LOW';
-    if (overallScore >= 90.0) {
-      fitBand = 'EXCELLENT';
-    } else if (overallScore >= 75.0) {
-      fitBand = 'STRONG';
-    } else if (overallScore >= 50.0) {
-      fitBand = 'MODERATE';
-    } else if (overallScore >= 25.0) {
-      fitBand = 'WEAK';
-    } else {
-      fitBand = 'LOW';
-    }
+    const fitBand = resolveFitBand(overallScore);
 
     // -------------------------------------------------------------------------
     // 12. Structured Key Strengths Extraction (Max 5)
@@ -817,6 +779,20 @@ export class AtsFitScoreService {
       confidence: overallConfidence,
       analyzedAt,
     };
+
+    validateScoringInvariants({
+      requiredSkillsScore,
+      preferredSkillsScore,
+      projectRelevanceScore,
+      experienceFitScore,
+      educationFitScore,
+      locationFitScore,
+      evidenceConfidenceScore,
+      rawScore,
+      overallScore,
+      criticalGapCount,
+      denominatorAudit,
+    });
 
     return CandidateJobFitAnalysisSchema.parse(result);
   }

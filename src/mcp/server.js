@@ -38,6 +38,7 @@ import {
   registerCareerTrackingTools,
   registerJobWorkflowTools,
   registerCareerProfileTools,
+  registerAtsIntelligenceTools,
 } from './tools/index.js';
 import { registerCareerMcpApps } from './apps/index.js';
 import { registerCareerResources } from './resources/career-resources.js';
@@ -488,6 +489,7 @@ export {
   registerCareerTrackingTools,
   registerJobWorkflowTools,
   registerCareerProfileTools,
+  registerAtsIntelligenceTools,
   registerCareerMcpApps,
   registerCareerResources,
   registerCareerPrompts,
@@ -508,10 +510,23 @@ export function createCareerMcpServer(options = {}) {
   registerCareerTrackingTools(server, toolDeps);
   registerJobWorkflowTools(server, toolDeps);
   registerCareerProfileTools(server, toolDeps);
+  if (options.includeAtsTools) {
+    registerAtsIntelligenceTools(server, toolDeps);
+  }
   registerCareerMcpApps(server, toolDeps);
   registerCareerResources(server, toolDeps);
   registerCareerPrompts(server, toolDeps);
   return server;
+}
+
+/**
+ * Factory function creating a configured MCP server wrapper with both Career and ATS Intelligence tools registered.
+ *
+ * @param {object} [options={}] Server configuration overrides and tool dependencies
+ * @returns {McpServerWrapper} Configured MCP server instance with career and ATS tools
+ */
+export function createAtsMcpServer(options = {}) {
+  return createCareerMcpServer({ ...options, includeAtsTools: true });
 }
 
 /**

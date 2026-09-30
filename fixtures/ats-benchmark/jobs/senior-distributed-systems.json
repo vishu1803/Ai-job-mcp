@@ -1,0 +1,11 @@
+{
+  "id": "job-distributed-systems",
+  "title": "Senior Distributed Systems Engineer",
+  "company": "InfraScale Networks",
+  "location": "San Francisco, CA",
+  "workplaceType": "HYBRID",
+  "requiredExperienceYears": 5,
+  "requiredSkills": ["Go", "Kubernetes", "PostgreSQL", "Kafka"],
+  "preferredSkills": ["gRPC", "Docker", "Prometheus", "AWS"],
+  "description": "We are seeking a Senior Distributed Systems Engineer to scale our real-time streaming backend. You will architect high-throughput services in Go, deploy containerized workloads to Kubernetes, optimize PostgreSQL clusters, and integrate Kafka event streams."
+}

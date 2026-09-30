@@ -1,0 +1,43 @@
+{
+  "id": "cand-mid-frontend",
+  "name": "David Kim",
+  "email": "david.kim@example.com",
+  "phone": "+1-555-442-8891",
+  "location": "New York, NY",
+  "workAuthorization": "US_CITIZEN_OR_PERMANENT_RESIDENT",
+  "skills": ["TypeScript", "React", "Next.js", "Tailwind CSS", "Redux", "Jest"],
+  "education": [
+    {
+      "degree": "B.A. in Interactive Media",
+      "institution": "NYU",
+      "year": "2021"
+    }
+  ],
+  "experience": [
+    {
+      "company": "PixelCraft Studios",
+      "title": "Frontend Engineer",
+      "startDate": "2021-06-01",
+      "endDate": "2024-01-01",
+      "durationMonths": 31,
+      "employmentType": "FULL_TIME",
+      "bullets": [
+        "Built responsive web app interfaces using React 18 and Next.js App Router.",
+        "Increased lighthouse accessibility and performance scores from 72 to 96.",
+        "Authored comprehensive unit tests with Jest and React Testing Library."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Design System Component Library",
+      "description": "Accessible, themeable design system component library built with React and Tailwind CSS.",
+      "technologies": ["React", "TypeScript", "Tailwind CSS", "Storybook"],
+      "bullets": [
+        "Developed 25+ reusable accessible UI components adhering to WAI-ARIA standards.",
+        "Automated visual regression tests in CI via Storybook test runner."
+      ]
+    }
+  ],
+  "openSourceContributions": []
+}

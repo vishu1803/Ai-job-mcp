@@ -848,6 +848,129 @@ function renderEmbeddedRadarWidget(data) {
         </div>
       </div>
 
+      <!-- 8-Dimensional ATS Intelligence Panel (Phase 22) -->
+      ${
+        data.multiDimensionalAtsReport || data.atsReport || data.dimensions || data.explainability
+          ? `
+      <div style="background: #111827; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <span style="font-size: 0.75rem; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em;">8-Dimensional ATS Intelligence</span>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Comprehensive multi-factor audit conforming to enterprise parsing systems</div>
+          </div>
+          ${
+            data.applicationReadiness
+              ? `
+            <span class="badge ${
+              data.applicationReadiness.readinessBand === 'READY_TO_APPLY'
+                ? 'badge-verified'
+                : data.applicationReadiness.readinessBand === 'APPLY_WITH_CAUTION'
+                  ? 'badge-amber'
+                  : 'badge-missing'
+            }" style="font-size:0.75rem;">
+              ${escapeHtml(data.applicationReadiness.readinessBand ? data.applicationReadiness.readinessBand.replace(/_/g, ' ') : 'READINESS')}
+            </span>
+          `
+              : ''
+          }
+        </div>
+
+        <!-- 8 Dimensions Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;">
+          ${[
+            {
+              label: 'ATS Parseability',
+              dim:
+                data.dimensions?.atsParseability ||
+                data.multiDimensionalAtsReport?.dimensions?.atsParseability,
+            },
+            {
+              label: 'ATS Extraction',
+              dim:
+                data.dimensions?.atsExtraction ||
+                data.multiDimensionalAtsReport?.dimensions?.atsExtraction,
+            },
+            {
+              label: 'Keyword Coverage',
+              dim:
+                data.dimensions?.keywordCoverage ||
+                data.multiDimensionalAtsReport?.dimensions?.keywordCoverage,
+            },
+            {
+              label: 'Content Quality',
+              dim:
+                data.dimensions?.contentQuality ||
+                data.multiDimensionalAtsReport?.dimensions?.contentQuality,
+            },
+            {
+              label: 'Candidate-Job Fit',
+              dim: data.dimensions?.jobFit || data.multiDimensionalAtsReport?.dimensions?.jobFit,
+            },
+            {
+              label: 'Evidence Confidence',
+              dim:
+                data.dimensions?.evidenceConfidence ||
+                data.multiDimensionalAtsReport?.dimensions?.evidenceConfidence,
+            },
+            {
+              label: 'Candidate Quality',
+              dim:
+                data.dimensions?.candidateQuality ||
+                data.multiDimensionalAtsReport?.dimensions?.candidateQuality,
+            },
+            {
+              label: 'Application Readiness',
+              dim:
+                data.dimensions?.applicationReadiness ||
+                data.multiDimensionalAtsReport?.dimensions?.applicationReadiness,
+            },
+          ]
+            .filter((item) => item.dim && typeof item.dim.score === 'number')
+            .map((item) => {
+              const sc = Math.round(item.dim.score);
+              const color = sc >= 75 ? '#10b981' : sc >= 50 ? '#6366f1' : '#f59e0b';
+              return `
+              <div style="background: #0B0F19; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.775rem; margin-bottom: 4px;">
+                  <span style="color: var(--text-muted);">${escapeHtml(item.label)}</span>
+                  <span style="font-family: var(--font-mono); font-weight: 700; color: var(--text-main);">${sc}</span>
+                </div>
+                <div style="height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden;">
+                  <div style="height: 100%; width: ${sc}%; background: ${color}; border-radius: 2px;"></div>
+                </div>
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+
+        ${
+          data.explainability?.topRemediationActions?.length > 0
+            ? `
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px; margin-top: 12px;">
+          <div style="font-size: 0.75rem; font-weight: 700; color: #fde68a; text-transform: uppercase; margin-bottom: 6px;">Score Explainability & Lost Points (${data.explainability.lostPointsTotal || 0} pts)</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${data.explainability.topRemediationActions
+              .slice(0, 3)
+              .map(
+                (act) => `
+              <div style="font-size: 0.775rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 6px;">
+                <span style="color: #f59e0b;">•</span>
+                <span>${escapeHtml(act)}</span>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+        `
+            : ''
+        }
+      </div>
+      `
+          : ''
+      }
+
       <!-- Apply CTA Banner -->
       <div class="card" style="margin-top: 24px; padding: 20px 24px; background: linear-gradient(180deg, #111827 0%, #0B0F19 100%); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
         <div>
