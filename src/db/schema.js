@@ -175,6 +175,12 @@ export const evidenceTypeEnum = pgEnum('evidence_type', [
  */
 export const applicationStatusEnum = pgEnum('application_status', [
   'SAVED',
+  'PREPARED',
+  'APPROVAL_PENDING',
+  'APPROVED',
+  'HANDOFF_READY',
+  'READY_FOR_FINAL_REVIEW',
+  'SUBMITTED',
   'APPLIED',
   'SCREENING',
   'INTERVIEWING',
@@ -183,6 +189,7 @@ export const applicationStatusEnum = pgEnum('application_status', [
   'REJECTED',
   'WITHDRAWN',
   'ARCHIVED',
+  'FAILED',
 ]);
 
 /**
@@ -1070,6 +1077,55 @@ export const applicationPackages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 20c. Application Approval Tickets Table (Phase 9.4 Persistent Approvals)
+// ---------------------------------------------------------------------------
+
+export const applicationApprovalTicketStatusEnum = pgEnum(
+  'application_approval_ticket_status',
+  ['ISSUED', 'PENDING', 'APPROVED', 'CONSUMED', 'EXPIRED', 'REVOKED']
+);
+
+export const applicationApprovalTickets = pgTable(
+  'application_approval_tickets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id').references(() => jobApplications.id, {
+      onDelete: 'cascade',
+    }),
+    jobId: text('job_id').notNull(),
+    destinationUrl: text('destination_url').notNull(),
+    packageHash: text('package_hash').notNull(),
+    packageVersion: integer('package_version'),
+    status: applicationApprovalTicketStatusEnum('status').notNull().default('ISSUED'),
+    signature: text('signature').notNull(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_app_approval_tenant_status').on(table.tenantId, table.status),
+    index('idx_app_approval_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_app_approval_tenant_application').on(table.tenantId, table.applicationId),
+    index('idx_app_approval_tenant_user').on(table.tenantId, table.userId),
+    index('idx_app_approval_expires_at').on(table.expiresAt),
+    index('idx_app_approval_hash').on(table.packageHash),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // 21. Resumes Table (Source Upload & Version Lifecycle - Phase 13.5 / ARCH-052)
 // ---------------------------------------------------------------------------
 
@@ -1294,5 +1350,7 @@ export const schema = {
   resumeSections,
   candidateClaims,
   skillCatalog,
+  applicationApprovalTicketStatusEnum,
+  applicationApprovalTickets,
   jobAnalysisSnapshots,
 };

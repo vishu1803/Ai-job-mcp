@@ -29,7 +29,7 @@ import {
   normalizeNoticePeriod,
   formatNoticePeriodLabel,
 } from '../domain/candidate/career-preferences.schemas.js';
-import { ValidationError, NotFoundError } from '../errors/index.js';
+import { ValidationError, NotFoundError, AuthorizationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
 
 export class JobApplicationFlowService {
@@ -694,14 +694,25 @@ export class JobApplicationFlowService {
   /**
    * Finalizes application submission after gating on zero unresolved issues.
    *
+   * @deprecated Submissions must converge on JobApplicationWorkflowService.submitJobApplication.
+   * Direct invocation without a valid cryptographic approval ticket is strictly rejected.
+   *
    * @param {object} params
    * @param {string} params.tenantId
    * @param {string} params.candidateId
    * @param {string} params.applicationId
    * @param {object} [params.declarations={}]
+   * @param {string} [params.approvalTicketId]
    * @returns {Promise<object>} Result
    */
-  async submitApplication({ tenantId, candidateId, applicationId, declarations = {} }) {
+  async submitApplication({ tenantId, candidateId, applicationId, declarations = {}, approvalTicketId = null }) {
+    if (!approvalTicketId) {
+      throw new AuthorizationError(
+        'APPLICATION_APPROVAL_REQUIRED: External job submission requires a valid, pre-approved application ticket. Declarations alone do not authorize submission.',
+        'APPROVAL_TICKET_REQUIRED'
+      );
+    }
+
     const [application] = await this.database
       .select()
       .from(jobApplications)

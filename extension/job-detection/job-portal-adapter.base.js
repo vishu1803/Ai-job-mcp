@@ -91,4 +91,52 @@ export class JobPortalAdapterBase {
   mapFields(fields, candidateProfile) {
     return [];
   }
+
+  /**
+   * Adapts extracted form fields into the canonical PortalFormSchema format (Phase 8.1).
+   *
+   * @param {Document} doc
+   * @param {string} url
+   * @returns {object} Canonical PortalFormSchema-compatible object
+   */
+  extractFormSchema(doc, url) {
+    const raw = this.extractForm(doc, url) || { formId: null, fields: [] };
+    const formId = raw.formId || 'default-form';
+
+    return {
+      portalId: this.id,
+      formId,
+      destinationUrl: url || '',
+      fields: (raw.fields || []).map((f, idx) => {
+        const cleanName = (f.name || f.fieldId || f.id || `fld_${idx}`).toLowerCase().trim();
+        const cleanType = (f.type || 'text').toLowerCase().trim();
+        const fallbackId = `${cleanName}_${cleanType}_${idx}`;
+
+        return {
+          fieldId: f.fieldId || f.id || fallbackId,
+          name: f.name || f.fieldId || 'unnamed',
+          label: f.label || f.name || '',
+          type: f.type || 'text',
+          required: Boolean(f.required),
+          value: f.value !== undefined ? f.value : undefined,
+          options: Array.isArray(f.options) ? f.options : [],
+          multiple: Boolean(f.multiple),
+          accept: f.accept || null,
+          group: f.group || null,
+          source: f.source || 'DOM',
+          customQuestion: Boolean(f.customQuestion),
+          verified: f.verified !== undefined ? Boolean(f.verified) : f.type !== 'UNKNOWN',
+          requiresUserReview: f.requiresUserReview !== undefined ? Boolean(f.requiresUserReview) : f.type === 'UNKNOWN',
+          providerMetadata: f.providerMetadata || {},
+          metadata: f.metadata || {},
+        };
+      }),
+      questions: raw.questions || [],
+      attachments: raw.attachments || [],
+      repeatedGroups: raw.repeatedGroups || [],
+      steps: raw.steps || [],
+      isMultiStep: Boolean(raw.isMultiStep),
+      metadata: raw.metadata || {},
+    };
+  }
 }

@@ -3674,6 +3674,7 @@ export default async function webRoutes(app, opts = {}) {
       activeStep,
       flashMessage: req.query.success || '',
       errorMessage: req.query.error || '',
+      approvalTicketId: req.query.ticketId || '',
     });
 
     return reply.type('text/html; charset=utf-8').send(html);
@@ -3766,10 +3767,17 @@ export default async function webRoutes(app, opts = {}) {
     return reply.redirect(`/applications/${appId}/apply?step=readiness`);
   });
 
-  // 22b-0c. POST /applications/:id/apply/submit — Submit Application & Proceed to Handoff
+  // 22b-0c. POST /applications/:id/apply/submit — Submit Application Converged on Canonical Workflow (Phase 8.1)
   app.post('/applications/:id/apply/submit', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
+    const isJsonClient =
+      req.headers['accept']?.includes('application/json') ||
+      req.headers['content-type']?.includes('application/json');
+
     if (!sessionContext) {
+      if (isJsonClient) {
+        return reply.code(401).send({ error: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
       return reply.redirect(`/login?returnTo=/applications/${req.params.id}/apply`);
     }
 
@@ -3778,26 +3786,199 @@ export default async function webRoutes(app, opts = {}) {
     const appId = req.params.id;
 
     const body = req.body || {};
-    const declarations = {
-      accuracyConfirmed: body.declarations_accuracyConfirmed === 'true',
-      externalAuthorization: body.declarations_externalAuthorization === 'true',
-    };
+
+    // Mandatory Human Approval Gate: Web submission cannot bypass the single-use ticket requirement
+    if (!body.approvalTicketId) {
+      if (isJsonClient) {
+        return reply.code(403).send({
+          error: 'APPROVAL_TICKET_REQUIRED',
+          message:
+            'APPLICATION_APPROVAL_REQUIRED: External job submission requires a valid, pre-approved application ticket. Declarations alone do not authorize submission.',
+        });
+      }
+      return reply.redirect(
+        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(
+          'APPLICATION_APPROVAL_REQUIRED: Valid approval ticket is required before submission.'
+        )}`
+      );
+    }
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      if (isJsonClient) {
+        return reply.code(404).send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
+      }
+      return reply.code(404).send('Application not found or unauthorized');
+    }
 
     try {
-      await jobApplicationFlowService.submitApplication({
+      const destinationUrl =
+        body.destinationUrl ||
+        application.jobUrl ||
+        application.metadata?.destinationUrl ||
+        'https://careers.example.com/apply';
+
+      let currentPackage = body.applicationPackage || null;
+      if (!currentPackage) {
+        try {
+          const currentPkgRow = await applicationTrackingService.getCurrentApplicationPackage(
+            { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+            appId
+          );
+          if (currentPkgRow?.packagePayload) {
+            currentPackage = currentPkgRow.packagePayload;
+          }
+        } catch {
+          // fallback
+        }
+      }
+      if (!currentPackage) {
+        currentPackage = {
+          applicationId: appId,
+          candidateId: candidate.id,
+          candidateName: candidate.displayName || user.displayName,
+          candidateEmail: user.email,
+          targetJob: {
+            id: application.canonicalJobId || application.jobUrl || appId,
+            title: application.jobTitle,
+            company: application.companyName,
+            applicationUrl: destinationUrl,
+            directPortalUrl: destinationUrl,
+          },
+          packageHash: body.packageHash || application.packageHash,
+          packageVersion: body.packageVersion !== undefined ? Number(body.packageVersion) : 1,
+        };
+      }
+
+      const packageHash = body.packageHash || currentPackage.packageHash || application.packageHash;
+
+      const submissionResult = await jobApplicationWorkflowService.submitJobApplication({
         tenantId: tenant.id,
+        userId: user.id,
         candidateId: candidate.id,
-        applicationId: appId,
-        declarations,
+        approvalTicketId: body.approvalTicketId,
+        packageHash,
+        destinationUrl,
+        applicationPackage: currentPackage,
       });
+
+      if (isJsonClient) {
+        return reply.send({ success: true, submissionResult });
+      }
 
       return reply.redirect(
         `/applications/${appId}/handoff?success=Application+successfully+submitted+and+prepared`
       );
     } catch (err) {
-      req.log.error({ err: err.message, appId }, 'Application submit failed');
+      req.log.error({ err: err.message, code: err.code, appId }, 'Canonical application submit failed');
+      const statusCode =
+        err.code === 'APPROVAL_TICKET_REQUIRED' || err.code === 'FORBIDDEN_TICKET_MISMATCH'
+          ? 403
+          : err.code === 'TICKET_NOT_FOUND' || err.code === 'NOT_FOUND'
+            ? 404
+            : err.code === 'TICKET_ALREADY_CONSUMED'
+              ? 409
+              : 400;
+
+      if (isJsonClient) {
+        return reply.code(statusCode).send({
+          error: err.code || 'SUBMISSION_FAILED',
+          message: err.message,
+        });
+      }
       return reply.redirect(
-        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't submit your application. Please check your details and try again."))}`
+        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(
+          sanitizeErrorMessage(err, "We couldn't submit your application. Please check your details and try again.")
+        )}`
+      );
+    }
+  });
+
+  // 22b-0d. POST /applications/:id/apply/request-approval — Mint Cryptographic Approval Ticket for Web App
+  app.post('/applications/:id/apply/request-approval', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const isJsonClient =
+      req.headers['accept']?.includes('application/json') ||
+      req.headers['content-type']?.includes('application/json');
+
+    if (!sessionContext) {
+      if (isJsonClient) {
+        return reply.code(401).send({ error: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
+      return reply.redirect(`/login?returnTo=/applications/${req.params.id}/apply`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      if (isJsonClient) {
+        return reply.code(404).send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
+      }
+      return reply.code(404).send('Application not found or unauthorized');
+    }
+
+    try {
+      const destinationUrl =
+        req.body?.destinationUrl ||
+        application.jobUrl ||
+        application.metadata?.destinationUrl ||
+        'https://careers.example.com/apply';
+      const packageHash = req.body?.packageHash || application.packageHash;
+      const packageVersion =
+        req.body?.packageVersion !== undefined ? Number(req.body?.packageVersion) : undefined;
+
+      const ticket = await jobApplicationWorkflowService.requestApplicationApproval({
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        clientId: 'career-hub-web',
+        jobId: application.canonicalJobId || application.id,
+        destinationUrl,
+        packageHash,
+        packageVersion,
+        role: user.role || 'MEMBER',
+      });
+
+      if (isJsonClient) {
+        return reply.send({ success: true, ticket });
+      }
+
+      return reply.redirect(
+        `/applications/${appId}/apply?step=review&ticketId=${encodeURIComponent(ticket.ticketId)}&success=Approval+ticket+issued`
+      );
+    } catch (err) {
+      req.log.error({ err: err.message, code: err.code, appId }, 'Approval ticket request failed');
+      const statusCode = err.code === 'FORBIDDEN' ? 403 : 400;
+      if (isJsonClient) {
+        return reply.code(statusCode).send({ error: err.code || 'APPROVAL_FAILED', message: err.message });
+      }
+      return reply.redirect(
+        `/applications/${appId}/apply?step=review&error=${encodeURIComponent(
+          sanitizeErrorMessage(err, 'Failed to issue approval ticket.')
+        )}`
       );
     }
   });

@@ -42,6 +42,7 @@ export function renderApplyPage({
   activeStep = 'readiness',
   flashMessage = '',
   errorMessage = '',
+  approvalTicketId = '',
 }) {
   const job = flowState.targetJob || {};
   const readyToApply = flowState.readyToApply || [];
@@ -645,6 +646,7 @@ export function renderApplyPage({
 
           <!-- Submission Gateway Form -->
           <form action="/applications/${application.id}/apply/submit" method="POST">
+            <input type="hidden" name="approvalTicketId" value="${escapeHtml(approvalTicketId || '')}">
             <div style="background:#0B0F19; border:1px solid var(--border-subtle); border-radius:6px; padding:18px; margin-bottom:24px;">
               <div style="font-size:0.85rem; font-weight:700; color:var(--text-main); margin-bottom:12px;">
                 Applicant Declarations

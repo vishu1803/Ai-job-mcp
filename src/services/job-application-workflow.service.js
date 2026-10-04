@@ -13,7 +13,13 @@
 import crypto from 'node:crypto';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, users, jobApplications, applicationPackages, candidateSkills, skills } from '../db/schema.js';
+import { candidates, users, jobApplications, applicationPackages, candidateSkills, skills, applicationApprovalTickets } from '../db/schema.js';
+import {
+  createApplicationApprovalTicketRecord,
+  getApplicationApprovalTicketById,
+  updateApplicationApprovalTicketStatus,
+  revokeApplicationApprovalTicket as revokeApprovalTicketRepo,
+} from '../db/repositories/application-approval-ticket.repository.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
@@ -34,6 +40,12 @@ import {
   RESUME_GENERATION_CONTRACT_VERSION,
   LEGACY_GENERATION_CONTRACT_VERSION,
   DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
+  ApplicationSnapshotSchema,
+  ActionSafetyLevelEnum,
+  ACTION_TAXONOMY,
+  SubmissionRetryStateEnum,
+  JobApplicationWorkflowStateEnum,
+  JobApplicationWorkflowStateMachine,
 } from '../domain/job/job-workflow.schemas.js';
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
 import { defaultAiResumeContentGenerator } from './ai-resume-content-generator.service.js';
@@ -47,8 +59,13 @@ import {
   NotFoundError,
   AuthorizationError,
   ConflictError,
+  InvalidTicketSignatureError,
 } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+import {
+  PortalAdapterRegistry,
+  portalAdapterRegistry as defaultPortalAdapterRegistry,
+} from '../domain/portal/portal-adapter-registry.js';
 
 /**
  * Best-effort package persistence for prepare_job_application (P14-005BA).
@@ -256,14 +273,58 @@ export function computeApplicationPackageHash(pkg) {
 
 /**
  * Signs an approval ticket payload using an HMAC-SHA256 key.
+ * Binds ticketId, tenantId, userId, candidateId, applicationId, jobId, packageHash, destinationUrl, and expiresAt.
  *
  * @param {object} ticketData
  * @param {string} [secretKey]
  * @returns {string}
  */
-export function signApplicationTicket(ticketData, secretKey = 'career-hub-approval-hmac-key') {
-  const payload = `${ticketData.ticketId}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
+export function signApplicationTicket(
+  ticketData,
+  secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
+) {
+  const payload = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
   return crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
+}
+
+/**
+ * Validates cryptographic signature of an approval ticket using timing-safe comparison.
+ * Supports both canonical multi-bound payloads and legacy payloads.
+ *
+ * @param {object} ticketData
+ * @param {string} signature
+ * @param {string} [secretKey]
+ * @returns {boolean}
+ */
+export function verifyApplicationTicketSignature(
+  ticketData,
+  signature,
+  secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
+) {
+  if (!signature || typeof signature !== 'string') return false;
+
+  const payloadCanonical = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
+  const expectedCanonical = crypto.createHmac('sha256', secretKey).update(payloadCanonical).digest('hex');
+
+  const payloadLegacy = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
+  const expectedLegacy = crypto.createHmac('sha256', secretKey).update(payloadLegacy).digest('hex');
+
+  try {
+    const sigBuf = Buffer.from(signature, 'hex');
+    const expBufCanonical = Buffer.from(expectedCanonical, 'hex');
+    const expBufLegacy = Buffer.from(expectedLegacy, 'hex');
+
+    const matchCanonical =
+      sigBuf.length === expBufCanonical.length &&
+      crypto.timingSafeEqual(sigBuf, expBufCanonical);
+    const matchLegacy =
+      sigBuf.length === expBufLegacy.length &&
+      crypto.timingSafeEqual(sigBuf, expBufLegacy);
+
+    return matchCanonical || matchLegacy;
+  } catch {
+    return false;
+  }
 }
 
 import {
@@ -329,11 +390,35 @@ export class JobApplicationWorkflowService {
         documentStorage,
         candidateProfileService: new CandidateProfileService(this.db),
       });
+    this.portalAdapterRegistry =
+      options.portalAdapterRegistry || new PortalAdapterRegistry();
     this.submissionAdapters = Array.isArray(options.submissionAdapters)
       ? options.submissionAdapters
       : options.submissionAdapters instanceof Map
         ? Array.from(options.submissionAdapters.values())
         : [];
+    for (const ad of this.submissionAdapters) {
+      try {
+        this.portalAdapterRegistry.register(ad);
+      } catch {
+        if (typeof ad?.canSubmit === 'function') {
+          this.portalAdapterRegistry.register({
+            id: ad.id || `adapter-${Math.random().toString(36).slice(2, 8)}`,
+            name: ad.name || 'Submission Adapter',
+            canHandle: (dest) => ad.canSubmit(typeof dest === 'string' ? dest : dest?.url),
+            canSubmit: (dest) => ad.canSubmit(typeof dest === 'string' ? dest : dest?.url),
+            submit: (p) =>
+              typeof ad.submit === 'function'
+                ? ad.submit(p)
+                : ad.submitOrHandoff(p),
+            submitOrHandoff: async (p) =>
+              typeof ad.submitOrHandoff === 'function'
+                ? ad.submitOrHandoff(p)
+                : ad.submit(p),
+          });
+        }
+      }
+    }
     this.mcpAuditService = options.mcpAuditService || null;
     this.aiProvider = options.aiProvider;
     this.logger = options.logger || defaultLogger;
@@ -790,8 +875,13 @@ export class JobApplicationWorkflowService {
         const payload = currentPkgRow.packagePayload;
         const existingKit =
           existingAppRow.metadata?.handoffKit || existingAppRow.metadata?.handoffPackage || null;
+        const mergedAnswers = {
+          ...(payload.answers || {}),
+          ...(answers || {}),
+        };
         return {
           ...payload,
+          answers: mergedAnswers,
           applicationId: existingAppRow.id,
           canonicalJobId:
             resolvedCanonicalJobId || existingAppRow.canonicalJobId || payload.canonicalJobId,
@@ -1218,6 +1308,72 @@ export class JobApplicationWorkflowService {
       verifiedSkills,
       claimedSkills,
       portfolioLinks,
+      candidate: {
+        id: candidateId,
+        firstName:
+          cand.firstName ||
+          (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
+        lastName:
+          cand.lastName ||
+          (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
+        fullName: cand.displayName || 'Candidate',
+        displayName: cand.displayName || 'Candidate',
+        email: candidateEmail,
+        canonicalEmail: candidateEmail,
+        phone:
+          candidateProfileInput?.phone ||
+          profileView?.candidate?.profileMetadata?.userCustom?.phone ||
+          profileView?.candidate?.profileMetadata?.phone ||
+          cand.profileMetadata?.userCustom?.phone ||
+          cand.profileMetadata?.phone ||
+          cand.phone ||
+          cand.profileMetadata?.identity?.phone ||
+          undefined,
+        location:
+          candidateProfileInput?.location ||
+          cand.location ||
+          cand.profileMetadata?.identity?.location ||
+          undefined,
+        contact: {
+          email: candidateEmail,
+          phone:
+            candidateProfileInput?.phone ||
+            cand.phone ||
+            undefined,
+          address:
+            candidateProfileInput?.location ||
+            cand.location ||
+            undefined,
+        },
+        socialLinks: {
+          linkedin:
+            candidateProfileInput?.linkedinUrl ||
+            cand.linkedinUrl ||
+            undefined,
+          github:
+            candidateProfileInput?.githubUrl ||
+            cand.githubUrl ||
+            undefined,
+          portfolio:
+            candidateProfileInput?.portfolioUrl ||
+            cand.portfolioUrl ||
+            undefined,
+        },
+      },
+      artifacts: {
+        resume: {
+          filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
+          text:
+            tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          ready: false,
+        },
+        coverLetter: {
+          filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
+          text:
+            coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+          ready: false,
+        },
+      },
       selectedSections:
         tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
@@ -1362,6 +1518,33 @@ export class JobApplicationWorkflowService {
       artifactFailureReason = 'Application package could not be persisted in database ledger';
     }
 
+    const finalArtifacts = {
+      resume: resumeArtifact
+        ? {
+            ...resumeArtifact,
+            url: resumeArtifact.downloadUrl || resumeArtifact.viewUrl,
+            text: validatedPackage.tailoredResume.markdownContent,
+            ready: artifactsReady,
+          }
+        : {
+            filename: validatedPackage.tailoredResume.title || 'tailored-resume.pdf',
+            text: validatedPackage.tailoredResume.markdownContent,
+            ready: false,
+          },
+      coverLetter: coverLetterArtifact
+        ? {
+            ...coverLetterArtifact,
+            url: coverLetterArtifact.downloadUrl || coverLetterArtifact.viewUrl,
+            text: validatedPackage.coverLetter.markdownContent,
+            ready: artifactsReady,
+          }
+        : {
+            filename: validatedPackage.coverLetter.title || 'tailored-cover-letter.pdf',
+            text: validatedPackage.coverLetter.markdownContent,
+            ready: false,
+          },
+    };
+
     return {
       ...validatedPackage,
       applicationId: persisted?.applicationId ?? applicationId ?? undefined,
@@ -1383,6 +1566,7 @@ export class JobApplicationWorkflowService {
         ...validatedPackage.coverLetter,
         ...(coverLetterArtifact ? { artifact: coverLetterArtifact } : {}),
       },
+      artifacts: finalArtifacts,
       documentsStatus,
       artifactsReady,
       ...(artifactFailureReason ? { artifactFailureReason } : {}),
@@ -1879,6 +2063,40 @@ export class JobApplicationWorkflowService {
       verifiedSkills,
       claimedSkills,
       portfolioLinks,
+      candidate: {
+        id: candidateId,
+        firstName:
+          cand.firstName ||
+          (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
+        lastName:
+          cand.lastName ||
+          (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
+        fullName: cand.displayName || 'Candidate',
+        displayName: cand.displayName || 'Candidate',
+        email: candidateEmail,
+        canonicalEmail: candidateEmail,
+        phone: cand.phone || undefined,
+        location: cand.location || undefined,
+        contact: {
+          email: candidateEmail,
+          phone: cand.phone || undefined,
+          address: cand.location || undefined,
+        },
+      },
+      artifacts: {
+        resume: {
+          filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
+          text:
+            tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          ready: false,
+        },
+        coverLetter: {
+          filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
+          text:
+            coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+          ready: false,
+        },
+      },
       selectedSections:
         tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
@@ -2329,6 +2547,169 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
   }
 
   /**
+   * Generates a canonical, immutable application snapshot representation for review and submission.
+   *
+   * @param {object} applicationPackage
+   * @returns {object} Validated ApplicationSnapshot
+   */
+  createApplicationSnapshot(applicationPackage) {
+    const pkg = ApplicationPackageSchema.parse(applicationPackage);
+    const targetJob = pkg.targetJob || {};
+    const targetUrl = targetJob.directPortalUrl || targetJob.applicationUrl || targetJob.sourceUrl || '';
+
+    const snapshot = {
+      snapshotId: crypto.randomUUID(),
+      applicationId: pkg.applicationId,
+      packageHash: pkg.packageHash,
+      packageVersion: pkg.packageVersion,
+      job: {
+        id: targetJob.id,
+        canonicalJobId: targetJob.canonicalJobId,
+        company: targetJob.company,
+        title: targetJob.title,
+        targetUrl,
+      },
+      candidate: {
+        id: pkg.candidateId,
+        name: pkg.candidateName,
+        email: pkg.candidateEmail,
+        phone: pkg.candidatePhone || null,
+      },
+      contactInformation: {
+        name: pkg.candidateName,
+        email: pkg.candidateEmail,
+        phone: pkg.candidatePhone || null,
+      },
+      workAuthorization: pkg.answers?.workAuthorization || pkg.answers?.workAuth || null,
+      location: targetJob.location || null,
+      resume: {
+        contentHash: pkg.tailoredResume?.contentHash || '',
+        markdownContent: pkg.tailoredResume?.markdownContent || '',
+        artifactFilename: pkg.tailoredResume?.artifact?.filename,
+      },
+      coverLetter: {
+        contentHash: pkg.coverLetter?.contentHash || '',
+        markdownContent: pkg.coverLetter?.markdownContent || '',
+        artifactFilename: pkg.coverLetter?.artifact?.filename,
+      },
+      applicationAnswers: pkg.answers || {},
+      attachments: pkg.tailoredResume?.artifact ? [pkg.tailoredResume.artifact] : [],
+      targetUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    return ApplicationSnapshotSchema.parse(snapshot);
+  }
+
+  /**
+   * Validates that the active external browser page matches the approved job target.
+   *
+   * @param {object} params
+   * @param {object} params.approvedJob Approved job definition from package
+   * @param {object} params.currentPage Current external browser page details
+   * @returns {{ matched: boolean, reason?: string }}
+   */
+  static validateExternalPageMatch({ approvedJob, currentPage }) {
+    if (!approvedJob || !currentPage) {
+      return { matched: false, reason: 'Approved job and current page must both be provided' };
+    }
+
+    if (
+      approvedJob.company &&
+      currentPage.company &&
+      approvedJob.company.trim().toLowerCase() !== currentPage.company.trim().toLowerCase()
+    ) {
+      return {
+        matched: false,
+        reason: `Target company mismatch: expected "${approvedJob.company}", found "${currentPage.company}"`,
+      };
+    }
+
+    if (
+      approvedJob.title &&
+      currentPage.title &&
+      approvedJob.title.trim().toLowerCase() !== currentPage.title.trim().toLowerCase()
+    ) {
+      return {
+        matched: false,
+        reason: `Target title mismatch: expected "${approvedJob.title}", found "${currentPage.title}"`,
+      };
+    }
+
+    if (
+      approvedJob.jobId &&
+      currentPage.jobId &&
+      approvedJob.jobId !== currentPage.jobId
+    ) {
+      return {
+        matched: false,
+        reason: `Target jobId mismatch: expected "${approvedJob.jobId}", found "${currentPage.jobId}"`,
+      };
+    }
+
+    const appUrl = approvedJob.applicationUrl || approvedJob.directPortalUrl || approvedJob.targetUrl;
+    const pageUrl = currentPage.url || currentPage.applicationUrl;
+    if (appUrl && pageUrl) {
+      try {
+        const u1 = new URL(appUrl);
+        const u2 = new URL(pageUrl);
+        if (u1.hostname !== u2.hostname) {
+          return {
+            matched: false,
+            reason: `Target host mismatch: expected "${u1.hostname}", found "${u2.hostname}"`,
+          };
+        }
+      } catch {
+        // Fall back to direct normalization check
+        if (normalizeJobUrl(appUrl) !== normalizeJobUrl(pageUrl)) {
+          return {
+            matched: false,
+            reason: `Target URL mismatch: expected "${appUrl}", found "${pageUrl}"`,
+          };
+        }
+      }
+    }
+
+    return { matched: true };
+  }
+
+  /**
+   * Resolves the retry safety state for submission failures.
+   * Distinguishes NOT_SENT, SENT_UNKNOWN, CONFIRMED, and FAILED.
+   *
+   * @param {Error|object|string} error
+   * @returns {'NOT_SENT' | 'SENT_UNKNOWN' | 'CONFIRMED' | 'FAILED'}
+   */
+  static resolveSubmissionRetryState(error) {
+    if (!error) return 'CONFIRMED';
+    const msg = typeof error === 'string' ? error : error?.message || '';
+    const code = error?.code || '';
+
+    // Network / socket / timeout errors occurring mid-flight: state is SENT_UNKNOWN
+    if (
+      /timeout|timed? out|econnreset|socket hang up|etimedout|502|503|504|gateway/i.test(msg) ||
+      code === 'ETIMEDOUT' ||
+      code === 'ECONNRESET'
+    ) {
+      return 'SENT_UNKNOWN';
+    }
+
+    // Pre-flight / validation / DNS resolution errors before request transmission: NOT_SENT
+    if (
+      /enotfound|validation|invalid|missing|ticket|tamper|expired|econnrefused/i.test(msg) ||
+      code === 'ENOTFOUND' ||
+      code === 'ECONNREFUSED' ||
+      code === 'VALIDATION_ERROR' ||
+      code === 'APPROVAL_TICKET_REQUIRED'
+    ) {
+      return 'NOT_SENT';
+    }
+
+    // Definitive server rejection: FAILED
+    return 'FAILED';
+  }
+
+  /**
    * Creates a single-use, 15-minute TTL cryptographic approval ticket bound to the application package hash.
    *
    * @param {object} params
@@ -2339,16 +2720,141 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
    * @param {string} params.jobId
    * @param {string} params.destinationUrl
    * @param {string} params.packageHash
+   * @param {number} [params.packageVersion]
+   * @returns {Promise<object>} Approval ticket
+   */
+  async _saveApprovalTicket(ticketData) {
+    APPROVAL_TICKETS_STORE.set(ticketData.ticketId, { ...ticketData });
+    if (this.db && typeof this.db.insert === 'function') {
+      try {
+        await createApplicationApprovalTicketRecord(this.db, ticketData);
+      } catch (err) {
+        this.logger.warn(
+          { ticketId: ticketData.ticketId, error: err.message },
+          'Failed to persist approval ticket record in database'
+        );
+      }
+    }
+  }
+
+  async _getApprovalTicket(tenantId, ticketId) {
+    if (this.db && typeof this.db.select === 'function') {
+      try {
+        const row = await getApplicationApprovalTicketById(this.db, tenantId, ticketId);
+        if (row) {
+          return {
+            ticketId: row.id,
+            tenantId: row.tenantId,
+            userId: row.userId,
+            candidateId: row.candidateId,
+            applicationId: row.applicationId || undefined,
+            jobId: row.jobId,
+            destinationUrl: row.destinationUrl,
+            packageHash: row.packageHash,
+            packageVersion: row.packageVersion ?? undefined,
+            signature: row.signature,
+            status: row.status,
+            issuedAt: row.issuedAt?.toISOString ? row.issuedAt.toISOString() : row.issuedAt,
+            expiresAt: row.expiresAt?.toISOString ? row.expiresAt.toISOString() : row.expiresAt,
+            consumedAt: row.consumedAt?.toISOString ? row.consumedAt.toISOString() : row.consumedAt,
+            revokedAt: row.revokedAt?.toISOString ? row.revokedAt.toISOString() : row.revokedAt,
+            createdAt: row.createdAt?.toISOString ? row.createdAt.toISOString() : row.createdAt,
+          };
+        }
+      } catch (err) {
+        this.logger.warn(
+          { ticketId, error: err.message },
+          'Failed to query database for approval ticket; trying in-memory store'
+        );
+      }
+    }
+    const memTicket = APPROVAL_TICKETS_STORE.get(ticketId);
+    if (memTicket && memTicket.tenantId === tenantId) {
+      return { ...memTicket };
+    }
+    return null;
+  }
+
+  async _updateApprovalTicketStatus(tenantId, ticketId, toStatus, updates = {}) {
+    const mem = APPROVAL_TICKETS_STORE.get(ticketId);
+    if (mem) {
+      mem.status = toStatus;
+      Object.assign(mem, updates);
+      APPROVAL_TICKETS_STORE.set(ticketId, mem);
+    }
+    if (this.db && typeof this.db.update === 'function') {
+      try {
+        await updateApplicationApprovalTicketStatus(
+          this.db,
+          tenantId,
+          ticketId,
+          null,
+          toStatus,
+          updates
+        );
+      } catch (err) {
+        this.logger.warn(
+          { ticketId, toStatus, error: err.message },
+          'Failed to update approval ticket status in database'
+        );
+      }
+    }
+  }
+
+  async revokeApplicationApprovalTicket({ tenantId, userId, ticketId, reason = null }) {
+    if (!tenantId || !ticketId) {
+      throw new ValidationError('tenantId and ticketId are required', 'INVALID_REVOKE_REQUEST');
+    }
+    const ticket = await this._getApprovalTicket(tenantId, ticketId);
+    if (!ticket) {
+      throw new NotFoundError(`Approval ticket not found: ${ticketId}`);
+    }
+    await this._updateApprovalTicketStatus(tenantId, ticketId, 'REVOKED', {
+      revokedAt: new Date(),
+      metadata: reason ? { revocationReason: reason } : {},
+    });
+    return { ticketId, status: 'REVOKED', revokedAt: new Date().toISOString() };
+  }
+
+  async getApprovalTicket({ tenantId, ticketId }) {
+    if (!tenantId || !ticketId) {
+      throw new ValidationError('tenantId and ticketId are required', 'INVALID_GET_TICKET_REQUEST');
+    }
+    const ticket = await this._getApprovalTicket(tenantId, ticketId);
+    if (!ticket) {
+      throw new NotFoundError(`Approval ticket not found: ${ticketId}`, 'TICKET_NOT_FOUND');
+    }
+    return ticket;
+  }
+
+  /**
+   * Creates a single-use, 15-minute TTL cryptographic approval ticket bound to the application package hash.
+   *
+   * @param {object} params
+   * @param {string} params.tenantId
+   * @param {string} params.userId
+   * @param {string} params.candidateId
+   * @param {string} [params.applicationId]
+   * @param {string} params.clientId
+   * @param {string} params.jobId
+   * @param {string} params.destinationUrl
+   * @param {string} params.packageHash
+   * @param {number} [params.packageVersion]
+   * @param {string} [params.status]
+   * @param {string} [params.role]
    * @returns {Promise<object>} Approval ticket
    */
   async requestApplicationApproval({
     tenantId,
     userId,
     candidateId,
+    applicationId,
     clientId,
     jobId,
     destinationUrl,
     packageHash,
+    packageVersion,
+    status = 'ISSUED',
     role = 'MEMBER',
   }) {
     if (!tenantId || !userId || !candidateId || !packageHash || !destinationUrl) {
@@ -2375,7 +2881,8 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     }
 
     const ticketId = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
+    const issuedAt = new Date().toISOString();
+    const createdAt = issuedAt;
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15-minute TTL
 
     const ticketData = {
@@ -2383,20 +2890,23 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       tenantId,
       userId,
       candidateId,
+      applicationId: applicationId || null,
       clientId: clientId || 'career-hub-client',
-      jobId,
+      jobId: String(jobId),
       destinationUrl,
       packageHash,
+      packageVersion: packageVersion ?? undefined,
       signature: '',
-      status: 'PENDING',
+      status: status || 'ISSUED',
+      issuedAt,
       expiresAt,
       createdAt,
     };
 
     ticketData.signature = signApplicationTicket(ticketData);
 
-    // Save to memory store
-    APPROVAL_TICKETS_STORE.set(ticketId, ticketData);
+    // Save to durable PostgreSQL database and memory cache
+    await this._saveApprovalTicket(ticketData);
 
     if (this.mcpAuditService) {
       await this.mcpAuditService.logEvent({
@@ -2421,6 +2931,8 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
    * @param {string} params.userId
    * @param {string} params.candidateId
    * @param {string} params.approvalTicketId
+   * @param {string} [params.applicationId]
+   * @param {string} [params.jobId]
    * @param {string} params.packageHash
    * @param {string} params.destinationUrl
    * @param {object} params.applicationPackage
@@ -2431,10 +2943,14 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     userId,
     candidateId,
     approvalTicketId,
+    applicationId,
+    jobId,
     packageHash,
     destinationUrl,
     applicationPackage,
   }) {
+    packageHash = packageHash || applicationPackage?.packageHash;
+
     if (!approvalTicketId) {
       throw new AuthorizationError(
         'APPLICATION_APPROVAL_REQUIRED: External job submission requires a valid, pre-approved application ticket.',
@@ -2442,7 +2958,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
-    const ticket = APPROVAL_TICKETS_STORE.get(approvalTicketId);
+    const ticket = await this._getApprovalTicket(tenantId, approvalTicketId);
     if (!ticket) {
       throw new NotFoundError(
         `Approval ticket "${approvalTicketId}" not found or has been purged.`,
@@ -2462,32 +2978,25 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
-    // 2. Expiration Check
-    if (new Date(ticket.expiresAt).getTime() < Date.now()) {
-      ticket.status = 'EXPIRED';
+    // 2. Application binding check
+    const reqAppId = applicationId || applicationPackage?.applicationId;
+    if (ticket.applicationId && reqAppId && ticket.applicationId !== reqAppId) {
       throw new ValidationError(
-        'Approval ticket has expired. Please re-request approval.',
-        'TICKET_EXPIRED'
+        'Approval ticket applicationId does not match requested application.',
+        'APPLICATION_ID_MISMATCH'
       );
     }
 
-    // 3. Single-Use Check
-    if (ticket.status === 'CONSUMED') {
-      throw new ConflictError(
-        'Approval ticket has already been consumed (single-use replay rejected).',
-        'TICKET_ALREADY_CONSUMED'
-      );
-    }
-
-    // 4. Package Hash Bit-for-Bit Integrity Check
-    if (ticket.packageHash !== packageHash) {
+    // 3. Job binding check
+    const reqJobId = jobId || applicationPackage?.targetJob?.id;
+    if (ticket.jobId && reqJobId && ticket.jobId !== String(reqJobId)) {
       throw new ValidationError(
-        'Application package has been altered after approval ticket generation (hash mismatch).',
-        'PACKAGE_HASH_TAMPERED'
+        'Approval ticket jobId does not match target job.',
+        'JOB_ID_MISMATCH'
       );
     }
 
-    // 5. Destination URL Match
+    // 4. Destination URL Match
     if (ticket.destinationUrl !== destinationUrl) {
       throw new ValidationError(
         'Target destination URL does not match approved ticket destination.',
@@ -2495,33 +3004,108 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
+    // 5. Package Hash Bit-for-Bit Integrity Check
+    const resolvedPackageHash = packageHash || applicationPackage?.packageHash;
+    if (ticket.packageHash !== resolvedPackageHash) {
+      throw new ValidationError(
+        'Application package has been altered after approval ticket generation (hash mismatch).',
+        'PACKAGE_HASH_TAMPERED'
+      );
+    }
+
+    // 6. Application Version Stale Approval Check
+    if (
+      ticket.packageVersion !== undefined &&
+      applicationPackage?.packageVersion !== undefined &&
+      ticket.packageVersion !== applicationPackage.packageVersion
+    ) {
+      throw new ValidationError(
+        `Approval ticket was issued for version ${ticket.packageVersion}, but current application package is version ${applicationPackage.packageVersion}. Please re-request approval for the latest version.`,
+        'STALE_APPROVAL_VERSION'
+      );
+    }
+
+    // 7. Revocation Check
+    if (ticket.status === 'REVOKED') {
+      throw new AuthorizationError(
+        'Approval ticket has been revoked.',
+        'TICKET_REVOKED'
+      );
+    }
+
+    // 8. Single-Use Check (Replay Prevention)
+    if (ticket.status === 'CONSUMED') {
+      throw new ConflictError(
+        'Approval ticket has already been consumed (single-use replay rejected).',
+        'TICKET_ALREADY_CONSUMED'
+      );
+    }
+
+    // 9. Expiration Check
+    if (new Date(ticket.expiresAt).getTime() < Date.now()) {
+      ticket.status = 'EXPIRED';
+      await this._updateApprovalTicketStatus(tenantId, approvalTicketId, 'EXPIRED');
+      throw new ValidationError(
+        'Approval ticket has expired. Please re-request approval.',
+        'TICKET_EXPIRED'
+      );
+    }
+
+    // 10. Cryptographic Signature Verification
+    const isValidSig = verifyApplicationTicketSignature(ticket, ticket.signature);
+    if (!isValidSig) {
+      throw new InvalidTicketSignatureError(
+        'Invalid approval ticket cryptographic signature or tampered ticket data.',
+        'INVALID_TICKET_SIGNATURE'
+      );
+    }
+
     // Mark Ticket Consumed Immediately (Replay Prevention)
     ticket.status = 'CONSUMED';
     ticket.consumedAt = new Date().toISOString();
-    APPROVAL_TICKETS_STORE.set(approvalTicketId, ticket);
+    await this._updateApprovalTicketStatus(tenantId, approvalTicketId, 'CONSUMED', {
+      consumedAt: new Date(),
+    });
 
     const portalType = detectPortalType(destinationUrl);
 
-    // 6. Check for Real External Submission Adapter
-    const activeAdapter = this.submissionAdapters.find((adapter) => {
-      if (typeof adapter?.canSubmit === 'function') {
-        return adapter.canSubmit(destinationUrl);
-      }
-      return false;
-    });
+    // 6. Check for Real External Submission Adapter via Centralized Registry
+    const activeAdapter =
+      this.portalAdapterRegistry?.resolve(destinationUrl) ||
+      this.submissionAdapters.find((adapter) => {
+        if (typeof adapter?.canSubmit === 'function') {
+          return adapter.canSubmit(destinationUrl);
+        }
+        return false;
+      });
 
-    if (activeAdapter) {
+    if (
+      activeAdapter &&
+      (typeof activeAdapter.submit === 'function' ||
+        typeof activeAdapter.submitOrHandoff === 'function')
+    ) {
       // Real External Integration Execution
       let adapterResult;
       try {
-        adapterResult = await activeAdapter.submit({
-          destinationUrl,
-          applicationPackage,
-          tenantId,
-          userId,
-          candidateId,
-          packageHash,
-        });
+        if (typeof activeAdapter.submitOrHandoff === 'function') {
+          adapterResult = await activeAdapter.submitOrHandoff({
+            destinationUrl,
+            applicationPackage,
+            tenantId,
+            userId,
+            candidateId,
+            packageHash,
+          });
+        } else {
+          adapterResult = await activeAdapter.submit({
+            destinationUrl,
+            applicationPackage,
+            tenantId,
+            userId,
+            candidateId,
+            packageHash,
+          });
+        }
       } catch (err) {
         if (this.mcpAuditService) {
           await this.mcpAuditService.logEvent({
@@ -2537,6 +3121,30 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
         throw err;
       }
 
+      // Check if actual external submission was executed or if final submission was blocked/staged
+      const isActualSubmission =
+        adapterResult.status === 'SUBMITTED' &&
+        !adapterResult.finalSubmitBlocked &&
+        !adapterResult.handoffKit?.finalSubmitBlocked &&
+        adapterResult.authorizedSubmissionExecuted === true;
+
+      // In current automation, automatic final submission is strictly disabled.
+      // Therefore, the terminal state for automated staging is READY_FOR_FINAL_REVIEW (or HANDOFF_READY).
+      // Hard invariant: READY_FOR_FINAL_REVIEW must NEVER be represented as APPLIED or SUBMITTED
+      // in the database or result unless an actual authorized submission event has occurred.
+      const targetDbStatus = isActualSubmission
+        ? 'SUBMITTED'
+        : adapterResult.status === 'HANDOFF_READY'
+          ? 'HANDOFF_READY'
+          : 'READY_FOR_FINAL_REVIEW';
+
+      const appliedAt = isActualSubmission ? new Date() : null;
+      const resultStatus = isActualSubmission
+        ? 'SUBMITTED'
+        : adapterResult.status === 'HANDOFF_READY'
+          ? 'HANDOFF_READY'
+          : 'READY_FOR_FINAL_REVIEW';
+
       let trackedApp;
       try {
         trackedApp = await this.applicationTrackingService.resolveOrCreateApplication(
@@ -2548,11 +3156,13 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
             jobUrl: destinationUrl,
             source: 'COMPANY_CAREERS',
             packageHash,
+            status: targetDbStatus,
             metadata: {
               destinationUrl,
               externalReference: adapterResult.externalReference,
-              externalSubmissionState: 'SUBMITTED',
+              externalSubmissionState: targetDbStatus,
               packageHash,
+              finalSubmitBlocked: !isActualSubmission,
             },
           }
         );
@@ -2567,16 +3177,17 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
         await this.db
           .update(jobApplications)
           .set({
-            status: 'APPLIED',
-            appliedAt: new Date(),
+            status: targetDbStatus,
+            appliedAt,
             updatedAt: new Date(),
             metadata: {
               ...(trackedApp.metadata || {}),
               destinationUrl,
               externalReference: adapterResult.externalReference,
-              externalSubmissionState: 'SUBMITTED',
-              externalSubmissionStatus: 'SUBMITTED',
+              externalSubmissionState: targetDbStatus,
+              externalSubmissionStatus: targetDbStatus,
               packageHash,
+              finalSubmitBlocked: !isActualSubmission,
             },
           })
           .where(
@@ -2594,29 +3205,33 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
         await this.mcpAuditService.logEvent({
           tenantId,
           userId,
-          eventType: 'application.submitted',
+          eventType: isActualSubmission ? 'application.submitted' : 'application.ready_for_final_review',
           resourceType: 'job_application',
-          resourceId: trackedApp?.id || adapterResult.externalReference,
+          resourceId: trackedApp?.id || adapterResult.externalReference || 'ready-for-review',
           clientIp: '127.0.0.1',
           metadata: {
             destinationUrl,
             externalReference: adapterResult.externalReference,
             packageHash,
-            status: 'SUBMITTED',
+            status: targetDbStatus,
           },
         });
       }
 
       return SubmissionResultSchema.parse({
-        status: 'SUBMITTED',
+        status: resultStatus,
         applicationId: trackedApp?.id,
         externalReference: adapterResult.externalReference,
         destinationUrl,
         portalType: adapterResult.portalType || portalType,
         message:
           adapterResult.message ||
-          `Job application successfully submitted to ${applicationPackage.targetJob.company} via verified integration.`,
-        submittedAt: new Date().toISOString(),
+          (isActualSubmission
+            ? `Job application successfully submitted to ${applicationPackage.targetJob.company} via verified integration.`
+            : `Job application staged and verified for ${applicationPackage.targetJob.company}. Ready for final user review prior to submission.`),
+        submittedAt: isActualSubmission ? new Date().toISOString() : undefined,
+        stagedAt: !isActualSubmission ? new Date().toISOString() : undefined,
+        handoffKit: adapterResult.handoffKit || undefined,
       });
     }
 
@@ -2633,10 +3248,12 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           jobUrl: destinationUrl,
           source: 'COMPANY_CAREERS',
           packageHash,
+          status: 'HANDOFF_READY',
           metadata: {
             destinationUrl,
             externalSubmissionState: 'HANDOFF_READY',
             packageHash,
+            finalSubmitBlocked: true,
           },
         }
       );
@@ -2647,6 +3264,25 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
         applicationPackage,
         { source: 'SUBMIT_JOB_APPLICATION' }
       );
+
+      await this.db
+        .update(jobApplications)
+        .set({
+          status: 'HANDOFF_READY',
+          appliedAt: null,
+          updatedAt: new Date(),
+          metadata: {
+            ...(trackedApp.metadata || {}),
+            destinationUrl,
+            externalSubmissionState: 'HANDOFF_READY',
+            externalSubmissionStatus: 'HANDOFF_READY',
+            packageHash,
+            finalSubmitBlocked: true,
+          },
+        })
+        .where(
+          and(eq(jobApplications.id, trackedApp.id), eq(jobApplications.tenantId, tenantId))
+        );
     } catch (err) {
       this.logger.warn(
         { error: err.message },
@@ -2689,8 +3325,16 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     }
 
     const handoffKit = {
-      resumeMarkdown: applicationPackage.tailoredResume.markdownContent,
-      coverLetterMarkdown: applicationPackage.coverLetter.markdownContent,
+      resumeMarkdown:
+        applicationPackage.tailoredResume?.markdownContent ||
+        applicationPackage.tailoredResume?.markdown ||
+        applicationPackage.tailoredResume?.renderedMarkdown ||
+        '',
+      coverLetterMarkdown:
+        applicationPackage.coverLetter?.markdownContent ||
+        applicationPackage.coverLetter?.markdown ||
+        applicationPackage.coverLetter?.renderedMarkdown ||
+        '',
       suggestedAnswers: applicationPackage.answers || {},
       directPortalUrl: destinationUrl,
       checklist: [
@@ -2734,5 +3378,95 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       submittedAt: new Date().toISOString(),
       manualHandoffKit: handoffKit,
     });
+  }
+
+  /**
+   * Transitions an application's workflow state enforcing strict state machine invariants (Phase 9.5).
+   * Hard Invariant: Transitions from READY_FOR_FINAL_REVIEW to SUBMITTED or APPLIED are strictly
+   * forbidden unless authorizedSubmissionExecuted is explicitly true.
+   *
+   * @param {object} params
+   * @param {string} params.tenantId
+   * @param {string} params.userId
+   * @param {string} params.applicationId
+   * @param {string} params.targetState
+   * @param {boolean} [params.authorizedSubmissionExecuted=false]
+   * @param {string} [params.reason='']
+   * @returns {Promise<object>} Updated application row
+   */
+  async transitionApplicationState({
+    tenantId,
+    userId,
+    applicationId,
+    targetState,
+    authorizedSubmissionExecuted = false,
+    reason = '',
+  }) {
+    if (!tenantId || !applicationId || !targetState) {
+      throw new ValidationError(
+        'tenantId, applicationId, and targetState are required.',
+        'INVALID_STATE_TRANSITION_REQUEST'
+      );
+    }
+
+    const [app] = await this.db
+      .select()
+      .from(jobApplications)
+      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+      .limit(1);
+
+    if (!app) {
+      throw new NotFoundError(
+        `Application ${applicationId} not found in tenant ${tenantId}.`,
+        'APPLICATION_NOT_FOUND'
+      );
+    }
+
+    const sm = new JobApplicationWorkflowStateMachine(app.status || 'PREPARED');
+    const newState = sm.transition(targetState, { authorizedSubmissionExecuted, reason });
+
+    const appliedAt =
+      (newState === 'SUBMITTED' || newState === 'APPLIED') && authorizedSubmissionExecuted
+        ? new Date()
+        : null;
+
+    const [updated] = await this.db
+      .update(jobApplications)
+      .set({
+        status: newState,
+        appliedAt,
+        updatedAt: new Date(),
+        metadata: {
+          ...(app.metadata || {}),
+          workflowStateHistory: sm.history,
+          lastWorkflowTransition: {
+            from: app.status,
+            to: newState,
+            reason,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      })
+      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+      .returning();
+
+    if (this.mcpAuditService) {
+      await this.mcpAuditService.logEvent({
+        tenantId,
+        userId: userId || app.userId,
+        eventType: 'application.state_transition',
+        resourceType: 'job_application',
+        resourceId: applicationId,
+        clientIp: '127.0.0.1',
+        metadata: {
+          fromState: app.status,
+          toState: newState,
+          authorizedSubmissionExecuted,
+          reason,
+        },
+      });
+    }
+
+    return updated;
   }
 }

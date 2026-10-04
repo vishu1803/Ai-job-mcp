@@ -208,6 +208,8 @@ export const ApplicationPackageSchema = z
     evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
     generationContractVersion: z.string().optional(),
     structuredResumeSchemaVersion: z.string().nullable().optional(),
+    candidate: z.record(z.unknown()).optional(),
+    artifacts: z.record(z.unknown()).optional(),
   })
   .passthrough();
 
@@ -305,10 +307,12 @@ export const ApplicationValidationResultSchema = z.object({
 // -----------------------------------------------------------------------------
 
 export const ApplicationApprovalTicketStatusEnum = z.enum([
+  'ISSUED',
   'PENDING',
   'APPROVED',
   'CONSUMED',
   'EXPIRED',
+  'REVOKED',
   'REJECTED',
 ]);
 
@@ -324,15 +328,19 @@ export const ApplicationApprovalTicketSchema = z.object({
   tenantId: z.string().uuid(),
   userId: z.string().uuid(),
   candidateId: z.string().uuid(),
-  clientId: z.string(),
+  applicationId: z.string().uuid().nullable().optional(),
+  clientId: z.string().optional(),
   jobId: z.string(),
   destinationUrl: z.string().url(),
   packageHash: z.string(),
+  packageVersion: z.number().int().positive().optional(),
   signature: z.string(),
   status: ApplicationApprovalTicketStatusEnum,
+  issuedAt: z.string().optional(),
   expiresAt: z.string(),
   createdAt: z.string(),
   consumedAt: z.string().optional(),
+  revokedAt: z.string().optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -349,26 +357,203 @@ export const SubmitJobApplicationInputSchema = z.object({
 export const SubmissionStatusEnum = z.enum([
   'SUBMITTED',
   'HANDOFF_READY',
+  'READY_FOR_FINAL_REVIEW',
   'REJECTED_APPROVAL_REQUIRED',
   'FAILED',
 ]);
 
+/**
+ * Explicit application workflow states (Phase 9.5).
+ */
+export const JobApplicationWorkflowStateEnum = z.enum([
+  'PREPARED',
+  'APPROVAL_PENDING',
+  'APPROVED',
+  'HANDOFF_READY',
+  'READY_FOR_FINAL_REVIEW',
+  'SUBMITTED',
+  'APPLIED',
+  'FAILED',
+]);
+
+/**
+ * Enforces legal state machine transitions across job application lifecycles.
+ * Hard Invariant: READY_FOR_FINAL_REVIEW -> SUBMITTED (or APPLIED) is strictly prohibited
+ * unless an authorized submission event was explicitly executed.
+ */
+export class JobApplicationWorkflowStateMachine {
+  constructor(initialState = 'PREPARED') {
+    this.currentState = JobApplicationWorkflowStateEnum.parse(initialState);
+    this.history = [{ state: this.currentState, timestamp: new Date().toISOString() }];
+  }
+
+  get state() {
+    return this.currentState;
+  }
+
+  transition(targetState, options = {}) {
+    const validatedTarget = JobApplicationWorkflowStateEnum.parse(targetState);
+    const { authorizedSubmissionExecuted = false, reason = '' } = options;
+
+    // Hard Invariant: NEVER allow automated transition from READY_FOR_FINAL_REVIEW to SUBMITTED or APPLIED
+    if (
+      this.currentState === 'READY_FOR_FINAL_REVIEW' &&
+      (validatedTarget === 'SUBMITTED' || validatedTarget === 'APPLIED')
+    ) {
+      if (!authorizedSubmissionExecuted) {
+        const err = new Error(
+          'Automated final submission is disabled. Transition from READY_FOR_FINAL_REVIEW to SUBMITTED/APPLIED requires explicit authorized user execution.'
+        );
+        err.name = 'ValidationError';
+        err.code = 'FORBIDDEN_AUTOMATED_SUBMIT';
+        err.statusCode = 400;
+        throw err;
+      }
+    }
+
+    const validTransitions = {
+      PREPARED: ['APPROVAL_PENDING', 'HANDOFF_READY', 'FAILED'],
+      APPROVAL_PENDING: ['APPROVED', 'FAILED'],
+      APPROVED: ['HANDOFF_READY', 'READY_FOR_FINAL_REVIEW', 'FAILED'],
+      HANDOFF_READY: ['READY_FOR_FINAL_REVIEW', 'FAILED'],
+      READY_FOR_FINAL_REVIEW: ['SUBMITTED', 'APPLIED', 'FAILED', 'HANDOFF_READY'],
+      SUBMITTED: [], // Terminal
+      APPLIED: [], // Terminal
+      FAILED: ['PREPARED'], // Retry
+    };
+
+    const allowed = validTransitions[this.currentState] || [];
+    if (!allowed.includes(validatedTarget)) {
+      const err = new Error(
+        `Invalid workflow state transition from "${this.currentState}" to "${validatedTarget}". Allowed: [${allowed.join(', ')}]`
+      );
+      err.name = 'ValidationError';
+      err.code = 'INVALID_STATE_TRANSITION';
+      err.statusCode = 400;
+      throw err;
+    }
+
+    this.currentState = validatedTarget;
+    this.history.push({ state: this.currentState, reason, timestamp: new Date().toISOString() });
+    return this.currentState;
+  }
+}
+
 export const SubmissionResultSchema = z.object({
   status: SubmissionStatusEnum,
   applicationId: z.string().uuid().optional(),
-  externalReference: z.string().optional(),
+  externalReference: z.string().nullable().optional(),
   destinationUrl: z.string(),
   portalType: z.string(),
   message: z.string(),
-  submittedAt: z.string(),
+  submittedAt: z.string().optional(),
+  stagedAt: z.string().optional(),
+  handoffKit: z.record(z.any()).optional(),
   manualHandoffKit: z
     .object({
-      resumeMarkdown: z.string(),
-      coverLetterMarkdown: z.string(),
-      suggestedAnswers: z.record(z.string(), z.string()),
-      directPortalUrl: z.string(),
-      checklist: z.array(z.string()),
+      resumeMarkdown: z.string().optional(),
+      coverLetterMarkdown: z.string().optional(),
+      suggestedAnswers: z.record(z.string(), z.string()).optional(),
+      directPortalUrl: z.string().optional(),
+      checklist: z.array(z.string()).optional(),
     })
     .passthrough()
     .optional(),
+});
+
+// -----------------------------------------------------------------------------
+// 6. Action Safety Taxonomy & Application Snapshot (Phase 7)
+// -----------------------------------------------------------------------------
+
+export const ActionSafetyLevelEnum = z.enum([
+  'READ_ONLY',
+  'PREPARE',
+  'PREFILL',
+  'REVIEW',
+  'SUBMIT',
+]);
+
+export const FieldProvenanceEnum = z.enum([
+  'USER_PROVIDED',
+  'VERIFIED_PROFILE',
+  'VERIFIED_EVIDENCE',
+  'INFERRED',
+  'GENERATED',
+  'UNKNOWN',
+]);
+
+export const SubmissionRetryStateEnum = z.enum([
+  'NOT_SENT',
+  'SENT_UNKNOWN',
+  'CONFIRMED',
+  'FAILED',
+]);
+
+export const ACTION_TAXONOMY = Object.freeze({
+  search_jobs: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  get_job_posting: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  get_candidate_profile: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  analyze_job_fit: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  get_application_package: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  get_application_submission_status: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+
+  prepare_job_application: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
+  generate_tailored_resume: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
+  draft_cover_letter: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
+  'prepare-handoff': { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
+
+  'assistant/autofill-plan': { level: 'PREFILL', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  autofill_form_fields: { level: 'PREFILL', requiresApproval: false, mutatesState: false, externalConsequences: false },
+
+  create_application_preview: { level: 'REVIEW', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  validate_job_application: { level: 'REVIEW', requiresApproval: false, mutatesState: false, externalConsequences: false },
+
+  request_application_approval: { level: 'REVIEW', requiresApproval: true, mutatesState: true, externalConsequences: false },
+  submit_job_application: { level: 'SUBMIT', requiresApproval: true, mutatesState: true, externalConsequences: true },
+});
+
+export const ApplicationAnswerSchema = z.object({
+  question: z.string(),
+  answer: z.any().nullable(),
+  confidence: z.number().min(0).max(1),
+  source: FieldProvenanceEnum,
+  evidence: z.string(),
+  requiresReview: z.boolean(),
+});
+
+export const ApplicationSnapshotSchema = z.object({
+  snapshotId: z.string().uuid(),
+  applicationId: z.string().uuid().optional(),
+  packageHash: z.string(),
+  packageVersion: z.number().int().positive().optional(),
+  job: z.object({
+    id: z.string().optional(),
+    canonicalJobId: z.string().optional(),
+    company: z.string(),
+    title: z.string(),
+    targetUrl: z.string(),
+  }),
+  candidate: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    phone: z.string().nullable().optional(),
+  }),
+  contactInformation: z.record(z.any()).default({}),
+  workAuthorization: z.any().nullable().optional(),
+  location: z.string().nullable().optional(),
+  resume: z.object({
+    contentHash: z.string(),
+    markdownContent: z.string(),
+    artifactFilename: z.string().optional(),
+  }),
+  coverLetter: z.object({
+    contentHash: z.string(),
+    markdownContent: z.string(),
+    artifactFilename: z.string().optional(),
+  }),
+  applicationAnswers: z.record(z.any()).default({}),
+  attachments: z.array(z.any()).default([]),
+  targetUrl: z.string(),
+  createdAt: z.string(),
 });

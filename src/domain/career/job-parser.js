@@ -83,7 +83,7 @@ const SECTION_PATTERNS = Object.freeze([
   {
     name: 'RESPONSIBILITIES',
     regex:
-      /^(?:#{1,6}\s*)?(?:responsibilities|what\s+you(?:'ll|\s+will)\s+do|the\s+role|role\s+overview|job\s+duties|key\s+responsibilities|day\s+to\s+day|in\s+this\s+role|what\s+you\s+do)\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:(?:key|core|primary|main|role|job|your)\s+)?(?:responsibilities|duties)(?:\s+(?:will\s+)?include)?\b[:\s-]*|^(?:#{1,6}\s*)?(?:what\s+you(?:'ll|\s+will)\s+do|the\s+role|role\s+overview|day\s+to\s+day|in\s+this\s+role|what\s+you\s+do)\b[:\s-]*/i,
   },
   {
     name: 'EDUCATION',
@@ -548,8 +548,11 @@ export class JobDescriptionParser {
 
       const lines = section.rawText.split('\n');
       let currentOffset = section.startOffset;
+      const consumedIndices = new Set();
 
-      for (const rawLine of lines) {
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        if (consumedIndices.has(lineIdx)) continue;
+        const rawLine = lines[lineIdx];
         const line = rawLine.trim();
         const lineOffset = currentOffset;
         currentOffset += rawLine.length + 1;
@@ -566,13 +569,31 @@ export class JobDescriptionParser {
         }
 
         // If in OVERVIEW/GENERAL and document has explicit requirement sections,
-        // only allow lines with clear technical requirement or skill keywords
+        // only allow lines with clear technical requirement, skill, or education keywords
         if (isOverviewSection && hasExplicitRequirementSections) {
           const hasTechnicalCue =
             /\b(?:experience\s+with|proficient\s+in|knowledge\s+of|building|leveraging|using|technologies?|stack|skills?)\b/i.test(
               cleanLine
             );
-          if (!hasTechnicalCue) {
+          const hasEduCue =
+            /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree)\b/i.test(cleanLine);
+          if (!hasTechnicalCue && !hasEduCue) {
+            continue;
+          }
+        }
+
+        // If in RESPONSIBILITIES, responsibility prose describes job activities and duties,
+        // not candidate requirements. Skip unless the line has an explicit requirement cue or education criteria.
+        if (section.name === 'RESPONSIBILITIES') {
+          const hasExplicitRequirementCue =
+            /\b(?:must\s+have|must\s+possess|is\s+required|required\b|mandatory|essential|minimum\s+of\s+\d+\s+years?)\b/i.test(
+              cleanLine
+            );
+          const isExplicitEdu =
+            /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree\s+in)\b/i.test(
+              cleanLine
+            );
+          if (!hasExplicitRequirementCue && !isExplicitEdu) {
             continue;
           }
         }
@@ -640,7 +661,10 @@ export class JobDescriptionParser {
             : expMatch?.[2]
               ? parseInt(expMatch[2], 10)
               : undefined;
-          const target = expMatch?.[4] ? expMatch[4].trim() : undefined;
+          let target = expMatch?.[4] ? expMatch[4].trim() : undefined;
+          if (target) {
+            target = target.replace(/\s+experience$/i, '').trim();
+          }
 
           let associatedSkillSlug = undefined;
           if (target) {
@@ -724,7 +748,34 @@ export class JobDescriptionParser {
         // C. Extract Education Requirements
         const eduMatch = JobDescriptionParser.extractEducationCriteria(cleanLine);
         if (eduMatch) {
-          const eduKey = `EDUCATION:${eduMatch.degreeLevel}:${eduMatch.field || 'general'}`;
+          let effectiveImportance = importance;
+          let effectiveSnippet = cleanLine;
+          let eduField = eduMatch.field ? eduMatch.field.replace(/,\s*$/, '').trim() : undefined;
+
+          // Look ahead to check if the qualification continues on the following line (multiline qualification)
+          if (lineIdx + 1 < lines.length) {
+            const nextRaw = lines[lineIdx + 1].trim().replace(/^[-*•>]\s*/, '');
+            const isContinuation =
+              /^(?:or\s+related\s+field|or\s+equivalent|or\s+similar\s+field)?\s*(?:preferred|is\s+preferred|desired|nice\s+to\s+have|optional|bonus|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\.?$/i.test(
+                nextRaw
+              ) ||
+              (/^\s*(?:or|and)\s+/i.test(nextRaw) &&
+                /\b(?:preferred|is\s+preferred|desired|nice\s+to\s+have|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\b/i.test(
+                  nextRaw
+                ));
+
+            if (isContinuation) {
+              const combinedText = `${cleanLine} ${nextRaw}`;
+              effectiveImportance = JobDescriptionParser.classifyLineImportance(
+                combinedText,
+                defaultImportance
+              );
+              effectiveSnippet = combinedText;
+              consumedIndices.add(lineIdx + 1);
+            }
+          }
+
+          const eduKey = `EDUCATION:${eduMatch.degreeLevel}:${eduField || 'general'}`;
           if (!seenRequirementKeys.has(eduKey)) {
             seenRequirementKeys.add(eduKey);
             requirements.push({
@@ -732,15 +783,21 @@ export class JobDescriptionParser {
               tenantId,
               jobDescriptionId,
               category: 'EDUCATION',
-              importance,
-              weight: importance === 'REQUIRED' ? 0.75 : 0.4,
+              importance: effectiveImportance,
+              weight: effectiveImportance === 'REQUIRED' ? 0.75 : 0.4,
               skillSlug: null,
-              rawSnippet: cleanLine.slice(0, 450),
-              originalText: boundRequirementText(cleanLine),
-              extractedValue: `${eduMatch.degreeLevel} degree${eduMatch.field ? ` in ${eduMatch.field}` : ''}`,
-              normalizedCriteria: eduMatch,
+              rawSnippet: effectiveSnippet.slice(0, 450),
+              originalText: boundRequirementText(effectiveSnippet),
+              extractedValue: `${eduMatch.degreeLevel} degree${eduField ? ` in ${eduField}` : ''}`,
+              normalizedCriteria: {
+                ...eduMatch,
+                ...(eduField ? { field: eduField } : {}),
+              },
               confidenceScore: 0.9,
-              sourceSpan,
+              sourceSpan: {
+                ...sourceSpan,
+                snippet: effectiveSnippet.slice(0, 450),
+              },
               createdAt: new Date().toISOString(),
             });
           }
@@ -959,20 +1016,22 @@ export class JobDescriptionParser {
     const lower = line.toLowerCase();
 
     // 1. Explicit Bonus / Optional Cues
-    if (/\b(?:bonus|plus|optional|a\s+plus\s+if\s+you\s+have|nice\s+to\s+have)\b/i.test(lower)) {
+    if (/\b(?:bonus|plus|optional|a\s+plus\s+if\s+you\s+have)\b/i.test(lower)) {
       return 'OPTIONAL';
     }
 
     // 2. Explicit Preferred Cues
     if (
-      /\b(?:preferred|desired|advantageous|ideal\s+candidate\s+has|good\s+to\s+have)\b/i.test(lower)
+      /\b(?:preferred|is\s+preferred|strongly\s+preferred|desired|desirable|is\s+desirable|advantageous|ideal\s+candidate\s+has|good\s+to\s+have|nice\s+to\s+have)\b/i.test(
+        lower
+      )
     ) {
       return 'PREFERRED';
     }
 
     // 3. Explicit Required Cues
     if (
-      /\b(?:must\s+have|must\s+possess|required|essential|minimum|mandatory|proven\s+track\s+record)\b/i.test(
+      /\b(?:must\s+have|must\s+possess|must\s+be\s+completed|required|is\s+required|essential|minimum|mandatory|proven\s+track\s+record)\b/i.test(
         lower
       )
     ) {
@@ -1155,7 +1214,7 @@ export class JobDescriptionParser {
       /\b(?:in|of)\s+([A-Za-z0-9\s,/-]{3,50})(?:or\s+equivalent|or\s+related)?/i
     );
     if (fieldMatch) {
-      field = fieldMatch[1].trim();
+      field = fieldMatch[1].trim().replace(/,\s*$/, '');
     }
 
     return {

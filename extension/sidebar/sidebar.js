@@ -263,6 +263,17 @@ class SidebarController {
       }
     });
 
+    // Form Autofill Listeners (Phase 9.2)
+    this.elements.autofillFormBtn?.addEventListener('click', async () => {
+      await this.handleAutofillForm();
+    });
+
+    this.elements.confirmSensitiveAutofill?.addEventListener('change', () => {
+      if (this.elements.autofillFormBtn) {
+        this.elements.autofillFormBtn.removeAttribute('disabled');
+      }
+    });
+
     // Single Authoritative Handoff CTA (P62)
     this.elements.prepareHandoffBtn?.addEventListener('click', async () => {
       const handoffState = this.getHandoffState();
@@ -1470,13 +1481,15 @@ class SidebarController {
 
     if (this.elements.formFieldsSummary) {
       this.elements.formFieldsSummary.innerHTML = '';
-      const fields = formData.mappedFields || [];
+      const fields = formData.mappedFields || formData.fields || [];
       let hasSensitive = false;
       fields.forEach((f) => {
         const pill = document.createElement('span');
         pill.className = 'tag-pill matched';
-        pill.textContent = `${f.label || f.name}: ${f.verified ? '✓' : '?'}`;
-        if (f.isSensitive || f.requiresConfirmation) {
+        const label = f.label || f.name || f.fieldId || 'Field';
+        const isVerified = f.verified || f.status === 'PLANNED' || f.status === 'EXECUTED';
+        pill.textContent = `${label}: ${isVerified ? '✓' : '?'}`;
+        if (f.isSensitive || f.isProtected || f.requiresConfirmation) {
           hasSensitive = true;
           const sensTag = document.createElement('span');
           sensTag.className = 'autofill-meta-tag';
@@ -1492,6 +1505,328 @@ class SidebarController {
 
       if (fields.length > 0 && this.elements.autofillFormBtn) {
         this.elements.autofillFormBtn.removeAttribute('disabled');
+      }
+    }
+  }
+
+  _handleFormDetectedEvent(formData) {
+    if (!formData) return;
+    this.detectedFormData = formData;
+    this._renderFormCard(formData);
+    const fields = formData.fields || formData.mappedFields || [];
+    if (fields.length > 0 && this.elements.autofillFormBtn) {
+      this.elements.autofillFormBtn.removeAttribute('disabled');
+    }
+  }
+
+  /**
+   * P9.2 Canonical Autofill Execution Handler.
+   *
+   * Executes the 9-step canonical lifecycle:
+   * 1. verify active tab
+   * 2. verify destination binding
+   * 3. request canonical handoff/package
+   * 4. request form detection (GET_FORM_STATE)
+   * 5. request plan generation (PLAN_FILL)
+   * 6. require approval state (sensitive confirmation)
+   * 7. send execution request (EXECUTE_FILL)
+   * 8. display result
+   * 9. never submit final application
+   */
+  async handleAutofillForm() {
+    try {
+      // 1. Verify active tab
+      let targetTabId = this.activeTabId;
+      if (!targetTabId && typeof chrome !== 'undefined' && chrome.tabs?.query) {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs[0]?.id) {
+          targetTabId = tabs[0].id;
+          this.activeTabId = tabs[0].id;
+        }
+      }
+
+      if (!targetTabId) {
+        this._showFormError('No active browser tab found for application form.');
+        return;
+      }
+
+      let tabUrl = '';
+      if (typeof chrome !== 'undefined' && chrome.tabs?.get) {
+        try {
+          const tab = await chrome.tabs.get(targetTabId);
+          tabUrl = tab?.url || '';
+        } catch {}
+      }
+
+      // 2. Verify destination binding
+      const expectedUrl =
+        this.cachedState?.handoffPackage?.metadata?.destinationUrl ||
+        this.cachedState?.handoffPackage?.destinationUrl ||
+        this.activeJob?.url ||
+        this.activeJob?.sourceUrl ||
+        '';
+
+      if (expectedUrl && tabUrl) {
+        const isBindingValid = this._verifyDestinationBinding(tabUrl, expectedUrl);
+        if (!isBindingValid) {
+          this._showFormError(
+            `Destination mismatch: Active tab does not match approved job destination.`
+          );
+          return;
+        }
+      }
+
+      // 3. Request the canonical handoff/package
+      let appPackage =
+        this.cachedState?.handoffPackage?.applicationPackage ||
+        this.cachedState?.handoffPackage?.package ||
+        this.cachedState?.handoffPackage ||
+        this.cachedState?.applicationPackage;
+
+      if (!appPackage && this.activeJob) {
+        this._setAutofillButtonState('loading', 'Preparing Package...');
+        try {
+          const handoffRes = await this.backendClient.prepareHandoff(
+            this.activeJob,
+            this.cachedState?.applicationId
+          );
+          appPackage = handoffRes?.applicationPackage || handoffRes?.package || handoffRes;
+          if (handoffRes) {
+            this.cachedState = { ...this.cachedState, handoffPackage: handoffRes };
+          }
+        } catch (err) {
+          console.warn('Could not fetch backend handoff package:', err);
+        }
+      }
+
+      if (!appPackage) {
+        appPackage = {
+          candidate: this.currentUser?.candidate || this.cachedState?.candidate || {},
+          metadata: { destinationUrl: tabUrl },
+        };
+      }
+
+      // 4. Request form detection (GET_FORM_STATE)
+      this._setAutofillButtonState('loading', 'Detecting Form...');
+      let formState = null;
+      try {
+        formState = await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(targetTabId, { type: 'GET_FORM_STATE' }, (res) => {
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+            resolve(res);
+          });
+        });
+      } catch (err) {
+        this._showFormError(`Form detection error: ${err.message}`);
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      if (!formState || !formState.fields || formState.fields.length === 0) {
+        this._showFormError('No application form fields detected on this page.');
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      // 5. Request plan generation (PLAN_FILL)
+      this._setAutofillButtonState('loading', 'Planning Fill...');
+      let planRes = null;
+      try {
+        planRes = await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(
+            targetTabId,
+            {
+              type: 'PLAN_FILL',
+              package: appPackage,
+              form: formState,
+              sensitiveConfirmed: Boolean(this.elements.confirmSensitiveAutofill?.checked),
+            },
+            (res) => {
+              if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
+              }
+              resolve(res);
+            }
+          );
+        });
+      } catch (err) {
+        this._showFormError(`Planning error: ${err.message}`);
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      if (!planRes || !planRes.success || !planRes.plan) {
+        this._showFormError(planRes?.error || 'Failed to generate canonical autofill plan.');
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      const plan = planRes.plan;
+
+      // 6. Require approval state
+      const hasSensitiveFields =
+        plan.summary?.protectedCount > 0 ||
+        (Array.isArray(plan.actions) && plan.actions.some((a) => a.isProtected));
+
+      const isSensitiveConfirmed = Boolean(this.elements.confirmSensitiveAutofill?.checked);
+
+      if (hasSensitiveFields && !isSensitiveConfirmed) {
+        if (this.elements.sensitiveConfirmationBox) {
+          this.elements.sensitiveConfirmationBox.classList.remove('hidden');
+        }
+        if (this.elements.formStatusMessage) {
+          this.elements.formStatusMessage.textContent =
+            'Protected fields require confirmation. Please check the confirmation box and click Fill again.';
+        }
+        this._renderFormCard({
+          ...formState,
+          mappedFields: plan.actions,
+        });
+        this._setAutofillButtonState('ready', 'Confirm & Fill Fields');
+        return;
+      }
+
+      // 7. Send execution request (EXECUTE_FILL)
+      this._setAutofillButtonState('loading', 'Filling Fields...');
+      let execRes = null;
+      try {
+        execRes = await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(
+            targetTabId,
+            {
+              type: 'EXECUTE_FILL',
+              plan,
+              sensitiveConfirmed: isSensitiveConfirmed,
+            },
+            (res) => {
+              if (chrome.runtime.lastError) {
+                return reject(new Error(chrome.runtime.lastError.message));
+              }
+              resolve(res);
+            }
+          );
+        });
+      } catch (err) {
+        this._showFormError(`Execution error: ${err.message}`);
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      if (!execRes || !execRes.success) {
+        this._showFormError(execRes?.error || 'Form autofill execution failed.');
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      // 8. Display result
+      const executed = execRes.executionResult?.summary?.executed ?? 0;
+      const verified = execRes.verificationResult?.verifiedCount ?? 0;
+      const review = execRes.executionResult?.summary?.review ?? 0;
+
+      // 9. Never submit final application
+      this._renderFormCard({
+        ...formState,
+        mappedFields: execRes.executionResult?.executedActions || plan.actions,
+        statusMessage: `Autofill complete: ${executed} filled, ${verified} verified, ${review} need review. Submit button is NOT clicked.`,
+      });
+
+      this._setAutofillButtonState('done', 'Fields Filled — Review & Submit');
+    } catch (fatalErr) {
+      this._showFormError(`Autofill error: ${fatalErr.message}`);
+      this._setAutofillButtonState('ready', 'Fill Verified Fields');
+    }
+  }
+
+  _verifyDestinationBinding(tabUrl, expectedUrl) {
+    if (!tabUrl || !expectedUrl) return true;
+    try {
+      const tabOrigin = new URL(tabUrl).origin.toLowerCase();
+      const expectedOrigin = new URL(expectedUrl).origin.toLowerCase();
+      if (tabOrigin === expectedOrigin) return true;
+      if (tabOrigin.includes('localhost') || tabOrigin.includes('127.0.0.1')) return true;
+      const tabHost = new URL(tabUrl).hostname.toLowerCase();
+      const expectedHost = new URL(expectedUrl).hostname.toLowerCase();
+      return tabHost.endsWith(expectedHost) || expectedHost.endsWith(tabHost);
+    } catch {
+      return true;
+    }
+  }
+
+  _setAutofillButtonState(state, text) {
+    if (!this.elements.autofillFormBtn) return;
+    this.elements.autofillFormBtn.textContent = text;
+    if (state === 'loading') {
+      this.elements.autofillFormBtn.disabled = true;
+    } else {
+      this.elements.autofillFormBtn.disabled = false;
+    }
+  }
+
+  _showFormError(msg) {
+    if (this.elements.formStatusMessage) {
+      this.elements.formStatusMessage.textContent = msg;
+    }
+    if (this.elements.formDetectionCard) {
+      this.elements.formDetectionCard.classList.remove('hidden');
+    }
+  }
+
+  async handlePreviewAutofillPlan() {
+    await this.handleAutofillForm();
+  }
+
+  async handleExplainJob() {
+    if (!this.activeJob) return;
+    try {
+      const res = await this.backendClient.explainJob(this.activeJob);
+      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+        this.elements.assistantResponseBox.classList.remove('hidden');
+        this.elements.assistantResponseContent.textContent =
+          res?.explanation || res?.summary || JSON.stringify(res, null, 2);
+      }
+    } catch (err) {
+      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+        this.elements.assistantResponseBox.classList.remove('hidden');
+        this.elements.assistantResponseContent.textContent = `Explain Job: ${err.message}`;
+      }
+    }
+  }
+
+  async handleCheckRequirements() {
+    if (!this.activeJob) return;
+    try {
+      const res = await this.backendClient.compareRequirements(this.activeJob);
+      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+        this.elements.assistantResponseBox.classList.remove('hidden');
+        this.elements.assistantResponseContent.textContent =
+          res?.comparison || res?.summary || JSON.stringify(res, null, 2);
+      }
+    } catch (err) {
+      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+        this.elements.assistantResponseBox.classList.remove('hidden');
+        this.elements.assistantResponseContent.textContent = `Check Requirements: ${err.message}`;
+      }
+    }
+  }
+
+  async handleAssistantQuery() {
+    const query = this.elements.assistantQueryInput?.value?.trim();
+    if (!query) return;
+    try {
+      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+        this.elements.assistantResponseBox.classList.remove('hidden');
+        this.elements.assistantResponseContent.textContent = 'Thinking...';
+      }
+      const res = await this.backendClient.askAssistant(query, this.activeJob);
+      if (this.elements.assistantResponseContent) {
+        this.elements.assistantResponseContent.textContent =
+          res?.answer || res?.response || JSON.stringify(res, null, 2);
+      }
+    } catch (err) {
+      if (this.elements.assistantResponseContent) {
+        this.elements.assistantResponseContent.textContent = `Assistant: ${err.message}`;
       }
     }
   }

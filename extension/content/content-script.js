@@ -32,6 +32,27 @@ if (!window.__aicareershub_content_script_loaded) {
     return jobIdentityModulePromise;
   }
 
+  let autofillEngineModulePromise = null;
+  function getAutofillEngineModule() {
+    if (!autofillEngineModulePromise) {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+          autofillEngineModulePromise = import(
+            chrome.runtime.getURL('content/generic-autofill-engine.js')
+          ).catch((err) => {
+            console.warn('Could not load generic-autofill-engine.js:', err);
+            return null;
+          });
+        } else {
+          autofillEngineModulePromise = Promise.resolve(null);
+        }
+      } catch {
+        autofillEngineModulePromise = Promise.resolve(null);
+      }
+    }
+    return autofillEngineModulePromise;
+  }
+
   async function notifyJobDetected(jobData) {
     if (!jobData || !jobData.title) return;
     try {
@@ -725,6 +746,123 @@ if (!window.__aicareershub_content_script_loaded) {
         });
         return true;
       }
+
+      if (message.type === 'GET_FORM_STATE' || message.type === 'REFRESH_FORM_SCHEMA') {
+        performFormDetection().then((formInfo) => {
+          sendResponse({
+            success: true,
+            hasForm: Boolean(formInfo && formInfo.hasForm),
+            formId: formInfo?.formId || 'application-form',
+            step: formInfo?.step || 1,
+            totalSteps: formInfo?.totalSteps || 1,
+            stepTitle: formInfo?.stepTitle || '',
+            fields: formInfo?.fields || [],
+            repeatedGroups: formInfo?.repeatedGroups || [],
+            url: window.location.href,
+          });
+        }).catch((err) => {
+          sendResponse({
+            success: false,
+            hasForm: false,
+            fields: [],
+            error: err.message,
+          });
+        });
+        return true;
+      }
+
+      if (message.type === 'PLAN_FILL') {
+        (async () => {
+          try {
+            const formInfo = message.form && message.form.fields ? message.form : await performFormDetection();
+            const mod = await getAutofillEngineModule();
+            if (!mod || !mod.genericAutofillEngine) {
+              sendResponse({ success: false, error: 'Autofill engine unavailable' });
+              return;
+            }
+            const appPackage = message.package || message.applicationPackage || {};
+            const plan = mod.genericAutofillEngine.planFillSync(formInfo, appPackage, {
+              allowProtected: Boolean(message.allowProtected || message.sensitiveConfirmed),
+              planOnly: Boolean(message.planOnly),
+            });
+            sendResponse({
+              success: true,
+              plan,
+              form: formInfo,
+              summary: plan.summary,
+            });
+          } catch (err) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      }
+
+      if (message.type === 'EXECUTE_FILL') {
+        (async () => {
+          try {
+            const mod = await getAutofillEngineModule();
+            if (!mod || !mod.genericAutofillEngine) {
+              sendResponse({ success: false, error: 'Autofill engine unavailable' });
+              return;
+            }
+            const plan = message.plan;
+            if (!plan || !Array.isArray(plan.actions)) {
+              sendResponse({ success: false, error: 'Invalid or missing plan' });
+              return;
+            }
+
+            // Framework-safe DOM execution (resolving elements dynamically, zero stale references)
+            const executionResult = mod.genericAutofillEngine.executeFillSync(plan, {
+              doc: document,
+              sensitiveConfirmed: Boolean(message.sensitiveConfirmed),
+            });
+
+            // Post-execution verification pass
+            const verificationResult = mod.genericAutofillEngine.verifyFillSync(plan, {
+              doc: document,
+            });
+
+            sendResponse({
+              success: true,
+              planId: plan.planId,
+              executionResult,
+              verificationResult,
+              finalSubmitBlocked: true, // Strict invariant: submission button is never clicked
+            });
+          } catch (err) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      }
+
+      if (message.type === 'VERIFY_FILL') {
+        (async () => {
+          try {
+            const mod = await getAutofillEngineModule();
+            if (!mod || !mod.genericAutofillEngine) {
+              sendResponse({ success: false, error: 'Autofill engine unavailable' });
+              return;
+            }
+            const plan = message.plan;
+            if (!plan) {
+              sendResponse({ success: false, error: 'Missing plan' });
+              return;
+            }
+            const verificationResult = mod.genericAutofillEngine.verifyFillSync(plan, {
+              doc: document,
+            });
+            sendResponse({
+              success: true,
+              verification: verificationResult,
+            });
+          } catch (err) {
+            sendResponse({ success: false, error: err.message });
+          }
+        })();
+        return true;
+      }
     });
   }
   if (typeof window !== 'undefined') {
@@ -740,6 +878,10 @@ if (!window.__aicareershub_content_script_loaded) {
         currentTabId = id;
       },
       getCurrentTabId: () => currentTabId,
+    };
+    window.__aicareershub_form = {
+      refreshFormSchema: performFormDetection,
+      performFormDetection,
     };
   }
 }

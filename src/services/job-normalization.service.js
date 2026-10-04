@@ -161,7 +161,7 @@ export function resolveRequirementImportance(raw, text, sectionContext = null) {
   if (/\b(must|required|requirements?|minimum|essential|need to)\b/i.test(text)) {
     return { label: 'REQUIRED', weight: 1.0 };
   }
-  if (/\b(preferred|ideally|nice to have|bonus|plus)\b/i.test(text)) {
+  if (/\b(preferred|ideally|nice to have|bonus|plus|desired|desirable|advantageous)\b/i.test(text)) {
     return { label: 'PREFERRED', weight: 0.7 };
   }
 
@@ -196,6 +196,53 @@ export function createDeterministicRequirementId({
   return `req-${hash}`;
 }
 
+const RESPONSIBILITY_HEADER_RE =
+  /^(?:#{1,6}\s*)?(?:(?:key|core|primary|main|role|job|your)\s+)?(?:responsibilities|duties)(?:\s+(?:will\s+)?include)?(?:\s*:|\b)(.*)$/i;
+const RESPONSIBILITY_ALT_HEADER_RE =
+  /^(?:#{1,6}\s*)?(?:what\s+you(?:'ll|\s+will)\s+do|the\s+role|role\s+overview|day\s+to\s+day|in\s+this\s+role|what\s+you\s+do)(?:\s*:|\b)(.*)$/i;
+
+function isResponsibilityHeaderOrProse(line) {
+  if (!line || typeof line !== 'string') return false;
+  const trimmed = line.trim();
+  return (
+    RESPONSIBILITY_HEADER_RE.test(trimmed) ||
+    RESPONSIBILITY_ALT_HEADER_RE.test(trimmed)
+  );
+}
+
+function isArtificialProseFragment(text, raw) {
+  if (!text || typeof text !== 'string') return true;
+  const clean = text.trim();
+
+  // 1. Explicit responsibility prose starts
+  if (
+    /^(?:responsibilities|duties|your\s+responsibilities|key\s+responsibilities)\s+(?:will\s+)?include\b/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // 2. Fragmentary prepositional / conjunction phrases
+  if (/^(?:with|and|or|for|to|by|in|at)\s+[a-z\s-]+$/i.test(clean)) {
+    if (!raw?.skillSlug && (!raw?.category || raw.category === 'SKILL')) {
+      return true;
+    }
+  }
+
+  // 3. Verbose sentence fragments with multiple verbs and no single discrete entity
+  if (
+    /\b(?:debugging\s+production\s+issues|collaborating\s+with|working\s+with|building\s+frontend\s+applications)\b/i.test(
+      clean
+    ) &&
+    !raw?.skillSlug
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Extracts candidate requirement items from raw text sections.
  *
@@ -212,35 +259,71 @@ export function parseJobDescriptionSections(description) {
   let currentSection = null;
 
   const hasSectionHeaders = lines.some((l) =>
-    /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?|preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional|responsibilities|duties):?/i.test(
+    /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?|preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):?/i.test(
       l
-    )
+    ) || isResponsibilityHeaderOrProse(l)
   );
   const hasBullets = lines.some((l) => /^[-*•]\s*/.test(l));
 
   if (!hasSectionHeaders && !hasBullets) {
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const clean = line.replace(/\.$/, '').trim();
-      if (clean) {
-        items.push({
-          text: clean,
-          importance: 'REQUIRED',
-          category: 'SKILL',
-          sectionContext: 'REQUIREMENTS',
-        });
+      if (!clean) continue;
+
+      if (isResponsibilityHeaderOrProse(clean)) {
+        continue;
+      }
+
+      const isEdu = /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree)\b/i.test(clean);
+      const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : '';
+      const isContinuation =
+        isEdu &&
+        (/^(?:or\s+related\s+field|or\s+equivalent|or\s+similar\s+field)?\s*(?:preferred|is\s+preferred|desired|nice\s+to\s+have|optional|bonus|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\.?$/i.test(
+          nextLine
+        ) ||
+          (/^\s*(?:or|and)\s+/i.test(nextLine) &&
+            /\b(?:preferred|is\s+preferred|desired|nice\s+to\s+have|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\b/i.test(
+              nextLine
+            )));
+
+      const evalText = isContinuation ? `${clean} ${nextLine}` : clean;
+      const importance = JobDescriptionParser.classifyLineImportance(evalText, 'REQUIRED');
+      const category = isEdu ? 'EDUCATION' : 'SKILL';
+      const sectionContext = isEdu
+        ? 'EDUCATION'
+        : importance === 'PREFERRED'
+          ? 'PREFERRED'
+          : 'REQUIREMENTS';
+
+      items.push({
+        text: isContinuation ? `${clean} ${nextLine}`.replace(/\.$/, '').trim() : clean,
+        importance,
+        category,
+        sectionContext,
+      });
+
+      if (isContinuation) {
+        i++;
       }
     }
     return items;
   }
 
-  for (const line of lines) {
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
     const inlineReq = line.match(
       /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?):\s*(.+)$/i
     );
     const inlinePref = line.match(
       /^(?:preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):\s*(.+)$/i
     );
-    const inlineResp = line.match(/^(?:responsibilities|duties):\s*(.+)$/i);
+    const respMatch =
+      line.match(RESPONSIBILITY_HEADER_RE) || line.match(RESPONSIBILITY_ALT_HEADER_RE);
+    if (respMatch) {
+      currentSection = 'RESPONSIBILITIES';
+      continue;
+    }
 
     if (inlineReq) {
       const skillsInLine = JobDescriptionParser.extractSkillsFromLine(inlineReq[1]);
@@ -298,19 +381,7 @@ export function parseJobDescriptionSections(description) {
       currentSection = 'PREFERRED';
       continue;
     }
-    if (inlineResp) {
-      const cleanResp = inlineResp[1].trim().replace(/\.$/, '');
-      if (cleanResp) {
-        items.push({
-          text: cleanResp,
-          importance: 'REQUIRED',
-          category: 'EXPERIENCE',
-          sectionContext: 'RESPONSIBILITIES',
-        });
-      }
-      currentSection = 'RESPONSIBILITIES';
-      continue;
-    }
+
 
     // Non-requirement section headers (Company overview, culture, values, EEO/diversity, compensation/benefits)
     if (
@@ -354,10 +425,6 @@ export function parseJobDescriptionSections(description) {
       currentSection = 'PREFERRED';
       continue;
     }
-    if (/^(?:responsibilities|duties):?$/i.test(line)) {
-      currentSection = 'RESPONSIBILITIES';
-      continue;
-    }
 
     // Skip all lines belonging to non-requirement sections
     if (
@@ -374,6 +441,43 @@ export function parseJobDescriptionSections(description) {
       .replace(/\.$/, '')
       .trim();
     if (!cleanLine) continue;
+
+    const isEdu = /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree\s+in)\b/i.test(cleanLine);
+    if (isEdu) {
+      const nextLine = lineIdx + 1 < lines.length ? lines[lineIdx + 1].trim() : '';
+      const isContinuation =
+        /^(?:or\s+related\s+field|or\s+equivalent|or\s+similar\s+field)?\s*(?:preferred|is\s+preferred|desired|nice\s+to\s+have|optional|bonus|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\.?$/i.test(
+          nextLine
+        ) ||
+        (/^\s*(?:or|and)\s+/i.test(nextLine) &&
+          /\b(?:preferred|is\s+preferred|desired|nice\s+to\s+have|required|is\s+required|must\s+have|must\s+possess|must\s+be\s+completed)\b/i.test(
+            nextLine
+          ));
+
+      const evalText = isContinuation ? `${cleanLine} ${nextLine}` : cleanLine;
+      const defaultImp = currentSection === 'PREFERRED' ? 'PREFERRED' : 'REQUIRED';
+      const importance = JobDescriptionParser.classifyLineImportance(evalText, defaultImp);
+
+      items.push({
+        text: isContinuation ? `${cleanLine} ${nextLine}`.replace(/\.$/, '').trim() : cleanLine,
+        importance,
+        category: 'EDUCATION',
+        sectionContext: 'EDUCATION',
+      });
+
+      if (isContinuation) {
+        lineIdx++;
+      }
+      continue;
+    }
+
+    if (
+      /^(?:or\s+related\s+field\s+)?(?:preferred|is\s+preferred|optional|plus|desired|nice\s+to\s+have|required|is\s+required|must\s+be\s+completed)\.?$/i.test(
+        cleanLine
+      )
+    ) {
+      continue;
+    }
 
     if (currentSection === 'REQUIREMENTS') {
       const skillsInLine = JobDescriptionParser.extractSkillsFromLine(cleanLine);
@@ -414,12 +518,34 @@ export function parseJobDescriptionSections(description) {
         });
       }
     } else if (currentSection === 'RESPONSIBILITIES') {
-      items.push({
-        text: cleanLine,
-        importance: 'REQUIRED',
-        category: 'EXPERIENCE',
-        sectionContext: 'RESPONSIBILITIES',
-      });
+      const hasExplicitRequirementCue =
+        /\b(?:must\s+have|must\s+possess|is\s+required|required\b|mandatory|essential|minimum\s+of\s+\d+\s+years?)\b/i.test(
+          cleanLine
+        );
+      if (hasExplicitRequirementCue) {
+        const skillsInLine = JobDescriptionParser.extractSkillsFromLine(cleanLine);
+        if (skillsInLine.length > 0) {
+          for (const s of skillsInLine) {
+            if (!JobDescriptionParser._isOverlyGenericSkill(s.slug, s.name)) {
+              items.push({
+                text: s.name,
+                importance: 'REQUIRED',
+                category: 'SKILL',
+                sectionContext: 'REQUIREMENTS',
+              });
+            }
+          }
+        } else {
+          items.push({
+            text: cleanLine,
+            importance: 'REQUIRED',
+            category: 'EXPERIENCE',
+            sectionContext: 'REQUIREMENTS',
+          });
+        }
+      }
+      // Pure responsibility prose is not a candidate requirement
+      continue;
     } else if (isBullet) {
       // Pre-header bullet: only keep if not company prose and has technical or requirement cues
       if (!JobDescriptionParser._isCompanyProse(cleanLine)) {
@@ -440,7 +566,7 @@ export function parseJobDescriptionSections(description) {
     }
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !hasSectionHeaders && !hasBullets) {
     for (const line of lines) {
       const clean = line
         .replace(/^[-*•]\s*/, '')
@@ -625,6 +751,9 @@ export function normalizeJobInput(jobInput) {
       const foundSkills = isProse ? JobDescriptionParser.extractSkillsFromLine(item.text) : [];
       if (foundSkills.length > 0) {
         for (const sk of foundSkills) {
+          if (JobDescriptionParser._isOverlyGenericSkill(sk.slug, sk.name)) {
+            continue;
+          }
           itemsToProcess.push({
             raw: {
               text: sk.name,
@@ -637,6 +766,9 @@ export function normalizeJobInput(jobInput) {
           });
         }
       } else {
+        if (item.sectionContext === 'RESPONSIBILITIES') {
+          continue;
+        }
         const hasReqOrRespCue =
           /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|optimi|performan|load|refactor|test|deploy|integrat|secur|must|require|need|experience|proficien|knowledge|degree|years?)[a-z]*\b/i.test(
             item.text
@@ -655,6 +787,10 @@ export function normalizeJobInput(jobInput) {
     const raw = entry.raw;
     const text = normalizeJobRequirementString(raw);
     if (!text) continue;
+
+    if (isArtificialProseFragment(text, raw)) {
+      continue;
+    }
 
     const { key, uniqueTokens } = extractConceptTokens(text);
     if (!key || uniqueTokens.length === 0) continue;

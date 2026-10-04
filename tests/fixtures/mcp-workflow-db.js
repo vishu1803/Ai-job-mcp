@@ -29,6 +29,7 @@ export function createMcpWorkflowDbFixture({
     if (table === candidates) {
       return [
         {
+          ...candidate,
           id: candidate.id,
           tenantId: candidate.tenantId,
           userId: candidate.userId,

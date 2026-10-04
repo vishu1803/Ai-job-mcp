@@ -67,6 +67,7 @@ export const AutofillPlanResponseSchema = z.object({
   sensitiveCount: z.number(),
   missingCount: z.number(),
   status: z.enum(['READY', 'NEEDS_CONFIRMATION', 'INCOMPLETE']),
+  canonicalPlan: z.any().optional(),
 });
 
 /**

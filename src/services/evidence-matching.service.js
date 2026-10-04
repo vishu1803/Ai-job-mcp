@@ -374,31 +374,90 @@ export class EvidenceMatchingService {
     // Also index skills demonstrated in project evidence.
     // TRUST BOUNDARY: Evidence from node_modules/vendor/dist/generated paths
     // must NOT produce VERIFIED provenance — only INFERRED.
+    const PROVENANCE_PRIORITY = {
+      CORROBORATED: 5,
+      VERIFIED: 4,
+      INFERRED: 3,
+      CLAIMED: 2,
+      SELF_DECLARED: 1,
+      LEARNING: 0,
+      MISSING: 0,
+    };
+
     for (const project of projects) {
-      if (Array.isArray(project.evidence)) {
-        for (const ev of project.evidence) {
-          const rawSkillName = ev.skillSlug || ev.skillName;
-          if (rawSkillName) {
-            const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
-            const canonicalSlug = norm?.canonicalSlug;
-            if (canonicalSlug && !skillsBySlug.has(canonicalSlug)) {
-              const isLowTrust = EvidenceMatchingService._isLowTrustEvidence(ev);
-              const evidenceRef = {
-                id: ev.id || ev.evidenceId || crypto.randomUUID(),
-                ...ev,
-                resourceId: ev.resourceId || project.id || crypto.randomUUID(),
-              };
+      const projectEvList = Array.isArray(project.evidence)
+        ? project.evidence
+        : Array.isArray(project.evidenceItems)
+          ? project.evidenceItems
+          : [];
+      for (const ev of projectEvList) {
+        const rawSkillName = ev.skillSlug || ev.skillName;
+        if (rawSkillName) {
+          const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
+          const canonicalSlug = norm?.canonicalSlug;
+          if (canonicalSlug) {
+            const isLowTrust = EvidenceMatchingService._isLowTrustEvidence(ev);
+            const evidenceRef = {
+              id: ev.id || ev.evidenceId || crypto.randomUUID(),
+              ...ev,
+              resourceId: ev.resourceId || project.id || crypto.randomUUID(),
+            };
+            const projectEvProvenance = isLowTrust ? 'INFERRED' : 'VERIFIED';
+            const rankProjectEv = PROVENANCE_PRIORITY[projectEvProvenance] || 0;
+
+            if (!skillsBySlug.has(canonicalSlug)) {
               skillsBySlug.set(canonicalSlug, {
                 id: ev.skillId || crypto.randomUUID(),
                 slug: canonicalSlug,
                 name: norm.canonicalName || ev.skillName || rawSkillName,
-                provenanceStatus: isLowTrust ? 'INFERRED' : 'VERIFIED',
+                provenanceStatus: projectEvProvenance,
+                truthCategory: projectEvProvenance,
                 confidenceScore: isLowTrust
                   ? Math.min(0.5, ev.confidenceScore ?? 0.5)
                   : (ev.confidenceScore ?? 1.0),
                 evidenceItems: [evidenceRef],
                 primaryEvidence: evidenceRef,
               });
+            } else {
+              const existing = skillsBySlug.get(canonicalSlug);
+              const rankExisting = PROVENANCE_PRIORITY[existing.provenanceStatus] || 0;
+
+              if (!Array.isArray(existing.evidenceItems)) {
+                existing.evidenceItems = Array.isArray(existing.evidence)
+                  ? [...existing.evidence]
+                  : existing.primaryEvidence
+                    ? [existing.primaryEvidence]
+                    : [];
+              }
+              const alreadyHasRef = existing.evidenceItems.some(
+                (item) =>
+                  (item.id && item.id === evidenceRef.id) ||
+                  (item.filePath && item.filePath === evidenceRef.filePath && item.resourceId === evidenceRef.resourceId)
+              );
+              if (!alreadyHasRef) {
+                existing.evidenceItems.push(evidenceRef);
+              }
+
+              // Evidence Priority: Stronger verified evidence must win over weak candidate claim.
+              // Low-trust evidence (e.g. node_modules) must NEVER elevate a claim to VERIFIED.
+              if (!isLowTrust && rankProjectEv > rankExisting) {
+                existing.provenanceStatus = projectEvProvenance;
+                existing.truthCategory = projectEvProvenance;
+                existing.truthStatus = projectEvProvenance;
+                existing.isUserClaim = false;
+                if (existing.metadata) {
+                  existing.metadata.isUserClaim = false;
+                }
+                existing.confidenceScore = Math.max(
+                  existing.confidenceScore || 0,
+                  ev.confidenceScore ?? 1.0
+                );
+                if (!existing.primaryEvidence) {
+                  existing.primaryEvidence = evidenceRef;
+                }
+              } else if (!existing.primaryEvidence && !isLowTrust) {
+                existing.primaryEvidence = evidenceRef;
+              }
             }
           }
         }
@@ -584,12 +643,15 @@ export class EvidenceMatchingService {
       _hasHighTrustEvidence || (allEvidence.length > 0 && !allEvidenceIsLowTrust);
 
     // CASE A: VERIFIED or CORROBORATED with qualifying candidate-authored evidence
-    if (
-      (hasVerifiedProvenance ||
-        (hasQualifyingCodeEvidence && candidateSkill.confidenceScore >= 0.85)) &&
-      !isExplicitUserClaim &&
-      !allEvidenceIsLowTrust
-    ) {
+    // Evidence Priority: If qualifying candidate-authored code evidence exists,
+    // the stronger verified evidence wins over a weak self-declared claim.
+    const hasQualifyingVerifiedEvidence = hasQualifyingCodeEvidence && !allEvidenceIsLowTrust;
+    const canMatchVerified =
+      (hasVerifiedProvenance && !allEvidenceIsLowTrust && !isExplicitUserClaim) ||
+      (hasQualifyingVerifiedEvidence &&
+        (hasVerifiedProvenance || (candidateSkill.confidenceScore ?? 0.9) >= 0.85 || isExplicitUserClaim));
+
+    if (canMatchVerified && !allEvidenceIsLowTrust) {
       const matchConfidence = Number(
         Math.min(
           1.0,
@@ -597,8 +659,10 @@ export class EvidenceMatchingService {
         ).toFixed(2)
       );
 
-      // Preserve canonical provenance exactly — never overwrite
-      const resolvedProvenance = canonicalProvenance;
+      // Stronger verified evidence wins over claim; preserve CORROBORATED if present
+      const resolvedProvenance = canonicalProvenance === 'CORROBORATED'
+        ? 'CORROBORATED'
+        : 'VERIFIED';
 
       let explanationText = `${targetDisplayName} is ${resolvedProvenance.toLowerCase()} in candidate profile`;
       if (primaryEvidence) {

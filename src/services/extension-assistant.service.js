@@ -31,6 +31,7 @@ import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
 import { sanitizeErrorMessage } from './user-facing-error.sanitizer.js';
 import { formatNoticePeriodLabel } from '../domain/candidate/career-preferences.schemas.js';
 import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
+import { canonicalAutofillEngine } from '../domain/portal/canonical-autofill-engine.js';
 import { logger as defaultLogger } from '../utils/logger.js';
 
 export class ExtensionAssistantService {
@@ -427,256 +428,175 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
    * @param {object} params.candidateProfile Canonical candidate profile
    * @returns {object} Safe autofill plan
    */
-  generateAutofillPlan({ formFields = [], candidateProfile = {} }) {
-    const contact = candidateProfile.contact || {};
-    const prefs =
-      candidateProfile.jobPreferences || candidateProfile.profileMetadata?.careerPreferences || {};
-    const userCustom = candidateProfile.profileMetadata?.userCustom || {};
-    const social = candidateProfile.socialLinks || {};
+  generateAutofillPlan({ formFields = [], candidateProfile = {}, allowProtectedAutofill = false }) {
+    const validTypes = [
+      'text',
+      'email',
+      'tel',
+      'url',
+      'textarea',
+      'select',
+      'radio',
+      'checkbox',
+      'file',
+      'hidden',
+      'date',
+      'number',
+      'repeated_group',
+    ];
+
+    // Normalize incoming form fields into canonical PortalFormSchema
+    const fields = formFields.map((f, idx) => {
+      const rawType = (f.fieldType || f.type || '').toUpperCase();
+      let type = (f.type || f.fieldType || 'text').toLowerCase();
+      if (!validTypes.includes(type)) {
+        if (rawType.includes('EMAIL')) type = 'email';
+        else if (rawType.includes('PHONE')) type = 'tel';
+        else if (rawType.includes('URL') || rawType.includes('LINK')) type = 'url';
+        else if (rawType.includes('SELECT')) type = 'select';
+        else if (rawType.includes('CHECK')) type = 'checkbox';
+        else if (rawType.includes('RADIO')) type = 'radio';
+        else if (rawType.includes('FILE') || rawType.includes('RESUME')) type = 'file';
+        else if (rawType.includes('DATE')) type = 'date';
+        else if (rawType.includes('NUMBER')) type = 'number';
+        else type = 'text';
+      }
+
+      return {
+        fieldId: f.id || f.fieldId || f.name || f.fieldName || `field_${idx}`,
+        name: f.name || f.fieldName || f.id || `field_${idx}`,
+        label: f.label || f.name || f.fieldName || rawType,
+        type,
+        fieldType: f.fieldType || rawType || type,
+        required: Boolean(f.required),
+        options: Array.isArray(f.options)
+          ? f.options.map((o) => (typeof o === 'string' ? { label: o, value: o } : o))
+          : [],
+        customQuestion: Boolean(f.customQuestion),
+        selector: f.selector || f.domSelector || null,
+        metadata: { ...f },
+      };
+    });
+
+    const formSchema = {
+      portalId: 'generic',
+      formId: 'extension_detected_form',
+      destinationUrl: '',
+      fields,
+    };
+
+    const applicationPackage = {
+      candidate: candidateProfile,
+      candidateProfile,
+      artifacts: candidateProfile.artifacts || {},
+      answers: candidateProfile.answers || {},
+    };
+
+    // Execute CanonicalAutofillEngine as the SINGLE source of truth
+    const canonicalPlan = canonicalAutofillEngine.planFillSync(formSchema, applicationPackage, {
+      allowProtectedAutofill: Boolean(allowProtectedAutofill),
+    });
 
     const mappedFields = [];
     let fillableCount = 0;
     let sensitiveCount = 0;
     let missingCount = 0;
 
-    for (const field of formFields) {
-      const rawType = (field.fieldType || field.type || '').toUpperCase();
-      const rawName = (field.name || field.id || field.fieldName || '').toLowerCase();
-      const label = field.label || field.name || rawType;
+    for (let i = 0; i < formFields.length; i++) {
+      const origField = formFields[i];
+      const action = canonicalPlan.actions[i];
+      const rawType = (origField.fieldType || origField.type || '').toUpperCase();
+      const rawName = (origField.name || origField.id || origField.fieldName || '').toLowerCase();
+      const label = origField.label || origField.name || origField.fieldName || rawType;
+      const fieldName =
+        origField.name || origField.fieldName || origField.id || action?.name || action?.fieldId || `field_${i}`;
 
       let value = null;
+      let available = false;
       let source = 'NONE';
       let confidence = 0.0;
       let evidence = UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE;
-      let isSensitive = false;
-      let requiresConfirmation = false;
-      let available = false;
       let unavailabilityReason = null;
+      const isSensitive = Boolean(
+        action?.isProtected ||
+          SENSITIVE_AUTOFILL_FIELDS.includes(rawType) ||
+          rawName.includes('declaration') ||
+          rawName.includes('signature') ||
+          rawName.includes('disability') ||
+          rawName.includes('veteran') ||
+          rawName.includes('criminal')
+      );
+      const requiresConfirmation = Boolean(action?.requiresUserReview || isSensitive);
 
-      // 1. Identity
       if (
-        rawType === 'FIRST_NAME' ||
-        rawName.includes('first_name') ||
-        rawName.includes('firstname')
+        action &&
+        (action.rawValue !== null && action.rawValue !== undefined ||
+          action.action === 'FILL' ||
+          action.action === 'SELECT' ||
+          action.action === 'CHECK')
       ) {
-        const val =
-          contact.firstName ||
-          (candidateProfile.displayName ? candidateProfile.displayName.split(' ')[0] : null);
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_IDENTITY';
-          confidence = 1.0;
-          evidence = 'Canonical Candidate Profile Display Name / Contact First Name';
+        const raw =
+          action.rawValue !== undefined && action.rawValue !== null
+            ? action.rawValue
+            : action.sanitizedValue;
+        if (raw !== null && raw !== undefined) {
+          if (
+            (action.protectedCategory === 'salary_expectation' || rawType.includes('SALARY')) &&
+            typeof raw === 'number'
+          ) {
+            value = raw.toLocaleString();
+          } else if (typeof raw === 'boolean') {
+            value = raw ? 'Yes' : 'No';
+          } else {
+            value = action.sanitizedValue || raw;
+          }
           available = true;
-        }
-      } else if (
-        rawType === 'LAST_NAME' ||
-        rawName.includes('last_name') ||
-        rawName.includes('lastname')
-      ) {
-        const val =
-          contact.lastName ||
-          (candidateProfile.displayName
-            ? candidateProfile.displayName.split(' ').slice(1).join(' ')
-            : null);
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_IDENTITY';
-          confidence = 1.0;
-          evidence = 'Canonical Candidate Profile Display Name / Contact Last Name';
-          available = true;
-        }
-      } else if (rawType === 'FULL_NAME' || rawName === 'name' || rawName.includes('fullname')) {
-        const val =
-          candidateProfile.displayName ||
-          `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
-          null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_IDENTITY';
-          confidence = 1.0;
-          evidence = 'Canonical Candidate Profile Display Name';
-          available = true;
+
+          // Map canonical source to extension enum
+          if (
+            rawType === 'EMAIL' ||
+            rawType === 'PHONE' ||
+            rawType.includes('URL') ||
+            action.source.includes('contact') ||
+            action.source.includes('Email') ||
+            action.source.includes('phone') ||
+            action.source.includes('social')
+          ) {
+            source = 'CANONICAL_PROFILE_CONTACT';
+            evidence = 'Canonical Candidate Email / Contact Information';
+          } else if (
+            isSensitive ||
+            action.source.includes('careerPreferences') ||
+            action.source.includes('userCustom') ||
+            rawType === 'WORK_AUTHORIZATION' ||
+            rawType === 'VISA_SPONSORSHIP' ||
+            rawType === 'SALARY_EXPECTATION' ||
+            rawType === 'NOTICE_PERIOD'
+          ) {
+            source = 'CANONICAL_CAREER_PREFERENCES';
+            evidence = 'Career Preferences / User Declared';
+          } else if (action.source.includes('artifacts')) {
+            source = 'CANONICAL_FACT_INVENTORY';
+            evidence = 'Canonical Application Artifacts';
+          } else {
+            source = 'CANONICAL_PROFILE_IDENTITY';
+            evidence = 'Canonical Candidate Profile Display Name';
+          }
+
+          if (isSensitive) {
+            confidence = rawType.includes('SALARY') ? 0.9 : 0.95;
+          } else {
+            confidence =
+              action.confidence === 'HIGH'
+                ? 1.0
+                : action.confidence === 'MEDIUM'
+                  ? 0.9
+                  : 0.5;
+          }
         }
       }
 
-      // 2. Contact
-      else if (rawType === 'EMAIL' || rawName.includes('email')) {
-        const val = candidateProfile.canonicalEmail || contact.email || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Canonical Candidate Email';
-          available = true;
-        }
-      } else if (rawType === 'PHONE' || rawName.includes('phone') || rawName.includes('mobile')) {
-        const val = contact.phone || contact.nationalNumber || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Contact Phone Number';
-          available = true;
-        }
-      }
-
-      // 3. Social / Portfolio Links
-      else if (rawType === 'LINKEDIN_URL' || rawName.includes('linkedin')) {
-        const val = social.linkedin || contact.linkedin || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Verified Profile Social Links (LinkedIn)';
-          available = true;
-        }
-      } else if (rawType === 'GITHUB_URL' || rawName.includes('github')) {
-        const val = social.github || contact.github || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Verified Profile Social Links (GitHub)';
-          available = true;
-        }
-      } else if (
-        rawType === 'PORTFOLIO_URL' ||
-        rawName.includes('portfolio') ||
-        rawName.includes('website')
-      ) {
-        const val = social.portfolio || candidateProfile.portfolioUrl || contact.portfolio || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Portfolio URL';
-          available = true;
-        }
-      }
-
-      // 4. Location / Address
-      else if (rawType === 'CITY' || rawName.includes('city')) {
-        const val = contact.city || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Contact Address (City)';
-          available = true;
-        }
-      } else if (rawType === 'STATE' || rawName.includes('state')) {
-        const val = contact.state || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Contact Address (State)';
-          available = true;
-        }
-      } else if (
-        rawType === 'POSTAL_CODE' ||
-        rawName.includes('postal') ||
-        rawName.includes('zip')
-      ) {
-        const val = contact.postalCode || null;
-        if (val) {
-          value = val;
-          source = 'CANONICAL_PROFILE_CONTACT';
-          confidence = 1.0;
-          evidence = 'Candidate Contact Address (Postal Code)';
-          available = true;
-        }
-      }
-
-      // 5. Notice Period / Availability (Non-sensitive, but structured)
-      else if (
-        rawType === 'NOTICE_PERIOD' ||
-        rawName.includes('notice') ||
-        rawName.includes('availability')
-      ) {
-        const val = prefs.noticePeriod || userCustom.noticePeriod || null;
-        if (val) {
-          value = formatNoticePeriodLabel(val, prefs.customNoticePeriod);
-          source = 'CANONICAL_CAREER_PREFERENCES';
-          confidence = 0.95;
-          evidence = 'Career Preferences Notice Period';
-          available = true;
-        }
-      }
-
-      // 6. Sensitive / High-Risk Fields (STRICT CONFIRMATION REQUIRED)
-      else if (
-        rawType === 'WORK_AUTHORIZATION' ||
-        rawName.includes('authorized') ||
-        rawName.includes('work_auth') ||
-        rawName.includes('citizenship')
-      ) {
-        isSensitive = true;
-        requiresConfirmation = true;
-        sensitiveCount++;
-        const val = prefs.workAuthorization || userCustom.workAuthorization || null;
-        if (val) {
-          value = Array.isArray(val) ? val.join(', ') : String(val);
-          source = 'CANONICAL_CAREER_PREFERENCES';
-          confidence = 0.95;
-          evidence = 'Career Preferences Work Authorization (User Declared)';
-          available = true;
-        }
-      } else if (
-        rawType === 'VISA_SPONSORSHIP' ||
-        rawName.includes('sponsor') ||
-        rawName.includes('visa')
-      ) {
-        isSensitive = true;
-        requiresConfirmation = true;
-        sensitiveCount++;
-        const val = prefs.visaSponsorshipRequired ?? userCustom.visaSponsorshipRequired ?? null;
-        if (val !== null && val !== undefined) {
-          const strVal = String(val).trim().toUpperCase();
-          value =
-            strVal === 'YES' || val === true
-              ? 'Yes'
-              : strVal === 'NO' || val === false
-                ? 'No'
-                : String(val);
-          source = 'CANONICAL_CAREER_PREFERENCES';
-          confidence = 0.95;
-          evidence = 'Career Preferences Visa Sponsorship (User Declared)';
-          available = true;
-        }
-      } else if (
-        rawType === 'SALARY_EXPECTATION' ||
-        rawType === 'SALARY_FLOOR' ||
-        rawName.includes('salary') ||
-        rawName.includes('compensation')
-      ) {
-        isSensitive = true;
-        requiresConfirmation = true;
-        sensitiveCount++;
-        const val = prefs.salaryFloor || prefs.targetSalary || userCustom.salaryFloor || null;
-        if (val) {
-          value = typeof val === 'number' ? val.toLocaleString() : String(val);
-          source = 'CANONICAL_CAREER_PREFERENCES';
-          confidence = 0.9;
-          evidence = 'Career Preferences Minimum Compensation / Floor';
-          available = true;
-        }
-      } else if (
-        SENSITIVE_AUTOFILL_FIELDS.includes(rawType) ||
-        rawName.includes('declaration') ||
-        rawName.includes('signature') ||
-        rawName.includes('disability') ||
-        rawName.includes('veteran') ||
-        rawName.includes('criminal')
-      ) {
-        isSensitive = true;
-        requiresConfirmation = true;
-        sensitiveCount++;
-      }
-
-      // Final verification: if value is missing or unevidenced, enforce strict refusal
-      if (!available || value === null || value === undefined) {
+      if (!available) {
         value = null;
         available = false;
         confidence = 0.0;
@@ -688,10 +608,14 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         fillableCount++;
       }
 
+      if (isSensitive) {
+        sensitiveCount++;
+      }
+
       mappedFields.push(
         AutofillFieldPlanSchema.parse({
-          fieldName: field.name || field.id || rawType,
-          fieldType: rawType,
+          fieldName,
+          fieldType: origField.fieldType || action?.fieldType || 'text',
           label,
           value,
           source,
@@ -714,6 +638,7 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       sensitiveCount,
       missingCount,
       status,
+      canonicalPlan,
     });
   }
 
