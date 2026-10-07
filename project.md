@@ -5,12 +5,14 @@
 
 ## P0 Security Fix Publication (2026-10-07)
 
-**Status:** IN_PROGRESS — user requested committing and pushing the current ISSUE-01/02/03 fixes.
+**Status:** COMPLETE — requested ISSUE-01/02/03 fixes committed and published to the dedicated GitHub fix branch; live remediation acceptance remains pending separately.
 
 - Publish only the remediation source/tests/docs and journaled migrations 0018/0019 to GitHub `origin`, on `fix/p0-security-issues-01-03`. `goal.md` prohibits direct default-branch pushes; `main` remains unchanged. No force push or PR creation.
 - Exclude unrelated `.claude/`, private environment files, credentials, Temp databases and test logs. Preserve all security invariants and existing live-verification requirements. ISSUE-04/05 remain open; no completion percentages change.
 - Verification carried forward from the immediately preceding remediation: 748 selected tests / 703 PASS / 45 FAIL / 0 cancelled/skipped; 50/50 new ISSUE-03 tests and real-PostgreSQL 50-caller at-most-once proof passed. Commit-boundary checks and remote publication evidence will be recorded below; no new database/live-provider test-pass claim is made by this publication task.
 - Commit-boundary verification: explicit 36-file staged allowlist; strict staged diff secret scan 0 findings (fixture exemptions disabled); syntax checks 26/26 JavaScript files PASS; lint 0 errors / 11 existing warnings; canonical package identity tests 27/27 PASS; staged whitespace check PASS. Fetched origin and verified base HEAD matched origin/main before creating the fix branch. Private/unrelated files remain unstaged.
+- Security commit: `2672a410e32a0c85c4fd4f4b774d3b7e30e57b9b` (`fix(security): secure linking and approvals`), 36 files. `git push --set-upstream origin fix/p0-security-issues-01-03` succeeded; independent `git ls-remote --heads origin refs/heads/fix/p0-security-issues-01-03` matched that exact commit. This publication evidence is recorded in a follow-up documentation commit. No force push, PR creation, merge, GitLab push or default-branch update was performed; local main remains `7f03b64ac5908f248c2d5b82dc510779c02f9aca`.
+- Publication does not close live ISSUE-01/02/03 acceptance, clear the 45 recorded wider test failures, authorize deployment, or advance ISSUE-04/05. Migrations/stop-old-worker rollout requirements remain mandatory.
 
 ## ISSUE-03: Atomic Single-Owner Application Execution (2026-10-07)
 
