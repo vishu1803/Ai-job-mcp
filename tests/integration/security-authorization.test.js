@@ -39,7 +39,7 @@ import {
 import { SourceResumeIngestionService } from '../../src/services/source-resume-ingestion.service.js';
 import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
-import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
+import { JobApplicationWorkflowService, computeApplicationPackageHash } from '../../src/services/job-application-workflow.service.js';
 import { documentStorageService } from '../../src/services/document-storage.service.js';
 import { NotFoundError, AuthorizationError } from '../../src/errors/index.js';
 
@@ -782,22 +782,35 @@ describe('Object-Level Authorization & IDOR Defense Integration Suite (Phase 2)'
 
     it('Legitimate operation: Candidate A1 can request approval ticket for own application', async () => {
       const workflowService = new JobApplicationWorkflowService({ database: db });
+      // Approval authority requires actual persisted content, not the legacy
+      // arbitrary hash used by the separate handoff/IDOR fixtures above.
+      const approvedPackage = { candidateId: candidateIdA1,
+        targetJob: { id: 'job-sec-101', company: 'Acme Security Corp',
+          title: 'Senior Security Architect', applicationUrl: 'https://example.test/apply' },
+        tailoredResume: { markdownContent: '# Alice Resume' },
+        coverLetter: { markdownContent: 'Reviewed letter' }, answers: {} };
+      const approvedHash = computeApplicationPackageHash(approvedPackage);
+      await db.insert(applicationPackages).values({ tenantId: tenantIdA,
+        candidateId: candidateIdA1, applicationId: applicationA1.id, version: 2,
+        packageHash: approvedHash, packagePayload: approvedPackage, lifecycleState: 'ARCHIVED' });
 
       const ticket = await workflowService.requestApplicationApproval({
         tenantId: tenantIdA,
         userId: userIdA1,
         candidateId: candidateIdA1,
         clientId: 'test-client',
+        applicationId: applicationA1.id,
+        packageVersion: 2,
         jobId: 'job-sec-101',
         role: 'MEMBER',
         destinationUrl: 'https://example.test/apply',
-        packageHash: 'a1b2c3d4e5f67890123456789012345678901234567890123456789012345678',
+        packageHash: approvedHash,
       });
 
       assert.ok(ticket);
       assert.equal(ticket.candidateId, candidateIdA1);
       assert.equal(ticket.userId, userIdA1);
-      assert.equal(ticket.status, 'PENDING');
+      assert.equal(ticket.status, 'ISSUED');
     });
   });
 

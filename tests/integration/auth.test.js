@@ -201,6 +201,7 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     assert.ok(dbSession);
     assert.strictEqual(dbSession.userId, createdUserId);
     assert.strictEqual(dbSession.tenantId, createdTenantId);
+    assert.strictEqual(dbSession.githubUserId, '99001122');
   });
 
   it('4. GET /auth/me returns authenticated user & tenant context with valid session', async () => {

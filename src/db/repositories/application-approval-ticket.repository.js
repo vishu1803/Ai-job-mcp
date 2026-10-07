@@ -5,7 +5,7 @@
  * Strictly enforces tenant isolation on every query (WHERE tenant_id = :tenantId).
  */
 
-import { eq, and, desc, lt } from 'drizzle-orm';
+import { eq, and, desc, lt, inArray } from 'drizzle-orm';
 import { applicationApprovalTickets } from '../schema.js';
 import { ValidationError } from '../../errors/index.js';
 
@@ -105,8 +105,7 @@ export async function updateApplicationApprovalTicketStatus(
   ];
 
   if (Array.isArray(fromStatus)) {
-    // Check if current status matches any in array (first element used in direct eq, or callers handle)
-    conditions.push(eq(applicationApprovalTickets.status, fromStatus[0]));
+    conditions.push(inArray(applicationApprovalTickets.status, fromStatus));
   } else if (fromStatus) {
     conditions.push(eq(applicationApprovalTickets.status, fromStatus));
   }

@@ -127,6 +127,20 @@
       "when": 1788541200000,
       "tag": "0017_application_workflow_states",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791331200000,
+      "tag": "0018_secure_github_installation_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791331200001,
+      "tag": "0019_atomic_application_execution",
+      "breakpoints": true
     }
   ]
 }

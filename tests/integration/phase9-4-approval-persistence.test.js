@@ -24,11 +24,13 @@ import {
   candidates,
   jobApplications,
   applicationApprovalTickets,
+  applicationPackages,
 } from '../../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import {
   JobApplicationWorkflowService,
   signApplicationTicket,
+  computeApplicationPackageHash,
 } from '../../src/services/job-application-workflow.service.js';
 import {
   ValidationError,
@@ -49,7 +51,7 @@ describe('Phase 9.4 — Approval Persistence & Security Integration Tests', () =
 
   const jobId = 'job-senior-dist-eng-901';
   const destinationUrl = 'https://boards.greenhouse.io/acme-corp/jobs/901';
-  const packageHash = crypto.createHash('sha256').update('canonical-package-payload-v1').digest('hex');
+  let packageHash;
 
   let workflowService;
   let samplePackage;
@@ -155,6 +157,10 @@ describe('Phase 9.4 — Approval Persistence & Security Integration Tests', () =
       generationContractVersion: 'p16.0',
       answers: {},
     };
+    packageHash = computeApplicationPackageHash(samplePackage);
+    samplePackage.packageHash = packageHash;
+    await db.insert(applicationPackages).values({ tenantId, candidateId, applicationId,
+      packageHash, packagePayload: samplePackage, version: 1 });
   });
 
   after(async () => {
@@ -171,6 +177,8 @@ describe('Phase 9.4 — Approval Persistence & Security Integration Tests', () =
       await db.delete(tenants).where(eq(tenants.id, foreignTenantId));
     } catch {
       // Ignore teardown cleanup errors
+    } finally {
+      await closeDatabase();
     }
   });
 

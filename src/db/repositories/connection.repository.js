@@ -7,7 +7,7 @@
 
 import { eq, and, desc, lt, count } from 'drizzle-orm';
 import { resourceConnections, auditLogs } from '../schema.js';
-import { ValidationError } from '../../errors/index.js';
+import { ValidationError, ConflictError } from '../../errors/index.js';
 
 function assertTenantId(tenantId, fnName) {
   if (!tenantId || typeof tenantId !== 'string') {
@@ -215,66 +215,77 @@ export async function findConnectionByInstallationId(db, installationId) {
  * @param {string[]} params.scopes
  * @param {string} params.status
  * @param {object} params.metadata
- * @returns {Promise<any>} Created or updated connection row
+ * Caller must supply a transaction: reconnect takes a row lock until the audit commits.
+ * @returns {Promise<{connection: any, isUpdate: boolean}>} Atomic claim result
  */
 export async function upsertGitHubAppConnection(db, params) {
   assertTenantId(params?.tenantId, 'upsertGitHubAppConnection');
-
-  const existing = await findConnectionByInstallationId(db, params.installationId);
-
-  if (existing && existing.tenantId === params.tenantId) {
-    const [updated] = await db
-      .update(resourceConnections)
-      .set({
-        userId: params.userId,
-        displayName: params.displayName,
-        externalAccountId: String(params.externalAccountId),
-        externalAccountName: params.externalAccountName,
-        encryptedCredentials: params.encryptedCredentials,
-        keyVersion: params.keyVersion,
-        scopes: params.scopes,
-        status: params.status || 'ACTIVE',
-        metadata: params.metadata || {},
-        lastValidatedAt: new Date(),
-        lastErrorCode: null,
-        lastErrorAt: null,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(resourceConnections.id, existing.id),
-          eq(resourceConnections.tenantId, params.tenantId)
-        )
-      )
-      .returning();
-
-    return updated;
-  }
-
+  const values = {
+    userId: params.userId,
+    displayName: params.displayName,
+    externalAccountId: String(params.externalAccountId),
+    externalAccountName: params.externalAccountName,
+    encryptedCredentials: params.encryptedCredentials,
+    keyVersion: params.keyVersion,
+    scopes: params.scopes,
+    status: params.status || 'ACTIVE',
+    metadata: params.metadata || {},
+    lastValidatedAt: new Date(),
+    lastErrorCode: null,
+    lastErrorAt: null,
+  };
+  // The global partial UNIQUE index arbitrates concurrent claims, including old writers.
   const [inserted] = await db
     .insert(resourceConnections)
     .values({
-      id: crypto.randomUUID(),
+      ...values,
       tenantId: params.tenantId,
-      userId: params.userId,
       provider: 'GITHUB_APP',
       authType: 'APP_INSTALLATION',
-      displayName: params.displayName,
-      externalAccountId: String(params.externalAccountId),
-      externalAccountName: params.externalAccountName,
       installationId: String(params.installationId),
-      encryptedCredentials: params.encryptedCredentials,
-      keyVersion: params.keyVersion,
-      scopes: params.scopes,
-      status: params.status || 'ACTIVE',
-      metadata: params.metadata || {},
-      lastValidatedAt: new Date(),
-      lastErrorCode: null,
-      lastErrorAt: null,
     })
+    .onConflictDoNothing()
     .returning();
+  if (inserted) return { connection: inserted, isUpdate: false };
 
-  return inserted;
+  const [existing] = await db
+    .select()
+    .from(resourceConnections)
+    .where(
+      and(
+        eq(resourceConnections.provider, 'GITHUB_APP'),
+        eq(resourceConnections.installationId, String(params.installationId))
+      )
+    )
+    .for('update');
+  if (
+    !existing ||
+    existing.tenantId !== params.tenantId ||
+    existing.externalAccountId !== String(params.externalAccountId)
+  ) {
+    throw new ConflictError(
+      'GitHub App installation is already linked or conflicts with an existing connection.',
+      { reason: 'INSTALLATION_ALREADY_LINKED' }
+    );
+  }
+  const [connection] = await db
+    .update(resourceConnections)
+    .set({
+      ...values,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(resourceConnections.id, existing.id),
+        eq(resourceConnections.tenantId, params.tenantId)
+      )
+    )
+    .returning();
+  if (!connection)
+    throw new ConflictError('Installation claim changed; restart authorization', {
+      reason: 'INSTALLATION_ALREADY_LINKED',
+    });
+  return { connection, isUpdate: true };
 }
 
 /**

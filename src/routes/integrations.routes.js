@@ -1,29 +1,16 @@
-/**
- * @file GitHub App Integration Routes (Task P3-002)
- *
- * Implements:
- * - GET /integrations/github/install: Initiates GitHub App installation flow with signed anti-CSRF state.
- * - GET /integrations/github/install/callback: Handles callback, verifies state, verifies installation via GitHub API, checks tenant collision, and links connection.
- */
-
-import { authenticate } from '../middleware/auth.middleware.js';
+/** GitHub installation setup and separate, installation-bound App user authorization. */
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.js';
-import { githubInstallCallbackQuerySchema } from './integrations.schemas.js';
-import { GitHubInstallationService } from '../services/github-installation.service.js';
-import { AuthorizationError, ValidationError } from '../errors/index.js';
-import { config } from '../config/env.js';
-import { writeAuditRecord } from '../db/repositories/connection.repository.js';
+import {
+  githubInstallCallbackQuerySchema,
+  githubAuthorizeCallbackQuerySchema,
+} from './integrations.schemas.js';
+import {
+  GitHubInstallationService,
+  getInstallationCookieOptions,
+} from '../services/github-installation.service.js';
 import { db as defaultDb } from '../db/index.js';
 
-/**
- * Fastify plugin for third-party integration endpoints.
- *
- * @param {import('fastify').FastifyInstance} fastify
- * @param {object} [opts]
- * @param {GitHubInstallationService} [opts.installationService]
- * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [opts.tokenCache]
- * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db]
- */
 export default async function integrationsRoutes(fastify, opts = {}) {
   const service =
     opts.installationService ||
@@ -31,147 +18,62 @@ export default async function integrationsRoutes(fastify, opts = {}) {
       db: opts.db || defaultDb,
       tokenCache: opts.tokenCache,
     });
-  const db = opts.db || defaultDb;
-
-  /**
-   * GET /integrations/github/install
-   * Initiates GitHub App installation flow.
-   */
-  fastify.get(
-    '/github/install',
-    {
-      preHandler: [authenticate],
+  const { name, ...cookieOptions } = getInstallationCookieOptions();
+  const context = (request) => ({
+    user: request.user,
+    tenantId: request.auth.tenantId,
+    session: request.session,
+    stateToken: request.query.state,
+    cookieToken: request.cookies[name],
+    reqContext: {
+      requestId: request.id,
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
     },
-    async (request, reply) => {
-      // 1. Role Authorization: Deny READONLY
-      if (request.auth.role === 'READONLY') {
-        throw new AuthorizationError(
-          'Read-only members do not have permission to link workspace integrations',
-          'FORBIDDEN_READONLY_ROLE'
-        );
-      }
+  });
+  const protectedHandlers = [authenticate, authorize('OWNER', 'MEMBER')];
 
-      // 2. Generate signed anti-CSRF state token
-      const { stateToken, installUrl } = service.createInstallationState({
-        userId: request.auth.userId,
-        tenantId: request.auth.tenantId,
-        role: request.auth.role,
-      });
+  fastify.get('/github/install', { preHandler: protectedHandlers }, async (request, reply) => {
+    const { stateToken, installUrl } = await service.createInstallationState(context(request));
+    reply.setCookie(name, stateToken, cookieOptions);
+    return reply.redirect(installUrl, 302);
+  });
 
-      // 3. Set secure, scoped transit cookie
-      const isSecure = config.NODE_ENV === 'production' && config.DATABASE_SSL;
-      const cookieName = isSecure ? '__Host-gh_install_state' : 'gh_install_state';
-
-      reply.setCookie(cookieName, stateToken, {
-        path: '/integrations/github',
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: 'lax',
-        maxAge: 600, // 10 minutes
-      });
-
-      // 4. Record audit event
-      await writeAuditRecord(db, {
-        tenantId: request.auth.tenantId,
-        userId: request.auth.userId,
-        eventType: 'github.installation_started',
-        resourceId: null,
-        requestId: request.id,
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-        details: {
-          action: 'github_app_install',
-        },
-      });
-
-      // 5. Redirect to GitHub App installation page
-      return reply.redirect(installUrl, 302);
-    }
-  );
-
-  /**
-   * GET /integrations/github/install/callback
-   * Handles return redirect from GitHub App installation or update.
-   */
   fastify.get(
     '/github/install/callback',
     {
-      preHandler: [authenticate, validateRequest({ query: githubInstallCallbackQuerySchema })],
+      preHandler: [
+        ...protectedHandlers,
+        validateRequest({ query: githubInstallCallbackQuerySchema }),
+      ],
     },
     async (request, reply) => {
-      // 1. Role Authorization: Deny READONLY
-      if (request.auth.role === 'READONLY') {
-        throw new AuthorizationError(
-          'Read-only members do not have permission to link workspace integrations',
-          'FORBIDDEN_READONLY_ROLE'
-        );
-      }
-
-      const isSecure = config.NODE_ENV === 'production' && config.DATABASE_SSL;
-      const cookieName = isSecure ? '__Host-gh_install_state' : 'gh_install_state';
-      const cookieToken = request.cookies[cookieName] || request.cookies['gh_install_state'];
-
-      const reqContext = {
-        requestId: request.id,
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-      };
-
-      const setupAction = request.query.setup_action;
-
-      // 2. Branch: Setup Update Flow (setup_action === 'update')
-      if (setupAction === 'update') {
-        // Clear transit cookie if present
-        reply.clearCookie(cookieName, { path: '/integrations/github' });
-        if (cookieName !== 'gh_install_state') {
-          reply.clearCookie('gh_install_state', { path: '/integrations/github' });
-        }
-
-        // Verify and update existing connection belonging to authenticated tenant
-        await service.updateInstallation({
-          user: request.user,
-          tenantId: request.auth.tenantId,
-          installationId: request.query.installation_id,
-          reqContext,
-        });
-
-        return reply.redirect('/dashboard?connection=updated', 302);
-      }
-
-      // 3. Branch: Initial Installation Flow (setup_action === 'install' or 'request' or default)
-      // State parameter is strictly MANDATORY for initial installation
-      if (!request.query.state) {
-        throw new ValidationError(
-          'Missing state parameter required for initial installation linking',
-          'MISSING_INSTALLATION_STATE'
-        );
-      }
-
-      // Validate state token (signature, expiration, user/tenant binding)
-      service.validateInstallationState({
-        stateToken: request.query.state,
-        cookieToken,
-        userId: request.auth.userId,
-        tenantId: request.auth.tenantId,
-      });
-
-      // Invalidate transit cookie immediately to prevent replay attacks
-      reply.clearCookie(cookieName, { path: '/integrations/github' });
-      if (cookieName !== 'gh_install_state') {
-        reply.clearCookie('gh_install_state', { path: '/integrations/github' });
-      }
-
-      // Verify installation on GitHub and link to active tenant
-      const { isUpdate } = await service.linkInstallation({
-        user: request.user,
-        tenantId: request.auth.tenantId,
+      // Both install and update require the same state and user authority; no stateless update bypass.
+      const { stateToken, authorizationUrl } = await service.beginUserAuthorization({
+        ...context(request),
         installationId: request.query.installation_id,
-        reqContext,
       });
+      reply.setCookie(name, stateToken, cookieOptions);
+      return reply.redirect(authorizationUrl, 302);
+    }
+  );
 
-      // Safe redirect to dashboard
-      const redirectUrl = `/dashboard?connection=${isUpdate ? 'updated' : 'linked'}`;
-      return reply.redirect(redirectUrl, 302);
+  fastify.get(
+    '/github/authorize/callback',
+    {
+      preHandler: [
+        ...protectedHandlers,
+        validateRequest({ query: githubAuthorizeCallbackQuerySchema }),
+      ],
+    },
+    async (request, reply) => {
+      const { isUpdate } = await service.linkInstallation({
+        ...context(request),
+        code: request.query.code,
+        installationId: request.query.installation_id,
+      });
+      reply.clearCookie(name, cookieOptions);
+      return reply.redirect(`/dashboard?connection=${isUpdate ? 'updated' : 'linked'}`, 302);
     }
   );
 }

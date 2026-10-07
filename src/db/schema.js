@@ -23,6 +23,7 @@ import {
   date,
   index,
   uniqueIndex,
+  check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -315,6 +316,8 @@ export const sessions = pgTable(
       .references(() => tenants.id, { onDelete: 'cascade' }),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
+    // Verified by the login provider; legacy/non-GitHub sessions cannot link installations.
+    githubUserId: text('github_user_id'),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     lastActiveAt: timestamp('last_active_at', { withTimezone: true }).defaultNow().notNull(),
@@ -397,11 +400,48 @@ export const resourceConnections = pgTable(
       table.provider,
       table.externalAccountId
     ),
+    uniqueIndex('resource_connections_github_installation_unique')
+      .on(table.installationId)
+      .where(sql`${table.provider} = 'GITHUB_APP' AND ${table.installationId} IS NOT NULL`),
     index('idx_resource_connections_tenant_id').on(table.tenantId),
     index('idx_resource_connections_user_id').on(table.userId),
     index('idx_resource_connections_tenant_status').on(table.tenantId, table.status),
     index('idx_resource_connections_expires_at').on(table.expiresAt),
     index('idx_resource_connections_key_version').on(table.keyVersion),
+  ]
+);
+
+// Durable, single-use installation/OAuth state. Only a hash of the browser token is stored.
+export const githubInstallationStates = pgTable(
+  'github_installation_states',
+  {
+    stateHash: text('state_hash').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    phase: text('phase').notNull(),
+    installationId: text('installation_id'),
+    encryptedCodeVerifier: text('encrypted_code_verifier'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('idx_github_installation_states_session').on(table.sessionId),
+    index('idx_github_installation_states_tenant').on(table.tenantId),
+    index('idx_github_installation_states_user').on(table.userId),
+    index('idx_github_installation_states_expiry').on(table.expiresAt),
+    check('github_installation_states_phase', sql`${table.phase} IN ('install', 'authorize')`),
+    check(
+      'github_installation_states_phase_context',
+      sql`
+      (${table.phase} = 'install' AND ${table.installationId} IS NULL AND ${table.encryptedCodeVerifier} IS NULL)
+      OR (${table.phase} = 'authorize' AND ${table.installationId} IS NOT NULL AND ${table.encryptedCodeVerifier} IS NOT NULL)`
+    ),
   ]
 );
 
@@ -1126,6 +1166,48 @@ export const applicationApprovalTickets = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Durable execution ownership. CONSUMED on the ticket means the right is spent,
+// not that an employer necessarily received the application.
+export const applicationExecutions = pgTable(
+  'application_executions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    approvalId: uuid('approval_id')
+      .notNull()
+      .references(() => applicationApprovalTickets.id, { onDelete: 'cascade' }),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: 'cascade' }),
+    packageId: uuid('package_id').notNull(),
+    packageVersion: integer('package_version').notNull(),
+    packageHash: text('package_hash').notNull(),
+    status: text('status').notNull().default('CLAIMED'),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    externalReference: text('external_reference'),
+    failureClassification: text('failure_classification'),
+    result: jsonb('result'),
+  },
+  (table) => [
+    uniqueIndex('uq_application_execution_approval').on(table.approvalId),
+    index('idx_application_execution_tenant_status').on(table.tenantId, table.status),
+    check(
+      'application_execution_status_check',
+      sql`${table.status} IN ('CLAIMED', 'STARTED', 'SUCCEEDED', 'FAILED', 'UNKNOWN')`
+    ),
+  ]
+);
+
 // 21. Resumes Table (Source Upload & Version Lifecycle - Phase 13.5 / ARCH-052)
 // ---------------------------------------------------------------------------
 
@@ -1329,6 +1411,7 @@ export const schema = {
   sessions,
   auditLogs,
   resourceConnections,
+  githubInstallationStates,
   candidates,
   candidateIdentities,
   resources,
@@ -1352,5 +1435,6 @@ export const schema = {
   skillCatalog,
   applicationApprovalTicketStatusEnum,
   applicationApprovalTickets,
+  applicationExecutions,
   jobAnalysisSnapshots,
 };

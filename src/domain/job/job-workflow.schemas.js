@@ -317,6 +317,8 @@ export const ApplicationApprovalTicketStatusEnum = z.enum([
 ]);
 
 export const RequestApplicationApprovalInputSchema = z.object({
+  applicationId: z.string().uuid().optional(),
+  packageVersion: z.number().int().positive().optional(),
   jobId: z.string().min(1),
   destinationUrl: z.string().url(),
   packageHash: z.string().length(64, 'packageHash must be a valid 64-char SHA-256 hex string'),
@@ -348,6 +350,7 @@ export const ApplicationApprovalTicketSchema = z.object({
 // -----------------------------------------------------------------------------
 
 export const SubmitJobApplicationInputSchema = z.object({
+  applicationId: z.string().uuid().optional(),
   approvalTicketId: z.string().uuid('Valid approval ticket UUID is required'),
   packageHash: z.string().length(64, 'packageHash must match the approved package hash'),
   destinationUrl: z.string().url(),
@@ -440,6 +443,7 @@ export class JobApplicationWorkflowStateMachine {
 }
 
 export const SubmissionResultSchema = z.object({
+  executionId: z.string().uuid().optional(),
   status: SubmissionStatusEnum,
   applicationId: z.string().uuid().optional(),
   externalReference: z.string().nullable().optional(),

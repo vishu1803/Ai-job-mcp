@@ -1,5 +1,10 @@
 # GitHub App Installation Linking Architecture Review (Task P3-002A)
 
+> Historical design, superseded for installation authorization by
+> [ISSUE-01 secure linking](security/github-installation-linking.md).
+> App-JWT visibility is not user authority, cookie deletion is not replay protection,
+> and `__Host-` cookies require `Path=/`. The old flow below must not be used for deployment.
+
 **Document Version**: `1.0.0`  
 **Status**: `APPROVED / ARCHITECTURAL BASELINE`  
 **Date**: `2026-08-21`  

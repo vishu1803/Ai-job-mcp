@@ -46,6 +46,7 @@ export function hashSessionToken(rawToken) {
  * @param {Object} params Session parameters
  * @param {string} params.userId User UUID
  * @param {string} params.tenantId Tenant UUID
+ * @param {string | null} [params.githubUserId] Numeric subject verified by GitHub login, never caller input
  * @param {string | null} [params.ipAddress=null] Client IP address
  * @param {string | null} [params.userAgent=null] Client User-Agent header
  * @param {number} [params.ttlSeconds=604800] Session lifetime in seconds
@@ -70,6 +71,7 @@ export async function createSession(db, params) {
     tenantId: params.tenantId,
     ipAddress: params.ipAddress || null,
     userAgent: params.userAgent || null,
+    githubUserId: params.githubUserId || null,
     expiresAt,
   });
 

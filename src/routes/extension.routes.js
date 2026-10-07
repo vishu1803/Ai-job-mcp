@@ -1393,6 +1393,15 @@ export default async function extensionRoutes(app, opts = {}) {
         appPackage = packageRow.packagePayload;
       }
 
+      // A client body may carry lookup hints, never the content being reviewed.
+      const approved = await workflowService.getAuthoritativeApplicationPackage({
+        ...mcpContext, applicationId,
+        packageHash: packageHash || appPackage.packageHash,
+        packageVersion: req.body?.packageVersion ?? appPackage.packageVersion,
+      });
+      appPackage = { ...approved.applicationPackage, applicationId: approved.applicationId,
+        packageVersion: approved.packageVersion, packageHash: approved.packageHash,
+        preparedAt: approved.preparedAt };
       const rawPreview = workflowService.createApplicationPreview(appPackage);
       const previewMarkdown = SecretScrubber.scrub(rawPreview);
 
@@ -1400,6 +1409,8 @@ export default async function extensionRoutes(app, opts = {}) {
         applicationId,
         packageHash: appPackage.packageHash || packageHash,
         previewMarkdown,
+        packageVersion: approved.packageVersion,
+        approvalContent: approved.applicationPackage,
         structuredPreview: {
           candidateInfo: {
             name: appPackage.candidateName,

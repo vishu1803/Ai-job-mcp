@@ -11,6 +11,15 @@
  */
 
 import crypto from 'node:crypto';
+import { claimApplicationExecution, startApplicationExecution, finishApplicationExecution, executionEvent } from '../db/repositories/application-execution.repository.js';
+import {
+  APPLICATION_APPROVAL_FORMAT,
+  applicationExecutionPayload,
+  canonicalPackageJson,
+  computeApplicationPackageHash,
+  freezeApplicationPackage,
+} from '../domain/job/application-package-identity.js';
+export { computeApplicationPackageHash } from '../domain/job/application-package-identity.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { candidates, users, jobApplications, applicationPackages, candidateSkills, skills, applicationApprovalTickets } from '../db/schema.js';
@@ -38,7 +47,6 @@ import {
   ApplicationApprovalTicketSchema,
   SubmissionResultSchema,
   RESUME_GENERATION_CONTRACT_VERSION,
-  LEGACY_GENERATION_CONTRACT_VERSION,
   DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
   ApplicationSnapshotSchema,
   ActionSafetyLevelEnum,
@@ -59,6 +67,7 @@ import {
   NotFoundError,
   AuthorizationError,
   ConflictError,
+  DependencyError,
   InvalidTicketSignatureError,
 } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
@@ -228,47 +237,27 @@ async function persistPreparedPackage({
 const APPROVAL_TICKETS_STORE = new Map();
 
 /**
- * Computes deterministic canonical SHA-256 hash of an application package payload.
- * Canonical hash input includes generation contract version and structured resume schema version
- * (P16-001F-3A).
+ * Sign the versioned approval target and all execution context. Legacy signing
+ * below remains for non-execution compatibility; submit rejects legacy tickets.
  *
- * @param {object} pkg Raw application package
- * @returns {string} 64-character hex hash
+ * @param {object} ticket Server-created approval ticket
+ * @returns {string} Canonical signed context JSON
  */
-export function computeApplicationPackageHash(pkg) {
-  const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
-  const generationContractVersion =
-    pkg?.generationContractVersion ||
-    pkg?.tailoredResume?.generationContractVersion ||
-    (structuredResume ? RESUME_GENERATION_CONTRACT_VERSION : LEGACY_GENERATION_CONTRACT_VERSION);
-
-  let structuredResumeSchemaVersion;
-  if (pkg?.structuredResumeSchemaVersion !== undefined) {
-    structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
-  } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
-    structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
-  } else if (structuredResume?.schemaVersion) {
-    structuredResumeSchemaVersion = structuredResume.schemaVersion;
-  } else if (generationContractVersion === LEGACY_GENERATION_CONTRACT_VERSION) {
-    structuredResumeSchemaVersion = null;
-  } else {
-    structuredResumeSchemaVersion = DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION;
-  }
-
-  const canonical = {
-    candidateId: pkg?.candidateId,
-    candidateName: pkg?.candidateName,
-    candidateEmail: pkg?.candidateEmail,
-    jobId: pkg?.targetJob?.id !== undefined ? pkg.targetJob.id : pkg?.jobId,
-    jobTitle: pkg?.targetJob?.title !== undefined ? pkg.targetJob.title : pkg?.jobTitle,
-    company: pkg?.targetJob?.company !== undefined ? pkg.targetJob.company : pkg?.company,
-    resumeContent: pkg?.tailoredResume?.markdownContent,
-    coverLetterContent: pkg?.coverLetter?.markdownContent,
-    answers: pkg?.answers || {},
-    generationContractVersion,
-    structuredResumeSchemaVersion,
-  };
-  return crypto.createHash('sha256').update(JSON.stringify(canonical), 'utf8').digest('hex');
+function boundApprovalSignaturePayload(ticket) {
+  return canonicalPackageJson({
+    format: ticket.metadata.approvalTarget.format,
+    packageId: ticket.metadata.approvalTarget.packageId,
+    ticketId: ticket.ticketId || ticket.id,
+    tenantId: ticket.tenantId,
+    userId: ticket.userId,
+    candidateId: ticket.candidateId,
+    applicationId: ticket.applicationId,
+    jobId: ticket.jobId,
+    packageVersion: ticket.packageVersion,
+    packageHash: ticket.packageHash,
+    destinationUrl: ticket.destinationUrl,
+    expiresAt: ticket.expiresAt,
+  });
 }
 
 /**
@@ -283,6 +272,10 @@ export function signApplicationTicket(
   ticketData,
   secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
 ) {
+  if (ticketData.metadata?.approvalTarget) {
+    return crypto.createHmac('sha256', secretKey)
+      .update(boundApprovalSignaturePayload(ticketData)).digest('hex');
+  }
   const payload = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
   return crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
 }
@@ -302,6 +295,15 @@ export function verifyApplicationTicketSignature(
   secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
 ) {
   if (!signature || typeof signature !== 'string') return false;
+  if (ticketData.metadata?.approvalTarget) {
+    try {
+      const expected = Buffer.from(signApplicationTicket(ticketData, secretKey), 'hex');
+      const actual = Buffer.from(signature, 'hex');
+      return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+    } catch {
+      return false;
+    }
+  }
 
   const payloadCanonical = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
   const expectedCanonical = crypto.createHmac('sha256', secretKey).update(payloadCanonical).digest('hex');
@@ -871,7 +873,10 @@ export class JobApplicationWorkflowService {
         )
         .limit(1);
 
-      if (currentPkgRow && currentPkgRow.packagePayload) {
+      if (currentPkgRow?.packagePayload &&
+          currentPkgRow.packageHash === computeApplicationPackageHash(currentPkgRow.packagePayload) &&
+          canonicalPackageJson({ ...currentPkgRow.packagePayload.answers, ...answers }) ===
+            canonicalPackageJson(currentPkgRow.packagePayload.answers || {})) {
         const payload = currentPkgRow.packagePayload;
         const existingKit =
           existingAppRow.metadata?.handoffKit || existingAppRow.metadata?.handoffPackage || null;
@@ -1393,6 +1398,7 @@ export class JobApplicationWorkflowService {
     preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
 
     const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
+    validatedPackage.packageHash = computeApplicationPackageHash(validatedPackage);
 
     // 8. Persist as the authoritative CURRENT package version (P14-005BA).
     // Best-effort: persistence failures never fail preparation, but a
@@ -2113,6 +2119,7 @@ export class JobApplicationWorkflowService {
 
     preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
     const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
+    validatedPackage.packageHash = computeApplicationPackageHash(validatedPackage);
 
     // 8. Pre-Exposure PDF Compilation and QA Audit BEFORE Ledger Mutation (Fail-Closed)
     const handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
@@ -2724,6 +2731,15 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
    * @returns {Promise<object>} Approval ticket
    */
   async _saveApprovalTicket(ticketData) {
+    if (ticketData.metadata?.approvalTarget) {
+      // A reviewed snapshot must survive restart; never issue a memory-only approval.
+      await this.db.transaction(async tx => {
+        const created = await createApplicationApprovalTicketRecord(tx, ticketData);
+        if (!created) throw new ValidationError('Approval snapshot was not persisted', 'APPROVAL_PERSISTENCE_FAILED');
+        await executionEvent(tx, ticketData, null, 'application.approval_issued');
+      });
+      return;
+    }
     APPROVAL_TICKETS_STORE.set(ticketData.ticketId, { ...ticketData });
     if (this.db && typeof this.db.insert === 'function') {
       try {
@@ -2737,7 +2753,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     }
   }
 
-  async _getApprovalTicket(tenantId, ticketId) {
+  async _getApprovalTicket(tenantId, ticketId, { requireDurable = false } = {}) {
     if (this.db && typeof this.db.select === 'function') {
       try {
         const row = await getApplicationApprovalTicketById(this.db, tenantId, ticketId);
@@ -2759,14 +2775,20 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
             consumedAt: row.consumedAt?.toISOString ? row.consumedAt.toISOString() : row.consumedAt,
             revokedAt: row.revokedAt?.toISOString ? row.revokedAt.toISOString() : row.revokedAt,
             createdAt: row.createdAt?.toISOString ? row.createdAt.toISOString() : row.createdAt,
+            metadata: row.metadata,
           };
         }
+        if (requireDurable) return null;
       } catch (err) {
+        if (requireDurable) throw err;
         this.logger.warn(
           { ticketId, error: err.message },
           'Failed to query database for approval ticket; trying in-memory store'
         );
       }
+    }
+    if (requireDurable) {
+      throw new ValidationError('Durable approval storage is unavailable', 'APPROVAL_STORAGE_UNAVAILABLE');
     }
     const memTicket = APPROVAL_TICKETS_STORE.get(ticketId);
     if (memTicket && memTicket.tenantId === tenantId) {
@@ -2776,42 +2798,27 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
   }
 
   async _updateApprovalTicketStatus(tenantId, ticketId, toStatus, updates = {}) {
-    const mem = APPROVAL_TICKETS_STORE.get(ticketId);
-    if (mem) {
-      mem.status = toStatus;
-      Object.assign(mem, updates);
-      APPROVAL_TICKETS_STORE.set(ticketId, mem);
+    if (!['EXPIRED', 'REVOKED'].includes(toStatus)) {
+      throw new ValidationError('Execution consumption requires the atomic claim', 'INVALID_APPROVAL_TRANSITION');
     }
-    if (this.db && typeof this.db.update === 'function') {
-      try {
-        await updateApplicationApprovalTicketStatus(
-          this.db,
-          tenantId,
-          ticketId,
-          null,
-          toStatus,
-          updates
-        );
-      } catch (err) {
-        this.logger.warn(
-          { ticketId, toStatus, error: err.message },
-          'Failed to update approval ticket status in database'
-        );
-      }
-    }
+    const updated = await updateApplicationApprovalTicketStatus(
+      this.db, tenantId, ticketId, ['ISSUED', 'PENDING', 'APPROVED'], toStatus, updates);
+    if (!updated) throw new ConflictError('Approval already spent or terminal', 'TICKET_ALREADY_CONSUMED');
+    APPROVAL_TICKETS_STORE.delete(ticketId);
+    return updated;
   }
 
   async revokeApplicationApprovalTicket({ tenantId, userId, ticketId, reason = null }) {
     if (!tenantId || !ticketId) {
       throw new ValidationError('tenantId and ticketId are required', 'INVALID_REVOKE_REQUEST');
     }
-    const ticket = await this._getApprovalTicket(tenantId, ticketId);
+    const ticket = await this._getApprovalTicket(tenantId, ticketId, { requireDurable: true });
     if (!ticket) {
       throw new NotFoundError(`Approval ticket not found: ${ticketId}`);
     }
     await this._updateApprovalTicketStatus(tenantId, ticketId, 'REVOKED', {
       revokedAt: new Date(),
-      metadata: reason ? { revocationReason: reason } : {},
+      metadata: { ...ticket.metadata, ...(reason ? { revocationReason: reason } : {}) },
     });
     return { ticketId, status: 'REVOKED', revokedAt: new Date().toISOString() };
   }
@@ -2825,6 +2832,45 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       throw new NotFoundError(`Approval ticket not found: ${ticketId}`, 'TICKET_NOT_FOUND');
     }
     return ticket;
+  }
+
+  /** Resolve a tenant-owned persisted version. Caller hashes/versions are selectors,
+   * never evidence. Unknown/ambiguous/legacy or corrupt payloads fail closed.
+   * Shared by preview and approval so the reviewed bytes are the approval target.
+   */
+  async getAuthoritativeApplicationPackage({
+    tenantId, userId, candidateId, applicationId, packageVersion, packageHash, role = 'MEMBER',
+  }) {
+    if (!tenantId || !userId || !candidateId || !packageHash) {
+      throw new ValidationError('Package context and hash are required', 'INVALID_APPROVAL_REQUEST');
+    }
+    const [candidate] = await this.db.select({ userId: candidates.userId }).from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId))).limit(1);
+    if (!candidate) throw new NotFoundError('Candidate not found');
+    if (!candidate.userId || (candidate.userId !== userId && role !== 'OWNER')) {
+      throw new AuthorizationError('Candidate is not owned by this user', 'FORBIDDEN');
+    }
+    const predicates = [eq(applicationPackages.tenantId, tenantId),
+      eq(applicationPackages.candidateId, candidateId), eq(applicationPackages.packageHash, packageHash)];
+    if (applicationId) predicates.push(eq(applicationPackages.applicationId, applicationId));
+    if (packageVersion !== undefined) predicates.push(eq(applicationPackages.version, packageVersion));
+    const rows = await this.db.select().from(applicationPackages).where(and(...predicates)).limit(2);
+    if (rows.length !== 1 || !rows[0].packagePayload) {
+      throw new ValidationError('Exactly one persisted package version is required', 'APPROVAL_PACKAGE_NOT_FOUND');
+    }
+    const row = rows[0];
+    const pkg = applicationExecutionPayload(row.packagePayload);
+    const hash = computeApplicationPackageHash(pkg);
+    if (pkg.candidateId !== candidateId || hash !== row.packageHash) {
+      throw new ValidationError('Package integrity check failed; prepare and review a new package', 'APPROVAL_PACKAGE_INTEGRITY');
+    }
+    const [application] = await this.db.select({ candidateId: jobApplications.candidateId })
+      .from(jobApplications).where(and(eq(jobApplications.id, row.applicationId),
+        eq(jobApplications.tenantId, tenantId), eq(jobApplications.candidateId, candidateId))).limit(1);
+    if (!application) throw new AuthorizationError('Application ownership mismatch', 'FORBIDDEN');
+    return { packageId: row.id, applicationId: row.applicationId, packageVersion: row.version,
+      packageHash: hash, applicationPackage: pkg,
+      preparedAt: row.preparedAt?.toISOString?.() || row.packagePayload.preparedAt };
   }
 
   /**
@@ -2880,6 +2926,17 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
+    const approved = await this.getAuthoritativeApplicationPackage({
+      tenantId, userId, candidateId, applicationId, packageVersion, packageHash, role,
+    });
+    const approvedJobId = String(approved.applicationPackage.targetJob?.id || '');
+    const approvedDestination = approved.applicationPackage.targetJob?.directPortalUrl ||
+      approved.applicationPackage.targetJob?.applicationUrl;
+    if (!approvedJobId || (jobId !== undefined && String(jobId) !== approvedJobId) ||
+        destinationUrl !== approvedDestination) {
+      throw new ValidationError('Job/destination does not match persisted package', 'APPROVAL_TARGET_MISMATCH');
+    }
+
     const ticketId = crypto.randomUUID();
     const issuedAt = new Date().toISOString();
     const createdAt = issuedAt;
@@ -2890,12 +2947,17 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       tenantId,
       userId,
       candidateId,
-      applicationId: applicationId || null,
+      applicationId: approved.applicationId,
       clientId: clientId || 'career-hub-client',
-      jobId: String(jobId),
+      jobId: approvedJobId,
       destinationUrl,
-      packageHash,
-      packageVersion: packageVersion ?? undefined,
+      packageHash: approved.packageHash,
+      packageVersion: approved.packageVersion,
+      metadata: { approvalTarget: {
+        format: APPLICATION_APPROVAL_FORMAT,
+        packageId: approved.packageId,
+        applicationPackage: approved.applicationPackage,
+      } },
       signature: '',
       status: status || 'ISSUED',
       issuedAt,
@@ -2905,7 +2967,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
 
     ticketData.signature = signApplicationTicket(ticketData);
 
-    // Save to durable PostgreSQL database and memory cache
+    // Persist the snapshot and its signature together; no memory-only approval.
     await this._saveApprovalTicket(ticketData);
 
     if (this.mcpAuditService) {
@@ -2958,7 +3020,11 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
-    const ticket = await this._getApprovalTicket(tenantId, approvalTicketId);
+    if (typeof approvalTicketId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(approvalTicketId)) {
+      throw new NotFoundError('Approval ticket not found');
+    }
+    const ticket = await this._getApprovalTicket(tenantId, approvalTicketId, { requireDurable: true });
     if (!ticket) {
       throw new NotFoundError(
         `Approval ticket "${approvalTicketId}" not found or has been purged.`,
@@ -3035,6 +3101,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
 
     // 8. Single-Use Check (Replay Prevention)
     if (ticket.status === 'CONSUMED') {
+      await executionEvent(this.db, ticket, null, 'application.execution_replay_rejected').catch(() => {});
       throw new ConflictError(
         'Approval ticket has already been consumed (single-use replay rejected).',
         'TICKET_ALREADY_CONSUMED'
@@ -3042,6 +3109,9 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     }
 
     // 9. Expiration Check
+    if (ticket.status !== 'ISSUED') {
+      throw new AuthorizationError('Approval is not executable', 'TICKET_NOT_EXECUTABLE');
+    }
     if (new Date(ticket.expiresAt).getTime() < Date.now()) {
       ticket.status = 'EXPIRED';
       await this._updateApprovalTicketStatus(tenantId, approvalTicketId, 'EXPIRED');
@@ -3060,324 +3130,186 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
-    // Mark Ticket Consumed Immediately (Replay Prevention)
-    ticket.status = 'CONSUMED';
-    ticket.consumedAt = new Date().toISOString();
-    await this._updateApprovalTicketStatus(tenantId, approvalTicketId, 'CONSUMED', {
-      consumedAt: new Date(),
-    });
+    // ISSUE-02: Legacy hash-only tickets are not execution authority. Recompute
+    // from the durable, signed snapshot, NEVER from a caller's package/hash.
+    const target = ticket.metadata?.approvalTarget;
+    if (target?.format !== APPLICATION_APPROVAL_FORMAT || !target.packageId ||
+        !ticket.applicationId || !Number.isInteger(ticket.packageVersion) ||
+        ticket.packageVersion < 1 || !target.applicationPackage) {
+      throw new AuthorizationError('A new content-bound approval is required', 'APPROVAL_SNAPSHOT_REQUIRED');
+    }
+    const approvedPayload = applicationExecutionPayload(target.applicationPackage);
+    if (canonicalPackageJson(approvedPayload) !== canonicalPackageJson(target.applicationPackage) ||
+        computeApplicationPackageHash(approvedPayload) !== ticket.packageHash ||
+        approvedPayload.candidateId !== candidateId ||
+        String(approvedPayload.targetJob?.id) !== ticket.jobId ||
+        (approvedPayload.targetJob?.directPortalUrl || approvedPayload.targetJob?.applicationUrl) !== ticket.destinationUrl) {
+      throw new AuthorizationError('Approved application snapshot integrity failed', 'APPROVAL_SNAPSHOT_TAMPERED');
+    }
+    // Detached and recursively frozen: adapter awaits cannot expose mutable
+    // client objects, and adapters cannot change the approved handoff/tracking.
+    applicationPackage = freezeApplicationPackage({ ...approvedPayload,
+      applicationId: ticket.applicationId, packageVersion: ticket.packageVersion,
+      packageHash: ticket.packageHash });
+    packageHash = ticket.packageHash;
 
-    const portalType = detectPortalType(destinationUrl);
-
-    // 6. Check for Real External Submission Adapter via Centralized Registry
-    const activeAdapter =
-      this.portalAdapterRegistry?.resolve(destinationUrl) ||
-      this.submissionAdapters.find((adapter) => {
-        if (typeof adapter?.canSubmit === 'function') {
-          return adapter.canSubmit(destinationUrl);
-        }
-        return false;
-      });
-
-    if (
-      activeAdapter &&
-      (typeof activeAdapter.submit === 'function' ||
-        typeof activeAdapter.submitOrHandoff === 'function')
-    ) {
-      // Real External Integration Execution
-      let adapterResult;
-      try {
-        if (typeof activeAdapter.submitOrHandoff === 'function') {
-          adapterResult = await activeAdapter.submitOrHandoff({
-            destinationUrl,
-            applicationPackage,
-            tenantId,
-            userId,
-            candidateId,
-            packageHash,
-          });
-        } else {
-          adapterResult = await activeAdapter.submit({
-            destinationUrl,
-            applicationPackage,
-            tenantId,
-            userId,
-            candidateId,
-            packageHash,
-          });
-        }
-      } catch (err) {
-        if (this.mcpAuditService) {
-          await this.mcpAuditService.logEvent({
-            tenantId,
-            userId,
-            eventType: 'application.submission_failed',
-            resourceType: 'job_application',
-            resourceId: 'external-submission-failed',
-            clientIp: '127.0.0.1',
-            metadata: { destinationUrl, error: err.message, packageHash },
-          });
-        }
-        throw err;
-      }
-
-      // Check if actual external submission was executed or if final submission was blocked/staged
-      const isActualSubmission =
-        adapterResult.status === 'SUBMITTED' &&
-        !adapterResult.finalSubmitBlocked &&
-        !adapterResult.handoffKit?.finalSubmitBlocked &&
-        adapterResult.authorizedSubmissionExecuted === true;
-
-      // In current automation, automatic final submission is strictly disabled.
-      // Therefore, the terminal state for automated staging is READY_FOR_FINAL_REVIEW (or HANDOFF_READY).
-      // Hard invariant: READY_FOR_FINAL_REVIEW must NEVER be represented as APPLIED or SUBMITTED
-      // in the database or result unless an actual authorized submission event has occurred.
-      const targetDbStatus = isActualSubmission
-        ? 'SUBMITTED'
-        : adapterResult.status === 'HANDOFF_READY'
-          ? 'HANDOFF_READY'
-          : 'READY_FOR_FINAL_REVIEW';
-
-      const appliedAt = isActualSubmission ? new Date() : null;
-      const resultStatus = isActualSubmission
-        ? 'SUBMITTED'
-        : adapterResult.status === 'HANDOFF_READY'
-          ? 'HANDOFF_READY'
-          : 'READY_FOR_FINAL_REVIEW';
-
-      let trackedApp;
-      try {
-        trackedApp = await this.applicationTrackingService.resolveOrCreateApplication(
-          { tenantId, userId, role: 'MEMBER' },
-          candidateId,
-          {
-            companyName: applicationPackage.targetJob.company,
-            jobTitle: applicationPackage.targetJob.title,
-            jobUrl: destinationUrl,
-            source: 'COMPANY_CAREERS',
-            packageHash,
-            status: targetDbStatus,
-            metadata: {
-              destinationUrl,
-              externalReference: adapterResult.externalReference,
-              externalSubmissionState: targetDbStatus,
-              packageHash,
-              finalSubmitBlocked: !isActualSubmission,
-            },
-          }
+    // ISSUE-03: only a confirmed durable PostgreSQL claim permits execution.
+    // A failed/unknown commit NEVER falls back to adapter/manual execution.
+    let execution;
+    try {
+      execution = await claimApplicationExecution(this.db, ticket);
+    } catch (error) {
+      if (error.code === 'CONFLICT') {
+        await executionEvent(this.db, ticket, null, 'application.execution_replay_rejected').catch(
+          () => {}
         );
+      }
+      throw error;
+    }
+    let started = false;
+    let terminalRecorded = false;
+    try {
+      const portalType = detectPortalType(destinationUrl);
+      const activeAdapter =
+        this.portalAdapterRegistry?.resolve(destinationUrl) ||
+        this.submissionAdapters.find(
+          (adapter) => typeof adapter?.canSubmit === 'function' && adapter.canSubmit(destinationUrl)
+        );
+      const method =
+        typeof activeAdapter?.submitOrHandoff === 'function'
+          ? 'submitOrHandoff'
+          : typeof activeAdapter?.submit === 'function'
+            ? 'submit'
+            : null;
 
-        await this.applicationTrackingService.recordApplicationPackage(
-          { tenantId, userId, role: 'MEMBER' },
-          trackedApp.id,
+      // Commit STARTED before crossing either execution boundary. A crash from
+      // this point forward is ambiguous, even if HTTP was never actually sent.
+      await startApplicationExecution(this.db, ticket, execution.id);
+      started = true;
+      let result;
+      if (method) {
+        const adapterResult = await activeAdapter[method]({
+          destinationUrl,
           applicationPackage,
-          { source: 'SUBMIT_JOB_APPLICATION' }
-        );
-
-        await this.db
-          .update(jobApplications)
-          .set({
-            status: targetDbStatus,
-            appliedAt,
-            updatedAt: new Date(),
-            metadata: {
-              ...(trackedApp.metadata || {}),
-              destinationUrl,
-              externalReference: adapterResult.externalReference,
-              externalSubmissionState: targetDbStatus,
-              externalSubmissionStatus: targetDbStatus,
-              packageHash,
-              finalSubmitBlocked: !isActualSubmission,
-            },
-          })
-          .where(
-            and(eq(jobApplications.id, trackedApp.id), eq(jobApplications.tenantId, tenantId))
-          );
-      } catch (err) {
-        // Tracking failures must not fail the external submission itself
-        this.logger.warn(
-          { error: err.message },
-          'Failed to resolve/track application for external submission'
-        );
-      }
-
-      if (this.mcpAuditService) {
-        await this.mcpAuditService.logEvent({
           tenantId,
           userId,
-          eventType: isActualSubmission ? 'application.submitted' : 'application.ready_for_final_review',
-          resourceType: 'job_application',
-          resourceId: trackedApp?.id || adapterResult.externalReference || 'ready-for-review',
-          clientIp: '127.0.0.1',
-          metadata: {
-            destinationUrl,
-            externalReference: adapterResult.externalReference,
+          candidateId,
+          packageHash,
+          executionId: execution.id,
+          idempotencyKey: execution.id,
+          approvalTicketId,
+        });
+        if (
+          !adapterResult ||
+          !['SUBMITTED', 'HANDOFF_READY', 'READY_FOR_FINAL_REVIEW', 'FAILED', 'REJECTED'].includes(
+            adapterResult.status
+          )
+        ) {
+          throw new Error('Invalid adapter result; execution outcome requires reconciliation');
+        }
+        if (['FAILED', 'REJECTED'].includes(adapterResult.status)) {
+          // Only an explicit adapter guarantee of NO side effect is definitive.
+          const definitive = adapterResult.sideEffectOccurred === false;
+          await finishApplicationExecution(this.db, ticket, execution.id, {
+            status: definitive ? 'FAILED' : 'UNKNOWN',
+            failureClassification: definitive ? 'DEFINITIVE_REJECTION' : 'RECONCILIATION_REQUIRED',
+          });
+          terminalRecorded = true;
+          throw new ValidationError(
+            'Adapter rejected execution',
+            definitive ? 'EXECUTION_FAILED' : 'EXECUTION_OUTCOME_UNKNOWN',
+            { executionId: execution.id }
+          );
+        }
+        const submitted =
+          adapterResult.status === 'SUBMITTED' &&
+          !adapterResult.finalSubmitBlocked &&
+          !adapterResult.handoffKit?.finalSubmitBlocked &&
+          adapterResult.authorizedSubmissionExecuted === true;
+        const status = submitted
+          ? 'SUBMITTED'
+          : adapterResult.status === 'HANDOFF_READY'
+            ? 'HANDOFF_READY'
+            : 'READY_FOR_FINAL_REVIEW';
+        result = SubmissionResultSchema.parse({
+          executionId: execution.id,
+          status,
+          applicationId: ticket.applicationId,
+          destinationUrl,
+          externalReference: adapterResult.externalReference,
+          portalType: adapterResult.portalType || portalType,
+          message:
+            adapterResult.message ||
+            (submitted
+              ? 'Application submitted via authorized integration.'
+              : 'Application staged for final user review.'),
+          submittedAt: submitted ? new Date().toISOString() : undefined,
+          stagedAt: !submitted ? new Date().toISOString() : undefined,
+          handoffKit: adapterResult.handoffKit || undefined,
+        });
+      } else {
+        // ISSUE-02: no live-profile regeneration or mutable artifact substitution.
+        result = SubmissionResultSchema.parse({
+          executionId: execution.id,
+          status: 'HANDOFF_READY',
+          applicationId: ticket.applicationId,
+          destinationUrl,
+          portalType,
+          message:
+            'Direct submission is not configured. Review the approved kit and submit at the employer portal.',
+          stagedAt: new Date().toISOString(),
+          manualHandoffKit: {
+            resumeMarkdown:
+              applicationPackage.tailoredResume?.markdownContent ||
+              applicationPackage.tailoredResume?.markdown ||
+              applicationPackage.tailoredResume?.renderedMarkdown ||
+              '',
+            coverLetterMarkdown:
+              applicationPackage.coverLetter?.markdownContent ||
+              applicationPackage.coverLetter?.markdown ||
+              applicationPackage.coverLetter?.renderedMarkdown ||
+              '',
+            suggestedAnswers: applicationPackage.answers || {},
+            directPortalUrl: destinationUrl,
+            checklist: [
+              'Open employer portal.',
+              'Review approved documents and answers.',
+              'Submit directly to employer.',
+            ],
+            applicationId: ticket.applicationId,
+            packageVersion: ticket.packageVersion,
             packageHash,
-            status: targetDbStatus,
+            artifacts: applicationPackage.artifacts || {},
           },
         });
       }
-
-      return SubmissionResultSchema.parse({
-        status: resultStatus,
-        applicationId: trackedApp?.id,
-        externalReference: adapterResult.externalReference,
-        destinationUrl,
-        portalType: adapterResult.portalType || portalType,
-        message:
-          adapterResult.message ||
-          (isActualSubmission
-            ? `Job application successfully submitted to ${applicationPackage.targetJob.company} via verified integration.`
-            : `Job application staged and verified for ${applicationPackage.targetJob.company}. Ready for final user review prior to submission.`),
-        submittedAt: isActualSubmission ? new Date().toISOString() : undefined,
-        stagedAt: !isActualSubmission ? new Date().toISOString() : undefined,
-        handoffKit: adapterResult.handoffKit || undefined,
+      await finishApplicationExecution(this.db, ticket, execution.id, {
+        status: 'SUCCEEDED',
+        result,
       });
-    }
-
-    // 7. Truthful Manual Handoff for Portals Without Direct Automated API Transmission
-    // Zero fake submissions, zero simulated SUB-* references, zero fabricated external IDs.
-    let trackedApp;
-    try {
-      trackedApp = await this.applicationTrackingService.resolveOrCreateApplication(
-        { tenantId, userId, role: 'MEMBER' },
-        candidateId,
-        {
-          companyName: applicationPackage.targetJob.company,
-          jobTitle: applicationPackage.targetJob.title,
-          jobUrl: destinationUrl,
-          source: 'COMPANY_CAREERS',
-          packageHash,
-          status: 'HANDOFF_READY',
-          metadata: {
-            destinationUrl,
-            externalSubmissionState: 'HANDOFF_READY',
-            packageHash,
-            finalSubmitBlocked: true,
-          },
-        }
-      );
-
-      await this.applicationTrackingService.recordApplicationPackage(
-        { tenantId, userId, role: 'MEMBER' },
-        trackedApp.id,
-        applicationPackage,
-        { source: 'SUBMIT_JOB_APPLICATION' }
-      );
-
-      await this.db
-        .update(jobApplications)
-        .set({
-          status: 'HANDOFF_READY',
-          appliedAt: null,
-          updatedAt: new Date(),
-          metadata: {
-            ...(trackedApp.metadata || {}),
-            destinationUrl,
-            externalSubmissionState: 'HANDOFF_READY',
-            externalSubmissionStatus: 'HANDOFF_READY',
-            packageHash,
-            finalSubmitBlocked: true,
-          },
-        })
-        .where(
-          and(eq(jobApplications.id, trackedApp.id), eq(jobApplications.tenantId, tenantId))
+      return result;
+    } catch (error) {
+      // Never return the approval to ISSUED. If this write also fails, durable
+      // CLAIMED/STARTED still blocks replay across process restart.
+      if (!terminalRecorded)
+        await finishApplicationExecution(this.db, ticket, execution.id, {
+          status: started ? 'UNKNOWN' : 'FAILED',
+          fromStatus: started ? 'STARTED' : 'CLAIMED',
+          failureClassification: started ? 'RECONCILIATION_REQUIRED' : 'BEFORE_EXECUTION',
+        }).catch((persistenceError) =>
+          this.logger.error(
+            { executionId: execution.id, error: persistenceError.message },
+            'Execution result could not be recorded; reconciliation required'
+          )
         );
-    } catch (err) {
-      this.logger.warn(
-        { error: err.message },
-        'Failed to resolve/track application for manual handoff'
-      );
-    }
-
-    let realHandoffKit = null;
-    try {
-      realHandoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
-        tenantId,
-        userId,
-        candidateId,
-        applicationPackage,
-        applicationId: trackedApp?.id,
-        destinationUrl,
-      });
-
-      // Persist the kit atomically onto the application (P14-005BA). The kit's
-      // packageHash must match the application's authoritative CURRENT package.
-      if (trackedApp?.id && realHandoffKit) {
-        try {
-          await this.applicationTrackingService.setApplicationHandoffKit(
-            { tenantId, userId, role: 'MEMBER' },
-            trackedApp.id,
-            realHandoffKit
-          );
-        } catch (updateErr) {
-          this.logger.warn(
-            { error: updateErr.message },
-            'Failed to persist handoffKit onto tracked application'
-          );
-        }
+      if (started && !['EXECUTION_FAILED', 'EXECUTION_OUTCOME_UNKNOWN'].includes(error.code)) {
+        throw new DependencyError('Execution outcome requires reconciliation; do not resubmit', {
+          reason: 'EXECUTION_OUTCOME_UNKNOWN',
+          executionId: execution.id,
+        });
       }
-    } catch (err) {
-      this.logger.warn(
-        { error: err.message },
-        'Real document handoff kit generation failed, falling back to basic payload'
-      );
+      throw error;
     }
-
-    const handoffKit = {
-      resumeMarkdown:
-        applicationPackage.tailoredResume?.markdownContent ||
-        applicationPackage.tailoredResume?.markdown ||
-        applicationPackage.tailoredResume?.renderedMarkdown ||
-        '',
-      coverLetterMarkdown:
-        applicationPackage.coverLetter?.markdownContent ||
-        applicationPackage.coverLetter?.markdown ||
-        applicationPackage.coverLetter?.renderedMarkdown ||
-        '',
-      suggestedAnswers: applicationPackage.answers || {},
-      directPortalUrl: destinationUrl,
-      checklist: [
-        'Open direct employer portal in browser.',
-        'Review candidate readiness items.',
-        'Download and review tailored ATS resume and cover letter.',
-        'Submit directly to employer ATS.',
-      ],
-      ...(realHandoffKit
-        ? {
-            artifacts: {
-              resume: realHandoffKit.resume,
-              coverLetter: realHandoffKit.coverLetter,
-            },
-            readiness: realHandoffKit.readiness,
-            applicationId: realHandoffKit.applicationId,
-            packageHash: realHandoffKit.packageHash,
-            submissionNotice: realHandoffKit.submissionNotice,
-          }
-        : {}),
-    };
-
-    if (this.mcpAuditService) {
-      await this.mcpAuditService.logEvent({
-        tenantId,
-        userId,
-        eventType: 'application.submission_attempted',
-        resourceType: 'job_application',
-        resourceId: trackedApp?.id || 'manual-handoff',
-        clientIp: '127.0.0.1',
-        metadata: { destinationUrl, status: 'HANDOFF_READY', packageHash },
-      });
-    }
-
-    return SubmissionResultSchema.parse({
-      status: 'HANDOFF_READY',
-      applicationId: trackedApp?.id,
-      destinationUrl,
-      portalType,
-      message: `Direct automated API submission is not configured for ${portalType}. Career Hub has prepared your complete submission kit for instant manual handoff at the official employer portal.`,
-      submittedAt: new Date().toISOString(),
-      manualHandoffKit: handoffKit,
-    });
   }
 
   /**

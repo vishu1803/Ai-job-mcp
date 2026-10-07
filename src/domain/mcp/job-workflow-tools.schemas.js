@@ -72,12 +72,14 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
   request_application_approval: {
     name: 'request_application_approval',
     description:
-      'Creates a single-use, 15-minute cryptographic approval ticket bound to the application package hash.',
+      'Creates a 15-minute approval bound to a server-loaded immutable package snapshot. The hash is a lookup selector, never proof of content.',
     requiredScopes: ['career:write'],
     requiredRole: 'MEMBER',
     inputSchema: z.object({
       candidateId: z.string().uuid().optional(),
       jobId: z.string().min(1),
+      applicationId: z.string().uuid().optional(),
+      packageVersion: z.number().int().positive().optional(),
       destinationUrl: z.string().url(),
       packageHash: z.string().length(64),
       notes: z.string().optional(),
@@ -92,9 +94,10 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
     inputSchema: z.object({
       candidateId: z.string().uuid().optional(),
       approvalTicketId: z.string().uuid(),
+      applicationId: z.string().uuid().optional(),
       packageHash: z.string().length(64),
       destinationUrl: z.string().url(),
-      applicationPackage: ApplicationPackageSchema,
+      applicationPackage: ApplicationPackageSchema.optional().describe('Legacy context hints only; execution always loads the approved server snapshot. Omit to submit by ticket reference.'),
     }),
   },
   get_application_submission_status: {

@@ -285,6 +285,7 @@ export class AuthService {
         tenantId: tenant.id,
         ipAddress: params.ipAddress || null,
         userAgent: params.userAgent || null,
+        githubUserId: providerName === 'github' ? String(profile.providerUserId) : null,
       });
 
       // 6. Record audit log entry
