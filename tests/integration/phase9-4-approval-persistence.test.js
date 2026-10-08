@@ -17,6 +17,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 import { db, closeDatabase, pool } from '../../src/db/index.js';
 import {
   tenants,
@@ -157,16 +158,27 @@ describe('Phase 9.4 — Approval Persistence & Security Integration Tests', () =
       generationContractVersion: 'p16.0',
       answers: {},
     };
+    samplePackage = await sealGeneratedPackage(db, { tenantId, candidateId }, samplePackage);
     packageHash = computeApplicationPackageHash(samplePackage);
     samplePackage.packageHash = packageHash;
-    await db.insert(applicationPackages).values({ tenantId, candidateId, applicationId,
-      packageHash, packagePayload: samplePackage, version: 1 });
+    await db.insert(applicationPackages).values({
+      tenantId,
+      candidateId,
+      applicationId,
+      packageHash,
+      packagePayload: samplePackage,
+      version: 1,
+    });
   });
 
   after(async () => {
     try {
-      await db.delete(applicationApprovalTickets).where(eq(applicationApprovalTickets.tenantId, tenantId));
-      await db.delete(applicationApprovalTickets).where(eq(applicationApprovalTickets.tenantId, foreignTenantId));
+      await db
+        .delete(applicationApprovalTickets)
+        .where(eq(applicationApprovalTickets.tenantId, tenantId));
+      await db
+        .delete(applicationApprovalTickets)
+        .where(eq(applicationApprovalTickets.tenantId, foreignTenantId));
       await db.delete(jobApplications).where(eq(jobApplications.tenantId, tenantId));
       await db.delete(jobApplications).where(eq(jobApplications.tenantId, foreignTenantId));
       await db.delete(candidates).where(eq(candidates.tenantId, tenantId));

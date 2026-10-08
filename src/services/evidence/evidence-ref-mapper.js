@@ -5,6 +5,8 @@
  * and structured EvidenceNode representations for APIs and MCP tools.
  */
 
+import { evidenceStatus, copyEvidenceAuthority } from './verification-policy.js';
+
 export class EvidenceRefMapper {
   /**
    * Maps a database evidence row to a lightweight EvidenceRef representation.
@@ -13,23 +15,35 @@ export class EvidenceRefMapper {
    * @param {string} [provenanceStatus='INFERRED'] - Inferred or verified provenance status.
    * @returns {object} Lightweight EvidenceRef object.
    */
-  static toEvidenceRef(item, provenanceStatus = 'INFERRED') {
+  static toEvidenceRef(item, _provenanceStatus = 'INFERRED') {
     if (!item) return null;
 
     const sourceLocation = item.sourceLocation || {};
 
-    return {
+    return copyEvidenceAuthority(item, {
       evidenceId: item.id || item.evidenceId,
       evidenceType: item.evidenceType,
       sourceProvider: item.sourceProvider,
       resourceId: item.resourceId,
       filePath: sourceLocation.filePath || '',
-      commitSha: sourceLocation.commitSha || 'HEAD',
+      commitSha: sourceLocation.commitSha || null,
       lineRange: sourceLocation.lineRange || null,
       confidenceScore: typeof item.confidenceScore === 'number' ? item.confidenceScore : 1.0,
-      provenanceStatus,
+      provenanceStatus:
+        evidenceStatus(item) === 'VERIFIED'
+          ? 'VERIFIED'
+          : evidenceStatus(item) === 'CLAIMED'
+            ? 'CLAIMED'
+            : 'INFERRED',
+      verificationStatus: evidenceStatus(item),
+      tenantId: item.tenantId,
+      candidateId: item.candidateId,
+      metadata: {
+        ...item.metadata,
+        verification: { ...item.metadata?.verification, status: evidenceStatus(item) },
+      },
       detectedAt: item.detectedAt ? new Date(item.detectedAt).toISOString() : null,
-    };
+    });
   }
 
   /**
@@ -41,7 +55,7 @@ export class EvidenceRefMapper {
   static toEvidenceNode(item) {
     if (!item) return null;
 
-    return {
+    return copyEvidenceAuthority(item, {
       id: item.id || item.evidenceId,
       evidenceId: item.id || item.evidenceId,
       tenantId: item.tenantId,
@@ -58,7 +72,11 @@ export class EvidenceRefMapper {
       confidenceScore: typeof item.confidenceScore === 'number' ? item.confidenceScore : 1.0,
       detectedAt: item.detectedAt ? new Date(item.detectedAt).toISOString() : null,
       createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : null,
-      metadata: item.metadata || {},
-    };
+      metadata: {
+        ...item.metadata,
+        verification: { ...item.metadata?.verification, status: evidenceStatus(item) },
+      },
+      verificationStatus: evidenceStatus(item),
+    });
   }
 }

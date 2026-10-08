@@ -11,7 +11,15 @@
  */
 
 import crypto from 'node:crypto';
-import { claimApplicationExecution, startApplicationExecution, finishApplicationExecution, executionEvent } from '../db/repositories/application-execution.repository.js';
+import { assertCurrentPackage, sealGeneratedPackage } from './evidence/artifact-policy.js';
+import { config } from '../config/env.js';
+import { getApprovalSecret } from '../config/approval-secrets.js';
+import {
+  claimApplicationExecution,
+  startApplicationExecution,
+  finishApplicationExecution,
+  executionEvent,
+} from '../db/repositories/application-execution.repository.js';
 import {
   APPLICATION_APPROVAL_FORMAT,
   applicationExecutionPayload,
@@ -22,7 +30,15 @@ import {
 export { computeApplicationPackageHash } from '../domain/job/application-package-identity.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, users, jobApplications, applicationPackages, candidateSkills, skills, applicationApprovalTickets } from '../db/schema.js';
+import {
+  candidates,
+  users,
+  jobApplications,
+  applicationPackages,
+  candidateSkills,
+  skills,
+  applicationApprovalTickets,
+} from '../db/schema.js';
 import {
   createApplicationApprovalTicketRecord,
   getApplicationApprovalTicketById,
@@ -237,8 +253,8 @@ async function persistPreparedPackage({
 const APPROVAL_TICKETS_STORE = new Map();
 
 /**
- * Sign the versioned approval target and all execution context. Legacy signing
- * below remains for non-execution compatibility; submit rejects legacy tickets.
+ * Sign the versioned approval target and all execution context. Non-snapshot
+ * ticket shapes are never executable; submit still rejects them (ISSUE-02).
  *
  * @param {object} ticket Server-created approval ticket
  * @returns {string} Canonical signed context JSON
@@ -261,74 +277,44 @@ function boundApprovalSignaturePayload(ticket) {
 }
 
 /**
- * Signs an approval ticket payload using an HMAC-SHA256 key.
- * Binds ticketId, tenantId, userId, candidateId, applicationId, jobId, packageHash, destinationUrl, and expiresAt.
- *
- * @param {object} ticketData
- * @param {string} [secretKey]
- * @returns {string}
+ * v2 deliberately invalidates every pre-remediation signature, including those
+ * signed with unknown/fallback keys. No historical verification fallback.
  */
-export function signApplicationTicket(
-  ticketData,
-  secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
-) {
-  if (ticketData.metadata?.approvalTarget) {
-    return crypto.createHmac('sha256', secretKey)
-      .update(boundApprovalSignaturePayload(ticketData)).digest('hex');
-  }
-  const payload = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
-  return crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
+export const APPLICATION_APPROVAL_SIGNING_DOMAIN = 'antigravity:application-approval:v2';
+
+/** Sign all ISSUE-02 target/context fields with the configured application key. */
+export function signApplicationTicket(ticketData, secretKey) {
+  const key = getApprovalSecret(config, 'CAREER_HUB_APPROVAL_SECRET', secretKey);
+  const payload = ticketData.metadata?.approvalTarget
+    ? boundApprovalSignaturePayload(ticketData)
+    : canonicalPackageJson({
+        ticketId: ticketData.ticketId || ticketData.id,
+        tenantId: ticketData.tenantId,
+        userId: ticketData.userId,
+        candidateId: ticketData.candidateId || '',
+        applicationId: ticketData.applicationId || '',
+        jobId: ticketData.jobId || '',
+        packageHash: ticketData.packageHash,
+        destinationUrl: ticketData.destinationUrl,
+        expiresAt: ticketData.expiresAt,
+      });
+  return crypto
+    .createHmac('sha256', key)
+    .update(APPLICATION_APPROVAL_SIGNING_DOMAIN + '\n' + payload, 'utf8')
+    .digest('hex');
 }
 
-/**
- * Validates cryptographic signature of an approval ticket using timing-safe comparison.
- * Supports both canonical multi-bound payloads and legacy payloads.
- *
- * @param {object} ticketData
- * @param {string} signature
- * @param {string} [secretKey]
- * @returns {boolean}
- */
-export function verifyApplicationTicketSignature(
-  ticketData,
-  signature,
-  secretKey = process.env.CAREER_HUB_APPROVAL_SECRET || 'career-hub-approval-hmac-key'
-) {
-  if (!signature || typeof signature !== 'string') return false;
-  if (ticketData.metadata?.approvalTarget) {
-    try {
-      const expected = Buffer.from(signApplicationTicket(ticketData, secretKey), 'hex');
-      const actual = Buffer.from(signature, 'hex');
-      return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
-    } catch {
-      return false;
-    }
-  }
-
-  const payloadCanonical = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.candidateId || ''}:${ticketData.applicationId || ''}:${ticketData.jobId || ''}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
-  const expectedCanonical = crypto.createHmac('sha256', secretKey).update(payloadCanonical).digest('hex');
-
-  const payloadLegacy = `${ticketData.ticketId || ticketData.id}:${ticketData.tenantId}:${ticketData.userId}:${ticketData.packageHash}:${ticketData.destinationUrl}:${ticketData.expiresAt}`;
-  const expectedLegacy = crypto.createHmac('sha256', secretKey).update(payloadLegacy).digest('hex');
-
+/** Invalid key configuration or malformed signatures always fail closed. */
+export function verifyApplicationTicketSignature(ticketData, signature, secretKey) {
+  if (typeof signature !== 'string' || !/^[a-f0-9]{64}$/i.test(signature)) return false;
   try {
-    const sigBuf = Buffer.from(signature, 'hex');
-    const expBufCanonical = Buffer.from(expectedCanonical, 'hex');
-    const expBufLegacy = Buffer.from(expectedLegacy, 'hex');
-
-    const matchCanonical =
-      sigBuf.length === expBufCanonical.length &&
-      crypto.timingSafeEqual(sigBuf, expBufCanonical);
-    const matchLegacy =
-      sigBuf.length === expBufLegacy.length &&
-      crypto.timingSafeEqual(sigBuf, expBufLegacy);
-
-    return matchCanonical || matchLegacy;
+    const expected = Buffer.from(signApplicationTicket(ticketData, secretKey), 'hex');
+    const actual = Buffer.from(signature, 'hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
   } catch {
     return false;
   }
 }
-
 import {
   isSyntheticEmail,
   resolveCandidateEmail,
@@ -392,8 +378,7 @@ export class JobApplicationWorkflowService {
         documentStorage,
         candidateProfileService: new CandidateProfileService(this.db),
       });
-    this.portalAdapterRegistry =
-      options.portalAdapterRegistry || new PortalAdapterRegistry();
+    this.portalAdapterRegistry = options.portalAdapterRegistry || new PortalAdapterRegistry();
     this.submissionAdapters = Array.isArray(options.submissionAdapters)
       ? options.submissionAdapters
       : options.submissionAdapters instanceof Map
@@ -409,14 +394,9 @@ export class JobApplicationWorkflowService {
             name: ad.name || 'Submission Adapter',
             canHandle: (dest) => ad.canSubmit(typeof dest === 'string' ? dest : dest?.url),
             canSubmit: (dest) => ad.canSubmit(typeof dest === 'string' ? dest : dest?.url),
-            submit: (p) =>
-              typeof ad.submit === 'function'
-                ? ad.submit(p)
-                : ad.submitOrHandoff(p),
+            submit: (p) => (typeof ad.submit === 'function' ? ad.submit(p) : ad.submitOrHandoff(p)),
             submitOrHandoff: async (p) =>
-              typeof ad.submitOrHandoff === 'function'
-                ? ad.submitOrHandoff(p)
-                : ad.submit(p),
+              typeof ad.submitOrHandoff === 'function' ? ad.submitOrHandoff(p) : ad.submit(p),
           });
         }
       }
@@ -873,11 +853,16 @@ export class JobApplicationWorkflowService {
         )
         .limit(1);
 
-      if (currentPkgRow?.packagePayload &&
-          currentPkgRow.packageHash === computeApplicationPackageHash(currentPkgRow.packagePayload) &&
-          canonicalPackageJson({ ...currentPkgRow.packagePayload.answers, ...answers }) ===
-            canonicalPackageJson(currentPkgRow.packagePayload.answers || {})) {
+      if (
+        currentPkgRow?.packagePayload &&
+        currentPkgRow.packageHash === computeApplicationPackageHash(currentPkgRow.packagePayload) &&
+        canonicalPackageJson({ ...currentPkgRow.packagePayload.answers, ...answers }) ===
+          canonicalPackageJson(currentPkgRow.packagePayload.answers || {})
+      ) {
         const payload = currentPkgRow.packagePayload;
+        // Never resurrect a legacy CURRENT version. Explicit regeneration creates
+        // a new version and requires new review/approval, not replacement bytes.
+        await assertCurrentPackage(this.db, { tenantId, candidateId }, payload);
         const existingKit =
           existingAppRow.metadata?.handoffKit || existingAppRow.metadata?.handoffPackage || null;
         const mergedAnswers = {
@@ -1019,8 +1004,17 @@ export class JobApplicationWorkflowService {
 
     const canonicalJob = normalizeJobInput(jobPosting);
     const targetJobPosting = {
-      id: resolvedCanonicalJobId || jobPosting?.id || jobPosting?.canonicalJobId || canonicalJob?.canonicalJobId || crypto.randomUUID(),
-      canonicalJobId: resolvedCanonicalJobId || jobPosting?.canonicalJobId || jobPosting?.id || canonicalJob?.canonicalJobId,
+      id:
+        resolvedCanonicalJobId ||
+        jobPosting?.id ||
+        jobPosting?.canonicalJobId ||
+        canonicalJob?.canonicalJobId ||
+        crypto.randomUUID(),
+      canonicalJobId:
+        resolvedCanonicalJobId ||
+        jobPosting?.canonicalJobId ||
+        jobPosting?.id ||
+        canonicalJob?.canonicalJobId,
       source: jobPosting?.source || 'MANUAL',
       provider: jobPosting?.provider || jobPosting?.source || 'MANUAL',
       applicationUrl:
@@ -1316,11 +1310,9 @@ export class JobApplicationWorkflowService {
       candidate: {
         id: candidateId,
         firstName:
-          cand.firstName ||
-          (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
+          cand.firstName || (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
         lastName:
-          cand.lastName ||
-          (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
+          cand.lastName || (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
         fullName: cand.displayName || 'Candidate',
         displayName: cand.displayName || 'Candidate',
         email: candidateEmail,
@@ -1341,41 +1333,24 @@ export class JobApplicationWorkflowService {
           undefined,
         contact: {
           email: candidateEmail,
-          phone:
-            candidateProfileInput?.phone ||
-            cand.phone ||
-            undefined,
-          address:
-            candidateProfileInput?.location ||
-            cand.location ||
-            undefined,
+          phone: candidateProfileInput?.phone || cand.phone || undefined,
+          address: candidateProfileInput?.location || cand.location || undefined,
         },
         socialLinks: {
-          linkedin:
-            candidateProfileInput?.linkedinUrl ||
-            cand.linkedinUrl ||
-            undefined,
-          github:
-            candidateProfileInput?.githubUrl ||
-            cand.githubUrl ||
-            undefined,
-          portfolio:
-            candidateProfileInput?.portfolioUrl ||
-            cand.portfolioUrl ||
-            undefined,
+          linkedin: candidateProfileInput?.linkedinUrl || cand.linkedinUrl || undefined,
+          github: candidateProfileInput?.githubUrl || cand.githubUrl || undefined,
+          portfolio: candidateProfileInput?.portfolioUrl || cand.portfolioUrl || undefined,
         },
       },
       artifacts: {
         resume: {
           filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text:
-            tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          text: tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
           ready: false,
         },
         coverLetter: {
           filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
-          text:
-            coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+          text: coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
           ready: false,
         },
       },
@@ -1397,8 +1372,11 @@ export class JobApplicationWorkflowService {
     // 7. Compute Deterministic Package Hash
     preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
 
-    const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
-    validatedPackage.packageHash = computeApplicationPackageHash(validatedPackage);
+    const validatedPackage = await sealGeneratedPackage(
+      this.db,
+      { tenantId, candidateId },
+      ApplicationPackageSchema.parse(preparedPackage)
+    );
 
     // 8. Persist as the authoritative CURRENT package version (P14-005BA).
     // Best-effort: persistence failures never fail preparation, but a
@@ -2072,11 +2050,9 @@ export class JobApplicationWorkflowService {
       candidate: {
         id: candidateId,
         firstName:
-          cand.firstName ||
-          (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
+          cand.firstName || (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
         lastName:
-          cand.lastName ||
-          (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
+          cand.lastName || (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
         fullName: cand.displayName || 'Candidate',
         displayName: cand.displayName || 'Candidate',
         email: candidateEmail,
@@ -2092,14 +2068,12 @@ export class JobApplicationWorkflowService {
       artifacts: {
         resume: {
           filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text:
-            tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          text: tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
           ready: false,
         },
         coverLetter: {
           filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
-          text:
-            coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+          text: coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
           ready: false,
         },
       },
@@ -2118,8 +2092,11 @@ export class JobApplicationWorkflowService {
     };
 
     preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
-    const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
-    validatedPackage.packageHash = computeApplicationPackageHash(validatedPackage);
+    const validatedPackage = await sealGeneratedPackage(
+      this.db,
+      { tenantId, candidateId },
+      ApplicationPackageSchema.parse(preparedPackage)
+    );
 
     // 8. Pre-Exposure PDF Compilation and QA Audit BEFORE Ledger Mutation (Fail-Closed)
     const handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
@@ -2562,7 +2539,8 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
   createApplicationSnapshot(applicationPackage) {
     const pkg = ApplicationPackageSchema.parse(applicationPackage);
     const targetJob = pkg.targetJob || {};
-    const targetUrl = targetJob.directPortalUrl || targetJob.applicationUrl || targetJob.sourceUrl || '';
+    const targetUrl =
+      targetJob.directPortalUrl || targetJob.applicationUrl || targetJob.sourceUrl || '';
 
     const snapshot = {
       snapshotId: crypto.randomUUID(),
@@ -2643,18 +2621,15 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       };
     }
 
-    if (
-      approvedJob.jobId &&
-      currentPage.jobId &&
-      approvedJob.jobId !== currentPage.jobId
-    ) {
+    if (approvedJob.jobId && currentPage.jobId && approvedJob.jobId !== currentPage.jobId) {
       return {
         matched: false,
         reason: `Target jobId mismatch: expected "${approvedJob.jobId}", found "${currentPage.jobId}"`,
       };
     }
 
-    const appUrl = approvedJob.applicationUrl || approvedJob.directPortalUrl || approvedJob.targetUrl;
+    const appUrl =
+      approvedJob.applicationUrl || approvedJob.directPortalUrl || approvedJob.targetUrl;
     const pageUrl = currentPage.url || currentPage.applicationUrl;
     if (appUrl && pageUrl) {
       try {
@@ -2733,9 +2708,13 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
   async _saveApprovalTicket(ticketData) {
     if (ticketData.metadata?.approvalTarget) {
       // A reviewed snapshot must survive restart; never issue a memory-only approval.
-      await this.db.transaction(async tx => {
+      await this.db.transaction(async (tx) => {
         const created = await createApplicationApprovalTicketRecord(tx, ticketData);
-        if (!created) throw new ValidationError('Approval snapshot was not persisted', 'APPROVAL_PERSISTENCE_FAILED');
+        if (!created)
+          throw new ValidationError(
+            'Approval snapshot was not persisted',
+            'APPROVAL_PERSISTENCE_FAILED'
+          );
         await executionEvent(tx, ticketData, null, 'application.approval_issued');
       });
       return;
@@ -2788,7 +2767,10 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       }
     }
     if (requireDurable) {
-      throw new ValidationError('Durable approval storage is unavailable', 'APPROVAL_STORAGE_UNAVAILABLE');
+      throw new ValidationError(
+        'Durable approval storage is unavailable',
+        'APPROVAL_STORAGE_UNAVAILABLE'
+      );
     }
     const memTicket = APPROVAL_TICKETS_STORE.get(ticketId);
     if (memTicket && memTicket.tenantId === tenantId) {
@@ -2799,11 +2781,21 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
 
   async _updateApprovalTicketStatus(tenantId, ticketId, toStatus, updates = {}) {
     if (!['EXPIRED', 'REVOKED'].includes(toStatus)) {
-      throw new ValidationError('Execution consumption requires the atomic claim', 'INVALID_APPROVAL_TRANSITION');
+      throw new ValidationError(
+        'Execution consumption requires the atomic claim',
+        'INVALID_APPROVAL_TRANSITION'
+      );
     }
     const updated = await updateApplicationApprovalTicketStatus(
-      this.db, tenantId, ticketId, ['ISSUED', 'PENDING', 'APPROVED'], toStatus, updates);
-    if (!updated) throw new ConflictError('Approval already spent or terminal', 'TICKET_ALREADY_CONSUMED');
+      this.db,
+      tenantId,
+      ticketId,
+      ['ISSUED', 'PENDING', 'APPROVED'],
+      toStatus,
+      updates
+    );
+    if (!updated)
+      throw new ConflictError('Approval already spent or terminal', 'TICKET_ALREADY_CONSUMED');
     APPROVAL_TICKETS_STORE.delete(ticketId);
     return updated;
   }
@@ -2839,38 +2831,78 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
    * Shared by preview and approval so the reviewed bytes are the approval target.
    */
   async getAuthoritativeApplicationPackage({
-    tenantId, userId, candidateId, applicationId, packageVersion, packageHash, role = 'MEMBER',
+    tenantId,
+    userId,
+    candidateId,
+    applicationId,
+    packageVersion,
+    packageHash,
+    role = 'MEMBER',
   }) {
     if (!tenantId || !userId || !candidateId || !packageHash) {
-      throw new ValidationError('Package context and hash are required', 'INVALID_APPROVAL_REQUEST');
+      throw new ValidationError(
+        'Package context and hash are required',
+        'INVALID_APPROVAL_REQUEST'
+      );
     }
-    const [candidate] = await this.db.select({ userId: candidates.userId }).from(candidates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId))).limit(1);
+    const [candidate] = await this.db
+      .select({ userId: candidates.userId })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
+      .limit(1);
     if (!candidate) throw new NotFoundError('Candidate not found');
     if (!candidate.userId || (candidate.userId !== userId && role !== 'OWNER')) {
       throw new AuthorizationError('Candidate is not owned by this user', 'FORBIDDEN');
     }
-    const predicates = [eq(applicationPackages.tenantId, tenantId),
-      eq(applicationPackages.candidateId, candidateId), eq(applicationPackages.packageHash, packageHash)];
+    const predicates = [
+      eq(applicationPackages.tenantId, tenantId),
+      eq(applicationPackages.candidateId, candidateId),
+      eq(applicationPackages.packageHash, packageHash),
+    ];
     if (applicationId) predicates.push(eq(applicationPackages.applicationId, applicationId));
-    if (packageVersion !== undefined) predicates.push(eq(applicationPackages.version, packageVersion));
-    const rows = await this.db.select().from(applicationPackages).where(and(...predicates)).limit(2);
+    if (packageVersion !== undefined)
+      predicates.push(eq(applicationPackages.version, packageVersion));
+    const rows = await this.db
+      .select()
+      .from(applicationPackages)
+      .where(and(...predicates))
+      .limit(2);
     if (rows.length !== 1 || !rows[0].packagePayload) {
-      throw new ValidationError('Exactly one persisted package version is required', 'APPROVAL_PACKAGE_NOT_FOUND');
+      throw new ValidationError(
+        'Exactly one persisted package version is required',
+        'APPROVAL_PACKAGE_NOT_FOUND'
+      );
     }
     const row = rows[0];
     const pkg = applicationExecutionPayload(row.packagePayload);
     const hash = computeApplicationPackageHash(pkg);
     if (pkg.candidateId !== candidateId || hash !== row.packageHash) {
-      throw new ValidationError('Package integrity check failed; prepare and review a new package', 'APPROVAL_PACKAGE_INTEGRITY');
+      throw new ValidationError(
+        'Package integrity check failed; prepare and review a new package',
+        'APPROVAL_PACKAGE_INTEGRITY'
+      );
     }
-    const [application] = await this.db.select({ candidateId: jobApplications.candidateId })
-      .from(jobApplications).where(and(eq(jobApplications.id, row.applicationId),
-        eq(jobApplications.tenantId, tenantId), eq(jobApplications.candidateId, candidateId))).limit(1);
+    await assertCurrentPackage(this.db, { tenantId, candidateId }, row.packagePayload);
+    const [application] = await this.db
+      .select({ candidateId: jobApplications.candidateId })
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, row.applicationId),
+          eq(jobApplications.tenantId, tenantId),
+          eq(jobApplications.candidateId, candidateId)
+        )
+      )
+      .limit(1);
     if (!application) throw new AuthorizationError('Application ownership mismatch', 'FORBIDDEN');
-    return { packageId: row.id, applicationId: row.applicationId, packageVersion: row.version,
-      packageHash: hash, applicationPackage: pkg,
-      preparedAt: row.preparedAt?.toISOString?.() || row.packagePayload.preparedAt };
+    return {
+      packageId: row.id,
+      applicationId: row.applicationId,
+      packageVersion: row.version,
+      packageHash: hash,
+      applicationPackage: pkg,
+      preparedAt: row.preparedAt?.toISOString?.() || row.packagePayload.preparedAt,
+    };
   }
 
   /**
@@ -2927,14 +2959,27 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     }
 
     const approved = await this.getAuthoritativeApplicationPackage({
-      tenantId, userId, candidateId, applicationId, packageVersion, packageHash, role,
+      tenantId,
+      userId,
+      candidateId,
+      applicationId,
+      packageVersion,
+      packageHash,
+      role,
     });
     const approvedJobId = String(approved.applicationPackage.targetJob?.id || '');
-    const approvedDestination = approved.applicationPackage.targetJob?.directPortalUrl ||
+    const approvedDestination =
+      approved.applicationPackage.targetJob?.directPortalUrl ||
       approved.applicationPackage.targetJob?.applicationUrl;
-    if (!approvedJobId || (jobId !== undefined && String(jobId) !== approvedJobId) ||
-        destinationUrl !== approvedDestination) {
-      throw new ValidationError('Job/destination does not match persisted package', 'APPROVAL_TARGET_MISMATCH');
+    if (
+      !approvedJobId ||
+      (jobId !== undefined && String(jobId) !== approvedJobId) ||
+      destinationUrl !== approvedDestination
+    ) {
+      throw new ValidationError(
+        'Job/destination does not match persisted package',
+        'APPROVAL_TARGET_MISMATCH'
+      );
     }
 
     const ticketId = crypto.randomUUID();
@@ -2953,11 +2998,13 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       destinationUrl,
       packageHash: approved.packageHash,
       packageVersion: approved.packageVersion,
-      metadata: { approvalTarget: {
-        format: APPLICATION_APPROVAL_FORMAT,
-        packageId: approved.packageId,
-        applicationPackage: approved.applicationPackage,
-      } },
+      metadata: {
+        approvalTarget: {
+          format: APPLICATION_APPROVAL_FORMAT,
+          packageId: approved.packageId,
+          applicationPackage: approved.applicationPackage,
+        },
+      },
       signature: '',
       status: status || 'ISSUED',
       issuedAt,
@@ -3020,11 +3067,15 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       );
     }
 
-    if (typeof approvalTicketId !== 'string' ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(approvalTicketId)) {
+    if (
+      typeof approvalTicketId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(approvalTicketId)
+    ) {
       throw new NotFoundError('Approval ticket not found');
     }
-    const ticket = await this._getApprovalTicket(tenantId, approvalTicketId, { requireDurable: true });
+    const ticket = await this._getApprovalTicket(tenantId, approvalTicketId, {
+      requireDurable: true,
+    });
     if (!ticket) {
       throw new NotFoundError(
         `Approval ticket "${approvalTicketId}" not found or has been purged.`,
@@ -3093,15 +3144,14 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
 
     // 7. Revocation Check
     if (ticket.status === 'REVOKED') {
-      throw new AuthorizationError(
-        'Approval ticket has been revoked.',
-        'TICKET_REVOKED'
-      );
+      throw new AuthorizationError('Approval ticket has been revoked.', 'TICKET_REVOKED');
     }
 
     // 8. Single-Use Check (Replay Prevention)
     if (ticket.status === 'CONSUMED') {
-      await executionEvent(this.db, ticket, null, 'application.execution_replay_rejected').catch(() => {});
+      await executionEvent(this.db, ticket, null, 'application.execution_replay_rejected').catch(
+        () => {}
+      );
       throw new ConflictError(
         'Approval ticket has already been consumed (single-use replay rejected).',
         'TICKET_ALREADY_CONSUMED'
@@ -3133,24 +3183,51 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     // ISSUE-02: Legacy hash-only tickets are not execution authority. Recompute
     // from the durable, signed snapshot, NEVER from a caller's package/hash.
     const target = ticket.metadata?.approvalTarget;
-    if (target?.format !== APPLICATION_APPROVAL_FORMAT || !target.packageId ||
-        !ticket.applicationId || !Number.isInteger(ticket.packageVersion) ||
-        ticket.packageVersion < 1 || !target.applicationPackage) {
-      throw new AuthorizationError('A new content-bound approval is required', 'APPROVAL_SNAPSHOT_REQUIRED');
+    if (
+      target?.format !== APPLICATION_APPROVAL_FORMAT ||
+      !target.packageId ||
+      !ticket.applicationId ||
+      !Number.isInteger(ticket.packageVersion) ||
+      ticket.packageVersion < 1 ||
+      !target.applicationPackage
+    ) {
+      throw new AuthorizationError(
+        'A new content-bound approval is required',
+        'APPROVAL_SNAPSHOT_REQUIRED'
+      );
     }
     const approvedPayload = applicationExecutionPayload(target.applicationPackage);
-    if (canonicalPackageJson(approvedPayload) !== canonicalPackageJson(target.applicationPackage) ||
-        computeApplicationPackageHash(approvedPayload) !== ticket.packageHash ||
-        approvedPayload.candidateId !== candidateId ||
-        String(approvedPayload.targetJob?.id) !== ticket.jobId ||
-        (approvedPayload.targetJob?.directPortalUrl || approvedPayload.targetJob?.applicationUrl) !== ticket.destinationUrl) {
-      throw new AuthorizationError('Approved application snapshot integrity failed', 'APPROVAL_SNAPSHOT_TAMPERED');
+    // Check policy provenance before consuming the approval. The signed snapshot
+    // remains byte-identical; quarantine never reopens a spent execution.
+    await assertCurrentPackage(
+      this.db,
+      { tenantId, candidateId },
+      {
+        ...approvedPayload,
+        packageHash: ticket.packageHash,
+      }
+    );
+    if (
+      canonicalPackageJson(approvedPayload) !== canonicalPackageJson(target.applicationPackage) ||
+      computeApplicationPackageHash(approvedPayload) !== ticket.packageHash ||
+      approvedPayload.candidateId !== candidateId ||
+      String(approvedPayload.targetJob?.id) !== ticket.jobId ||
+      (approvedPayload.targetJob?.directPortalUrl || approvedPayload.targetJob?.applicationUrl) !==
+        ticket.destinationUrl
+    ) {
+      throw new AuthorizationError(
+        'Approved application snapshot integrity failed',
+        'APPROVAL_SNAPSHOT_TAMPERED'
+      );
     }
     // Detached and recursively frozen: adapter awaits cannot expose mutable
     // client objects, and adapters cannot change the approved handoff/tracking.
-    applicationPackage = freezeApplicationPackage({ ...approvedPayload,
-      applicationId: ticket.applicationId, packageVersion: ticket.packageVersion,
-      packageHash: ticket.packageHash });
+    applicationPackage = freezeApplicationPackage({
+      ...approvedPayload,
+      applicationId: ticket.applicationId,
+      packageVersion: ticket.packageVersion,
+      packageHash: ticket.packageHash,
+    });
     packageHash = ticket.packageHash;
 
     // ISSUE-03: only a confirmed durable PostgreSQL claim permits execution.

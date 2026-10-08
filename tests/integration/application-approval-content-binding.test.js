@@ -17,6 +17,7 @@ import {
   computeApplicationPackageHash,
 } from '../../src/services/job-application-workflow.service.js';
 import { applicationExecutionPayload } from '../../src/domain/job/application-package-identity.js';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 import { registerJobWorkflowTools } from '../../src/mcp/tools/job-workflow-tools.js';
 import { JOB_WORKFLOW_TOOL_DEFINITIONS } from '../../src/domain/mcp/job-workflow-tools.schemas.js';
 import { buildApp } from '../../src/app.js';
@@ -107,7 +108,9 @@ describe('ISSUE-02 durable approved-content execution boundary', () => {
       portalFields: { consent: true },
       metadata: { source: 'reviewed' },
     };
-    pkg.packageHash = computeApplicationPackageHash(pkg);
+    // Synthetic server-generated current-policy version; all content mutation
+    // and tenant/approval attack assertions below remain unchanged.
+    Object.assign(pkg, await sealGeneratedPackage(db, { tenantId, candidateId }, pkg));
     await db.insert(jobApplications).values({
       id: applicationId,
       tenantId,
@@ -305,7 +308,7 @@ describe('ISSUE-02 durable approved-content execution boundary', () => {
     await f.submit(ticket);
     const changed = structuredClone(f.pkg);
     changed.answers.eligibility = 'B';
-    changed.packageHash = computeApplicationPackageHash(changed);
+    Object.assign(changed, await sealGeneratedPackage(db, { tenantId, candidateId }, changed));
     const version = await f.service.applicationTrackingService.recordApplicationPackage(
       { tenantId, userId, role: 'MEMBER' },
       f.row.applicationId,
@@ -331,7 +334,7 @@ describe('ISSUE-02 durable approved-content execution boundary', () => {
         .where(eq(jobApplications.id, f.row.applicationId));
       const changed = structuredClone(f.pkg);
       changed.answers.eligibility = 'B';
-      changed.packageHash = computeApplicationPackageHash(changed);
+      Object.assign(changed, await sealGeneratedPackage(db, { tenantId, candidateId }, changed));
       await assert.rejects(
         f.service.applicationTrackingService.recordApplicationPackage(
           { tenantId, userId, role: 'MEMBER' },
@@ -432,13 +435,21 @@ describe('ISSUE-02 durable approved-content execution boundary', () => {
     f.service.db = new Proxy(db, {
       get(target, key) {
         if (key === 'transaction')
-          return callback => target.transaction(tx => callback(new Proxy(tx, {
-            get(transaction, method) {
-              if (method === 'insert') return () => { throw new Error('SNAPSHOT_WRITE_UNAVAILABLE'); };
-              const value = Reflect.get(transaction, method);
-              return typeof value === 'function' ? value.bind(transaction) : value;
-            },
-          })));
+          return (callback) =>
+            target.transaction((tx) =>
+              callback(
+                new Proxy(tx, {
+                  get(transaction, method) {
+                    if (method === 'insert')
+                      return () => {
+                        throw new Error('SNAPSHOT_WRITE_UNAVAILABLE');
+                      };
+                    const value = Reflect.get(transaction, method);
+                    return typeof value === 'function' ? value.bind(transaction) : value;
+                  },
+                })
+              )
+            );
         return Reflect.get(target, key);
       },
     });
@@ -599,8 +610,14 @@ describe('ISSUE-02 durable approved-content execution boundary', () => {
       'A'
     );
     const replay = await app.inject({
-      method: 'POST', url: `/applications/${f.row.applicationId}/apply/submit`, headers,
-      payload: { approvalTicketId: ticket.ticketId, packageHash: ticket.packageHash, destinationUrl },
+      method: 'POST',
+      url: `/applications/${f.row.applicationId}/apply/submit`,
+      headers,
+      payload: {
+        approvalTicketId: ticket.ticketId,
+        packageHash: ticket.packageHash,
+        destinationUrl,
+      },
     });
     assert.equal(replay.statusCode, 409, replay.body);
     assert.equal(replay.json().error, 'CONFLICT');

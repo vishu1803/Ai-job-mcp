@@ -420,14 +420,14 @@ describe('Live Resume Tailoring Service Integration Tests (P6-001)', () => {
     const pgSkill = dbCat.skills.find((s) => s.canonicalSlug === 'postgresql');
     assert.ok(pgSkill);
     assert.strictEqual(pgSkill.name, 'PostgreSQL');
-    assert.strictEqual(pgSkill.status, 'VERIFIED');
+    assert.strictEqual(pgSkill.status, 'INFERRED');
 
     // Verify project section
     assert.strictEqual(resume.projects.length, 1);
     const proj = resume.projects[0];
     assert.strictEqual(proj.displayName, 'alice-org/distributed-store');
     assert.ok(proj.bullets.length >= 1);
-    assert.strictEqual(proj.bullets[0].status, 'VERIFIED');
+    assert.strictEqual(proj.bullets[0].status, 'INFERRED');
 
     // Verify metadata
     assert.ok(resume.metadata.totalBullets >= 3);

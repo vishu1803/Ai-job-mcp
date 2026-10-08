@@ -39,7 +39,10 @@ import {
 import { SourceResumeIngestionService } from '../../src/services/source-resume-ingestion.service.js';
 import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
-import { JobApplicationWorkflowService, computeApplicationPackageHash } from '../../src/services/job-application-workflow.service.js';
+import {
+  JobApplicationWorkflowService,
+  computeApplicationPackageHash,
+} from '../../src/services/job-application-workflow.service.js';
 import { documentStorageService } from '../../src/services/document-storage.service.js';
 import { NotFoundError, AuthorizationError } from '../../src/errors/index.js';
 
@@ -784,15 +787,35 @@ describe('Object-Level Authorization & IDOR Defense Integration Suite (Phase 2)'
       const workflowService = new JobApplicationWorkflowService({ database: db });
       // Approval authority requires actual persisted content, not the legacy
       // arbitrary hash used by the separate handoff/IDOR fixtures above.
-      const approvedPackage = { candidateId: candidateIdA1,
-        targetJob: { id: 'job-sec-101', company: 'Acme Security Corp',
-          title: 'Senior Security Architect', applicationUrl: 'https://example.test/apply' },
+      let approvedPackage = {
+        candidateId: candidateIdA1,
+        targetJob: {
+          id: 'job-sec-101',
+          company: 'Acme Security Corp',
+          title: 'Senior Security Architect',
+          applicationUrl: 'https://example.test/apply',
+        },
         tailoredResume: { markdownContent: '# Alice Resume' },
-        coverLetter: { markdownContent: 'Reviewed letter' }, answers: {} };
+        coverLetter: { markdownContent: 'Reviewed letter' },
+        answers: {},
+      };
+      const { sealGeneratedPackage } =
+        await import('../../src/services/evidence/artifact-policy.js');
+      approvedPackage = await sealGeneratedPackage(
+        db,
+        { tenantId: tenantIdA, candidateId: candidateIdA1 },
+        approvedPackage
+      );
       const approvedHash = computeApplicationPackageHash(approvedPackage);
-      await db.insert(applicationPackages).values({ tenantId: tenantIdA,
-        candidateId: candidateIdA1, applicationId: applicationA1.id, version: 2,
-        packageHash: approvedHash, packagePayload: approvedPackage, lifecycleState: 'ARCHIVED' });
+      await db.insert(applicationPackages).values({
+        tenantId: tenantIdA,
+        candidateId: candidateIdA1,
+        applicationId: applicationA1.id,
+        version: 2,
+        packageHash: approvedHash,
+        packagePayload: approvedPackage,
+        lifecycleState: 'ARCHIVED',
+      });
 
       const ticket = await workflowService.requestApplicationApproval({
         tenantId: tenantIdA,

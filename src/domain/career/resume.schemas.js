@@ -573,7 +573,7 @@ export const TailoredProjectBulletSchema = z
     evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
     matchedRequirementIds: z.array(z.string().trim()).default([]),
     composedFromFactIds: z.array(z.string().trim()).default([]),
-    provenanceStatus: StructuredTruthCategoryEnum.default('VERIFIED'),
+    provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
     sourceFact: z
       .union([z.string(), z.array(z.string())])
       .optional()

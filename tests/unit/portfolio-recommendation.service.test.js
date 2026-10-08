@@ -564,8 +564,8 @@ describe('Portfolio Recommendation Engine Service Unit Tests (P6-003)', () => {
     const featured1 = result.featuredProjects.find((p) => p.projectId === p1.id);
     const featured2 = result.featuredProjects.find((p) => p.projectId === p2.id);
 
-    if (featured1) assert.equal(featured1.contributionConfidence, 'PRIMARY_AUTHOR');
-    if (featured2) assert.equal(featured2.contributionConfidence, 'MAJOR_CONTRIBUTOR');
+    if (featured1) assert.equal(featured1.contributionConfidence, 'UNVERIFIED');
+    if (featured2) assert.equal(featured2.contributionConfidence, 'UNVERIFIED');
   });
 
   it('14. handles tutorial/clone detection and deprioritizes with warning', () => {

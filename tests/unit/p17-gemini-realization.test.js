@@ -72,7 +72,7 @@ describe('P17: Gemini / AI Language Realization Engine', () => {
     }
   });
 
-  it('accepts AI realization when output satisfies all 13 validation rules', async () => {
+  it('retains server rendering even when AI realization satisfies heuristic validation', async () => {
     const mockAiProvider = {
       generateText: async () => ({
         text: 'Architected distributed key-value store in Go utilizing Raft consensus protocol.',
@@ -97,10 +97,14 @@ describe('P17: Gemini / AI Language Realization Engine', () => {
 
     assert.ok(res);
     assert.equal(res.bullets.length, 1);
-    assert.equal(
-      res.bullets[0].text,
-      'Architected distributed key-value store in Go utilizing Raft consensus protocol.'
-    );
+    const authoritative = await composeProfessionalProjectBulletsAsync({
+      facts: sampleFacts,
+      project: sampleProject,
+      candidateProfile: sampleCandidate,
+      aiProvider: null,
+      explicitBudget: 1,
+    });
+    assert.deepEqual(res.bullets, authoritative.bullets);
     assert.deepEqual(res.bullets[0].composedFromFactIds, ['f-raft-1']);
   });
 

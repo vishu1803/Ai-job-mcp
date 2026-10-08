@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-08",
+  "kind": "LOCAL ONLY; not deployed staging",
+  "baseCommit": "86a56c0a6b615d9b087e48d4ebf2a3ab315c943f",
+  "auditedModifiedRuntimeTestMigrationFiles": 108,
+  "sourceDigest": "b6b33ada0744129a1e01ee303e6672208b119f69cb787d2d046f2dbc69e8b499",
+  "command": "node --import ./tests/setup/approval-signing-env.js --test --test-concurrency=<1 for approval and installation_signing; otherwise 2> --test-timeout=120000 --test-reporter=tap <group files>",
+  "environment": "ENV_FILE=%TEMP%/ai-job-issue01-test.env; validated disposable loopback PostgreSQL 17.4 port 55431; explicit test-only keys",
+  "groups": {
+    "focused": [
+      "tests/unit/evidence-verification-security.test.js",
+      "tests/integration/evidence-verification-security.test.js",
+      "tests/integration/evidence-verification-migration.test.js",
+      "tests/unit/p55-ai-context-privacy.test.js",
+      "tests/unit/p89-ai-provider-architecture.test.js"
+    ],
+    "broad": [
+      "tests/unit/github-evidence-extractor.test.js",
+      "tests/unit/evidence-matching.service.test.js",
+      "tests/unit/evidence-linking.test.js",
+      "tests/unit/candidate-profile.service.test.js",
+      "tests/unit/skill-taxonomy.test.js",
+      "tests/unit/cover-letter-drafting.service.test.js",
+      "tests/unit/resume-tailoring.service.test.js",
+      "tests/unit/resume-integrity-audit.service.test.js",
+      "tests/unit/mcp-candidate-profile-contract.test.js",
+      "tests/unit/mcp-get-candidate-profile-include-flags.test.js",
+      "tests/unit/analyze-job-fit-evidence-trust.test.js",
+      "tests/unit/analyze-job-fit-low-trust-evidence-severity.test.js",
+      "tests/integration/github-evidence-extractor.test.js",
+      "tests/integration/evidence-linking.test.js",
+      "tests/integration/candidate-profile.service.test.js",
+      "tests/integration/cover-letter-drafting.service.test.js",
+      "tests/integration/resume-tailoring.service.test.js",
+      "tests/integration/resume-integrity-audit.service.test.js",
+      "tests/unit/candidate-repository-ingestion.test.js",
+      "tests/integration/candidate-repository-ingestion.test.js",
+      "tests/integration/source-resume-ingestion.test.js",
+      "tests/unit/candidate-artifact-content.test.js",
+      "tests/unit/p87-ai-career-assistant.test.js",
+      "tests/unit/portfolio-recommendation.service.test.js",
+      "tests/unit/p16-structured-resume-contract.test.js",
+      "tests/unit/p46-ranking-authority-and-bullet-minimum.test.js",
+      "tests/unit/mcp-career-read-tools.test.js",
+      "tests/integration/mcp-career-read-tools.test.js",
+      "tests/unit/career-artifact-export.service.test.js",
+      "tests/integration/career-artifact-export.service.test.js",
+      "tests/unit/p87-extension-ai-assistant.test.js",
+      "tests/unit/p90-sources-profile-integrity.test.js",
+      "tests/unit/p90-profile-enum-copilot-scroll.test.js",
+      "tests/unit/p90-copilot-contextual-hardening.test.js",
+      "tests/integration/mcp-conformance-and-resources.test.js"
+    ],
+    "expanded": [
+      "tests/unit/application-package-lifecycle.test.js",
+      "tests/unit/application-regeneration.test.js",
+      "tests/unit/application-tracking.service.test.js",
+      "tests/unit/application-document-pipeline-fixes.test.js",
+      "tests/unit/application-content-defects.test.js",
+      "tests/unit/extension-prepare-handoff-regression.test.js",
+      "tests/unit/mcp-application-artifact-tools.test.js",
+      "tests/unit/mcp-handoff-artifacts.test.js",
+      "tests/unit/p62-existing-handoff-reuse.test.js",
+      "tests/unit/p86-job-application-workflow.test.js",
+      "tests/unit/document-storage.service.test.js",
+      "tests/unit/s3-storage.provider.test.js",
+      "tests/integration/application-package-consistency.test.js",
+      "tests/integration/application-handoff-route.test.js",
+      "tests/integration/application-tracking.service.test.js",
+      "tests/integration/mcp-application-artifact-tools.test.js",
+      "tests/integration/multi-tenant-application-isolation.test.js",
+      "tests/integration/handoff-kit-lifecycle.test.js",
+      "tests/integration/web-application-routes.test.js"
+    ],
+    "approval": [
+      "tests/integration/application-approval-execution.test.js",
+      "tests/integration/application-approval-content-binding.test.js",
+      "tests/integration/phase9-4-approval-persistence.test.js",
+      "tests/unit/application-package-identity.test.js",
+      "tests/unit/action-approval-ticket.test.js",
+      "tests/integration/action-approval-ticket.test.js",
+      "tests/unit/mcp-write-tools.test.js",
+      "tests/integration/mcp-write-tools.test.js"
+    ],
+    "oauth": [
+      "tests/integration/oauth-credential-concurrency.test.js",
+      "tests/unit/oauth-authorization-server.test.js",
+      "tests/unit/oauth-routes-redirect.test.js",
+      "tests/unit/oauth-state.test.js",
+      "tests/unit/mcp-auth.test.js",
+      "tests/integration/oauth-seamless-ux.test.js",
+      "tests/integration/claude-mcp-connector.test.js",
+      "tests/integration/chatgpt-mcp-connector.test.js"
+    ],
+    "installation_signing": [
+      "tests/unit/github-installation-service.test.js",
+      "tests/integration/github-installation-linking.test.js",
+      "tests/integration/auth.test.js",
+      "tests/integration/security-authorization.test.js",
+      "tests/integration/tenant-isolation-hardening.test.js",
+      "tests/integration/candidate-tenant-isolation.test.js",
+      "tests/unit/approval-signing-security.test.js",
+      "tests/integration/approval-signing-startup.test.js",
+      "tests/integration/db.test.js"
+    ],
+    "new": [
+      "tests/unit/narrative-trust-boundary.test.js",
+      "tests/integration/historical-artifact-quarantine.test.js",
+      "tests/unit/p17-gemini-realization.test.js"
+    ],
+    "proposals": [
+      "tests/unit/project-improvement-recommender.test.js",
+      "tests/integration/project-improvement-recommender.test.js"
+    ]
+  },
+  "results": {
+    "focused": {
+      "pass": 158,
+      "fail": 0
+    },
+    "broad": {
+      "pass": 576,
+      "fail": 0
+    },
+    "expanded": {
+      "pass": 230,
+      "fail": 4
+    },
+    "approval": {
+      "pass": 178,
+      "fail": 0
+    },
+    "oauth": {
+      "pass": 173,
+      "fail": 0
+    },
+    "installation_signing": {
+      "pass": 265,
+      "fail": 0
+    },
+    "new": {
+      "pass": 105,
+      "fail": 0
+    },
+    "proposals": {
+      "pass": 23,
+      "fail": 0
+    }
+  },
+  "uniqueTotals": {
+    "tests": 1712,
+    "pass": 1708,
+    "fail": 4,
+    "skipped": 0,
+    "cancelled": 0,
+    "automatedEnvironmentBlocked": 0
+  },
+  "baselineReproduction": {
+    "commit": "86a56c0a6b615d9b087e48d4ebf2a3ab315c943f",
+    "migrationCount": 20,
+    "tests": 34,
+    "pass": 30,
+    "fail": 4,
+    "skipped": 0,
+    "cancelled": 0,
+    "log": "%TEMP%/integrated-acceptance-baseline-final.log"
+  },
+  "logs": "%TEMP%/integrated-acceptance-<group>.log"
+}

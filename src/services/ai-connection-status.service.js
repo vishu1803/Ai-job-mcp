@@ -17,6 +17,7 @@ import { db as defaultDb } from '../db/index.js';
 import { oauthTokens, mcpApiTokens } from '../db/schema.js';
 import { ValidationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+import { revokeOAuthFamily } from '../db/repositories/oauth-credential.repository.js';
 
 export class AiConnectionStatusService {
   /**
@@ -216,7 +217,7 @@ export class AiConnectionStatusService {
 
     if (provider === 'claude' || provider === 'chatgpt') {
       const allTokens = await this.db
-        .select({ id: oauthTokens.id, clientId: oauthTokens.clientId })
+        .select()
         .from(oauthTokens)
         .where(
           and(
@@ -242,10 +243,9 @@ export class AiConnectionStatusService {
       });
 
       for (const t of targetTokens) {
-        await this.db
-          .update(oauthTokens)
-          .set({ isRevoked: true, revokedAt: new Date(), updatedAt: new Date() })
-          .where(eq(oauthTokens.id, t.id));
+        // A concurrent rotation may replace t: revoke the family under the
+        // same PostgreSQL lock, not only the stale access-token row.
+        await revokeOAuthFamily(this.db, t);
         revokedCount++;
       }
     } else if (provider === 'gemini') {

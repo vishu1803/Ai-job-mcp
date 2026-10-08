@@ -20,6 +20,11 @@ import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { ZeroHallucinationIntegrityService } from './zero-hallucination-integrity.service.js';
 import { ResumePresentationService } from './resume-presentation.service.js';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import {
+  retainAuthoritativeNarrative,
+  registerCurrentNarrativeArtifact,
+} from './evidence/narrative-policy.js';
 import {
   TailoredResumeSchema,
   ResumePresentationModeEnum,
@@ -98,6 +103,8 @@ export class ResumeTailoringService {
     options = {}
   ) {
     // 0. Presentation Mode & Visual Preservation Audit
+    candidateProfile = enforceEvidenceTrust(candidateProfile);
+    integrityCheckedAssertions = enforceEvidenceTrust(integrityCheckedAssertions);
     const presentationMode = options.presentationMode || 'GENERATE_NEW';
     const parsedMode = ResumePresentationModeEnum.safeParse(presentationMode);
     if (!parsedMode.success) {
@@ -273,7 +280,9 @@ export class ResumeTailoringService {
     rawResume.metadata.claimedBullets = claimedCount;
 
     // 14. Validate Against Canonical TailoredResumeSchema
-    return TailoredResumeSchema.parse(rawResume);
+    return registerCurrentNarrativeArtifact(
+      TailoredResumeSchema.parse(enforceEvidenceTrust(rawResume))
+    );
   }
 
   // =========================================================================
@@ -408,7 +417,10 @@ export class ResumeTailoringService {
       }
       categoryMap.get(skill.category).push(skill);
 
-      if (skill.status === 'VERIFIED' && skill.relevanceScore === 100.0) {
+      if (
+        ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(skill.status) &&
+        skill.relevanceScore === 100.0
+      ) {
         topVerifiedRequiredSkills.push(skill);
       }
     }
@@ -523,8 +535,8 @@ export class ResumeTailoringService {
       const techStackSummary = [langStr, fwStr].filter(Boolean).join(' and ');
 
       const bullet1Text = techStackSummary
-        ? `Developed and maintained ${displayName} utilizing ${techStackSummary}.`
-        : `Architected and implemented core platform components for ${displayName}.`;
+        ? `Linked repository ${displayName} has technology associations with ${techStackSummary}; candidate authorship and proficiency are not independently established.`
+        : `Linked repository: ${displayName}; candidate authorship is not independently established.`;
 
       // Check metric safety
       this._assertMetricSafety(bullet1Text, deduplicatedRefs);
@@ -557,7 +569,7 @@ export class ResumeTailoringService {
         ranked.architecturalSignals.length > 0
       ) {
         const topSignals = ranked.architecturalSignals.slice(0, 2).join(' and ');
-        const bullet2Text = `Engineered modular architecture featuring ${topSignals.toLowerCase().replace(/_/g, ' ')}.`;
+        const bullet2Text = `Repository analysis suggests ${topSignals.toLowerCase().replace(/_/g, ' ')}; this is an inference, not a verified candidate accomplishment.`;
 
         this._assertMetricSafety(bullet2Text, deduplicatedRefs);
 
@@ -770,20 +782,16 @@ export class ResumeTailoringService {
       .map((s) => s.name)
       .join(', ');
 
-    const projectHighlight = topProject
-      ? ` demonstrable expertise in ${topProject.displayName}`
-      : '';
+    const projectHighlight = topProject ? ` Linked repository: ${topProject.displayName}.` : '';
 
     let summaryText = '';
     const roleTitle = candidateProfile.headline || jobDescription?.title;
     if (skillHighlights) {
-      summaryText = roleTitle
-        ? `${roleTitle} proficient in ${skillHighlights}${projectHighlight ? ` with${projectHighlight}` : ''}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`
-        : `Proficient in ${skillHighlights}${projectHighlight ? ` with${projectHighlight}` : ''}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`;
+      summaryText = `${roleTitle || 'Candidate profile'}. Profile skill associations: ${skillHighlights} (self-reported or repository-inferred, not independently verified proficiency).${projectHighlight}`;
     } else if (roleTitle) {
-      summaryText = `${roleTitle} with demonstrated technical expertise in building robust, high-integrity software applications.`;
+      summaryText = `${roleTitle}. Candidate-provided career information; no independent proficiency verification.${projectHighlight}`;
     } else {
-      summaryText = `Demonstrated technical expertise in building robust, high-integrity software applications.`;
+      summaryText = `Candidate has not provided a professional summary.${projectHighlight}`;
     }
 
     const summaryBullet = {
@@ -874,12 +882,16 @@ export class ResumeTailoringService {
       const response = await llmAdapter.transformPhrasing(prompt);
       if (response && typeof response === 'object') {
         if (response.headline && typeof response.headline === 'string') {
-          resumeModel.headline = response.headline.trim();
+          // Free-form rewrites cannot establish qualifications. Retain server wording.
+          resumeModel.headline = retainAuthoritativeNarrative(
+            response.headline,
+            resumeModel.headline
+          );
         }
         if (response.summary && typeof response.summary === 'string') {
-          resumeModel.summary = response.summary.trim();
+          resumeModel.summary = retainAuthoritativeNarrative(response.summary, resumeModel.summary);
           if (resumeModel.summaryBullets && resumeModel.summaryBullets[0]) {
-            resumeModel.summaryBullets[0].text = response.summary.trim();
+            resumeModel.summaryBullets[0].text = resumeModel.summary;
           }
         }
       }

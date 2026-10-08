@@ -141,6 +141,20 @@
       "when": 1791331200001,
       "tag": "0019_atomic_application_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791417600000,
+      "tag": "0020_atomic_oauth_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791417600001,
+      "tag": "0021_evidence_verification_integrity",
+      "breakpoints": true
     }
   ]
 }

@@ -5,36 +5,26 @@
  * canonical action approval payloads with per-tenant HKDF key isolation.
  *
  * Invariants:
- * 1. Master Secret: Sourced from ACTION_APPROVAL_HMAC_SECRET (min 32 bytes).
- * 2. Per-Tenant Subkey Derivation: HKDF-SHA256 with salt=tenantId, info='antigravity:action_approval:v1'.
+ * 1. Master Secret: Validated ACTION_APPROVAL_HMAC_SECRET; no fallback.
+ * 2. Per-Tenant Subkey Derivation: HKDF-SHA256 with salt=tenantId and a domain-specific v2 info.
  * 3. Timing-Safe Comparison: Uses crypto.timingSafeEqual to prevent side-channel timing attacks.
- * 4. Versioned Canonical Payload: V1 pipe-delimited format preventing parameter substitution.
+ * 4. Versioned Canonical Payload: v2 invalidates all pre-remediation signatures.
  */
 
 import crypto from 'node:crypto';
 import { CryptoError } from '../errors/index.js';
+import { config } from '../config/env.js';
+import { getApprovalSecret } from '../config/approval-secrets.js';
 
-// Default deterministic test fallback secret if not configured in environment
-const DEFAULT_TEST_HMAC_SECRET =
-  'antigravity_default_action_approval_hmac_secret_min_32_bytes_test_only';
+export const ACTION_APPROVAL_SIGNING_DOMAIN = 'antigravity:action-approval:v2';
 
 /**
  * Retrieves and validates the master HMAC secret.
  *
  * @returns {Buffer}
  */
-export function getMasterApprovalSecret() {
-  const secret = process.env.ACTION_APPROVAL_HMAC_SECRET || DEFAULT_TEST_HMAC_SECRET;
-  const secretBuffer = Buffer.from(secret, 'utf8');
-
-  if (secretBuffer.length < 32) {
-    throw new CryptoError(
-      'ACTION_APPROVAL_HMAC_SECRET must provide at least 32 bytes of cryptographic entropy',
-      'INSUFFICIENT_SECRET_ENTROPY'
-    );
-  }
-
-  return secretBuffer;
+export function getMasterApprovalSecret(secretKey) {
+  return getApprovalSecret(config, 'ACTION_APPROVAL_HMAC_SECRET', secretKey);
 }
 
 /**
@@ -43,7 +33,7 @@ export function getMasterApprovalSecret() {
  * @param {string} tenantId Sovereign tenant UUID
  * @returns {Buffer} Derived 32-byte key
  */
-export function deriveTenantSigningKey(tenantId) {
+export function deriveTenantSigningKey(tenantId, secretKey) {
   if (!tenantId || typeof tenantId !== 'string') {
     throw new CryptoError(
       'Valid tenantId is required for approval signing key derivation',
@@ -51,9 +41,9 @@ export function deriveTenantSigningKey(tenantId) {
     );
   }
 
-  const masterSecret = getMasterApprovalSecret();
+  const masterSecret = getMasterApprovalSecret(secretKey);
   const salt = Buffer.from(tenantId, 'utf8');
-  const info = Buffer.from('antigravity:action_approval:v1', 'utf8');
+  const info = Buffer.from('antigravity:action_approval:v2', 'utf8');
 
   return Buffer.from(crypto.hkdfSync('sha256', masterSecret, salt, info, 32));
 }
@@ -62,7 +52,7 @@ export function deriveTenantSigningKey(tenantId) {
  * Constructs the canonical pipe-delimited string representation of a ticket.
  *
  * Format:
- * V1|tenantId|userId|candidateId|resourceId|proposalId|repoLower|baseBranch|targetBranch|expectedHeadSha|patchFingerprint|expiresAtIso
+ * antigravity:action-approval:v2|tenantId|userId|candidateId|resourceId|proposalId|repoLower|baseBranch|targetBranch|expectedHeadSha|patchFingerprint|expiresAtIso
  *
  * @param {object} ticket Ticket parameters
  * @returns {string} Canonical payload string
@@ -94,7 +84,7 @@ export function buildCanonicalTicketPayload(ticket) {
   const expiresAtIso = new Date(ticket.expiresAt).toISOString();
 
   return [
-    'V1',
+    ACTION_APPROVAL_SIGNING_DOMAIN,
     tenantId,
     userId,
     candidateId,
@@ -115,9 +105,9 @@ export function buildCanonicalTicketPayload(ticket) {
  * @param {object} ticket Ticket object
  * @returns {string} 64-character hex signature
  */
-export function signTicketPayload(ticket) {
+export function signTicketPayload(ticket, secretKey) {
   const canonicalPayload = buildCanonicalTicketPayload(ticket);
-  const signingKey = deriveTenantSigningKey(ticket.tenantId);
+  const signingKey = deriveTenantSigningKey(ticket.tenantId, secretKey);
 
   return crypto.createHmac('sha256', signingKey).update(canonicalPayload, 'utf8').digest('hex');
 }
@@ -128,13 +118,17 @@ export function signTicketPayload(ticket) {
  * @param {object} ticket Ticket object containing hmacSignature
  * @returns {boolean} True if signature is valid, false otherwise
  */
-export function verifyTicketSignature(ticket) {
-  if (!ticket || !ticket.hmacSignature || typeof ticket.hmacSignature !== 'string') {
+export function verifyTicketSignature(ticket, secretKey) {
+  if (
+    !ticket ||
+    typeof ticket.hmacSignature !== 'string' ||
+    !/^[a-f0-9]{64}$/i.test(ticket.hmacSignature)
+  ) {
     return false;
   }
 
   try {
-    const expectedSignature = signTicketPayload(ticket);
+    const expectedSignature = signTicketPayload(ticket, secretKey);
     const providedBuffer = Buffer.from(ticket.hmacSignature, 'hex');
     const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 

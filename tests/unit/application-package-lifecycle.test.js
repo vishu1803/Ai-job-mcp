@@ -17,6 +17,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 import {
   ValidationError,
   NotFoundError,
@@ -541,6 +542,16 @@ describe('Application Package Lifecycle Service', () => {
 
   describe('3. Restore Package Lifecycle State', () => {
     it('atomically promotes target package to CURRENT and demotes others to ARCHIVED', async () => {
+      const candidateId = '00000000-0000-0000-0000-000000000004';
+      const packagePayload = await sealGeneratedPackage(
+        {
+          select: () => ({
+            from: () => ({ leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }) }),
+          }),
+        },
+        { tenantId, candidateId },
+        { candidateId, targetJob: { title: 'Synthetic role' }, answers: {} }
+      );
       let promotedId = null;
       let demotedCalled = false;
       let appMetadataUpdated = null;
@@ -552,6 +563,7 @@ describe('Application Package Lifecycle Service', () => {
           const tx = {
             select: () => ({
               from: () => ({
+                leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }),
                 where: () => ({
                   for: () => {
                     callCount++;
@@ -560,6 +572,7 @@ describe('Application Package Lifecycle Service', () => {
                         {
                           id: applicationId,
                           tenantId,
+                          candidateId,
                           status: 'SAVED',
                           notes: 'Old notes',
                           metadata: { currentPackageHash: 'hash-2', currentPackageVersion: 2 },
@@ -571,7 +584,8 @@ describe('Application Package Lifecycle Service', () => {
                       {
                         id: 'pkg-1',
                         version: 1,
-                        packageHash: 'hash-1',
+                        packageHash: packagePayload.packageHash,
+                        packagePayload,
                         lifecycleState: 'ARCHIVED',
                       },
                     ];
@@ -585,7 +599,12 @@ describe('Application Package Lifecycle Service', () => {
                   returning: () => {
                     promotedId = 'pkg-1';
                     return [
-                      { id: 'pkg-1', version: 1, packageHash: 'hash-1', lifecycleState: 'CURRENT' },
+                      {
+                        id: 'pkg-1',
+                        version: 1,
+                        packageHash: packagePayload.packageHash,
+                        lifecycleState: 'CURRENT',
+                      },
                     ];
                   },
                   then: (resolve) => {
@@ -621,7 +640,7 @@ describe('Application Package Lifecycle Service', () => {
       assert.equal(restored.lifecycleState, 'CURRENT');
       assert.equal(promotedId, 'pkg-1');
       assert.ok(demotedCalled, 'Other versions must be demoted to ARCHIVED');
-      assert.equal(appMetadataUpdated.currentPackageHash, 'hash-1');
+      assert.equal(appMetadataUpdated.currentPackageHash, packagePayload.packageHash);
       assert.equal(appMetadataUpdated.currentPackageVersion, 1);
       assert.ok(auditLogged, 'Must record audit log for package restoration');
     });

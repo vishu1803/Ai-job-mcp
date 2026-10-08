@@ -783,8 +783,16 @@ export async function oauthRoutes(fastify, opts = {}) {
       });
     }
 
-    const { grant_type, client_id, redirect_uri, resource, code, code_verifier, refresh_token } =
-      parseResult.data;
+    const {
+      grant_type,
+      client_id,
+      redirect_uri,
+      resource,
+      code,
+      code_verifier,
+      refresh_token,
+      scope,
+    } = parseResult.data;
 
     try {
       if (grant_type === 'authorization_code') {
@@ -818,6 +826,7 @@ export async function oauthRoutes(fastify, opts = {}) {
           clientId: client_id,
           refreshToken: /** @type {string} */ (refresh_token),
           resource: resource || undefined,
+          scope,
         });
 
         await auditService.recordEvent({
@@ -851,27 +860,33 @@ export async function oauthRoutes(fastify, opts = {}) {
         resourceId: client_id,
         clientIp: req.ip || undefined,
         isError: true,
-        errorMessage: err.message,
+        errorMessage: 'OAuth token request rejected.',
         parameters: {
           clientId: client_id,
           grantType: grant_type,
-          errorCode: err.code || 'INVALID_GRANT',
+          errorCode: err.code || 'SERVER_ERROR',
         },
       });
 
-      const statusCode = err instanceof AuthenticationError ? 400 : err.statusCode || 400;
-      const errorCode =
-        err.code === 'INVALID_CLIENT'
+      const isProtocolError = err instanceof AuthenticationError;
+      const statusCode = isProtocolError ? 400 : 503;
+      const errorCode = !isProtocolError
+        ? 'temporarily_unavailable'
+        : err.code === 'INVALID_CLIENT'
           ? 'invalid_client'
           : err.code === 'INVALID_GRANT'
             ? 'invalid_grant'
             : err.code === 'INVALID_TARGET'
               ? 'invalid_target'
-              : 'invalid_request';
+              : err.code === 'INVALID_SCOPE'
+                ? 'invalid_scope'
+                : 'invalid_request';
 
       return reply.status(statusCode).send({
         error: errorCode,
-        error_description: err.message,
+        error_description: isProtocolError
+          ? err.message
+          : 'Token issuance could not be confirmed. Restart authorization.',
       });
     }
   });

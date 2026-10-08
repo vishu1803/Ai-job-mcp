@@ -436,7 +436,12 @@ describe('Live Cover Letter Drafting Service Integration Tests (P6-002)', () => 
     assert.strictEqual(letter.companyName, 'Distributed Cloud Labs');
     assert.strictEqual(letter.roleTitle, 'Principal Infrastructure Engineer');
     assert.ok(letter.paragraphs.length >= 3 && letter.paragraphs.length <= 6);
-    assert.strictEqual(letter.integrityStatus, 'PASS');
+    assert.strictEqual(
+      letter.integrityStatus,
+      'PARTIAL',
+      'provided career history remains a claim'
+    );
+    assert.equal(letter.metadata.verifiedParagraphs, 0);
 
     // Check opening paragraph
     const opening = letter.paragraphs[0];

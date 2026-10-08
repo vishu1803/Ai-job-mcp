@@ -1180,6 +1180,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
         message,
         author: {
           login: authorLogin,
+          id: item.author?.id || null,
           name: authorName,
           date: authorDate,
           avatarUrl,
@@ -1800,6 +1801,9 @@ export class GitHubAppConnector extends BaseResourceConnector {
     return {
       name: res.data.name,
       fullName: res.data.full_name,
+      id: res.data.id,
+      owner: { id: res.data.owner?.id, login: res.data.owner?.login },
+      fork: Boolean(res.data.fork),
       defaultBranch: res.data.default_branch || 'main',
       private: Boolean(res.data.private),
     };

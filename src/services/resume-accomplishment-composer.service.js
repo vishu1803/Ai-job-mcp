@@ -355,7 +355,7 @@ function assembleRealizedClaim({
     text: realizedText,
     evidenceRefs,
     matchedRequirementIds,
-    provenanceStatus: primaryFact?.provenance || 'VERIFIED',
+    provenanceStatus: primaryFact?.provenance || 'CLAIMED',
     composedFromFactIds,
     semanticDimensions:
       planned.semanticDimensions || (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
@@ -562,7 +562,7 @@ export async function composeProfessionalProjectBulletsAsync({
     const contributingFacts = [primaryFact, compFact].filter(Boolean);
 
     let realizedText = null;
-    let realizationSource = 'deterministic';
+    const realizationSource = 'deterministic';
 
     try {
       const policy = getPromptPolicy(AiTaskTypeSchema.enum.RESUME_ACCOMPLISHMENT_SYNTHESIS);
@@ -608,8 +608,9 @@ export async function composeProfessionalProjectBulletsAsync({
         );
 
         if (candidateValidation.valid) {
-          realizedText = aiResponse.text;
-          realizationSource = 'gemini';
+          // Citations and heuristic grounding cannot authorize a new statement.
+          // Keep deterministic realization until a server claim catalogue exists.
+          realizedText = null;
         }
       }
     } catch {

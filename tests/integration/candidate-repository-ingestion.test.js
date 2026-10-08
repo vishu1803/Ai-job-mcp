@@ -28,6 +28,7 @@ import {
 import { encryptSecret } from '../../src/security/encryption.js';
 import { CandidateRepositoryIngestionService } from '../../src/services/candidate-repository-ingestion.service.js';
 import { NotFoundError } from '../../src/errors/index.js';
+import { pinGitHubFixture } from '../fixtures/pinned-github-connector.js';
 
 describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
@@ -37,77 +38,78 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
   let tenantB, userB, candidateB;
 
   // Mock connector simulating deep repository inspection
-  const createMockConnector = () => ({
-    async getRepositoryTree(_ctx, _cred, _extId) {
-      return {
-        tree: [
-          { path: 'package.json', type: 'blob' },
-          { path: 'src/index.js', type: 'blob' },
-          { path: 'src/app.js', type: 'blob' },
-          { path: 'Dockerfile', type: 'blob' },
-          { path: 'drizzle.config.js', type: 'blob' },
-        ],
-      };
-    },
-    async getLanguages(_ctx, _cred, _extId) {
-      return { languages: { JavaScript: 50000, SQL: 10000 } };
-    },
-    async getReadme(_ctx, _cred, _extId) {
-      return {
-        content:
-          '# Test Career Platform\nBuilt with Fastify, PostgreSQL, Drizzle ORM, and Docker.\nFeatures OAuth 2.1 and MCP integration.',
-      };
-    },
-    async getRecentCommits(_ctx, _cred, _extId) {
-      return {
-        commits: [
-          {
-            sha: 'abc123def456789012345678901234567890abcd',
-            message: 'feat(auth): implement OAuth PKCE flow',
-            author: { login: `user-a-${testRunId}`, name: 'User A' },
-            date: new Date().toISOString(),
-          },
-        ],
-      };
-    },
-    async getFileContent(_ctx, _cred, _extId, path) {
-      if (path === 'package.json') {
+  const createMockConnector = () =>
+    pinGitHubFixture({
+      async getRepositoryTree(_ctx, _cred, _extId) {
         return {
-          path: 'package.json',
-          commitSha: 'abc123def456789012345678901234567890abcd',
-          content: JSON.stringify({
-            name: 'test-career-hub',
-            dependencies: {
-              fastify: '^5.2.0',
-              '@fastify/cors': '^10.0.0',
-              'drizzle-orm': '^0.45.0',
-              pg: '^8.11.0',
-              zod: '^3.23.0',
-            },
-            devDependencies: {
-              vitest: '^1.0.0',
-            },
-          }),
+          tree: [
+            { path: 'package.json', type: 'blob' },
+            { path: 'src/index.js', type: 'blob' },
+            { path: 'src/app.js', type: 'blob' },
+            { path: 'Dockerfile', type: 'blob' },
+            { path: 'drizzle.config.js', type: 'blob' },
+          ],
         };
-      }
-      if (path === 'src/index.js') {
+      },
+      async getLanguages(_ctx, _cred, _extId) {
+        return { languages: { JavaScript: 50000, SQL: 10000 } };
+      },
+      async getReadme(_ctx, _cred, _extId) {
         return {
-          path: 'src/index.js',
-          commitSha: 'abc123def456789012345678901234567890abcd',
           content:
-            "import Fastify from 'fastify';\nimport { db } from './db/index.js';\nconst app = Fastify();",
+            '# Test Career Platform\nBuilt with Fastify, PostgreSQL, Drizzle ORM, and Docker.\nFeatures OAuth 2.1 and MCP integration.',
         };
-      }
-      if (path === 'src/app.js') {
+      },
+      async getRecentCommits(_ctx, _cred, _extId) {
         return {
-          path: 'src/app.js',
-          commitSha: 'abc123def456789012345678901234567890abcd',
-          content: "import { z } from 'zod';\nimport pg from 'pg';\n",
+          commits: [
+            {
+              sha: 'abc123def456789012345678901234567890abcd',
+              message: 'feat(auth): implement OAuth PKCE flow',
+              author: { id: 901, login: `user-a-${testRunId}`, name: 'User A' },
+              date: new Date().toISOString(),
+            },
+          ],
         };
-      }
-      return { path, content: '', commitSha: 'HEAD' };
-    },
-  });
+      },
+      async getFileContent(_ctx, _cred, _extId, path) {
+        if (path === 'package.json') {
+          return {
+            path: 'package.json',
+            commitSha: 'abc123def456789012345678901234567890abcd',
+            content: JSON.stringify({
+              name: 'test-career-hub',
+              dependencies: {
+                fastify: '^5.2.0',
+                '@fastify/cors': '^10.0.0',
+                'drizzle-orm': '^0.45.0',
+                pg: '^8.11.0',
+                zod: '^3.23.0',
+              },
+              devDependencies: {
+                vitest: '^1.0.0',
+              },
+            }),
+          };
+        }
+        if (path === 'src/index.js') {
+          return {
+            path: 'src/index.js',
+            commitSha: 'abc123def456789012345678901234567890abcd',
+            content:
+              "import Fastify from 'fastify';\nimport { db } from './db/index.js';\nconst app = Fastify();",
+          };
+        }
+        if (path === 'src/app.js') {
+          return {
+            path: 'src/app.js',
+            commitSha: 'abc123def456789012345678901234567890abcd',
+            content: "import { z } from 'zod';\nimport pg from 'pg';\n",
+          };
+        }
+        return { path, content: '', commitSha: 'HEAD' };
+      },
+    });
 
   // Mock connector registry that returns our mock connector
   const mockRegistry = {
@@ -156,7 +158,7 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
       tenantId: tenantA.id,
       candidateId: candidateA.id,
       provider: 'GITHUB_APP',
-      externalAccountId: `gh-${testRunId}-userA`,
+      externalAccountId: '901',
       externalUsername: `user-a-${testRunId}`,
       verified: true,
     });
@@ -187,7 +189,7 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
         candidateId: candidateA.id,
         provider: 'GITHUB_APP',
         resourceType: 'REPOSITORY',
-        externalResourceId: `repo-${testRunId}-career`,
+        externalResourceId: 'test/Ai-career-agent',
         name: 'Ai-career-agent',
         displayName: `user-a/Ai-career-agent`,
         url: 'https://github.com/test/Ai-career-agent',
@@ -315,12 +317,14 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
           )
         );
       assert.ok(skillRows.length > 0, 'Should have candidate skills');
-      const verifiedSkills = skillRows.filter((s) => s.provenanceStatus === 'VERIFIED');
-      assert.ok(verifiedSkills.length > 0, 'Should have VERIFIED skills');
+      assert.ok(
+        skillRows.every((s) => s.provenanceStatus === 'INFERRED'),
+        'Repository technology observations must not independently verify candidate competence'
+      );
 
       // At least fastify should be VERIFIED (it's in package.json + code import)
-      const fastifySkillIds = verifiedSkills.map((s) => s.skillId);
-      assert.ok(fastifySkillIds.length > 0, 'Should have verified skill IDs');
+      const fastifySkillIds = skillRows.map((s) => s.skillId);
+      assert.ok(fastifySkillIds.length > 0, 'Should preserve observed skill IDs');
     });
   });
 

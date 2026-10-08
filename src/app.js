@@ -17,6 +17,7 @@ import webRoutes from './routes/web.routes.js';
 import skillRoutes from './routes/skill.routes.js';
 import extensionRoutes from './routes/extension.routes.js';
 import { config } from './config/env.js';
+import { assertApprovalSecrets } from './config/approval-secrets.js';
 import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -45,6 +46,7 @@ const __dirname = path.dirname(__filename);
  * @returns {import('fastify').FastifyInstance} Configured Fastify instance
  */
 export function buildApp(opts = {}) {
+  assertApprovalSecrets(config);
   const {
     logger: customLogger,
     loggerInstance,

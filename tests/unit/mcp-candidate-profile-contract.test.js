@@ -11,15 +11,13 @@
  * F. Preserved 5-tier truth/provenance (CORROBORATED, VERIFIED, CLAIMED)
  * G. Explicit separation of profileReadiness from jobSearchReadiness
  * H. Compact token safety (payload < 15KB JSON) with zero raw AST code leaks
- * I. Real candidate regression verification for candidate 10a2b51b-09bf-4090-8040-1f60ebeb89c9
+ * I. Isolated synthetic candidate regression with the same completeness contract
  */
 
-import { describe, it, after } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleGetCandidateProfile } from '../../src/mcp/tools/career-read-tools.js';
 import { GetCandidateProfileOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
-import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
-import { db, closeDatabase } from '../../src/db/index.js';
 
 describe('MCP Candidate Profile Contract Completeness Suite', () => {
   const candidateIdA = 'a0000000-0000-4000-a000-000000000001';
@@ -431,7 +429,8 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
       'Docker',
       'Kubernetes',
     ]);
-    assert.deepStrictEqual(exp.verifiedSkillsUsed, ['Fastify', 'PostgreSQL']);
+    assert.deepStrictEqual(exp.verifiedSkillsUsed, []);
+    assert.deepStrictEqual(exp.reportedSkillsUsed, ['Fastify', 'PostgreSQL']);
   });
 
   // ===========================================================================
@@ -469,7 +468,7 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
   // ===========================================================================
   // K, L, M. Truth/Provenance Preservation (CORROBORATED, VERIFIED, CLAIMED)
   // ===========================================================================
-  it('K. preserves CORROBORATED provenance status for corroborated skills', async () => {
+  it('K. does not accept supplied CORROBORATED labels as proficiency verification', async () => {
     const result = await handleGetCandidateProfile(
       mockContext,
       { candidateId: candidateIdA },
@@ -478,14 +477,14 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
 
     const reactSkill = result.topSkills.find((s) => s.slug === 'react');
     assert.ok(reactSkill, 'React skill must be present in topSkills');
-    assert.strictEqual(reactSkill.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(reactSkill.provenanceStatus, 'INFERRED');
 
     const postgresSkill = result.topSkills.find((s) => s.slug === 'postgresql');
     assert.ok(postgresSkill, 'PostgreSQL skill must be present in topSkills');
-    assert.strictEqual(postgresSkill.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(postgresSkill.provenanceStatus, 'INFERRED');
   });
 
-  it('L. preserves VERIFIED provenance status for repository-only skills', async () => {
+  it('L. exposes repository-only skill associations as INFERRED', async () => {
     const result = await handleGetCandidateProfile(
       mockContext,
       { candidateId: candidateIdA },
@@ -494,7 +493,7 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
 
     const fastifySkill = result.topSkills.find((s) => s.slug === 'fastify');
     assert.ok(fastifySkill, 'Fastify skill must be present in topSkills');
-    assert.strictEqual(fastifySkill.provenanceStatus, 'VERIFIED');
+    assert.strictEqual(fastifySkill.provenanceStatus, 'INFERRED');
   });
 
   it('M. preserves CLAIMED provenance status for resume-only skills', async () => {
@@ -562,169 +561,43 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
   });
 
   // ===========================================================================
-  // Real Candidate Regression: Vishwanath Nishad (10a2b51b-09bf-4090-8040-1f60ebeb89c9)
-  // ===========================================================================
-  describe('Real Candidate Regression (10a2b51b-09bf-4090-8040-1f60ebeb89c9)', () => {
-    const realCandidateId = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
-    const realTenantId = '24d53f53-780e-4431-b065-32180c354175';
-
-    it('successfully produces truthful compact profile answering all 17 ChatGPT questions', async () => {
-      const realContext = {
-        requestId: 'req-real-candidate-test',
-        tenantId: realTenantId,
-        userId: '9dd8e4fb-456b-4104-9cb1-c839a544b721',
-        role: 'MEMBER',
-        tokenScopes: ['career:read'],
-        authMethod: 'MCP_API_TOKEN',
-        clientInfo: { protocolVersion: '2026-07-28', ipAddress: '127.0.0.1' },
-        authenticatedAt: new Date().toISOString(),
-      };
-
-      const realService = new CandidateProfileService();
-      const realMcpOutput = await handleGetCandidateProfile(
-        realContext,
-        { candidateId: realCandidateId },
-        { candidateProfileService: realService, db }
+  // Isolated synthetic contract regression: no personal candidate/database seed.
+  describe('Synthetic complete career-profile regression', () => {
+    it('produces truthful compact answers to all career-profile categories', async () => {
+      const output = await handleGetCandidateProfile(
+        mockContext,
+        { candidateId: candidateIdA },
+        { candidateProfileService: mockProfileService, db: mockDb }
       );
-
-      // Validate against schema
+      assert.ok(GetCandidateProfileOutputSchema.safeParse(output).success);
+      assert.equal(output.candidate.currentRole, mockCareerProfile.currentRole);
+      assert.equal(output.candidate.careerStatus, mockCareerProfile.careerStatus);
+      assert.equal(output.candidate.seniority, mockCareerProfile.seniority);
+      assert.equal(
+        output.candidate.currentEmployment.company,
+        mockCareerProfile.currentEmployment.company
+      );
+      assert.ok(output.recentExperience.length > 0);
+      assert.ok(output.recentExperience[0].bullets.length > 0);
+      assert.ok(output.education.length > 0);
+      assert.ok(output.education[0].degree);
+      assert.ok(output.education[0].institution);
+      assert.ok(Array.isArray(output.education[0].coursework));
+      assert.ok(Array.isArray(output.certifications));
+      assert.ok(Array.isArray(output.languages));
+      assert.ok(output.jobPreferences.targetRoles.length > 0);
+      assert.ok(output.portfolioLinks.length > 0);
+      assert.ok(output.topSkills.length > 0);
       assert.ok(
-        GetCandidateProfileOutputSchema.safeParse(realMcpOutput).success,
-        'Real candidate output must strictly validate against GetCandidateProfileOutputSchema'
+        output.topSkills.every((s) => !['VERIFIED', 'CORROBORATED'].includes(s.provenanceStatus)),
+        'Repository counts and supplied labels cannot verify proficiency'
       );
-
-      // Q1: What is my professional role?
-      assert.strictEqual(realMcpOutput.candidate.currentRole, 'Full-Stack & Backend Developer');
-
-      // Q2: Am I a fresher?
-      assert.strictEqual(realMcpOutput.candidate.careerStatus, 'FRESHER');
-      assert.strictEqual(realMcpOutput.candidate.seniority, 'ENTRY_LEVEL');
-
-      // Q3: Am I currently employed?
-      assert.strictEqual(realMcpOutput.candidate.currentEmployment, null);
-      assert.strictEqual(realMcpOutput.recentExperience[0]?.isCurrent, false);
-
-      // Q4: What experience do I have? (Internship record with bullets)
-      assert.ok(realMcpOutput.recentExperience.length >= 1);
-      const internship = realMcpOutput.recentExperience[0];
-      assert.strictEqual(internship.employmentType, 'INTERNSHIP');
-      assert.ok(Array.isArray(internship.bullets));
-      assert.strictEqual(internship.bullets.length, 3);
-      assert.strictEqual(internship.company, 'FTV Saloon');
-
-      // Q5: Where did I study?
-      assert.ok(Array.isArray(realMcpOutput.education));
-      assert.ok(realMcpOutput.education.length >= 1);
-      const eduRecord = realMcpOutput.education[0];
-      assert.ok(
-        eduRecord.degree?.includes('Rajkiya Engineering College') ||
-          eduRecord.institution?.includes('Rajkiya Engineering College')
-      );
-
-      // Q6: What degree / coursework information exists?
-      assert.ok(
-        realMcpOutput.education.some((e) =>
-          (e.institution + ' ' + (e.degree || '')).includes('Bachelor of Technology')
-        )
-      );
-
-      // Q7: When do I graduate?
-      assert.ok(
-        realMcpOutput.education.some(
-          (e) => (e.fieldOfStudy || '').includes('2025') || (e.endDate || '').includes('2025')
-        )
-      );
-
-      // Q8: What coursework information is present?
-      assert.ok(
-        realMcpOutput.education.some(
-          (e) => (e.degree || '').includes('Coursework') || e.coursework.length > 0
-        )
-      );
-
-      // Q9 & Q10: Certifications and Languages (present as arrays)
-      assert.ok(Array.isArray(realMcpOutput.certifications));
-      assert.ok(Array.isArray(realMcpOutput.languages));
-
-      // Q11: What jobs am I seeking?
-      assert.ok(realMcpOutput.jobPreferences.targetRoles.length > 0);
-      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Backend Engineer'));
-      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Full Stack Engineer'));
-      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Software Engineer'));
-
-      // Portfolio Links
-      assert.ok(realMcpOutput.portfolioLinks.length >= 3);
-      const ghLink = realMcpOutput.portfolioLinks.find((l) => l.label === 'GITHUB');
-      assert.ok(ghLink);
-      assert.strictEqual(ghLink.url, 'https://github.com/vishu1803');
-
-      // Q12, Q13, Q14: Skills Verification & Corroboration
-      const reactSkill = realMcpOutput.topSkills.find((s) => s.slug === 'react');
-      assert.ok(reactSkill, 'React must be in topSkills');
-      assert.strictEqual(
-        reactSkill.provenanceStatus,
-        'CORROBORATED',
-        'React with 34 GitHub citations must be CORROBORATED'
-      );
-
-      const postgresSkill = realMcpOutput.topSkills.find((s) => s.slug === 'postgresql');
-      assert.ok(postgresSkill, 'PostgreSQL must be in topSkills');
-      assert.strictEqual(
-        postgresSkill.provenanceStatus,
-        'CORROBORATED',
-        'PostgreSQL with 13 GitHub citations must be CORROBORATED'
-      );
-
-      const fastapiSkill = realMcpOutput.topSkills.find((s) => s.slug === 'fastapi');
-      assert.ok(fastapiSkill, 'FastAPI must be in topSkills');
-      assert.strictEqual(
-        fastapiSkill.provenanceStatus,
-        'CORROBORATED',
-        'FastAPI with 9 citations + resume claim must be CORROBORATED'
-      );
-
-      const fastifySkill = realMcpOutput.topSkills.find((s) => s.slug === 'fastify');
-      assert.ok(fastifySkill, 'Fastify must be in topSkills');
-      assert.strictEqual(
-        fastifySkill.provenanceStatus,
-        'VERIFIED',
-        'Fastify with GitHub code only must be VERIFIED'
-      );
-
-      const pythonSkill = realMcpOutput.topSkills.find((s) => s.slug === 'python');
-      assert.ok(pythonSkill, 'Python must be in topSkills');
-      assert.ok(
-        ['CLAIMED', 'CORROBORATED'].includes(pythonSkill.provenanceStatus),
-        'Python must be CLAIMED or CORROBORATED'
-      );
-
-      // Q15, Q16, Q17: Strongest projects, technologies used, and repository URLs
-      assert.ok(realMcpOutput.highlightedProjects.length > 0);
-      const pythonProj = realMcpOutput.highlightedProjects.find((p) =>
-        p.name.includes('Python-projects')
-      );
-      assert.ok(pythonProj, 'Python-projects must be present');
-      assert.ok(Array.isArray(pythonProj.technologies));
-      assert.strictEqual(pythonProj.repositoryUrl, 'https://github.com/vishu1803/Python-projects');
-
-      // Readiness separation
-      assert.ok(realMcpOutput.profileReadiness);
-      assert.ok(realMcpOutput.jobSearchReadiness);
-      assert.strictEqual(realMcpOutput.profileReadiness.score, 100);
-      assert.strictEqual(realMcpOutput.profileReadiness.isComplete, true);
-      assert.strictEqual(realMcpOutput.jobSearchReadiness.isReadyForJobSearch, true);
-      assert.ok(realMcpOutput.jobSearchReadiness.score >= 90);
-
-      // Payload size check on real candidate data
-      const jsonBytes = Buffer.byteLength(JSON.stringify(realMcpOutput), 'utf8');
-      assert.ok(
-        jsonBytes < 15360,
-        `Real candidate profile JSON size ${jsonBytes} bytes must be under 15KB`
-      );
-    });
-
-    after(async () => {
-      await closeDatabase();
+      assert.ok(output.highlightedProjects.length > 0);
+      assert.ok(Array.isArray(output.highlightedProjects[0].technologies));
+      assert.ok(output.highlightedProjects[0].repositoryUrl);
+      assert.ok(output.profileReadiness);
+      assert.ok(output.jobSearchReadiness);
+      assert.ok(Buffer.byteLength(JSON.stringify(output), 'utf8') < 15360);
     });
   });
 });

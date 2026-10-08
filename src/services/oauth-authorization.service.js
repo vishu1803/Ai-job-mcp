@@ -14,7 +14,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   oauthClients,
@@ -26,6 +26,12 @@ import {
 import { config } from '../config/env.js';
 import { AuthenticationError, AuthorizationError, ValidationError } from '../errors/index.js';
 import { ROLE_SCOPE_CEILINGS } from './mcp-api-token.service.js';
+import {
+  lockOAuthFamily,
+  oauthSecurityEvent,
+  revokeLockedOAuthFamily,
+  revokeOAuthFamily,
+} from '../db/repositories/oauth-credential.repository.js';
 
 /**
  * Pre-configured OAuth 2.1 Clients for Anthropic Claude and OpenAI ChatGPT.
@@ -609,143 +615,164 @@ export class OAuthAuthorizationService {
     }
 
     const codeHash = hashOAuthToken(code);
-    const now = new Date();
-
-    const [authCodeRecord] = await database
-      .select()
-      .from(oauthAuthorizationCodes)
-      .where(
-        and(
-          eq(oauthAuthorizationCodes.clientId, clientId),
-          eq(oauthAuthorizationCodes.codeHash, codeHash)
+    const result = await database.transaction(async (database) => {
+      const [authCodeRecord] = await database
+        .select()
+        .from(oauthAuthorizationCodes)
+        .where(
+          and(
+            eq(oauthAuthorizationCodes.clientId, clientId),
+            eq(oauthAuthorizationCodes.codeHash, codeHash)
+          )
         )
-      )
-      .limit(1);
+        .limit(1)
+        .for('update');
 
-    if (!authCodeRecord) {
-      throw new AuthenticationError('Invalid authorization code.', 'INVALID_GRANT');
-    }
+      // Evaluate expiry after any lock wait using PostgreSQL's current clock.
+      const time = await database.execute(sql`SELECT clock_timestamp() AS now`);
+      const now = new Date(time.rows[0].now);
 
-    if (authCodeRecord.isConsumed) {
-      throw new AuthenticationError(
-        'Authorization code has already been consumed.',
-        'INVALID_GRANT'
+      if (!authCodeRecord) {
+        throw new AuthenticationError('Invalid authorization code.', 'INVALID_GRANT');
+      }
+
+      if (authCodeRecord.isConsumed) {
+        await oauthSecurityEvent(database, authCodeRecord, 'oauth.code.replay_rejected');
+        return new AuthenticationError(
+          'Authorization code has already been consumed.',
+          'INVALID_GRANT'
+        );
+      }
+
+      if (authCodeRecord.expiresAt <= now) {
+        throw new AuthenticationError('Authorization code has expired.', 'INVALID_GRANT');
+      }
+
+      if (authCodeRecord.redirectUri !== redirectUri) {
+        throw new AuthenticationError(
+          'redirect_uri does not match authorization code issuance.',
+          'INVALID_GRANT'
+        );
+      }
+
+      // RFC 8707 Resource verification
+      if (!resource) {
+        throw new AuthenticationError(
+          'resource parameter is required for authorization_code token exchange.',
+          'INVALID_TARGET'
+        );
+      }
+
+      if (!isMatchingResource(resource, authCodeRecord.resource)) {
+        throw new AuthenticationError(
+          `Requested resource "${resource}" does not match authorization code binding "${authCodeRecord.resource}".`,
+          'INVALID_TARGET'
+        );
+      }
+
+      const expectedResource = this.getExpectedResourceUrl();
+      if (!isMatchingResource(resource, expectedResource)) {
+        throw new AuthenticationError(
+          `Resource "${resource}" is not served by this MCP server.`,
+          'INVALID_TARGET'
+        );
+      }
+
+      const isPkceValid = verifyCodeChallenge(
+        codeVerifier,
+        authCodeRecord.codeChallenge,
+        authCodeRecord.codeChallengeMethod
       );
-    }
 
-    if (authCodeRecord.expiresAt < now) {
-      throw new AuthenticationError('Authorization code has expired.', 'INVALID_GRANT');
-    }
+      if (!isPkceValid) {
+        throw new AuthenticationError(
+          'PKCE verification failed: invalid code_verifier.',
+          'INVALID_GRANT'
+        );
+      }
 
-    if (authCodeRecord.redirectUri !== redirectUri) {
-      throw new AuthenticationError(
-        'redirect_uri does not match authorization code issuance.',
-        'INVALID_GRANT'
-      );
-    }
+      // Verify user and tenant state
+      const [user] = await database
+        .select()
+        .from(users)
+        .where(
+          and(eq(users.id, authCodeRecord.userId), eq(users.tenantId, authCodeRecord.tenantId))
+        )
+        .limit(1);
 
-    // RFC 8707 Resource verification
-    if (!resource) {
-      throw new AuthenticationError(
-        'resource parameter is required for authorization_code token exchange.',
-        'INVALID_TARGET'
-      );
-    }
+      const [tenant] = await database
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, authCodeRecord.tenantId))
+        .limit(1);
 
-    if (!isMatchingResource(resource, authCodeRecord.resource)) {
-      throw new AuthenticationError(
-        `Requested resource "${resource}" does not match authorization code binding "${authCodeRecord.resource}".`,
-        'INVALID_TARGET'
-      );
-    }
+      if (!user || user.status !== 'ACTIVE' || !tenant) {
+        throw new AuthenticationError('User or tenant account is inactive.', 'INVALID_GRANT');
+      }
 
-    const expectedResource = this.getExpectedResourceUrl();
-    if (!isMatchingResource(resource, expectedResource)) {
-      throw new AuthenticationError(
-        `Resource "${resource}" is not served by this MCP server.`,
-        'INVALID_TARGET'
-      );
-    }
+      // Re-verify role scope ceiling
+      const allowedRoleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
+      const finalScopes = authCodeRecord.scopes.filter((s) => allowedRoleScopes.includes(s));
 
-    const isPkceValid = verifyCodeChallenge(
-      codeVerifier,
-      authCodeRecord.codeChallenge,
-      authCodeRecord.codeChallengeMethod
-    );
+      const [consumed] = await database
+        .update(oauthAuthorizationCodes)
+        .set({ isConsumed: true, consumedAt: now })
+        .where(
+          and(
+            eq(oauthAuthorizationCodes.id, authCodeRecord.id),
+            eq(oauthAuthorizationCodes.isConsumed, false),
+            gt(oauthAuthorizationCodes.expiresAt, sql`clock_timestamp()`)
+          )
+        )
+        .returning({ id: oauthAuthorizationCodes.id });
+      if (!consumed) throw new AuthenticationError('Invalid authorization code.', 'INVALID_GRANT');
 
-    if (!isPkceValid) {
-      throw new AuthenticationError(
-        'PKCE verification failed: invalid code_verifier.',
-        'INVALID_GRANT'
-      );
-    }
+      // Issue tokens
+      const familyId = crypto.randomUUID();
+      const rawAccessToken = `mcp_oauth_acc_${crypto.randomBytes(32).toString('hex')}`;
+      const rawRefreshToken = `mcp_oauth_ref_${crypto.randomBytes(32).toString('hex')}`;
 
-    // Mark code as consumed immediately
-    await database
-      .update(oauthAuthorizationCodes)
-      .set({
-        isConsumed: true,
-        consumedAt: now,
-      })
-      .where(eq(oauthAuthorizationCodes.id, authCodeRecord.id));
+      const accessTokenHash = hashOAuthToken(rawAccessToken);
+      const refreshTokenHash = hashOAuthToken(rawRefreshToken);
 
-    // Verify user and tenant state
-    const [user] = await database
-      .select()
-      .from(users)
-      .where(eq(users.id, authCodeRecord.userId))
-      .limit(1);
+      const accessTtlSeconds = this.config.OAUTH_ACCESS_TOKEN_TTL_SECONDS || 3600;
+      const refreshTtlSeconds = this.config.OAUTH_REFRESH_TOKEN_TTL_SECONDS || 2592000;
 
-    const [tenant] = await database
-      .select()
-      .from(tenants)
-      .where(eq(tenants.id, authCodeRecord.tenantId))
-      .limit(1);
+      const accessTokenExpiresAt = new Date(now.getTime() + accessTtlSeconds * 1000);
+      const refreshTokenExpiresAt = new Date(now.getTime() + refreshTtlSeconds * 1000);
+      const boundResource = canonicalizeResourceUrl(resource);
 
-    if (!user || user.status !== 'ACTIVE' || !tenant) {
-      throw new AuthenticationError('User or tenant account is inactive.', 'INVALID_GRANT');
-    }
+      const tokenId = crypto.randomUUID();
+      await database.insert(oauthTokens).values({
+        id: tokenId,
+        authorizationCodeId: authCodeRecord.id,
+        tenantId: tenant.id,
+        userId: user.id,
+        clientId,
+        accessTokenHash,
+        refreshTokenHash,
+        familyId,
+        resource: boundResource,
+        tokenScopes: finalScopes,
+        isRevoked: false,
+        accessTokenExpiresAt,
+        refreshTokenExpiresAt,
+      });
+      await oauthSecurityEvent(database, { ...authCodeRecord, familyId }, 'oauth.code.redeemed', {
+        tokenId,
+      });
 
-    // Re-verify role scope ceiling
-    const allowedRoleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
-    const finalScopes = authCodeRecord.scopes.filter((s) => allowedRoleScopes.includes(s));
-
-    // Issue tokens
-    const familyId = crypto.randomUUID();
-    const rawAccessToken = `mcp_oauth_acc_${crypto.randomBytes(32).toString('hex')}`;
-    const rawRefreshToken = `mcp_oauth_ref_${crypto.randomBytes(32).toString('hex')}`;
-
-    const accessTokenHash = hashOAuthToken(rawAccessToken);
-    const refreshTokenHash = hashOAuthToken(rawRefreshToken);
-
-    const accessTtlSeconds = this.config.OAUTH_ACCESS_TOKEN_TTL_SECONDS || 3600;
-    const refreshTtlSeconds = this.config.OAUTH_REFRESH_TOKEN_TTL_SECONDS || 2592000;
-
-    const accessTokenExpiresAt = new Date(now.getTime() + accessTtlSeconds * 1000);
-    const refreshTokenExpiresAt = new Date(now.getTime() + refreshTtlSeconds * 1000);
-    const boundResource = canonicalizeResourceUrl(resource);
-
-    await database.insert(oauthTokens).values({
-      tenantId: tenant.id,
-      userId: user.id,
-      clientId,
-      accessTokenHash,
-      refreshTokenHash,
-      familyId,
-      resource: boundResource,
-      tokenScopes: finalScopes,
-      isRevoked: false,
-      accessTokenExpiresAt,
-      refreshTokenExpiresAt,
+      return {
+        access_token: rawAccessToken,
+        token_type: 'Bearer',
+        expires_in: accessTtlSeconds,
+        refresh_token: rawRefreshToken,
+        scope: finalScopes.join(' '),
+      };
     });
-
-    return {
-      access_token: rawAccessToken,
-      token_type: 'Bearer',
-      expires_in: accessTtlSeconds,
-      refresh_token: rawRefreshToken,
-      scope: finalScopes.join(' '),
-    };
+    // Only release credentials after COMMIT acknowledgement. Never auto-retry.
+    if (result instanceof AuthenticationError) throw result;
+    return result;
   }
 
   /**
@@ -755,12 +782,13 @@ export class OAuthAuthorizationService {
    * @param {string} params.clientId Client ID
    * @param {string} params.refreshToken Raw refresh token
    * @param {string} [params.resource] Optional resource indicator to validate
+   * @param {string} [params.scope] Optional non-expanding subset of original scopes
    * @param {object} [options={}] Options override
    * @returns {Promise<object>} New Token response object
    */
   async refreshAccessToken(params, options = {}) {
     const database = options.db || this.db;
-    const { clientId, refreshToken, resource } = params;
+    const { clientId, refreshToken, resource, scope } = params;
 
     const client = await this.getClient(clientId, options);
     if (!client) {
@@ -768,124 +796,168 @@ export class OAuthAuthorizationService {
     }
 
     const refreshTokenHash = hashOAuthToken(refreshToken);
-    const now = new Date();
 
-    const [tokenRecord] = await database
-      .select()
-      .from(oauthTokens)
-      .where(
-        and(eq(oauthTokens.clientId, clientId), eq(oauthTokens.refreshTokenHash, refreshTokenHash))
-      )
-      .limit(1);
+    const result = await database.transaction(async (database) => {
+      // Read only the immutable family identity before taking the family lock.
+      const [identity] = await database
+        .select()
+        .from(oauthTokens)
+        .where(
+          and(
+            eq(oauthTokens.clientId, clientId),
+            eq(oauthTokens.refreshTokenHash, refreshTokenHash)
+          )
+        )
+        .limit(1);
+      if (!identity) throw new AuthenticationError('Invalid refresh token.', 'INVALID_GRANT');
+      await lockOAuthFamily(database, identity.familyId);
 
-    if (!tokenRecord) {
-      throw new AuthenticationError('Invalid refresh token.', 'INVALID_GRANT');
-    }
+      const [tokenRecord] = await database
+        .select()
+        .from(oauthTokens)
+        .where(
+          and(
+            eq(oauthTokens.clientId, clientId),
+            eq(oauthTokens.refreshTokenHash, refreshTokenHash)
+          )
+        )
+        .limit(1)
+        .for('update');
 
-    // Refresh Token Replay / Theft Detection:
-    // If the token was already revoked, someone is trying to reuse an old refresh token!
-    // Invalidate the entire token family immediately.
-    if (tokenRecord.isRevoked) {
-      await database
+      const time = await database.execute(sql`SELECT clock_timestamp() AS now`);
+      const now = new Date(time.rows[0].now);
+
+      if (!tokenRecord) {
+        throw new AuthenticationError('Invalid refresh token.', 'INVALID_GRANT');
+      }
+
+      // Refresh Token Replay / Theft Detection:
+      // If the token was already revoked, someone is trying to reuse an old refresh token!
+      // Invalidate the entire token family immediately.
+      if (tokenRecord.isRevoked || tokenRecord.rotatedAt || tokenRecord.familyRevokedAt) {
+        await revokeLockedOAuthFamily(database, tokenRecord, now);
+        await oauthSecurityEvent(database, tokenRecord, 'oauth.refresh.replay_rejected', {
+          suspiciousReplay: true,
+        });
+        // Return the error as a value so the revocation transaction COMMITS.
+        return new AuthenticationError(
+          'Refresh token replay detected. Entire token family has been revoked.',
+          'INVALID_GRANT'
+        );
+      }
+
+      if (!tokenRecord.refreshTokenExpiresAt || tokenRecord.refreshTokenExpiresAt <= now) {
+        throw new AuthenticationError('Refresh token has expired.', 'INVALID_GRANT');
+      }
+
+      // RFC 8707 Resource validation during refresh (if specified by client)
+      if (resource) {
+        if (!isMatchingResource(resource, tokenRecord.resource)) {
+          throw new AuthenticationError(
+            `Requested resource "${resource}" does not match original token resource binding "${tokenRecord.resource}".`,
+            'INVALID_TARGET'
+          );
+        }
+        const expectedResource = this.getExpectedResourceUrl();
+        if (!isMatchingResource(resource, expectedResource)) {
+          throw new AuthenticationError(
+            `Resource "${resource}" is not served by this MCP server.`,
+            'INVALID_TARGET'
+          );
+        }
+      }
+
+      // Verify active user/tenant
+      const [user] = await database
+        .select()
+        .from(users)
+        .where(and(eq(users.id, tokenRecord.userId), eq(users.tenantId, tokenRecord.tenantId)))
+        .limit(1);
+
+      const [tenant] = await database
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, tokenRecord.tenantId))
+        .limit(1);
+
+      if (!user || user.status !== 'ACTIVE' || !tenant) {
+        throw new AuthenticationError('User or tenant account is inactive.', 'INVALID_GRANT');
+      }
+
+      const allowedRoleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
+      const requestedScopes =
+        scope === undefined ? tokenRecord.tokenScopes : scope.trim().split(/\s+/).filter(Boolean);
+      if (requestedScopes.some((s) => !tokenRecord.tokenScopes.includes(s))) {
+        throw new AuthenticationError(
+          'Requested scopes exceed the original grant.',
+          'INVALID_SCOPE'
+        );
+      }
+      const finalScopes = requestedScopes.filter((s) => allowedRoleScopes.includes(s));
+
+      const [rotated] = await database
         .update(oauthTokens)
         .set({
           isRevoked: true,
           revokedAt: now,
+          rotatedAt: now,
           updatedAt: now,
         })
-        .where(eq(oauthTokens.familyId, tokenRecord.familyId));
+        .where(
+          and(
+            eq(oauthTokens.id, tokenRecord.id),
+            eq(oauthTokens.isRevoked, false),
+            isNull(oauthTokens.rotatedAt),
+            isNull(oauthTokens.familyRevokedAt),
+            gt(oauthTokens.refreshTokenExpiresAt, sql`clock_timestamp()`)
+          )
+        )
+        .returning({ id: oauthTokens.id });
+      if (!rotated) throw new AuthenticationError('Invalid refresh token.', 'INVALID_GRANT');
 
-      throw new AuthenticationError(
-        'Refresh token replay detected. Entire token family has been revoked.',
-        'INVALID_GRANT'
-      );
-    }
+      // Issue new pair in the same family with identical bound resource
+      const rawAccessToken = `mcp_oauth_acc_${crypto.randomBytes(32).toString('hex')}`;
+      const rawRefreshToken = `mcp_oauth_ref_${crypto.randomBytes(32).toString('hex')}`;
 
-    if (tokenRecord.refreshTokenExpiresAt && tokenRecord.refreshTokenExpiresAt < now) {
-      throw new AuthenticationError('Refresh token has expired.', 'INVALID_GRANT');
-    }
+      const newAccessTokenHash = hashOAuthToken(rawAccessToken);
+      const newRefreshTokenHash = hashOAuthToken(rawRefreshToken);
 
-    // RFC 8707 Resource validation during refresh (if specified by client)
-    if (resource) {
-      if (!isMatchingResource(resource, tokenRecord.resource)) {
-        throw new AuthenticationError(
-          `Requested resource "${resource}" does not match original token resource binding "${tokenRecord.resource}".`,
-          'INVALID_TARGET'
-        );
-      }
-      const expectedResource = this.getExpectedResourceUrl();
-      if (!isMatchingResource(resource, expectedResource)) {
-        throw new AuthenticationError(
-          `Resource "${resource}" is not served by this MCP server.`,
-          'INVALID_TARGET'
-        );
-      }
-    }
+      const accessTtlSeconds = this.config.OAUTH_ACCESS_TOKEN_TTL_SECONDS || 3600;
+      const refreshTtlSeconds = this.config.OAUTH_REFRESH_TOKEN_TTL_SECONDS || 2592000;
 
-    // Invalidate previous token
-    await database
-      .update(oauthTokens)
-      .set({
-        isRevoked: true,
-        revokedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(oauthTokens.id, tokenRecord.id));
+      const accessTokenExpiresAt = new Date(now.getTime() + accessTtlSeconds * 1000);
+      const refreshTokenExpiresAt = new Date(now.getTime() + refreshTtlSeconds * 1000);
 
-    // Verify active user/tenant
-    const [user] = await database
-      .select()
-      .from(users)
-      .where(eq(users.id, tokenRecord.userId))
-      .limit(1);
+      const tokenId = crypto.randomUUID();
+      await database.insert(oauthTokens).values({
+        id: tokenId,
+        predecessorId: tokenRecord.id,
+        tenantId: tenant.id,
+        userId: user.id,
+        clientId,
+        accessTokenHash: newAccessTokenHash,
+        refreshTokenHash: newRefreshTokenHash,
+        familyId: tokenRecord.familyId,
+        resource: tokenRecord.resource,
+        tokenScopes: finalScopes,
+        isRevoked: false,
+        accessTokenExpiresAt,
+        refreshTokenExpiresAt,
+      });
+      await oauthSecurityEvent(database, tokenRecord, 'oauth.refresh.rotated', {
+        successorId: tokenId,
+      });
 
-    const [tenant] = await database
-      .select()
-      .from(tenants)
-      .where(eq(tenants.id, tokenRecord.tenantId))
-      .limit(1);
-
-    if (!user || user.status !== 'ACTIVE' || !tenant) {
-      throw new AuthenticationError('User or tenant account is inactive.', 'INVALID_GRANT');
-    }
-
-    const allowedRoleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
-    const finalScopes = tokenRecord.tokenScopes.filter((s) => allowedRoleScopes.includes(s));
-
-    // Issue new pair in the same family with identical bound resource
-    const rawAccessToken = `mcp_oauth_acc_${crypto.randomBytes(32).toString('hex')}`;
-    const rawRefreshToken = `mcp_oauth_ref_${crypto.randomBytes(32).toString('hex')}`;
-
-    const newAccessTokenHash = hashOAuthToken(rawAccessToken);
-    const newRefreshTokenHash = hashOAuthToken(rawRefreshToken);
-
-    const accessTtlSeconds = this.config.OAUTH_ACCESS_TOKEN_TTL_SECONDS || 3600;
-    const refreshTtlSeconds = this.config.OAUTH_REFRESH_TOKEN_TTL_SECONDS || 2592000;
-
-    const accessTokenExpiresAt = new Date(now.getTime() + accessTtlSeconds * 1000);
-    const refreshTokenExpiresAt = new Date(now.getTime() + refreshTtlSeconds * 1000);
-
-    await database.insert(oauthTokens).values({
-      tenantId: tenant.id,
-      userId: user.id,
-      clientId,
-      accessTokenHash: newAccessTokenHash,
-      refreshTokenHash: newRefreshTokenHash,
-      familyId: tokenRecord.familyId,
-      resource: tokenRecord.resource,
-      tokenScopes: finalScopes,
-      isRevoked: false,
-      accessTokenExpiresAt,
-      refreshTokenExpiresAt,
+      return {
+        access_token: rawAccessToken,
+        token_type: 'Bearer',
+        expires_in: accessTtlSeconds,
+        refresh_token: rawRefreshToken,
+        scope: finalScopes.join(' '),
+      };
     });
-
-    return {
-      access_token: rawAccessToken,
-      token_type: 'Bearer',
-      expires_in: accessTtlSeconds,
-      refresh_token: rawRefreshToken,
-      scope: finalScopes.join(' '),
-    };
+    if (result instanceof AuthenticationError) throw result;
+    return result;
   }
 
   /**
@@ -910,14 +982,17 @@ export class OAuthAuthorizationService {
       .limit(1);
 
     if (accessMatch) {
-      await database
-        .update(oauthTokens)
-        .set({
-          isRevoked: true,
-          revokedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(oauthTokens.id, accessMatch.id));
+      await database.transaction(async (tx) => {
+        await lockOAuthFamily(tx, accessMatch.familyId);
+        await tx
+          .update(oauthTokens)
+          .set({
+            isRevoked: true,
+            revokedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(oauthTokens.id, accessMatch.id));
+      });
       return { revoked: true };
     }
 
@@ -929,14 +1004,7 @@ export class OAuthAuthorizationService {
 
     if (refreshMatch) {
       // Revoke entire token family on refresh token revocation
-      await database
-        .update(oauthTokens)
-        .set({
-          isRevoked: true,
-          revokedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(oauthTokens.familyId, refreshMatch.familyId));
+      await revokeOAuthFamily(database, refreshMatch);
       return { revoked: true };
     }
 
@@ -984,7 +1052,13 @@ export class OAuthAuthorizationService {
     const [user] = await database
       .select()
       .from(users)
-      .where(and(eq(users.id, tokenRecord.userId), eq(users.status, 'ACTIVE')))
+      .where(
+        and(
+          eq(users.id, tokenRecord.userId),
+          eq(users.tenantId, tokenRecord.tenantId),
+          eq(users.status, 'ACTIVE')
+        )
+      )
       .limit(1);
 
     if (!user) {

@@ -3816,7 +3816,9 @@ export default async function webRoutes(app, opts = {}) {
 
     if (!application) {
       if (isJsonClient) {
-        return reply.code(404).send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
+        return reply
+          .code(404)
+          .send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
       }
       return reply.code(404).send('Application not found or unauthorized');
     }
@@ -3881,7 +3883,10 @@ export default async function webRoutes(app, opts = {}) {
         `/applications/${appId}/handoff?success=Application+successfully+submitted+and+prepared`
       );
     } catch (err) {
-      req.log.error({ err: err.message, code: err.code, appId }, 'Canonical application submit failed');
+      req.log.error(
+        { err: err.message, code: err.code, appId },
+        'Canonical application submit failed'
+      );
       const statusCode =
         err.code === 'APPROVAL_TICKET_REQUIRED' || err.code === 'FORBIDDEN_TICKET_MISMATCH'
           ? 403
@@ -3900,7 +3905,10 @@ export default async function webRoutes(app, opts = {}) {
       }
       return reply.redirect(
         `/applications/${appId}/apply?step=review&error=${encodeURIComponent(
-          sanitizeErrorMessage(err, "We couldn't submit your application. Please check your details and try again.")
+          sanitizeErrorMessage(
+            err,
+            "We couldn't submit your application. Please check your details and try again."
+          )
         )}`
       );
     }
@@ -3937,7 +3945,9 @@ export default async function webRoutes(app, opts = {}) {
 
     if (!application) {
       if (isJsonClient) {
-        return reply.code(404).send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
+        return reply
+          .code(404)
+          .send({ error: 'NOT_FOUND', message: 'Application not found or unauthorized' });
       }
       return reply.code(404).send('Application not found or unauthorized');
     }
@@ -3975,7 +3985,9 @@ export default async function webRoutes(app, opts = {}) {
       req.log.error({ err: err.message, code: err.code, appId }, 'Approval ticket request failed');
       const statusCode = err.code === 'FORBIDDEN' ? 403 : 400;
       if (isJsonClient) {
-        return reply.code(statusCode).send({ error: err.code || 'APPROVAL_FAILED', message: err.message });
+        return reply
+          .code(statusCode)
+          .send({ error: err.code || 'APPROVAL_FAILED', message: err.message });
       }
       return reply.redirect(
         `/applications/${appId}/apply?step=review&error=${encodeURIComponent(
@@ -4101,6 +4113,9 @@ export default async function webRoutes(app, opts = {}) {
       role: user.role || 'MEMBER',
     };
 
+    application.metadata = (
+      await applicationTrackingService.getApplication(context, appId)
+    ).metadata;
     // Separate CURRENT VIEW from VERSION HISTORY VIEW (Phase 6)
     const viewingVersion = req.query.version ? Number(req.query.version) : null;
     const includeHistory = req.query.history === 'true';
@@ -4623,6 +4638,31 @@ export default async function webRoutes(app, opts = {}) {
       return reply.code(404).send({ error: 'Application not found or unauthorized' });
     }
 
+    let artifactPackage;
+    try {
+      const artifactContext = {
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        role: user.role || 'MEMBER',
+      };
+      artifactPackage =
+        packageHashParam || versionParam
+          ? (
+              await applicationTrackingService.getApplicationPackageByVersion(
+                artifactContext,
+                appId,
+                packageHashParam || versionParam
+              )
+            ).package
+          : await applicationTrackingService.getCurrentApplicationPackage(artifactContext, appId);
+      if (!artifactPackage) throw new Error('Missing current-policy package');
+    } catch (error) {
+      return reply.code(error.code === 'NOT_FOUND' ? 404 : 409).send({
+        code: error.code || 'ARTIFACT_REVALIDATION_REQUIRED',
+        error: 'Artifact unavailable; regenerate and review under current evidence policy',
+      });
+    }
     let storageKey = null;
     let filename = 'document.pdf';
     let mimeType = 'application/pdf';
@@ -4717,6 +4757,8 @@ export default async function webRoutes(app, opts = {}) {
     try {
       const buffer = await documentStorageService.getDecryptedDocument({
         tenantId: tenant.id,
+        candidateId: candidate.id,
+        expectedPackageHash: artifactPackage.packageHash,
         storageKey,
       });
 
@@ -4731,6 +4773,12 @@ export default async function webRoutes(app, opts = {}) {
         .send(buffer);
     } catch (err) {
       req.log.error({ error: err.message }, 'Failed to retrieve decrypted document artifact');
+      if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED' || err.code === 'FORBIDDEN') {
+        return reply.code(409).send({
+          code: 'ARTIFACT_REVALIDATION_REQUIRED',
+          error: 'Artifact quarantined; regenerate and obtain fresh review',
+        });
+      }
       return reply.code(500).send({ error: 'Failed to stream document' });
     }
   });
@@ -4768,6 +4816,31 @@ export default async function webRoutes(app, opts = {}) {
     // -------------------------------------------------------------------------
     // Full Handoff Kit ZIP Bundle Download
     // -------------------------------------------------------------------------
+    let artifactPackage;
+    try {
+      const artifactContext = {
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        role: user.role || 'MEMBER',
+      };
+      artifactPackage =
+        packageHashParam || versionParam
+          ? (
+              await applicationTrackingService.getApplicationPackageByVersion(
+                artifactContext,
+                appId,
+                packageHashParam || versionParam
+              )
+            ).package
+          : await applicationTrackingService.getCurrentApplicationPackage(artifactContext, appId);
+      if (!artifactPackage) throw new Error('Missing current-policy package');
+    } catch (error) {
+      return reply.code(error.code === 'NOT_FOUND' ? 404 : 409).send({
+        code: error.code || 'ARTIFACT_REVALIDATION_REQUIRED',
+        error: 'Artifact unavailable; regenerate and review under current evidence policy',
+      });
+    }
     if (artifactType === 'bundle' || artifactType === 'handoff-kit') {
       const handoffKit = application.metadata?.handoffKit;
       const entries = [];
@@ -4818,6 +4891,8 @@ export default async function webRoutes(app, opts = {}) {
         try {
           const resumeBuf = await documentStorageService.getDecryptedDocument({
             tenantId: tenant.id,
+            candidateId: candidate.id,
+            expectedPackageHash: artifactPackage.packageHash,
             storageKey: resumeKey,
           });
           const defaultResumeName = buildApplicationArtifactFilename({
@@ -4840,6 +4915,8 @@ export default async function webRoutes(app, opts = {}) {
         try {
           const clBuf = await documentStorageService.getDecryptedDocument({
             tenantId: tenant.id,
+            candidateId: candidate.id,
+            expectedPackageHash: artifactPackage.packageHash,
             storageKey: clKey,
           });
           const defaultClName = buildApplicationArtifactFilename({
@@ -4862,6 +4939,8 @@ export default async function webRoutes(app, opts = {}) {
         try {
           const texBuf = await documentStorageService.getDecryptedDocument({
             tenantId: tenant.id,
+            candidateId: candidate.id,
+            expectedPackageHash: artifactPackage.packageHash,
             storageKey: texKey,
           });
           const defaultTexName = buildApplicationArtifactFilename({
@@ -5050,6 +5129,8 @@ export default async function webRoutes(app, opts = {}) {
     try {
       const buffer = await documentStorageService.getDecryptedDocument({
         tenantId: tenant.id,
+        candidateId: candidate.id,
+        expectedPackageHash: artifactPackage.packageHash,
         storageKey,
       });
 
@@ -5066,6 +5147,12 @@ export default async function webRoutes(app, opts = {}) {
         { error: err.message },
         'Failed to retrieve decrypted document artifact for download'
       );
+      if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED' || err.code === 'FORBIDDEN') {
+        return reply.code(409).send({
+          code: 'ARTIFACT_REVALIDATION_REQUIRED',
+          error: 'Artifact quarantined; regenerate and obtain fresh review',
+        });
+      }
       return reply.code(500).send({ error: 'Failed to download document' });
     }
   });

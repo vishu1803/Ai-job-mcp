@@ -596,7 +596,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       : candidate.canonicalFactType ||
         classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
 
-    const provenance = candidate.provenance || 'USER_PROVIDED';
+    // Repository descriptions/technology signals are not independently verified
+    // personal accomplishments. Candidate narrative remains a self-report.
+    const provenance = candidate.candidateAuthored === true ? 'CLAIMED' : 'INFERRED';
     const confidence =
       typeof candidate.confidence === 'number'
         ? candidate.confidence
@@ -672,10 +674,11 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       '';
 
     const isRenderable =
-      candidate.renderable ??
-      (!isTechFact &&
-        candidate.factType !== 'external-corroboration' &&
-        candidate.factType !== CANONICAL_FACT_TYPES.LINK);
+      candidate.candidateAuthored === true &&
+      (candidate.renderable ??
+        (!isTechFact &&
+          candidate.factType !== 'external-corroboration' &&
+          candidate.factType !== CANONICAL_FACT_TYPES.LINK));
 
     const evidenceRole =
       candidate.evidenceRole ||
@@ -717,8 +720,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       omissionReason: candidate.omissionReason || null,
       usedByClaimIds: candidate.usedByClaimIds || [],
       candidateAuthored: candidate.candidateAuthored === true,
-      corroborated:
-        candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
+      corroborated: false,
       renderable: isRenderable,
       measurable: candidate.measurable ?? isMeasurableFact(text),
       evidenceRefs: Array.isArray(candidate.evidenceRefs) ? candidate.evidenceRefs : [],
@@ -1581,11 +1583,5 @@ function mergeSources(existing, candidate) {
     if (r?.evidenceId) refs.set(r.evidenceId, r);
   }
   existing.evidenceRefs = [...refs.values()];
-  if (
-    candidate.provenance &&
-    existing.provenance !== 'VERIFIED' &&
-    candidate.provenance === 'VERIFIED'
-  ) {
-    existing.provenance = 'VERIFIED';
-  }
+  // Merging copies of an assertion is not independent verification.
 }

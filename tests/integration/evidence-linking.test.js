@@ -297,7 +297,7 @@ describe('Live Evidence Linking Engine Integration Tests (P4-004)', () => {
       assert.ok(result.candidateSkill);
       assert.strictEqual(result.candidateSkill.skillId, skillFastify.id);
       assert.strictEqual(result.candidateSkill.primaryEvidenceId, evidenceManifestA.id);
-      assert.strictEqual(result.candidateSkill.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(result.candidateSkill.provenanceStatus, 'INFERRED');
       assert.strictEqual(result.candidateSkill.confidenceScore, 0.85); // 1.0 * (0.8 + 0.05 * 1) = 0.85
       assert.strictEqual(result.candidateSkill.evidenceCount, 1);
 
@@ -334,7 +334,7 @@ describe('Live Evidence Linking Engine Integration Tests (P4-004)', () => {
       assert.strictEqual(result.candidateSkill.primaryEvidenceId, evidenceManifestA.id);
       // Rollup score increments to 1.0 * (0.8 + 0.05 * 2) = 0.90
       assert.strictEqual(result.candidateSkill.confidenceScore, 0.9);
-      assert.strictEqual(result.candidateSkill.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(result.candidateSkill.provenanceStatus, 'INFERRED');
     });
 
     it('retrieves all linked evidence for candidate skill via listEvidenceForCandidateSkill', async () => {
@@ -530,6 +530,19 @@ describe('Live Evidence Linking Engine Integration Tests (P4-004)', () => {
       const contextA = makeContext(tenantA, userA);
 
       // Attempt batch linking with 1 valid link and 1 cross-tenant invalid link
+      const [unbound] = await db
+        .insert(evidenceItems)
+        .values({
+          tenantId: tenantA.id,
+          candidateId: candidateA.id,
+          resourceId: evidenceReadmeA.resourceId,
+          sourceProvider: 'GITHUB_APP',
+          evidenceType: 'README_SPECIFICATION',
+          sourceLocation: { filePath: 'README.md' },
+          excerpt: 'A fresh unbound observation for atomic rollback.',
+          metadata: { fingerprint: `rollback-${testRunId}` },
+        })
+        .returning();
       await assert.rejects(
         async () => {
           await linkingService.batchLinkEvidence({
@@ -537,7 +550,7 @@ describe('Live Evidence Linking Engine Integration Tests (P4-004)', () => {
             candidateId: candidateA.id,
             links: [
               {
-                evidenceId: evidenceReadmeA.id,
+                evidenceId: unbound.id,
                 skillId: skillPostgres.id, // Valid link
               },
               {

@@ -359,17 +359,16 @@ export class ProjectImprovementRecommenderService {
     // -------------------------------------------------------------------------
     // 8. Construct Final Proposal Object
     // -------------------------------------------------------------------------
+    // Proposed code is not evidence of completed work or verified competence.
+    // The model controls the proposed patch, never the public qualification narrative.
     const title = SecretScrubber.scrub(
-      rawProposal.title || `Implement ${primaryGap.skillName} in ${repositoryName}`
+      `Proposed ${primaryGap.skillName} change in ${repositoryName}`
     );
     const rationale = SecretScrubber.scrub(
-      rawProposal.rationale ||
-        `Addresses missing job requirement for ${primaryGap.skillName} by introducing verified implementation patterns in ${repositoryName}.`
+      `Proposed work related to the ${primaryGap.skillName} requirement. This is not evidence of completed candidate experience or verified proficiency.`
     );
-    const architecturalChange = SecretScrubber.scrub(
-      rawProposal.architecturalChange ||
-        `Introduces modular architecture and test coverage demonstrating ${primaryGap.skillName}.`
-    );
+    const architecturalChange =
+      'Review the proposed file changes and validate them independently before approval. No implementation or outcome has been verified.';
 
     const proposalStatus = secretDetected ? 'BLOCKED' : 'PROPOSED';
     const blockReason = secretDetected ? 'SECRET_DETECTED' : null;
@@ -399,14 +398,11 @@ export class ProjectImprovementRecommenderService {
       },
       evidenceRefs: groundedEvidenceRefs,
       verificationPlan: {
-        buildInstructions: rawProposal.verificationPlan?.buildInstructions || 'npm install',
-        testCommands: rawProposal.verificationPlan?.testCommands || ['npm test'],
-        expectedOutcomes: rawProposal.verificationPlan?.expectedOutcomes || [
-          'All tests pass successfully',
-        ],
-        rollbackAdvice:
-          rawProposal.verificationPlan?.rollbackAdvice ||
-          'Discard the feature branch if tests fail.',
+        buildInstructions:
+          'Review the repository build instructions before running the proposed code.',
+        testCommands: ['Review and run the repository test suite in an isolated environment.'],
+        expectedOutcomes: ['Results are unverified; record actual build and test outcomes.'],
+        rollbackAdvice: 'Discard the feature branch if independent validation fails.',
       },
       riskLevel:
         rawProposal.riskLevel === 'HIGH'

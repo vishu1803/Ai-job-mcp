@@ -25,6 +25,8 @@ import {
   UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE,
 } from '../domain/extension/extension-assistant.schemas.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
+import { skillTrustStatus } from './evidence/verification-policy.js';
+import { retainAuthoritativeNarrative } from './evidence/narrative-policy.js';
 import { ApplicationReadinessService } from './application-readiness.service.js';
 import { AiCareerAssistantService } from './ai-career-assistant.service.js';
 import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
@@ -155,7 +157,9 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         });
 
         if (response?.text) {
-          summary = response.text.trim();
+          // The model cannot establish candidate qualifications from a job page.
+          // Retain the server's explicitly page-derived description, not prose.
+          summary = retainAuthoritativeNarrative(response.text, summary);
         }
       } catch (err) {
         aiAvailable = false;
@@ -329,10 +333,11 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         ? rawReqs.split(',').map((s) => s.trim())
         : [];
 
-    const verifiedSkills = (candidateProfile.verifiedSkills || candidateProfile.skills || []).map(
-      (s) =>
+    const verifiedSkills = (candidateProfile.verifiedSkills || candidateProfile.skills || [])
+      .filter((s) => s && typeof s === 'object' && skillTrustStatus(s) === 'VERIFIED')
+      .map((s) =>
         typeof s === 'string' ? s.toLowerCase() : (s.name || s.canonicalName || '').toLowerCase()
-    );
+      );
 
     const matches = [];
     let satisfiedCount = 0;
@@ -361,13 +366,22 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
         });
       } else {
         missingCount++;
+        const association = (candidateProfile.skills || candidateProfile.verifiedSkills || []).find(
+          (s) =>
+            (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase() === normReq
+        );
         matches.push({
           requirement: req,
           satisfied: false,
-          status: 'MISSING',
-          explanation: UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE,
-          evidence: null,
-          source: 'NONE',
+          status: association ? 'PARTIAL' : 'MISSING',
+          provenanceStatus: association
+            ? skillTrustStatus(typeof association === 'string' ? {} : association)
+            : 'MISSING',
+          explanation: association
+            ? 'Profile contains a self-report or repository association, not independently verified proficiency.'
+            : UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE,
+          evidence: association ? 'Unverified profile skill association' : null,
+          source: association ? 'UNVERIFIED_PROFILE_ASSOCIATION' : 'NONE',
         });
       }
     }
@@ -509,7 +523,12 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       const rawName = (origField.name || origField.id || origField.fieldName || '').toLowerCase();
       const label = origField.label || origField.name || origField.fieldName || rawType;
       const fieldName =
-        origField.name || origField.fieldName || origField.id || action?.name || action?.fieldId || `field_${i}`;
+        origField.name ||
+        origField.fieldName ||
+        origField.id ||
+        action?.name ||
+        action?.fieldId ||
+        `field_${i}`;
 
       let value = null;
       let available = false;
@@ -519,18 +538,18 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
       let unavailabilityReason = null;
       const isSensitive = Boolean(
         action?.isProtected ||
-          SENSITIVE_AUTOFILL_FIELDS.includes(rawType) ||
-          rawName.includes('declaration') ||
-          rawName.includes('signature') ||
-          rawName.includes('disability') ||
-          rawName.includes('veteran') ||
-          rawName.includes('criminal')
+        SENSITIVE_AUTOFILL_FIELDS.includes(rawType) ||
+        rawName.includes('declaration') ||
+        rawName.includes('signature') ||
+        rawName.includes('disability') ||
+        rawName.includes('veteran') ||
+        rawName.includes('criminal')
       );
       const requiresConfirmation = Boolean(action?.requiresUserReview || isSensitive);
 
       if (
         action &&
-        (action.rawValue !== null && action.rawValue !== undefined ||
+        ((action.rawValue !== null && action.rawValue !== undefined) ||
           action.action === 'FILL' ||
           action.action === 'SELECT' ||
           action.action === 'CHECK')
@@ -544,7 +563,7 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
             (action.protectedCategory === 'salary_expectation' || rawType.includes('SALARY')) &&
             typeof raw === 'number'
           ) {
-            value = raw.toLocaleString();
+            value = raw.toLocaleString('en-US');
           } else if (typeof raw === 'boolean') {
             value = raw ? 'Yes' : 'No';
           } else {
@@ -587,11 +606,7 @@ Provide a concise, 2-3 sentence grounded summary of what this role entails, what
             confidence = rawType.includes('SALARY') ? 0.9 : 0.95;
           } else {
             confidence =
-              action.confidence === 'HIGH'
-                ? 1.0
-                : action.confidence === 'MEDIUM'
-                  ? 0.9
-                  : 0.5;
+              action.confidence === 'HIGH' ? 1.0 : action.confidence === 'MEDIUM' ? 0.9 : 0.5;
           }
         }
       }

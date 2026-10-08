@@ -1373,7 +1373,7 @@ export const QUANTITATIVE_METRIC_REGEX =
 export const TENURE_CLAIM_PATTERN =
   /\b(\d+|\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b)\+?\s*years?\s+(?:of\s+)?(?:experience|working|tenure|employment|professional|industry)\b/i;
 
-export function toEvidenceReference(rawRef, defaultSourceType = 'VERIFIED') {
+export function toEvidenceReference(rawRef, defaultSourceType = 'INFERRED') {
   if (!rawRef || typeof rawRef !== 'object') return null;
   const isUuid = (str) =>
     typeof str === 'string' &&
@@ -1388,7 +1388,9 @@ export function toEvidenceReference(rawRef, defaultSourceType = 'VERIFIED') {
   const filePath = rawRef.filePath || rawRef.sourceLocation?.filePath || null;
 
   return {
-    sourceType: rawRef.sourceType || defaultSourceType,
+    sourceType: ['VERIFIED', 'CORROBORATED'].includes(rawRef.sourceType || defaultSourceType)
+      ? 'INFERRED'
+      : rawRef.sourceType || defaultSourceType,
     evidenceId,
     resourceId: rawRef.resourceId || null,
     resourceName: rawRef.resourceName || null,

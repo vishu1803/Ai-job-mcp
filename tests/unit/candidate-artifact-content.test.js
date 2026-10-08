@@ -187,11 +187,11 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
 
     const pgAudit = skillAudit.find((s) => s.skill === 'Postgresql' || s.skill === 'PostgreSQL');
     assert.ok(pgAudit, 'Postgresql/PostgreSQL must be present in skill audit');
-    assert.equal(pgAudit.provenance, 'VERIFIED');
+    assert.equal(pgAudit.provenance, 'INFERRED');
 
     const fastApiAudit = skillAudit.find((s) => s.skill === 'FastAPI');
     assert.ok(fastApiAudit, 'FastAPI must be present in skill audit');
-    assert.equal(fastApiAudit.provenance, 'VERIFIED');
+    assert.equal(fastApiAudit.provenance, 'INFERRED');
 
     const djangoAudit = skillAudit.find((s) => s.skill === 'Django');
     assert.ok(djangoAudit, 'Django must be present in skill audit');
@@ -223,7 +223,7 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.doesNotMatch(combined, /production employment at/i);
   });
 
-  it('7. cover letter contains REAL candidate evidence (employer, projects, verified skills)', async () => {
+  it('7. cover letter contains REAL candidate evidence (employer, projects, observed skills)', async () => {
     const { docs } = await generate();
     const letter = docs.coverLetter.markdownContent;
     assert.ok(letter.includes('Software Engineer, Backend'));
@@ -232,7 +232,8 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.ok(letter.includes('vishu1803/Ai-job-mcp'));
     assert.ok(letter.includes('RESTful APIs'));
     // Verified skills cited in the letter
-    assert.ok(docs.coverLetter.matchedVerifiedSkills.length > 0);
+    assert.equal(docs.coverLetter.matchedVerifiedSkills.length, 0);
+    assert.ok(docs.coverLetter.matchedObservedSkills.length > 0);
   });
 
   it('8. NO generic placeholder sections replace real data anywhere', async () => {
@@ -289,7 +290,7 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.ok(resume.includes('Software Engineer, Backend'));
   });
 
-  it('10. tailoring prioritizes job-relevant verified skills (Vercel backend)', async () => {
+  it('10. tailoring prioritizes job-relevant observed skills (Vercel backend)', async () => {
     const { docs } = await generate();
     const { service } = await generate();
     const verifiedRanked = service.rankSkillsForJob(
@@ -301,7 +302,8 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.ok(names.indexOf('TypeScript') < names.indexOf('Jest'));
     assert.ok(names.indexOf('Postgresql') < names.indexOf('Jest'));
     // Evidence summary reflects backend-relevant matches
-    assert.ok(docs.evidence.verifiedSkillsMatched.length > 0);
+    assert.equal(docs.evidence.verifiedSkillsMatched.length, 0);
+    assert.ok(docs.evidence.observedSkillsMatched.length > 0);
   });
 
   it('11. refuses to generate documents without a real candidate identity', async () => {

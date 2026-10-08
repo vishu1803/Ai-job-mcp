@@ -41,7 +41,7 @@ export const CoverLetterParagraphSchema = z
     text: z.string().trim().min(1).max(3000),
     assertionIds: z.array(z.string().uuid()).default([]),
     evidenceRefs: z.array(EvidenceRefSchema).max(5).default([]),
-    status: CareerAssertionStatusEnum.default('VERIFIED'),
+    status: CareerAssertionStatusEnum.default('CLAIMED'),
     confidenceScore: ConfidenceScoreSchema.default(1.0),
     relevanceScore: z.number().min(0).max(100).default(0.0),
     matchedKeywords: z.array(z.string().trim()).default([]),

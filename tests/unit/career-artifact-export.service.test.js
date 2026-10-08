@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto, { randomUUID } from 'node:crypto';
 import { CareerArtifactExportService } from '../../src/services/career-artifact-export.service.js';
+import { registerCurrentNarrativeArtifact } from '../../src/services/evidence/narrative-policy.js';
 import { NotFoundError, ValidationError } from '../../src/errors/index.js';
 import { JsonResumeSchema } from '../../src/domain/career/career-artifact-export.schemas.js';
 
@@ -48,269 +49,272 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     ],
   });
 
-  const createMockResume = () => ({
-    resumeId: randomUUID(),
-    tenantId,
-    candidateId,
-    targetJobId: jobId,
-    headline: 'Senior Backend Engineer',
-    summary:
-      'Distributed systems engineer with 6+ years experience in Go, PostgreSQL, and high-concurrency microservices.',
-    summaryBullets: [],
-    skills: [
-      {
-        category: 'DATABASE',
-        name: 'Databases & Storage',
-        skills: [
-          { name: 'PostgreSQL', canonicalSlug: 'postgresql', status: 'VERIFIED' },
-          { name: 'Redis', canonicalSlug: 'redis', status: 'VERIFIED' },
-          {
-            name: 'Cassandra [Unverified User Claim]',
-            canonicalSlug: 'cassandra',
-            status: 'CLAIMED',
-          },
-        ],
-      },
-      {
-        category: 'LANGUAGE',
-        name: 'Languages & Core',
-        skills: [
-          { name: 'Go', canonicalSlug: 'go', status: 'VERIFIED' },
-          { name: 'TypeScript', canonicalSlug: 'typescript', status: 'VERIFIED' },
-        ],
-      },
-    ],
-    experience: [
-      {
-        company: 'CloudScale Inc',
-        title: 'Senior Backend Engineer',
-        startDate: '2021-06-01',
-        endDate: null,
-        isCurrent: true,
-        location: 'San Francisco, CA',
-        bullets: [
-          {
-            text: 'Designed and deployed distributed storage clustering engine in Go.',
-            status: 'VERIFIED',
-            evidenceRefs: [
-              {
-                id: randomUUID(),
-                resourceId: randomUUID(),
-                resourceName: 'cloud-storage-engine',
-                evidenceType: 'CODE_IMPORT_USAGE',
-                filePath: 'cmd/server/main.go',
-                commitSha: '1111111111111111111111111111111111111111',
-                lineRange: { start: 1, end: 50 },
-                confidenceScore: 0.98,
-              },
-            ],
-          },
-          {
-            text: 'Optimized PostgreSQL connection pooling reducing P99 latency by 35%.',
-            status: 'VERIFIED',
-            evidenceRefs: [],
-          },
-          {
-            text: 'Led cross-functional team of 4 engineers [Unverified User Claim].',
-            status: 'CLAIMED',
-            evidenceRefs: [],
-          },
-        ],
-      },
-    ],
-    projects: [
-      {
-        name: 'cloud-storage-engine',
-        displayName: 'alex/cloud-storage-engine',
-        description: 'High-concurrency object storage engine built with Go and PostgreSQL.',
-        projectType: 'APPLICATION',
-        repositoryUrl: 'https://github.com/alex/cloud-storage-engine',
-        primaryLanguages: ['Go', 'SQL'],
-        primaryFrameworks: ['gRPC'],
-        bullets: [
-          {
-            text: 'Implemented raft-based consensus protocol with zero data loss.',
-            status: 'VERIFIED',
-            evidenceRefs: [
-              {
-                id: randomUUID(),
-                resourceId: randomUUID(),
-                resourceName: 'cloud-storage-engine',
-                evidenceType: 'CODE_IMPORT_USAGE',
-                filePath: 'pkg/raft/consensus.go',
-                commitSha: '2222222222222222222222222222222222222222',
-                lineRange: { start: 10, end: 85 },
-                confidenceScore: 0.95,
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    education: [
-      {
-        id: randomUUID(),
-        institution: 'University of California, Berkeley',
-        degree: 'B.S. in Computer Science',
-        fieldOfStudy: 'Distributed Systems',
-        startDate: '2015-09-01',
-        endDate: '2019-05-30',
-        grade: '3.8 GPA',
-        bullets: [],
-      },
-    ],
-    certifications: [
-      {
-        id: randomUUID(),
-        name: 'AWS Certified Solutions Architect',
-        issuingOrganization: 'Amazon Web Services',
-        issueDate: '2023-01-15',
-        credentialUrl: 'https://aws.amazon.com/verify/12345',
-        bullets: [],
-      },
-    ],
-    atsMatchScore: 92.5,
-    integrityStatus: 'PASS',
-    presentationMode: 'GENERATE_NEW',
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      generatorVersion: 'v1.0.0',
-      totalBullets: 4,
-      verifiedBullets: 3,
-      inferredBullets: 0,
-      claimedBullets: 1,
-      omittedSkillsCount: 0,
+  const createMockResume = () =>
+    registerCurrentNarrativeArtifact({
+      resumeId: randomUUID(),
+      tenantId,
+      candidateId,
+      targetJobId: jobId,
+      headline: 'Senior Backend Engineer',
+      summary:
+        'Distributed systems engineer with 6+ years experience in Go, PostgreSQL, and high-concurrency microservices.',
+      summaryBullets: [],
+      skills: [
+        {
+          category: 'DATABASE',
+          name: 'Databases & Storage',
+          skills: [
+            { name: 'PostgreSQL', canonicalSlug: 'postgresql', status: 'VERIFIED' },
+            { name: 'Redis', canonicalSlug: 'redis', status: 'VERIFIED' },
+            {
+              name: 'Cassandra [Unverified User Claim]',
+              canonicalSlug: 'cassandra',
+              status: 'CLAIMED',
+            },
+          ],
+        },
+        {
+          category: 'LANGUAGE',
+          name: 'Languages & Core',
+          skills: [
+            { name: 'Go', canonicalSlug: 'go', status: 'VERIFIED' },
+            { name: 'TypeScript', canonicalSlug: 'typescript', status: 'VERIFIED' },
+          ],
+        },
+      ],
+      experience: [
+        {
+          company: 'CloudScale Inc',
+          title: 'Senior Backend Engineer',
+          startDate: '2021-06-01',
+          endDate: null,
+          isCurrent: true,
+          location: 'San Francisco, CA',
+          bullets: [
+            {
+              text: 'Designed and deployed distributed storage clustering engine in Go.',
+              status: 'VERIFIED',
+              evidenceRefs: [
+                {
+                  id: randomUUID(),
+                  resourceId: randomUUID(),
+                  resourceName: 'cloud-storage-engine',
+                  evidenceType: 'CODE_IMPORT_USAGE',
+                  filePath: 'cmd/server/main.go',
+                  commitSha: '1111111111111111111111111111111111111111',
+                  lineRange: { start: 1, end: 50 },
+                  confidenceScore: 0.98,
+                },
+              ],
+            },
+            {
+              text: 'Optimized PostgreSQL connection pooling reducing P99 latency by 35%.',
+              status: 'VERIFIED',
+              evidenceRefs: [],
+            },
+            {
+              text: 'Led cross-functional team of 4 engineers [Unverified User Claim].',
+              status: 'CLAIMED',
+              evidenceRefs: [],
+            },
+          ],
+        },
+      ],
+      projects: [
+        {
+          name: 'cloud-storage-engine',
+          displayName: 'alex/cloud-storage-engine',
+          description: 'High-concurrency object storage engine built with Go and PostgreSQL.',
+          projectType: 'APPLICATION',
+          repositoryUrl: 'https://github.com/alex/cloud-storage-engine',
+          primaryLanguages: ['Go', 'SQL'],
+          primaryFrameworks: ['gRPC'],
+          bullets: [
+            {
+              text: 'Implemented raft-based consensus protocol with zero data loss.',
+              status: 'VERIFIED',
+              evidenceRefs: [
+                {
+                  id: randomUUID(),
+                  resourceId: randomUUID(),
+                  resourceName: 'cloud-storage-engine',
+                  evidenceType: 'CODE_IMPORT_USAGE',
+                  filePath: 'pkg/raft/consensus.go',
+                  commitSha: '2222222222222222222222222222222222222222',
+                  lineRange: { start: 10, end: 85 },
+                  confidenceScore: 0.95,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      education: [
+        {
+          id: randomUUID(),
+          institution: 'University of California, Berkeley',
+          degree: 'B.S. in Computer Science',
+          fieldOfStudy: 'Distributed Systems',
+          startDate: '2015-09-01',
+          endDate: '2019-05-30',
+          grade: '3.8 GPA',
+          bullets: [],
+        },
+      ],
+      certifications: [
+        {
+          id: randomUUID(),
+          name: 'AWS Certified Solutions Architect',
+          issuingOrganization: 'Amazon Web Services',
+          issueDate: '2023-01-15',
+          credentialUrl: 'https://aws.amazon.com/verify/12345',
+          bullets: [],
+        },
+      ],
+      atsMatchScore: 92.5,
+      integrityStatus: 'PASS',
       presentationMode: 'GENERATE_NEW',
-      presentationIntegrityStatus: 'PASS',
-    },
-  });
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        generatorVersion: 'v1.0.0',
+        totalBullets: 4,
+        verifiedBullets: 3,
+        inferredBullets: 0,
+        claimedBullets: 1,
+        omittedSkillsCount: 0,
+        presentationMode: 'GENERATE_NEW',
+        presentationIntegrityStatus: 'PASS',
+      },
+    });
 
-  const createMockCoverLetter = () => ({
-    letterId: randomUUID(),
-    tenantId,
-    candidateId,
-    targetJobId: jobId,
-    companyName: 'Apex Data Platforms',
-    roleTitle: 'Principal Backend Infrastructure Engineer',
-    recipientName: 'Engineering Leadership Team',
-    paragraphs: [
-      {
-        paragraphId: randomUUID(),
-        paragraphType: 'OPENING',
-        text: 'I am writing to express my enthusiastic interest in the Principal Backend Infrastructure Engineer role at Apex Data Platforms.',
-        evidenceRefs: [],
-        status: 'VERIFIED',
+  const createMockCoverLetter = () =>
+    registerCurrentNarrativeArtifact({
+      letterId: randomUUID(),
+      tenantId,
+      candidateId,
+      targetJobId: jobId,
+      companyName: 'Apex Data Platforms',
+      roleTitle: 'Principal Backend Infrastructure Engineer',
+      recipientName: 'Engineering Leadership Team',
+      paragraphs: [
+        {
+          paragraphId: randomUUID(),
+          paragraphType: 'OPENING',
+          text: 'I am writing to express my enthusiastic interest in the Principal Backend Infrastructure Engineer role at Apex Data Platforms.',
+          evidenceRefs: [],
+          status: 'VERIFIED',
+        },
+        {
+          paragraphId: randomUUID(),
+          paragraphType: 'PROJECT_EVIDENCE',
+          text: 'In my cloud-storage-engine repository, I built high-scale distributed consensus engines in Go with PostgreSQL.',
+          evidenceRefs: [
+            {
+              id: randomUUID(),
+              resourceId: randomUUID(),
+              resourceName: 'cloud-storage-engine',
+              evidenceType: 'CODE_IMPORT_USAGE',
+              filePath: 'cmd/server/main.go',
+              commitSha: '1111111111111111111111111111111111111111',
+              lineRange: { start: 1, end: 50 },
+              confidenceScore: 0.98,
+            },
+          ],
+          status: 'VERIFIED',
+        },
+        {
+          paragraphId: randomUUID(),
+          paragraphType: 'CLOSING',
+          text: 'I look forward to discussing how my experience in distributed systems can accelerate Apex Data Platforms roadmap.',
+          evidenceRefs: [],
+          status: 'VERIFIED',
+        },
+      ],
+      overallFitScore: 91.0,
+      integrityStatus: 'PASS',
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        generatorVersion: 'v1.0.0',
+        tone: 'PROFESSIONAL',
+        totalParagraphs: 3,
+        verifiedParagraphs: 3,
+        inferredParagraphs: 0,
+        claimedParagraphs: 0,
+        omittedSkillsCount: 0,
+        integrityAuditStatus: 'PASS',
       },
-      {
-        paragraphId: randomUUID(),
-        paragraphType: 'PROJECT_EVIDENCE',
-        text: 'In my cloud-storage-engine repository, I built high-scale distributed consensus engines in Go with PostgreSQL.',
-        evidenceRefs: [
-          {
-            id: randomUUID(),
-            resourceId: randomUUID(),
-            resourceName: 'cloud-storage-engine',
-            evidenceType: 'CODE_IMPORT_USAGE',
-            filePath: 'cmd/server/main.go',
-            commitSha: '1111111111111111111111111111111111111111',
-            lineRange: { start: 1, end: 50 },
-            confidenceScore: 0.98,
-          },
-        ],
-        status: 'VERIFIED',
-      },
-      {
-        paragraphId: randomUUID(),
-        paragraphType: 'CLOSING',
-        text: 'I look forward to discussing how my experience in distributed systems can accelerate Apex Data Platforms roadmap.',
-        evidenceRefs: [],
-        status: 'VERIFIED',
-      },
-    ],
-    overallFitScore: 91.0,
-    integrityStatus: 'PASS',
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      generatorVersion: 'v1.0.0',
-      tone: 'PROFESSIONAL',
-      totalParagraphs: 3,
-      verifiedParagraphs: 3,
-      inferredParagraphs: 0,
-      claimedParagraphs: 0,
-      omittedSkillsCount: 0,
-      integrityAuditStatus: 'PASS',
-    },
-  });
+    });
 
-  const createMockPortfolio = () => ({
-    recommendationId: randomUUID(),
-    tenantId,
-    candidateId,
-    targetJobId: jobId,
-    jobFamily: 'BACKEND',
-    featuredProjects: [
-      {
-        projectId: randomUUID(),
-        projectName: 'distributed-storage-engine',
-        projectSlug: 'distributed-storage-engine',
-        rank: 1,
-        recommendationStatus: 'RECOMMENDED',
-        selectionScore: 94.0,
-        marginalValue: 88.0,
-        primaryRoleHighlighted: 'Backend / Systems Engineer',
-        reason: 'Recommended #1 as Primary Anchor Project: Covers core storage criteria.',
-        signalsAdded: ['BACKEND_DISTRIBUTED', 'DATABASE_DATA_MODELING', 'TESTING_QUALITY'],
-        skillsToHighlight: ['go', 'postgresql'],
-        evidenceHighlights: [],
-        liveDemoAvailable: true,
-        sourceAvailable: true,
-        documentationAvailable: true,
+  const createMockPortfolio = () =>
+    registerCurrentNarrativeArtifact({
+      recommendationId: randomUUID(),
+      tenantId,
+      candidateId,
+      targetJobId: jobId,
+      jobFamily: 'BACKEND',
+      featuredProjects: [
+        {
+          projectId: randomUUID(),
+          projectName: 'distributed-storage-engine',
+          projectSlug: 'distributed-storage-engine',
+          rank: 1,
+          recommendationStatus: 'RECOMMENDED',
+          selectionScore: 94.0,
+          marginalValue: 88.0,
+          primaryRoleHighlighted: 'Backend / Systems Engineer',
+          reason: 'Recommended #1 as Primary Anchor Project: Covers core storage criteria.',
+          signalsAdded: ['BACKEND_DISTRIBUTED', 'DATABASE_DATA_MODELING', 'TESTING_QUALITY'],
+          skillsToHighlight: ['go', 'postgresql'],
+          evidenceHighlights: [],
+          liveDemoAvailable: true,
+          sourceAvailable: true,
+          documentationAvailable: true,
+        },
+      ],
+      supportingProjects: [],
+      deprioritizedProjects: [],
+      requirementCoverage: {
+        requiredCount: 2,
+        requiredCovered: 2,
+        requiredCoveragePercentage: 100.0,
+        preferredCount: 1,
+        preferredCovered: 1,
+        preferredCoveragePercentage: 100.0,
+        totalCount: 3,
+        totalCovered: 3,
+        totalCoveragePercentage: 100.0,
       },
-    ],
-    supportingProjects: [],
-    deprioritizedProjects: [],
-    requirementCoverage: {
-      requiredCount: 2,
-      requiredCovered: 2,
-      requiredCoveragePercentage: 100.0,
-      preferredCount: 1,
-      preferredCovered: 1,
-      preferredCoveragePercentage: 100.0,
-      totalCount: 3,
-      totalCovered: 3,
-      totalCoveragePercentage: 100.0,
-    },
-    caseStudyRecommendations: [
-      {
-        projectId: randomUUID(),
-        projectDisplayName: 'distributed-storage-engine',
-        whyFeatured: 'Covers core backend requirements',
-        primaryRoleHighlighted: 'Backend / Systems Engineer',
-        skillsToHighlight: ['go', 'postgresql'],
-        evidenceCitations: [],
-        missingStoryElements: [],
-        questionsForCandidate: [
-          'What primary problem were you solving with distributed-storage-engine?',
-          'What was your specific individual contribution to the architecture?',
-        ],
-        interviewDiscussionTopics: [
-          'Deep dive into Backend / Systems Engineer responsibilities',
-          'Architectural trade-offs around BACKEND_DISTRIBUTED and DATABASE_DATA_MODELING',
-        ],
+      caseStudyRecommendations: [
+        {
+          projectId: randomUUID(),
+          projectDisplayName: 'distributed-storage-engine',
+          whyFeatured: 'Covers core backend requirements',
+          primaryRoleHighlighted: 'Backend / Systems Engineer',
+          skillsToHighlight: ['go', 'postgresql'],
+          evidenceCitations: [],
+          missingStoryElements: [],
+          questionsForCandidate: [
+            'What primary problem were you solving with distributed-storage-engine?',
+            'What was your specific individual contribution to the architecture?',
+          ],
+          interviewDiscussionTopics: [
+            'Deep dive into Backend / Systems Engineer responsibilities',
+            'Architectural trade-offs around BACKEND_DISTRIBUTED and DATABASE_DATA_MODELING',
+          ],
+        },
+      ],
+      warnings: [],
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        generatorVersion: 'v1.0.0',
+        totalEvaluatedProjects: 1,
+        featuredCount: 1,
+        supportingCount: 0,
+        deprioritizedCount: 0,
+        jobFamilyDetected: 'BACKEND',
+        overallSignalCoverageCount: 3,
       },
-    ],
-    warnings: [],
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      generatorVersion: 'v1.0.0',
-      totalEvaluatedProjects: 1,
-      featuredCount: 1,
-      supportingCount: 0,
-      deprioritizedCount: 0,
-      jobFamilyDetected: 'BACKEND',
-      overallSignalCoverageCount: 3,
-    },
-  });
+    });
 
   // ===========================================================================
   // 1. JSON Resume Export
@@ -424,7 +428,8 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
       citationStyle: 'INLINE',
     });
 
-    assert.ok(exported.content.includes('[Verified: cmd/server/main.go:1-50@1111111]'));
+    assert.ok(exported.content.includes('[Source observation: cmd/server/main.go:1-50@1111111]'));
+    assert.ok(!exported.content.includes('[Verified:'));
   });
 
   // ===========================================================================
@@ -535,6 +540,7 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     const cand = createMockCandidate();
     const resume = createMockResume();
     resume.headline = '<script>alert("xss")</script> Principal Architect';
+    registerCurrentNarrativeArtifact(resume); // Simulate a fresh server rendering of this format fixture.
 
     const exported = service.exportResume(context, resume, cand, { format: 'MARKDOWN' });
     assert.ok(!exported.content.includes('<script>'));
@@ -548,6 +554,7 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     const cand = createMockCandidate();
     const resume = createMockResume();
     resume.summary = '“Engineered” high-performance platforms — with • bulleted features.';
+    registerCurrentNarrativeArtifact(resume); // Simulate a fresh server rendering of this format fixture.
 
     const exported = service.exportResume(context, resume, cand, { format: 'PLAIN_TEXT' });
     assert.ok(exported.content.includes('"Engineered"'));
@@ -594,6 +601,7 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     const cand = createMockCandidate();
     const resume = createMockResume();
     resume.headline = 'Senior Ingénieur & Développeur';
+    registerCurrentNarrativeArtifact(resume); // Simulate a fresh server rendering of this format fixture.
 
     const exported = service.exportResume(context, resume, cand, {
       format: 'PLAIN_TEXT',
@@ -611,6 +619,7 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     const cand = createMockCandidate();
     const resume = createMockResume();
     resume.headline = 'Senior Ingénieur & Développeur';
+    registerCurrentNarrativeArtifact(resume); // Simulate a fresh server rendering of this format fixture.
 
     const exported = service.exportResume(context, resume, cand, {
       format: 'PLAIN_TEXT',
@@ -643,6 +652,7 @@ describe('Career Artifact Export Engine Service Unit Tests (P6-004)', () => {
     const resume1 = createMockResume();
     const resume2 = createMockResume();
     resume2.summary = 'Completely different career summary statement.';
+    registerCurrentNarrativeArtifact(resume2); // Simulate a fresh server rendering of this format fixture.
 
     const exp1 = service.exportResume(context, resume1, cand, { format: 'MARKDOWN' });
     const exp2 = service.exportResume(context, resume2, cand, { format: 'MARKDOWN' });

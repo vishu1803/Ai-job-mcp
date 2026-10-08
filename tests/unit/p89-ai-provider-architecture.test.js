@@ -201,7 +201,11 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
 
     assert.ok(result);
     assert.ok(result.text);
-    assert.strictEqual(result.provenanceStatus, 'VERIFIED');
+    assert.strictEqual(
+      result.provenanceStatus,
+      'INFERRED',
+      'provider selection cannot verify candidate competence'
+    );
   });
 
   it('10. Career Copilot assistant service is provider-agnostic', async () => {
@@ -228,7 +232,8 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
     });
 
     assert.ok(response);
-    assert.strictEqual(response.content, 'Career Copilot guidance based on verified skills.');
+    assert.notStrictEqual(response.content, 'Career Copilot guidance based on verified skills.');
+    assert.ok(response.content.includes('not independently verified qualifications'));
   });
 
   it('11. Extension assistant service is provider-agnostic', async () => {
@@ -256,7 +261,7 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
     assert.ok(result);
     assert.strictEqual(
       result.summary,
-      'This role focuses on building scalable Go backend microservices.'
+      'Position: Backend Engineer at Cloud Corp. Seeking a backend engineer to design scalable Go microservices and distributed database systems for global users.'
     );
     assert.strictEqual(result.aiAvailable, true);
   });

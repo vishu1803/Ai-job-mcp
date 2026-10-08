@@ -285,7 +285,7 @@ export const CoverLetterParagraphOutputSchema = z
       'CLOSING',
     ]),
     text: z.string().trim().min(1).max(3000),
-    status: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']).default('VERIFIED'),
+    status: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']).default('CLAIMED'),
     evidenceRefs: z.array(EvidenceRefSchema).max(5).default([]),
     matchedKeywords: z.array(z.string().trim()).default([]),
     claimLabel: z.string().trim().nullable().optional(),
@@ -454,7 +454,7 @@ export const ResumeBulletOutputSchema = z
   .object({
     bulletId: z.string().uuid(),
     text: z.string().trim().min(1),
-    status: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']).default('VERIFIED'),
+    status: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']).default('CLAIMED'),
     confidenceScore: z.number().min(0).max(1).default(1.0),
     evidenceRefs: z.array(EvidenceRefSchema).default([]),
     assertionIds: z.array(z.string().uuid()).default([]),

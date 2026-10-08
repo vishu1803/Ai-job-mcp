@@ -15,6 +15,8 @@
 import crypto, { randomUUID } from 'node:crypto';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { ZeroHallucinationIntegrityService } from './zero-hallucination-integrity.service.js';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import { isCurrentNarrativeArtifact } from './evidence/narrative-policy.js';
 import {
   ExportOptionsSchema,
   JsonResumeSchema,
@@ -62,6 +64,16 @@ export class CareerArtifactExportService {
     // 1. Assert Security Context & Tenant Isolation
     this._assertValidContext(context);
     this._assertTenantIsolation(context, artifact, options);
+    if (!isCurrentNarrativeArtifact(artifact)) {
+      throw new ValidationError(
+        'Historical/imported artifact quarantined; regenerate from current evidence',
+        'ARTIFACT_REVALIDATION_REQUIRED'
+      );
+    }
+    // Export is also an ingress boundary for historical/client-provided artifacts.
+    // A citation or old VERIFIED label cannot establish candidate proficiency.
+    artifact = enforceEvidenceTrust(artifact);
+    options = enforceEvidenceTrust(options);
 
     // 2. Parse & Validate Export Options
     const opts = ExportOptionsSchema.parse(options);
@@ -138,6 +150,10 @@ export class CareerArtifactExportService {
 
       default:
         throw new ValidationError(`Unsupported export format '${opts.format}'`);
+    }
+
+    if (opts.format === 'MARKDOWN' || opts.format === 'PLAIN_TEXT') {
+      rawContent = `Evidence notice: Qualifications in this document are candidate-provided or inferred, not independently verified proficiency. Source citations identify observations, not authorship or competence.\n\n${rawContent}`;
     }
 
     // 6. Normalize Line Endings (LF vs CRLF)
@@ -254,6 +270,9 @@ export class CareerArtifactExportService {
         trustedTenantId: context.tenantId,
         artifactTenantId: artifact.tenantId,
       });
+    }
+    if (context.candidateId && artifact.candidateId !== context.candidateId) {
+      throw new NotFoundError('Artifact not found for current candidate');
     }
 
     const cand = options.candidateProfile || artifact.candidateProfile;
@@ -380,7 +399,8 @@ export class CareerArtifactExportService {
       email,
       phone,
       url: cand.websiteUrl || cand.portfolioUrl || null,
-      summary: resume.summary || '',
+      summary:
+        `Candidate-provided or inferred; not independently verified proficiency. ${resume.summary || ''}`.trim(),
       location: {
         address,
         postalCode: cand.location?.postalCode || null,
@@ -527,7 +547,7 @@ export class CareerArtifactExportService {
         const top = evidenceRefs[0];
         const sha = top.commitSha ? `@${top.commitSha.slice(0, 7)}` : '';
         const line = top.lineRange ? `:${top.lineRange.start}-${top.lineRange.end}` : '';
-        return ` *[Verified: ${this._escapeMarkdown(top.filePath)}${line}${sha}]*`;
+        return ` *[Source observation: ${this._escapeMarkdown(top.filePath)}${line}${sha}]*`;
       }
       if (citationStyle === 'FOOTNOTES') {
         footnotes.push(evidenceRefs[0]);
@@ -929,6 +949,7 @@ export class CareerArtifactExportService {
 
   _renderCanonicalJson(artifact, _artifactType, options) {
     const cloned = JSON.parse(JSON.stringify(artifact));
+    cloned.evidenceTrust = 'CANDIDATE_PROVIDED_OR_INFERRED_NOT_VERIFIED_PROFICIENCY';
     if (options.anonymize) {
       if (cloned.candidate) {
         cloned.candidate.name = '[REDACTED_NAME]';
@@ -978,7 +999,7 @@ export class CareerArtifactExportService {
     ) {
       const top = bullet.evidenceRefs[0];
       const sha = top.commitSha ? `@${top.commitSha.slice(0, 7)}` : '';
-      text += ` [Verified: ${top.filePath}${sha}]`;
+      text += ` [Source observation: ${top.filePath}${sha}]`;
     }
     return text;
   }

@@ -12,6 +12,7 @@
  */
 
 import crypto from 'node:crypto';
+import { enforceEvidenceTrust, skillTrustStatus } from './evidence/verification-policy.js';
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
@@ -119,6 +120,7 @@ export class EvidenceMatchingService {
    * @returns {object} Validated CandidateMatchAnalysis
    */
   static matchJobToCandidate(context, jobDescription, candidateProfile) {
+    candidateProfile = enforceEvidenceTrust(candidateProfile);
     const startTime = Date.now();
 
     // -------------------------------------------------------------------------
@@ -292,7 +294,7 @@ export class EvidenceMatchingService {
       msg: 'Completed deterministic candidate evidence matching analysis',
     });
 
-    return validated;
+    return enforceEvidenceTrust(validated);
   }
 
   // ===========================================================================
@@ -326,7 +328,8 @@ export class EvidenceMatchingService {
 
     // Index skills by canonical slug
     const skills = Array.isArray(candidateProfile.skills) ? candidateProfile.skills : [];
-    for (const skill of skills) {
+    for (const rawSkill of skills) {
+      const skill = { ...rawSkill, provenanceStatus: skillTrustStatus(rawSkill) };
       if (
         SkillTaxonomyEngine.isNoiseSkill(skill.name) ||
         SkillTaxonomyEngine.isNoiseSkill(skill.slug) ||
@@ -391,6 +394,15 @@ export class EvidenceMatchingService {
           ? project.evidenceItems
           : [];
       for (const ev of projectEvList) {
+        if (
+          (ev.tenantId && ev.tenantId !== candidateProfile.tenantId) ||
+          (ev.candidateId &&
+            ev.candidateId !== (candidateProfile.id || candidateProfile.candidate?.id)) ||
+          ev.metadata?.verification?.status === 'INVALID' ||
+          !(ev.id || ev.evidenceId) ||
+          !ev.resourceId
+        )
+          continue;
         const rawSkillName = ev.skillSlug || ev.skillName;
         if (rawSkillName) {
           const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
@@ -398,11 +410,11 @@ export class EvidenceMatchingService {
           if (canonicalSlug) {
             const isLowTrust = EvidenceMatchingService._isLowTrustEvidence(ev);
             const evidenceRef = {
-              id: ev.id || ev.evidenceId || crypto.randomUUID(),
+              id: ev.id || ev.evidenceId,
               ...ev,
-              resourceId: ev.resourceId || project.id || crypto.randomUUID(),
+              resourceId: ev.resourceId,
             };
-            const projectEvProvenance = isLowTrust ? 'INFERRED' : 'VERIFIED';
+            const projectEvProvenance = 'INFERRED'; // Repository technology is not candidate proficiency.
             const rankProjectEv = PROVENANCE_PRIORITY[projectEvProvenance] || 0;
 
             if (!skillsBySlug.has(canonicalSlug)) {
@@ -432,7 +444,9 @@ export class EvidenceMatchingService {
               const alreadyHasRef = existing.evidenceItems.some(
                 (item) =>
                   (item.id && item.id === evidenceRef.id) ||
-                  (item.filePath && item.filePath === evidenceRef.filePath && item.resourceId === evidenceRef.resourceId)
+                  (item.filePath &&
+                    item.filePath === evidenceRef.filePath &&
+                    item.resourceId === evidenceRef.resourceId)
               );
               if (!alreadyHasRef) {
                 existing.evidenceItems.push(evidenceRef);
@@ -440,7 +454,11 @@ export class EvidenceMatchingService {
 
               // Evidence Priority: Stronger verified evidence must win over weak candidate claim.
               // Low-trust evidence (e.g. node_modules) must NEVER elevate a claim to VERIFIED.
-              if (!isLowTrust && rankProjectEv > rankExisting) {
+              if (
+                !isLowTrust &&
+                rankProjectEv > rankExisting &&
+                skillTrustStatus(existing) !== 'CLAIMED'
+              ) {
                 existing.provenanceStatus = projectEvProvenance;
                 existing.truthCategory = projectEvProvenance;
                 existing.truthStatus = projectEvProvenance;
@@ -587,6 +605,11 @@ export class EvidenceMatchingService {
    * @private
    */
   static _evaluateExactSkillMatch(req, targetSlug, targetDisplayName, candidateSkill, resourceMap) {
+    candidateSkill = {
+      ...candidateSkill,
+      provenanceStatus: skillTrustStatus(candidateSkill),
+      truthCategory: normalizeTruthCategory(skillTrustStatus(candidateSkill)),
+    };
     // Support both 'evidence' and 'evidenceItems' field names
     const rawEvidenceList = Array.isArray(candidateSkill.evidenceItems)
       ? candidateSkill.evidenceItems
@@ -634,77 +657,8 @@ export class EvidenceMatchingService {
 
     // CANONICAL PROVENANCE PRESERVATION: Always use the candidate skill's
     // canonical provenanceStatus. Never upgrade CORROBORATED→VERIFIED or CLAIMED→VERIFIED.
-    const canonicalProvenance = candidateSkill.provenanceStatus || 'NONE';
 
-    const hasVerifiedProvenance =
-      canonicalProvenance === 'VERIFIED' || canonicalProvenance === 'CORROBORATED';
-
-    const hasQualifyingCodeEvidence =
-      _hasHighTrustEvidence || (allEvidence.length > 0 && !allEvidenceIsLowTrust);
-
-    // CASE A: VERIFIED or CORROBORATED with qualifying candidate-authored evidence
-    // Evidence Priority: If qualifying candidate-authored code evidence exists,
-    // the stronger verified evidence wins over a weak self-declared claim.
-    const hasQualifyingVerifiedEvidence = hasQualifyingCodeEvidence && !allEvidenceIsLowTrust;
-    const canMatchVerified =
-      (hasVerifiedProvenance && !allEvidenceIsLowTrust && !isExplicitUserClaim) ||
-      (hasQualifyingVerifiedEvidence &&
-        (hasVerifiedProvenance || (candidateSkill.confidenceScore ?? 0.9) >= 0.85 || isExplicitUserClaim));
-
-    if (canMatchVerified && !allEvidenceIsLowTrust) {
-      const matchConfidence = Number(
-        Math.min(
-          1.0,
-          (req.confidenceScore ?? 0.9) * (candidateSkill.confidenceScore ?? 1.0)
-        ).toFixed(2)
-      );
-
-      // Stronger verified evidence wins over claim; preserve CORROBORATED if present
-      const resolvedProvenance = canonicalProvenance === 'CORROBORATED'
-        ? 'CORROBORATED'
-        : 'VERIFIED';
-
-      let explanationText = `${targetDisplayName} is ${resolvedProvenance.toLowerCase()} in candidate profile`;
-      if (primaryEvidence) {
-        explanationText = `${targetDisplayName} is ${resolvedProvenance.toLowerCase()} through ${primaryEvidence.evidenceType} in ${primaryEvidence.filePath} (repository '${primaryEvidence.resourceName}').`;
-      } else if (canonicalProvenance === 'CORROBORATED') {
-        explanationText = `${targetDisplayName} claim is corroborated by repository citations in candidate profile.`;
-      }
-
-      const match = {
-        requirementId: req.id,
-        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
-        normalizedRequirement: targetDisplayName,
-        category: req.category,
-        required: isRequirementRequired(req.importance),
-        importance: req.importance,
-        weight: req.weight ?? 1.0,
-        skillSlug: targetSlug,
-        extractedValue: req.extractedValue,
-        matchStatus: 'MATCHED',
-        matchConfidence,
-        isUserClaim: false,
-        claimLabel: null,
-        candidateSkills: [candidateSkill.name || targetDisplayName],
-        candidateProvenance: resolvedProvenance,
-        truthCategory: normalizeTruthCategory(resolvedProvenance),
-        matchedSkillSlug: targetSlug,
-        relationshipType: 'EXACT',
-        primaryEvidence,
-        supportingEvidence: evidenceRefs.slice(1, 3),
-        explanation: `MATCHED: ${explanationText}`,
-      };
-
-      const explanation = {
-        requirementId: req.id,
-        status: 'MATCHED',
-        reason: match.explanation,
-        evidenceRefs,
-        matchConfidence,
-      };
-
-      return { match, explanation, gap: null };
-    }
+    // No repository technology signal independently verifies candidate competence.
 
     // CASE A2: Evidence exists but ALL from low-trust sources (node_modules, vendor, etc.)
     // Downgrade to PARTIAL — dependency presence ≠ candidate-authored proficiency
@@ -988,6 +942,7 @@ export class EvidenceMatchingService {
   ) {
     // Traverse candidate skills to find relationship matches
     for (const [candSlug, candSkill] of skillsBySlug.entries()) {
+      if (skillTrustStatus(candSkill) === 'CLAIMED') continue;
       if (candSkill.provenanceStatus !== 'VERIFIED' && candSkill.confidenceScore < 0.85) {
         continue;
       }
@@ -1038,7 +993,7 @@ export class EvidenceMatchingService {
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
           extractedValue: req.extractedValue,
-          matchStatus: 'MATCHED',
+          matchStatus: 'PARTIAL',
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
@@ -1048,12 +1003,12 @@ export class EvidenceMatchingService {
           relationshipType: 'BUILT_ON',
           primaryEvidence,
           supportingEvidence: evidenceRefs.slice(1, 3),
-          explanation: `MATCHED: Candidate demonstrates verified proficiency in ${candName}, which is built on required skill ${targetDisplayName}.`,
+          explanation: `PARTIAL: Candidate demonstrates a repository technology signal in ${candName}, which is built on required skill ${targetDisplayName}.`,
         };
 
         const explanation = {
           requirementId: req.id,
-          status: 'MATCHED',
+          status: 'PARTIAL',
           reason: match.explanation,
           evidenceRefs,
           matchConfidence,
@@ -1085,23 +1040,23 @@ export class EvidenceMatchingService {
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
           extractedValue: req.extractedValue,
-          matchStatus: 'MATCHED',
+          matchStatus: 'PARTIAL',
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
           candidateSkills: [candName],
-          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
-          truthCategory: normalizeTruthCategory(candSkill.provenanceStatus || 'VERIFIED'),
+          candidateProvenance: candSkill.provenanceStatus || 'INFERRED',
+          truthCategory: normalizeTruthCategory(candSkill.provenanceStatus || 'INFERRED'),
           matchedSkillSlug: candSlug,
           relationshipType: 'PARENT_OF',
           primaryEvidence,
           supportingEvidence: evidenceRefs.slice(1, 3),
-          explanation: `MATCHED: Candidate demonstrates verified proficiency in ${candName}, a specialization of required skill ${targetDisplayName}.`,
+          explanation: `PARTIAL: Candidate demonstrates a repository technology signal in ${candName}, a specialization of required skill ${targetDisplayName}.`,
         };
 
         const explanation = {
           requirementId: req.id,
-          status: 'MATCHED',
+          status: 'PARTIAL',
           reason: match.explanation,
           evidenceRefs,
           matchConfidence,
@@ -1132,7 +1087,7 @@ export class EvidenceMatchingService {
           isUserClaim: false,
           claimLabel: null,
           candidateSkills: [candName],
-          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
+          candidateProvenance: candSkill.provenanceStatus || 'INFERRED',
           matchedSkillSlug: candSlug,
           relationshipType: 'ECOSYSTEM_OF',
           primaryEvidence,
@@ -1182,22 +1137,22 @@ export class EvidenceMatchingService {
           weight: req.weight ?? 1.0,
           skillSlug: targetSlug,
           extractedValue: req.extractedValue,
-          matchStatus: 'MATCHED',
+          matchStatus: 'PARTIAL',
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
           candidateSkills: [candName],
-          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
+          candidateProvenance: candSkill.provenanceStatus || 'INFERRED',
           matchedSkillSlug: candSlug,
           relationshipType: 'IMPLEMENTS',
           primaryEvidence,
           supportingEvidence: evidenceRefs.slice(1, 3),
-          explanation: `MATCHED: Candidate demonstrates verified proficiency in ${candName}, which implements required architecture/paradigm ${targetDisplayName}.`,
+          explanation: `PARTIAL: Candidate demonstrates a repository technology signal in ${candName}, which implements required architecture/paradigm ${targetDisplayName}.`,
         };
 
         const explanation = {
           requirementId: req.id,
-          status: 'MATCHED',
+          status: 'PARTIAL',
           reason: match.explanation,
           evidenceRefs,
           matchConfidence,
@@ -1251,7 +1206,7 @@ export class EvidenceMatchingService {
           isUserClaim: false,
           claimLabel: null,
           candidateSkills: [candName],
-          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
+          candidateProvenance: candSkill.provenanceStatus || 'INFERRED',
           matchedSkillSlug: candSlug,
           relationshipType: 'IMPLEMENTS',
           primaryEvidence,
@@ -1341,6 +1296,7 @@ export class EvidenceMatchingService {
    * @private
    */
   static _evaluateExperienceRequirement(req, candidateProfile, resourceMap = new Map()) {
+    candidateProfile = enforceEvidenceTrust(candidateProfile);
     // 0. Qualitative practical development experience requirement
     if (req.normalizedCriteria?.experienceType === 'PRACTICAL_DEVELOPMENT') {
       const rawTargetSkillSlug =
@@ -1440,49 +1396,10 @@ export class EvidenceMatchingService {
         const targetTechName = req.normalizedCriteria.technology || matchedSkill?.name || 'Node.js';
 
         // Evidence-quality-aware trust classification
-        const skillProvenance = practicalSkill?.provenanceStatus || 'NONE';
-        let resolvedProvenance;
-        let resolvedTrustClass;
-        let matchConfidence;
-        let explanationText;
-
-        if (hasOnlyManifestEvidence) {
-          // Manifest-only: dependency presence ≠ practical implementation experience
-          resolvedProvenance = 'CLAIMED';
-          resolvedTrustClass = 'LOW_TRUST';
-          matchConfidence = 0.35;
-          if (isFallbackMatch) {
-            explanationText = `PARTIAL: Candidate has ${evidenceSkillName} declared as a dependency in package.json (a ${targetTechName} framework), demonstrating dependency awareness but not verified practical ${targetTechName} application development. No source-level implementation evidence found. ${careerStatus} candidate with 0 months corporate professional tenure.`;
-          } else {
-            explanationText = `PARTIAL: Candidate has dependency declaration evidence for ${targetTechName} but no source-level implementation evidence demonstrating practical application development. ${careerStatus} candidate with 0 months corporate professional tenure.`;
-          }
-        } else if (skillProvenance === 'VERIFIED' || skillProvenance === 'CORROBORATED') {
-          // Source-level evidence with strong provenance
-          resolvedProvenance = skillProvenance;
-          resolvedTrustClass = 'HIGH_TRUST';
-          matchConfidence = 0.75;
-          if (isFallbackMatch) {
-            explanationText =
-              professionalMonths === 0
-                ? `PARTIAL: Candidate demonstrates practical application development using ${evidenceSkillName} (a ${targetTechName} framework) through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}), but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
-                : `MATCHED: Candidate demonstrates practical ${targetTechName} application development via ${evidenceSkillName} with ${professionalMonths} months professional experience and verified repository implementations.`;
-          } else {
-            explanationText =
-              professionalMonths === 0
-                ? `PARTIAL: Candidate demonstrates practical ${targetTechName} application development through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}) and 4 months internship experience, but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
-                : `MATCHED: Candidate demonstrates practical ${targetTechName} application development with ${professionalMonths} months professional experience and verified repository implementations.`;
-          }
-        } else {
-          // Low-confidence or unknown provenance with source evidence
-          resolvedProvenance = skillProvenance === 'NONE' ? 'INFERRED' : skillProvenance;
-          resolvedTrustClass = 'LOW_TRUST';
-          matchConfidence = 0.5;
-          if (isFallbackMatch) {
-            explanationText = `PARTIAL: Candidate demonstrates ${targetTechName} application development through inferred repository evidence using ${evidenceSkillName}, but provenance confidence is limited. ${careerStatus} candidate with 0 months corporate professional tenure.`;
-          } else {
-            explanationText = `PARTIAL: Candidate demonstrates ${targetTechName} application development through inferred repository evidence, but provenance confidence is limited. ${careerStatus} candidate with 0 months corporate professional tenure.`;
-          }
-        }
+        const resolvedProvenance = skillTrustStatus(practicalSkill || {});
+        const resolvedTrustClass = 'LOW_TRUST';
+        const matchConfidence = hasOnlyManifestEvidence ? 0.35 : 0.5;
+        const explanationText = `PARTIAL: Linked repository observations reference ${evidenceSkillName || targetTechName}. ${hasOnlyManifestEvidence ? 'Only a dependency declaration was found.' : 'Source references do not independently establish candidate authorship or practical proficiency.'} Profile-reported professional tenure: ${professionalMonths} months (${careerStatus}); this is not independently verified employment.`;
 
         const matchStatus = professionalMonths === 0 ? 'PARTIAL' : 'MATCHED';
         const match = {

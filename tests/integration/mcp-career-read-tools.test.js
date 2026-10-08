@@ -339,16 +339,27 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
       })
       .returning();
 
+    const [secretResource] = await db
+      .insert(resources)
+      .values({
+        tenantId: tenantA.id,
+        candidateId: candidateA2.id,
+        provider: 'GITHUB_APP',
+        externalResourceId: `auth-source-${testRunId}`,
+        name: 'auth-source',
+        displayName: 'Auth source',
+      })
+      .returning();
     await db.insert(projectResources).values({
       tenantId: tenantA.id,
       projectId: projectSecret.id,
-      resourceId: resourceA1.id,
+      resourceId: secretResource.id,
     });
 
     await db.insert(evidenceItems).values({
       tenantId: tenantA.id,
       candidateId: candidateA2.id,
-      resourceId: resourceA1.id,
+      resourceId: secretResource.id,
       projectId: projectSecret.id,
       evidenceType: 'CODE_IMPORT_USAGE',
       sourceProvider: 'GITHUB_APP',
@@ -678,7 +689,8 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
     const parsed = JSON.parse(res.json().result.content[0].text);
     assert.ok(AnalyzeJobFitOutputSchema.safeParse(parsed).success);
     assert.ok(parsed.overallFit.atsScore > 0);
-    assert.strictEqual(parsed.requirementSummary.matchedCount >= 1, true);
+    assert.strictEqual(parsed.requirementSummary.partialCount >= 1, true);
+    assert.equal(parsed.requirementSummary.matchedCount, 0);
     assert.strictEqual(parsed.topRelevantProjects.length, 1);
     assert.strictEqual(parsed.topRelevantProjects[0].projectId, projectA1.id);
   });

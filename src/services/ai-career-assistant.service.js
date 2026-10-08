@@ -33,6 +33,7 @@
  */
 
 import crypto from 'node:crypto';
+import { skillTrustStatus, enforceEvidenceTrust } from './evidence/verification-policy.js';
 import { ApplicationReadinessService } from './application-readiness.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import {
@@ -46,7 +47,6 @@ import {
   normalizeCopilotPageContext,
   SUPPORTED_PRODUCT_ACTION_IDS,
   SupportedProductActionIdSchema,
-  StructuredAssistantResponseSchema,
   TRUSTED_ACTION_NAVIGATION_MAP,
 } from '../domain/ai/career-assistant.schemas.js';
 import {
@@ -183,98 +183,32 @@ export class AiCareerAssistantService {
           : null;
     const missingItems = readinessData?.missingItems || [];
 
-    let parsed = null;
-
-    if (rawText && typeof rawText === 'string') {
-      try {
-        let clean = rawText.trim();
-        if (clean.startsWith('```')) {
-          clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
-        }
-        const jsonMatch = clean.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        }
-      } catch (err) {
-        this.logger.debug({ err }, 'Failed to parse raw JSON from AI assistant output');
-      }
-    }
-
-    // Validate using Zod schema
-    const validation = StructuredAssistantResponseSchema.safeParse(parsed);
-    if (validation.success) {
-      const data = validation.data;
-      const sanitizedSummary = this._sanitizeNoRoutes(data.summary).slice(0, 350);
-      const sanitizedFindings = data.findings.slice(0, 5).map((f) => ({
-        severity: f.severity,
-        title: this._sanitizeNoRoutes(f.title).slice(0, 120),
-        description: this._sanitizeNoRoutes(f.description).slice(0, 300),
-      }));
-      let primaryFound = false;
-      const validActions = data.actions
-        .filter((a) => SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id))
-        .slice(0, 3)
-        .map((a, idx) => {
-          const isPrimary = a.primary === true || (!primaryFound && idx === 0);
-          if (isPrimary) primaryFound = true;
-          return {
-            id: a.id,
-            label: this._sanitizeNoRoutes(a.label).slice(0, 60),
-            primary: isPrimary,
-          };
-        });
-
-      return {
-        summary: sanitizedSummary,
-        findings: sanitizedFindings,
-        actions: validActions,
-      };
-    }
-
-    // Safe normalization attempt if partial object
-    if (parsed && typeof parsed === 'object') {
-      const summaryText =
-        typeof parsed.summary === 'string'
-          ? this._sanitizeNoRoutes(parsed.summary).slice(0, 350)
-          : typeof parsed.answer === 'string' || typeof parsed.message === 'string'
-            ? this._sanitizeNoRoutes(parsed.answer || parsed.message).slice(0, 350)
-            : null;
-
-      if (summaryText) {
-        const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
-        const validFindings = rawFindings.slice(0, 5).map((f) => ({
-          severity: ['critical', 'warning', 'info'].includes(f.severity) ? f.severity : 'info',
-          title: this._sanitizeNoRoutes(String(f.title || 'Note')).slice(0, 120),
-          description: this._sanitizeNoRoutes(String(f.description || f.detail || '')).slice(
-            0,
-            300
-          ),
+    // Model prose, citations and verification labels have no rendering authority.
+    // Until a server-authored claim catalogue exists, render only the deterministic
+    // workspace/readiness explanation below, including for malformed/free-form output.
+    void profile;
+    let proposedActions = null;
+    try {
+      const proposed = JSON.parse(
+        String(rawText)
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/```\s*$/, '')
+      );
+      const ids = [
+        ...new Set(
+          (Array.isArray(proposed.actions) ? proposed.actions : [])
+            .map((action) => action?.id)
+            .filter((id) => SUPPORTED_PRODUCT_ACTION_IDS.includes(id))
+        ),
+      ].slice(0, 3);
+      if (ids.length)
+        proposedActions = ids.map((id, index) => ({
+          id,
+          label: TRUSTED_ACTION_NAVIGATION_MAP[id].label,
+          primary: index === 0,
         }));
-
-        const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
-        let primaryFound = false;
-        const validActions = rawActions
-          .filter((a) => a && SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id))
-          .slice(0, 3)
-          .map((a, idx) => {
-            const isPrimary = a.primary === true || (!primaryFound && idx === 0);
-            if (isPrimary) primaryFound = true;
-            return {
-              id: a.id,
-              label: this._sanitizeNoRoutes(String(a.label || 'View details')).slice(0, 60),
-              primary: isPrimary,
-            };
-          });
-
-        return {
-          summary: summaryText,
-          findings: validFindings,
-          actions:
-            validActions.length > 0
-              ? validActions
-              : [{ id: 'complete_profile', label: 'Complete profile', primary: true }],
-        };
-      }
+    } catch {
+      /* Free-form prose and malformed JSON have no authority. */
     }
 
     // Deterministic authority: if query is about blockers or readiness, prioritize deterministic findings
@@ -284,42 +218,26 @@ export class AiCareerAssistantService {
         summary: isAssessed
           ? missingItems.length > 0
             ? `Your profile is at ${score}% application readiness with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`
+            : `Your profile is at ${score}% application readiness with all essential screening fields provided; completeness is not independent verification.`
           : missingItems.length > 0
-            ? `Application readiness has not been assessed yet; ${missingItems.length} screening item${missingItems.length > 1 ? 's need' : ' needs'} attention.`
+            ? `Application readiness has not been evaluated yet; ${missingItems.length} screening item${missingItems.length > 1 ? 's need' : ' needs'} attention.`
             : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`,
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'warning',
           title: m.label || 'Screening Item',
           description: this._sanitizeNoRoutes(m.notes || 'Required for employer screening.'),
         })),
-        actions: [
+        actions: proposedActions || [
           { id: 'complete_profile', label: 'Complete profile', primary: true },
           { id: 'check_readiness', label: 'Check readiness', primary: false },
         ],
       };
     }
 
-    // Safe normalization if AI returned non-JSON plain text
-    if (!parsed && rawText && typeof rawText === 'string' && rawText.trim().length > 0) {
-      const cleanText = this._sanitizeNoRoutes(rawText.trim()).slice(0, 350);
-      return {
-        summary: cleanText,
-        findings: [
-          {
-            severity: 'info',
-            title: 'Guidance',
-            description: cleanText,
-          },
-        ],
-        actions: [{ id: 'complete_profile', label: 'Review profile', primary: true }],
-      };
-    }
-
     const isAssessed = typeof score === 'number';
     return {
       summary:
-        'Career Copilot evaluated your request against your verified profile and workspace context.',
+        'Career Copilot evaluated your request against your provided profile and workspace context, not independently verified qualifications. Treat qualifications as unverified.',
       findings: [
         {
           severity: 'info',
@@ -329,9 +247,9 @@ export class AiCareerAssistantService {
             : `Application readiness is currently NOT_ASSESSED. ${connectedRepositories.length} repository source${connectedRepositories.length === 1 ? ' is' : 's are'} connected.`,
         },
       ],
-      actions: [
-        { id: 'complete_profile', label: 'Review profile' },
-        { id: 'view_matching_jobs', label: 'View matching jobs' },
+      actions: proposedActions || [
+        { id: 'complete_profile', label: 'Review profile', primary: true },
+        { id: 'view_matching_jobs', label: 'View matching jobs', primary: false },
       ],
     };
   }
@@ -582,9 +500,9 @@ export class AiCareerAssistantService {
       [];
 
     const verifiedSkillNames = new Set(
-      verifiedSkillsList.map((s) =>
-        (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase()
-      )
+      verifiedSkillsList
+        .filter((s) => s && typeof s === 'object' && skillTrustStatus(s) === 'VERIFIED')
+        .map((s) => (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase())
     );
 
     const verifiedMatches = [];
@@ -611,9 +529,21 @@ export class AiCareerAssistantService {
           },
         });
       } else {
+        const association = (
+          candidateProfile.skills ||
+          candidateProfile.verifiedSkills ||
+          candidateProfile.reportedSkills ||
+          []
+        ).find(
+          (s) =>
+            (typeof s === 'string' ? s : s.name || s.canonicalName || '').toLowerCase() === normReq
+        );
         missingRequirements.push({
           requirement: req,
-          status: 'MISSING',
+          status: association
+            ? skillTrustStatus(typeof association === 'string' ? {} : association)
+            : 'MISSING',
+          reportedAssociation: Boolean(association),
           message: `I can't verify "${req}" from your profile or connected repositories.`,
         });
       }
@@ -765,9 +695,10 @@ export class AiCareerAssistantService {
       return {
         canAdd: true,
         skill: requestedSkill,
-        verified: true,
+        verified: false,
+        provenanceStatus: 'CLAIMED',
         evidenceCount: verifiedFacts.length + verifiedSkills.length,
-        message: `Verified evidence found for "${requestedSkill}" in your profile and repository artifacts.`,
+        message: `Profile or repository association found for "${requestedSkill}". It may support a self-reported claim, not independent proficiency verification.`,
       };
     }
 
@@ -1355,6 +1286,8 @@ export class AiCareerAssistantService {
       }
     }
 
+    profile = enforceEvidenceTrust(profile);
+
     // Derive or consume authoritative application readiness
     let readinessData = readiness;
     if (!readinessData && profile) {
@@ -1437,7 +1370,7 @@ export class AiCareerAssistantService {
             {
               type: 'EXISTING_PROFILE',
               label: 'Canonical Candidate Profile',
-              verified: true,
+              verified: false,
             },
             {
               type: 'APPLICATION',
@@ -1603,7 +1536,12 @@ export class AiCareerAssistantService {
           `Preferred Locations: ${(profile?.preferredLocations || []).join(', ') || 'Not specified'}`,
           `Work Authorization: ${profile?.workAuthorization || 'Not specified'}`,
           `Visa Sponsorship: ${profile?.visaSponsorshipRequired === true ? 'Required' : profile?.visaSponsorshipRequired === false ? 'Not required' : 'Not set'}`,
-          `Verified Skills: ${(candidateSkills.length > 0 ? candidateSkills.map((s) => s.name) : profile?.skills || []).slice(0, 15).join(', ') || 'None'}`,
+          `Reported skill associations (not verified proficiency): ${
+            (candidateSkills.length > 0 ? candidateSkills : profile?.skills || [])
+              .slice(0, 15)
+              .map((s) => (typeof s === 'string' ? s : s.name))
+              .join(', ') || 'None'
+          }`,
           `Connected GitHub Repositories: ${
             connectedRepositories.length > 0
               ? connectedRepositories
@@ -1626,7 +1564,7 @@ USER QUERY:
 
 SAFETY & GROUNDING CONSTRAINTS:
 1. Ground your response strictly in the candidate's authentic profile, connected repositories, and application data provided above.
-2. If the user asks about skills, experience, or certifications NOT verified in their profile or repositories, state clearly: "I can't verify this from your profile." Never invent facts or qualifications.
+2. All profile qualifications are self-reported or inferred, not independently verified. Repository technology detection establishes neither candidate authorship nor proficiency. Preserve those distinctions and state clearly: "I can't independently verify this from your profile." Never invent facts or qualifications.
 3. If information is genuinely missing, point it out specifically as a warning or critical finding.
 4. Do NOT claim that you lack access to profile, repository, or application information when it is provided in the context above. BOUNDARY ON UNSUPPLIED CONTEXT (HARD RULE): Ground your response strictly in the supplied context. You must NEVER claim or imply access to resources that were not supplied (e.g. if Connected GitHub Repositories is 'None provided', NEVER say 'I reviewed your repositories'. State clearly: 'Based on the profile information available to me' or 'No repositories have been connected yet').
 5. ANTI-INVENTION INVARIANT (HARD RULE): NEVER invent skills, repositories, employment history, education/degrees, certifications, applications, resume claims, or job matches. Never claim cloud experience (AWS, GCP, Azure) unless backed by code evidence.
@@ -1673,7 +1611,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
             {
               type: 'EXISTING_PROFILE',
               label: 'Canonical Candidate Profile',
-              verified: true,
+              verified: false,
             },
           ],
           proposals: [],
@@ -1739,7 +1677,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
         summary: isAssessed
           ? missingItems.length > 0
             ? `Your profile is at ${score}% application readiness, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`
+            : `Your profile is at ${score}% application readiness with all essential screening fields provided; completeness is not independent verification.`
           : missingItems.length > 0
             ? `Application readiness has not been evaluated yet, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
             : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`,
@@ -1764,7 +1702,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
           {
             type: 'EXISTING_PROFILE',
             label: 'ApplicationReadinessService Evaluation',
-            verified: true,
+            verified: false,
           },
         ],
         proposals: [],
@@ -1788,7 +1726,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
         summary:
           missingItems.length > 0
             ? `Your profile is missing ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} that may affect match quality.`
-            : `Your profile is complete with all required screening fields, corroborated by ${connectedRepositories.length} connected repositor${connectedRepositories.length === 1 ? 'y' : 'ies'}.`,
+            : `Your profile has all required screening fields and ${connectedRepositories.length} connected repositor${connectedRepositories.length === 1 ? 'y' : 'ies'}. Repository access does not independently corroborate your qualifications.`,
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'info',
           title: m.label,
@@ -1810,7 +1748,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
           {
             type: 'EXISTING_PROFILE',
             label: 'Candidate Profile & Readiness Evaluation',
-            verified: true,
+            verified: false,
           },
         ],
         proposals: [],

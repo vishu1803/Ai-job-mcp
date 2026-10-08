@@ -327,7 +327,7 @@ npm install
 
 # Create environment configuration
 cp .env.example .env
-# Edit .env with your database URL, encryption keys, and GitHub App credentials
+# Edit .env with database, encryption, two independent approval keys, and GitHub App credentials
 
 # Run database migrations
 npm run db:migrate
@@ -346,6 +346,8 @@ Key variables in `.env` (see `.env.example` for complete reference):
 | :--- | :--- |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `ENCRYPTION_MASTER_KEY` | 64-hex AES-256 master key for credential encryption |
+| `ACTION_APPROVAL_HMAC_SECRET` | Required independent random 32-byte repository-action approval key (64 hex or 44 padded base64) |
+| `CAREER_HUB_APPROVAL_SECRET` | Required independent random 32-byte application approval key (64 hex or 44 padded base64) |
 | `AUTH_SECRET` | Session cookie signing secret |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth for user login |
 | `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` | GitHub App for repository access |
@@ -354,6 +356,11 @@ Key variables in `.env` (see `.env.example` for complete reference):
 > ⚠️ Never commit `.env` files or real credentials. Generate keys with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
 ---
+
+Development and production refuse startup without both valid approval keys. Test scripts explicitly
+load test-only keys; `npm start` and `npm run dev` never do. Upgrading the approval signing format or
+rotating a key invalidates outstanding approvals in that domain; require fresh user approval.
+See [approval key policy and rollout](docs/security/approval-signing-keys.md).
 
 ## Verification
 

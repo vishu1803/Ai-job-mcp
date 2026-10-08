@@ -77,7 +77,7 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
   // 1. Exact Verified Skill Matches
   // ===========================================================================
   describe('1. Exact Verified Technical Skill Matches', () => {
-    it('evaluates verified skill with package manifest evidence as MATCHED', () => {
+    it('keeps manifest skill associations PARTIAL without proficiency verification', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -128,20 +128,16 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
       assert.equal(result.summary.totalRequirements, 1);
-      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.matchedCount, 0);
       assert.equal(result.summary.missingCount, 0);
       assert.equal(result.summary.criticalGapsCount, 0);
 
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.relationshipType, 'EXACT');
       assert.equal(match.isUserClaim, false);
-      assert.ok(match.matchConfidence >= 0.85);
-      assert.ok(
-        match.explanation.includes(
-          'MATCHED: PostgreSQL is verified through PACKAGE_MANIFEST_DEPENDENCY'
-        )
-      );
+      assert.ok(match.matchConfidence > 0 && match.matchConfidence < 0.85);
+      assert.ok(match.explanation.includes('inferred'));
       assert.equal(match.primaryEvidence.filePath, 'package.json');
       assert.equal(match.primaryEvidence.resourceName, 'vishu1803/distributed-platform');
     });
@@ -186,7 +182,7 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
       ]);
 
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
-      assert.equal(result.requirementMatches[0].matchStatus, 'MATCHED');
+      assert.equal(result.requirementMatches[0].matchStatus, 'PARTIAL');
       assert.equal(result.requirementMatches[0].matchedSkillSlug, 'postgresql');
     });
   });
@@ -195,7 +191,7 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
   // 2. Unverified Claims & Fact vs Claim Separation
   // ===========================================================================
   describe('2. User Claims & Fact vs Claim Separation', () => {
-    it('evaluates manual claim without code evidence as PARTIAL, never MATCHED', () => {
+    it('evaluates manual claim without code evidence as UNVERIFIED_CLAIM, never MATCHED', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -230,11 +226,11 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
       assert.equal(result.summary.matchedCount, 0);
-      assert.equal(result.summary.partialCount, 1);
+      assert.equal(result.summary.unverifiedClaimCount, 1);
       assert.equal(result.summary.highGapsCount, 1);
 
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'PARTIAL');
+      assert.equal(match.matchStatus, 'UNVERIFIED_CLAIM');
       assert.equal(match.isUserClaim, true);
       assert.equal(match.claimLabel, '[Unverified User Claim]');
       assert.ok(match.explanation.includes('[Unverified User Claim]'));
@@ -372,7 +368,7 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
   // 4. Directional Taxonomy Relationships
   // ===========================================================================
   describe('4. Directional Taxonomy Relationship Traversals', () => {
-    it('evaluates BUILT_ON specialization as MATCHED (Next.js candidate for React requirement)', () => {
+    it('evaluates BUILT_ON specialization as PARTIAL (Next.js candidate for React requirement)', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -413,9 +409,9 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
 
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
-      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.matchedCount, 0);
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.relationshipType, 'BUILT_ON');
       assert.equal(match.matchedSkillSlug, 'next-js');
       assert.ok(match.explanation.includes('Next.js'));
@@ -516,7 +512,7 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
       assert.equal(match.relationshipType, 'IMPLEMENTS');
     });
 
-    it('evaluates DIRECT IMPLEMENTS as MATCHED (Fastify candidate for REST API requirement)', () => {
+    it('evaluates DIRECT IMPLEMENTS as PARTIAL (Fastify candidate for REST API requirement)', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -557,17 +553,17 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
 
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
-      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.matchedCount, 0);
       assert.equal(result.summary.missingCount, 0);
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.relationshipType, 'IMPLEMENTS');
       assert.equal(match.matchedSkillSlug, 'fastify');
       assert.ok(match.explanation.includes('Fastify'));
       assert.ok(match.explanation.includes('REST'));
     });
 
-    it('evaluates DIRECT IMPLEMENTS as MATCHED (MCP candidate for json-rpc requirement)', () => {
+    it('evaluates DIRECT IMPLEMENTS as PARTIAL (MCP candidate for json-rpc requirement)', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -608,15 +604,15 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
 
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
-      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.matchedCount, 0);
       assert.equal(result.summary.missingCount, 0);
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.relationshipType, 'IMPLEMENTS');
       assert.equal(match.matchedSkillSlug, 'mcp');
     });
 
-    it('evaluates taxonomy specialization as MATCHED (PostgreSQL candidate for relational-database requirement)', () => {
+    it('evaluates taxonomy specialization as PARTIAL (PostgreSQL candidate for relational-database requirement)', () => {
       const candidate = createBaseCandidate({
         skills: [
           {
@@ -657,10 +653,10 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
 
       const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
 
-      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.matchedCount, 0);
       assert.equal(result.summary.missingCount, 0);
       const match = result.requirementMatches[0];
-      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.matchedSkillSlug, 'postgresql');
     });
 

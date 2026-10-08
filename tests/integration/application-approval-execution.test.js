@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { eq, sql } from 'drizzle-orm';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 import { db, pool, closeDatabase } from '../../src/db/index.js';
 import {
   tenants,
@@ -75,6 +76,7 @@ describe('ISSUE-03 durable single-owner execution (real PostgreSQL)', () => {
       answers: { eligible: 'yes' },
       attachments: [{ contentHash: 'a'.repeat(64) }],
     };
+    Object.assign(pkg, await sealGeneratedPackage(db, { tenantId, candidateId }, pkg));
     const packageHash = computeApplicationPackageHash(pkg);
     await db.insert(jobApplications).values({
       id: applicationId,
@@ -777,16 +779,14 @@ describe('ISSUE-03 durable single-owner execution (real PostgreSQL)', () => {
       { code: 'FORBIDDEN_TICKET_MISMATCH' }
     );
     await assert.rejects(
-      f
-        .service()
-        .submitJobApplication({
-          ...f.args,
-          applicationPackage: {
-            ...f.pkg,
-            packageHash: f.args.packageHash,
-            tailoredResume: { markdownContent: 'UNAPPROVED REPLAY B' },
-          },
-        }),
+      f.service().submitJobApplication({
+        ...f.args,
+        applicationPackage: {
+          ...f.pkg,
+          packageHash: f.args.packageHash,
+          tailoredResume: { markdownContent: 'UNAPPROVED REPLAY B' },
+        },
+      }),
       { code: 'CONFLICT' }
     );
     const events = await db

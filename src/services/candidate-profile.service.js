@@ -14,6 +14,11 @@
  */
 
 import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
+import {
+  enforceEvidenceTrust,
+  skillTrustStatus,
+  trustDatabaseEvidence,
+} from './evidence/verification-policy.js';
 import { db as defaultDb } from '../db/index.js';
 import {
   users,
@@ -170,8 +175,7 @@ export class CandidateProfileService {
     resumeSkillNames = new Set(),
     metadata = {},
   }) {
-    const hasGithubEvidence =
-      dbProvenanceStatus === 'VERIFIED' || dbProvenanceStatus === 'CORROBORATED';
+    const hasGithubEvidence = false; // Repository detection does not verify candidate competence.
 
     const hasResumeClaim =
       dbProvenanceStatus === 'CLAIMED' ||
@@ -191,7 +195,7 @@ export class CandidateProfileService {
     if (metadata?.source === 'TAXONOMY_INFERRED' || dbProvenanceStatus === 'INFERRED') {
       return 'INFERRED';
     }
-    return dbProvenanceStatus || 'CLAIMED';
+    return skillTrustStatus({ provenanceStatus: dbProvenanceStatus, metadata });
   }
 
   /**
@@ -252,7 +256,8 @@ export class CandidateProfileService {
     // tenant/candidate payload for every caller, so it is reused until the TTL expires.
     const cacheKey = `${tenantId}:${candidateId}`;
     const cachedProfileView = profileViewCache.get(cacheKey);
-    if (cachedProfileView) return cachedProfileView;
+    if (cachedProfileView && !cachedProfileView.resources?.some((r) => r.provider === 'GITHUB_APP'))
+      return cachedProfileView;
 
     // 2-5. The independent reads below do not depend on one another, so they are
     // issued concurrently through a bounded scheduler instead of as a chain of
@@ -335,6 +340,7 @@ export class CandidateProfileService {
       IN_REQUEST_DB_CONCURRENCY
     );
 
+    trustDatabaseEvidence(allEvidenceRows, { tenantId, candidateId });
     const resolvedCanonicalEmail = resolveCandidateEmail(candidate, userEmail, {
       allowNullable: true,
     });
@@ -436,6 +442,7 @@ export class CandidateProfileService {
       IN_REQUEST_DB_CONCURRENCY
     );
 
+    trustDatabaseEvidence(projectEvidenceRows, { tenantId, candidateId });
     const linkedResourcesByProjectId = new Map();
     for (const prRow of linkedResourceRows) {
       if (!linkedResourcesByProjectId.has(prRow.pr.projectId)) {
@@ -591,8 +598,8 @@ export class CandidateProfileService {
         slug: skillSlug,
         name: skillName,
         category: cs.category,
-        provenanceStatus: cs.provenanceStatus,
-        truthCategory: normalizeTruthCategory(cs.provenanceStatus),
+        provenanceStatus: skillTrustStatus(cs),
+        truthCategory: normalizeTruthCategory(skillTrustStatus(cs)),
         confidenceScore: typeof cs.confidenceScore === 'number' ? cs.confidenceScore : 0.0,
         evidenceCount: skillEvidenceRows.length || cs.evidenceCount,
         primaryEvidence: primaryEvidenceRef,
@@ -605,7 +612,8 @@ export class CandidateProfileService {
         // so downstream consumers (MCP get_candidate_profile, evidence matching) can distinguish
         // SELF_DECLARED / LEARNING from evidence-backed skills without re-querying.
         source: cs.source ?? null,
-        proficiency: cs.proficiency ?? null,
+        proficiency: cs.source === 'USER_PROVIDED' ? (cs.proficiency ?? null) : null,
+        proficiencySource: cs.source === 'USER_PROVIDED' ? 'SELF_REPORTED' : 'UNASSESSED',
         usageContext: cs.usageContext ?? null,
         yearsExperience: cs.yearsExperience ?? null,
         lastUsedAt: cs.lastUsedAt ? new Date(cs.lastUsedAt).toISOString() : null,
@@ -698,8 +706,10 @@ export class CandidateProfileService {
       resumeSections: rawResumeSections,
     };
 
-    profileViewCache.set(cacheKey, profileView);
-    return profileView;
+    const trustedView = enforceEvidenceTrust(profileView);
+    if (!resourceList.some((r) => r.provider === 'GITHUB_APP'))
+      profileViewCache.set(cacheKey, trustedView);
+    return trustedView;
   }
 
   /**
@@ -787,7 +797,9 @@ export class CandidateProfileService {
     const userId = input.userId !== undefined ? input.userId : context.userId || null;
 
     const initialMetadata = {
-      userCustom: input.profileMetadata?.userCustom || input.profileMetadata || {},
+      userCustom: enforceEvidenceTrust(
+        input.profileMetadata?.userCustom || input.profileMetadata || {}
+      ),
       systemInferred: {},
     };
 
@@ -872,7 +884,9 @@ export class CandidateProfileService {
 
     if (patch.profileMetadata !== undefined) {
       const existingMeta = existing.profileMetadata || { userCustom: {}, systemInferred: {} };
-      const newCustom = patch.profileMetadata.userCustom || patch.profileMetadata || {};
+      const newCustom = enforceEvidenceTrust(
+        patch.profileMetadata.userCustom || patch.profileMetadata || {}
+      );
       updatePayload.profileMetadata = {
         userCustom: { ...existingMeta.userCustom, ...newCustom },
         systemInferred: existingMeta.systemInferred || {},
@@ -896,7 +910,7 @@ export class CandidateProfileService {
 
     invalidateProfileCache(tenantId, updated.id);
 
-    return updated;
+    return enforceEvidenceTrust(updated);
   }
 
   /**
@@ -1974,17 +1988,13 @@ export class CandidateProfileService {
         if (hasGithubEvidence) existing.githubEvidence = true;
         if (hasResumeClaim) existing.resumeClaim = true;
         if (existing.githubEvidence) {
-          existing.truthStatus = 'VERIFIED';
-          existing.provenanceStatus = existing.resumeClaim ? 'CORROBORATED' : 'VERIFIED';
+          existing.truthStatus = existing.resumeClaim ? 'CLAIMED' : 'INFERRED';
+          existing.provenanceStatus = existing.truthStatus;
           existing.source = existing.resumeClaim ? 'BOTH' : 'GITHUB';
         }
       } else {
-        const truthStatus = hasGithubEvidence ? 'VERIFIED' : 'CLAIMED';
-        const provenanceStatus = hasGithubEvidence
-          ? hasResumeClaim
-            ? 'CORROBORATED'
-            : s.provenanceStatus || 'VERIFIED'
-          : s.provenanceStatus || 'CLAIMED';
+        const truthStatus = hasResumeClaim ? 'CLAIMED' : hasGithubEvidence ? 'INFERRED' : 'CLAIMED';
+        const provenanceStatus = skillTrustStatus({ ...s, resumeClaim: hasResumeClaim });
 
         skillMap.set(slug, {
           slug,
@@ -2155,9 +2165,7 @@ export class CandidateProfileService {
         }
       }
 
-      const verifiedCount = Array.isArray(gProj.evidence)
-        ? gProj.evidence.length
-        : gProj.verifiedSignalCount || 0;
+      const verifiedCount = 0; // Repository citations do not verify candidate project accomplishments.
 
       const mergedTechnologies = Array.from(
         new Set([
@@ -2243,7 +2251,8 @@ export class CandidateProfileService {
           rawDateRange: exp.rawDateRange || dNorm?.rawDateRange || null,
           bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
           technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
-          verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
+          reportedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
+          verifiedSkillsUsed: [],
           provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
         };
       });
@@ -2268,7 +2277,8 @@ export class CandidateProfileService {
           rawDateRange: dNorm.rawDateRange || null,
           bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
           technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
-          verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed) ? exp.verifiedSkillsUsed : [],
+          reportedSkillsUsed: exp.reportedSkillsUsed || exp.verifiedSkillsUsed || [],
+          verifiedSkillsUsed: [],
           provenanceStatus: 'CLAIMED',
         };
       });
@@ -2382,7 +2392,7 @@ export class CandidateProfileService {
       isComplete: isProfileComplete,
       missingFields: missingProfileFields,
       actionableFeedback: isProfileComplete
-        ? 'Career profile contains comprehensive professional identity and verified qualifications.'
+        ? 'Career profile contains comprehensive candidate-provided career information; completeness is not independent verification.'
         : `Consider adding: ${missingProfileFields.join(', ')} to strengthen your baseline profile.`,
     };
 
@@ -2487,7 +2497,7 @@ export class CandidateProfileService {
       jobPreferences.workAuthConfirmedByUser || userCustom.workAuthConfirmedByUser
     );
 
-    return CandidateCareerProfileSchema.parse({
+    const careerProfile = CandidateCareerProfileSchema.parse({
       candidateId: candidate.id,
       tenantId: candidate.tenantId,
       displayName: candidate.displayName,
@@ -2525,6 +2535,7 @@ export class CandidateProfileService {
       profileReadiness,
       updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
     });
+    return enforceEvidenceTrust(careerProfile);
   }
 
   /**
@@ -2795,7 +2806,7 @@ export class CandidateProfileService {
       });
     }
 
-    return results;
+    return enforceEvidenceTrust(results);
   }
 
   /**

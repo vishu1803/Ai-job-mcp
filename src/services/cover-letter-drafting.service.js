@@ -18,6 +18,11 @@
  */
 
 import crypto from 'node:crypto';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import {
+  retainAuthoritativeNarrative,
+  registerCurrentNarrativeArtifact,
+} from './evidence/narrative-policy.js';
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
@@ -104,6 +109,8 @@ export class CoverLetterDraftingService {
     options = {}
   ) {
     // 1. Security & Multi-Tenant Default-Deny Verification
+    candidateProfile = enforceEvidenceTrust(candidateProfile);
+    integrityCheckedAssertions = enforceEvidenceTrust(integrityCheckedAssertions);
     this._validateContextAndTenancy(
       context,
       candidateProfile,
@@ -222,6 +229,10 @@ export class CoverLetterDraftingService {
       );
     }
 
+    // Normalize before auditing and counting; metadata must not report verified
+    // paragraphs that the output boundary subsequently downgrades.
+    rawLetter = enforceEvidenceTrust(rawLetter);
+
     // 9. Post-Generation Integrity Gate Validation (P5-006)
     const integrityAuditResult = this._runPostGenerationIntegrityAudit(
       context,
@@ -270,7 +281,9 @@ export class CoverLetterDraftingService {
     rawLetter.metadata.characterCount = totalChars;
 
     // 11. Validate Against Canonical TailoredCoverLetterSchema
-    return TailoredCoverLetterSchema.parse(rawLetter);
+    return registerCurrentNarrativeArtifact(
+      TailoredCoverLetterSchema.parse(enforceEvidenceTrust(rawLetter))
+    );
   }
 
   // =========================================================================
@@ -389,23 +402,13 @@ export class CoverLetterDraftingService {
     companyName,
     recipientName,
     topSkills,
-    tone,
+    tone: _tone,
   }) {
     const primarySkillNames = topSkills.slice(0, 3).map((s) => s.name);
     const skillsText =
       primarySkillNames.length > 0 ? primarySkillNames.join(', ') : 'modern software engineering';
 
-    let prose = '';
-    if (tone === 'CONCISE') {
-      prose = `Dear ${recipientName}, I am applying for the ${roleTitle} position at ${companyName}. With verified technical capabilities in ${skillsText}, I offer proven, production-grade engineering excellence.`;
-    } else if (tone === 'CONFIDENT') {
-      prose = `Dear ${recipientName}, I am writing to express my strong interest in the ${roleTitle} role at ${companyName}. Backed by deep, demonstrable expertise in ${skillsText}, I am prepared to deliver immediate architectural impact to your engineering organization.`;
-    } else if (tone === 'WARM') {
-      prose = `Dear ${recipientName}, I am thrilled to apply for the ${roleTitle} position at ${companyName}. Having developed substantial practical experience with ${skillsText}, I would love the opportunity to collaborate with your team and contribute to your technical mission.`;
-    } else {
-      // PROFESSIONAL (Default)
-      prose = `Dear ${recipientName}, I am writing to submit my application for the ${roleTitle} position at ${companyName}. With substantial, verifiable engineering experience in ${skillsText}, I look forward to bringing robust technical leadership and disciplined software practices to your organization.`;
-    }
+    const prose = `Dear ${recipientName}, I am applying for the ${roleTitle} position at ${companyName}. My profile lists ${skillsText}; these skill associations are not an independent assessment of proficiency.`;
 
     const collectedAssertionIds = topSkills.slice(0, 3).flatMap((s) => s.assertionIds || []);
     const collectedEvidenceRefs = this._deduplicateAndCapEvidenceRefs(
@@ -434,7 +437,7 @@ export class CoverLetterDraftingService {
     roleTitle,
     jobDescription,
     topSkills,
-    tone,
+    tone: _tone,
   }) {
     const rawDesc = jobDescription.rawText || jobDescription.description || '';
     const domainContext = this._extractGroundedDomainContext(rawDesc, companyName);
@@ -445,17 +448,7 @@ export class CoverLetterDraftingService {
       .join(' and ');
     const skillClause = relevantSkills ? ` leveraging ${relevantSkills}` : '';
 
-    let prose = '';
-    if (tone === 'CONCISE') {
-      prose = `Your posting for ${roleTitle} at ${companyName} emphasizes ${domainContext}. My background${skillClause} aligns directly with these engineering goals.`;
-    } else if (tone === 'CONFIDENT') {
-      prose = `The engineering demands at ${companyName} require robust execution in ${domainContext}. My hands-on proficiency${skillClause} provides the exact capabilities needed to accelerate these initiatives.`;
-    } else if (tone === 'WARM') {
-      prose = `I was particularly drawn to ${companyName}'s focus on ${domainContext}. Contributing my background${skillClause} to these goals represents an exciting opportunity for meaningful teamwork.`;
-    } else {
-      // PROFESSIONAL
-      prose = `In reviewing the requirements for the ${roleTitle} role at ${companyName}, I note a clear emphasis on ${domainContext}. My professional background${skillClause} provides a strong foundation to meet and exceed these technical standards.`;
-    }
+    const prose = `The ${roleTitle} posting at ${companyName} emphasizes ${domainContext}. I am interested in discussing this work${skillClause}; a technology association alone does not establish my experience.`;
 
     const collectedAssertionIds = topSkills.slice(0, 2).flatMap((s) => s.assertionIds || []);
     const collectedEvidenceRefs = this._deduplicateAndCapEvidenceRefs(
@@ -484,7 +477,7 @@ export class CoverLetterDraftingService {
     roleTitle: _roleTitle,
     companyName: _companyName,
     topSkills: _topSkills,
-    tone,
+    tone: _tone,
     evidenceIndex,
   }) {
     const company = experienceEntry.company || 'Previous Organization';
@@ -515,17 +508,7 @@ export class CoverLetterDraftingService {
         ? ` In this role, I focused on: ${validBullets.slice(0, 2).join(' ')}`
         : '';
 
-    let prose = '';
-    if (tone === 'CONCISE') {
-      prose = `During my tenure as ${title} at ${company} (${dates}), I led key engineering efforts.${bulletDetail}`;
-    } else if (tone === 'CONFIDENT') {
-      prose = `As ${title} at ${company} (${dates}), I demonstrated consistent engineering leadership and technical execution.${bulletDetail}`;
-    } else if (tone === 'WARM') {
-      prose = `In my work as ${title} with ${company} (${dates}), I enjoyed collaborating with cross-functional teams on complex challenges.${bulletDetail}`;
-    } else {
-      // PROFESSIONAL
-      prose = `Throughout my work as ${title} at ${company} (${dates}), I developed robust, maintainable systems while upholding high engineering rigor.${bulletDetail}`;
-    }
+    const prose = `According to my provided career history, I worked as ${title} at ${company} (${dates}).${bulletDetail}`;
 
     const matchedEvidenceRefs = this._findEvidenceRefsForText(
       validBullets.join(' '),
@@ -538,7 +521,7 @@ export class CoverLetterDraftingService {
       text: prose,
       assertionIds: [],
       evidenceRefs: matchedEvidenceRefs,
-      status: 'VERIFIED',
+      status: 'CLAIMED',
       confidenceScore: 0.95,
       relevanceScore: 90.0,
       matchedKeywords: [title, company],
@@ -553,7 +536,7 @@ export class CoverLetterDraftingService {
     project,
     roleTitle: _roleTitle,
     topSkills: _topSkills,
-    tone,
+    tone: _tone,
     evidenceIndex,
     assertionList: _assertionList,
   }) {
@@ -561,7 +544,7 @@ export class CoverLetterDraftingService {
     const langs = Array.isArray(project.primaryLanguages)
       ? project.primaryLanguages.join(', ')
       : '';
-    const desc = project.description || 'production-ready software system';
+    const desc = project.description || 'No repository description provided';
 
     // Metric safety check on project description
     if (QUANTITATIVE_METRIC_REGEX.test(desc)) {
@@ -575,19 +558,9 @@ export class CoverLetterDraftingService {
       }
     }
 
-    const langClause = langs ? ` engineered primarily in ${langs}` : '';
+    const langClause = langs ? ` (reported languages: ${langs})` : '';
 
-    let prose = '';
-    if (tone === 'CONCISE') {
-      prose = `A key demonstration of my technical capabilities is ${projectName}${langClause}, designed as a ${desc}. The codebase features verifiable commit history and modular architectural patterns.`;
-    } else if (tone === 'CONFIDENT') {
-      prose = `My practical engineering depth is exemplified by ${projectName}${langClause}, a ${desc}. This project demonstrates clean architectural separation, comprehensive automated tests, and production reliability.`;
-    } else if (tone === 'WARM') {
-      prose = `I take pride in open-source craftsmanship, demonstrated in ${projectName}${langClause}, where I developed a ${desc} focused on clean code and maintainability.`;
-    } else {
-      // PROFESSIONAL
-      prose = `A prime example of my technical execution is ${projectName}${langClause}, a ${desc}. This project highlights my commitment to clean architecture, comprehensive automated testing, and robust production patterns.`;
-    }
+    const prose = `The repository linked in my profile, ${projectName}${langClause}, is described as: ${desc}. Repository access and technology detection do not independently establish my authorship or proficiency.`;
 
     const projectEvidenceRefs = this._deduplicateAndCapEvidenceRefs(project.evidenceRefs || []);
 
@@ -608,24 +581,14 @@ export class CoverLetterDraftingService {
   /**
    * Synthesizes the MOTIVATION paragraph.
    */
-  _synthesizeMotivationParagraph({ roleTitle, companyName, topSkills, tone }) {
+  _synthesizeMotivationParagraph({ roleTitle, companyName, topSkills, tone: _tone }) {
     const skillList =
       topSkills
         .slice(0, 2)
         .map((s) => s.name)
         .join(' and ') || 'modern software engineering';
 
-    let prose = '';
-    if (tone === 'CONCISE') {
-      prose = `I am eager to apply my background in ${skillList} to the ${roleTitle} role at ${companyName}, driving high engineering velocity.`;
-    } else if (tone === 'CONFIDENT') {
-      prose = `I am highly motivated to bring my specialized expertise in ${skillList} to ${companyName}, and I am confident in my ability to deliver immediate value as a ${roleTitle}.`;
-    } else if (tone === 'WARM') {
-      prose = `I am genuinely excited about the possibility of joining ${companyName} as a ${roleTitle}, where I can contribute my knowledge of ${skillList} alongside a talented engineering team.`;
-    } else {
-      // PROFESSIONAL
-      prose = `I am enthusiastic about the opportunity to contribute to ${companyName} as a ${roleTitle}. Applying my verified background in ${skillList} to your technical initiatives represents an ideal match for my professional goals.`;
-    }
+    const prose = `I am interested in discussing the ${roleTitle} opportunity at ${companyName}, including the role's use of ${skillList}.`;
 
     const collectedAssertionIds = topSkills.slice(0, 2).flatMap((s) => s.assertionIds || []);
     const collectedEvidenceRefs = this._deduplicateAndCapEvidenceRefs(
@@ -1066,7 +1029,7 @@ ${rawLetter.paragraphs.map((p, idx) => `  Paragraph ${idx + 1} (${p.paragraphTyp
 
         return {
           ...orig,
-          text: newText,
+          text: retainAuthoritativeNarrative(newText, orig.text),
         };
       });
 

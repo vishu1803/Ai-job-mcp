@@ -24,10 +24,12 @@ import {
   skills,
   candidateSkills,
   evidenceItems,
+  resourceConnections,
 } from '../../src/db/schema.js';
 import { createConnectorContext } from '../../src/connectors/base/context.js';
 import { GitHubEvidenceExtractorService } from '../../src/extractors/github/index.js';
 import { NotFoundError } from '../../src/errors/index.js';
+import { pinGitHubFixture } from '../fixtures/pinned-github-connector.js';
 
 describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
@@ -48,83 +50,85 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
     createConnectorContext({
       tenantId: tenant.id,
       userId: user.id,
-      connectionId: crypto.randomUUID(),
+      connectionId: tenant.id === tenantA.id ? resourceA.connectionId : resourceB.connectionId,
       provider: 'GITHUB_APP',
       authType: 'APP_INSTALLATION',
       scopes: ['read:user', 'repo'],
     });
 
   // Mock GitHubAppConnector simulating deep repository inspection results
-  const createMockConnector = (customManifest = null) => ({
-    async getRepositoryTree(_ctx, _cred, _extId) {
-      return {
-        tree: [
-          { path: 'package.json', type: 'blob' },
-          { path: 'src/index.js', type: 'blob' },
-          { path: 'Dockerfile', type: 'blob' },
-          { path: 'drizzle.config.js', type: 'blob' },
-          { path: '.github/workflows/ci.yml', type: 'blob' },
-          { path: 'src/connectors/base/connector.js', type: 'blob' },
-        ],
-      };
-    },
-    async getLanguages(_ctx, _cred, _extId) {
-      return {
-        languages: {
-          JavaScript: 45000,
-          SQL: 12000,
-        },
-      };
-    },
-    async getReadme(_ctx, _cred, _extId) {
-      return {
-        content: '# Career Hub Platform\nBuilt with Fastify, PostgreSQL, Drizzle ORM, and Docker.',
-      };
-    },
-    async getRecentCommits(_ctx, _cred, _extId) {
-      return {
-        commits: [
-          {
-            sha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
-            message: 'feat(auth): implement OAuth PKCE flow',
-            author: { login: `user-a-${testRunId}`, name: 'User A' },
-            date: new Date().toISOString(),
+  const createMockConnector = (customManifest = null) =>
+    pinGitHubFixture({
+      async getRepositoryTree(_ctx, _cred, _extId) {
+        return {
+          tree: [
+            { path: 'package.json', type: 'blob' },
+            { path: 'src/index.js', type: 'blob' },
+            { path: 'Dockerfile', type: 'blob' },
+            { path: 'drizzle.config.js', type: 'blob' },
+            { path: '.github/workflows/ci.yml', type: 'blob' },
+            { path: 'src/connectors/base/connector.js', type: 'blob' },
+          ],
+        };
+      },
+      async getLanguages(_ctx, _cred, _extId) {
+        return {
+          languages: {
+            JavaScript: 45000,
+            SQL: 12000,
           },
-        ],
-      };
-    },
-    async getFileContent(_ctx, _cred, _extId, path) {
-      if (path === 'package.json') {
-        return {
-          path: 'package.json',
-          commitSha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
-          content:
-            customManifest ||
-            JSON.stringify({
-              name: 'career-hub',
-              dependencies: {
-                fastify: '^5.2.0',
-                '@fastify/cors': '^10.0.0',
-                'drizzle-orm': '^0.45.0',
-                pg: '^8.11.0',
-              },
-              devDependencies: {
-                vitest: '^1.0.0',
-              },
-            }),
         };
-      }
-      if (path === 'src/index.js') {
+      },
+      async getReadme(_ctx, _cred, _extId) {
         return {
-          path: 'src/index.js',
-          commitSha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
           content:
-            "import fastify from 'fastify';\nimport { db } from './db/index.js';\nconst app = fastify();",
+            '# Career Hub Platform\nBuilt with Fastify, PostgreSQL, Drizzle ORM, and Docker.',
         };
-      }
-      return { path, content: '', commitSha: 'HEAD' };
-    },
-  });
+      },
+      async getRecentCommits(_ctx, _cred, _extId) {
+        return {
+          commits: [
+            {
+              sha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
+              message: 'feat(auth): implement OAuth PKCE flow',
+              author: { id: 901, login: `user-a-${testRunId}`, name: 'User A' },
+              date: new Date().toISOString(),
+            },
+          ],
+        };
+      },
+      async getFileContent(_ctx, _cred, _extId, path) {
+        if (path === 'package.json') {
+          return {
+            path: 'package.json',
+            commitSha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
+            content:
+              customManifest ||
+              JSON.stringify({
+                name: 'career-hub',
+                dependencies: {
+                  fastify: '^5.2.0',
+                  '@fastify/cors': '^10.0.0',
+                  'drizzle-orm': '^0.45.0',
+                  pg: '^8.11.0',
+                },
+                devDependencies: {
+                  vitest: '^1.0.0',
+                },
+              }),
+          };
+        }
+        if (path === 'src/index.js') {
+          return {
+            path: 'src/index.js',
+            commitSha: '5017539ddb5d8d616b5fbfa2682dba7d4910b039',
+            content:
+              "import fastify from 'fastify';\nimport { db } from './db/index.js';\nconst app = fastify();",
+          };
+        }
+        return { path, content: '', commitSha: 'HEAD' };
+      },
+    });
 
   before(async () => {
     // 1. Provision Test Tenant A & Candidate A
@@ -162,19 +166,33 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
       tenantId: tenantA.id,
       candidateId: candidateA.id,
       provider: 'GITHUB_APP',
-      externalAccountId: `gh-${testRunId}-userA`,
+      externalAccountId: '901',
       externalUsername: `user-a-${testRunId}`,
       verified: true,
     });
 
+    const [connectionA] = await db
+      .insert(resourceConnections)
+      .values({
+        tenantId: tenantA.id,
+        userId: userA.id,
+        provider: 'GITHUB_APP',
+        authType: 'APP_INSTALLATION',
+        externalAccountId: '901',
+        displayName: 'Fixture',
+        encryptedCredentials: 'synthetic-fixture',
+        status: 'ACTIVE',
+      })
+      .returning();
     [resourceA] = await db
       .insert(resources)
       .values({
         tenantId: tenantA.id,
         candidateId: candidateA.id,
+        connectionId: connectionA.id,
         provider: 'GITHUB_APP',
         resourceType: 'REPOSITORY',
-        externalResourceId: `repo-${testRunId}-core`,
+        externalResourceId: 'fixture/core-platform',
         name: 'core-platform',
         displayName: `user-a-${testRunId}/core-platform`,
       })
@@ -210,14 +228,28 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
       })
       .returning();
 
+    const [connectionB] = await db
+      .insert(resourceConnections)
+      .values({
+        tenantId: tenantB.id,
+        userId: userB.id,
+        provider: 'GITHUB_APP',
+        authType: 'APP_INSTALLATION',
+        externalAccountId: '902',
+        displayName: 'Fixture',
+        encryptedCredentials: 'synthetic-fixture',
+        status: 'ACTIVE',
+      })
+      .returning();
     [resourceB] = await db
       .insert(resources)
       .values({
         tenantId: tenantB.id,
         candidateId: candidateB.id,
+        connectionId: connectionB.id,
         provider: 'GITHUB_APP',
         resourceType: 'REPOSITORY',
-        externalResourceId: `repo-${testRunId}-b-repo`,
+        externalResourceId: 'fixture/b-repo',
         name: 'b-repo',
         displayName: `user-b-${testRunId}/b-repo`,
       })
@@ -302,7 +334,7 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
         (cs) => cs.skillId === fastifySkillRow.id
       );
       assert.ok(fastifyCandidateSkill);
-      assert.strictEqual(fastifyCandidateSkill.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(fastifyCandidateSkill.provenanceStatus, 'INFERRED');
       assert.ok(fastifyCandidateSkill.confidenceScore >= 0.85);
 
       // Verify resource lastSyncedAt was updated
@@ -483,6 +515,7 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
         .values({
           tenantId: tenantA.id,
           displayName: 'Temp Candidate',
+          userId: userA.id,
         })
         .returning();
 
@@ -493,7 +526,8 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
           candidateId: tempCand.id,
           provider: 'GITHUB_APP',
           resourceType: 'REPOSITORY',
-          externalResourceId: `repo-temp-${testRunId}`,
+          connectionId: resourceA.connectionId,
+          externalResourceId: 'fixture/temp-repo',
           name: 'temp-repo',
           displayName: 'user/temp-repo',
         })

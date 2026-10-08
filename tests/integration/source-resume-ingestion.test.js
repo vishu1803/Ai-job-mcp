@@ -391,7 +391,7 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
       .where(
         and(eq(candidateSkills.tenantId, tenantIdA), eq(skills.name, `TypeScript_${testRunId}`))
       );
-    assert.equal(tsSkill.candidate_skills.provenanceStatus, 'VERIFIED');
+    assert.equal(tsSkill.candidate_skills.provenanceStatus, 'INFERRED');
 
     // 2. Redis and GraphQL were added -> MUST BE CLAIMED!
     const [redisSkill] = await db
