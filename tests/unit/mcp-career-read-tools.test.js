@@ -294,7 +294,7 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
     assert.ok(ListVerifiedSkillsOutputSchema.safeParse(result).success);
     assert.strictEqual(result.items.length, 1);
     assert.strictEqual(result.items[0].slug, 'rust');
-    assert.strictEqual(result.items[0].provenanceStatus, 'VERIFIED');
+    assert.strictEqual(result.items[0].provenanceStatus, 'INFERRED');
     assert.strictEqual(result.pagination.totalCount, 1);
     assert.strictEqual(result.pagination.hasNextPage, false);
   });
@@ -405,9 +405,9 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
     assert.ok(ListVerifiedSkillsOutputSchema.safeParse(result).success);
     assert.strictEqual(result.items.length, 4);
     assert.strictEqual(result.items[0].slug, 'react');
-    assert.strictEqual(result.items[0].provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(result.items[0].provenanceStatus, 'INFERRED');
     assert.strictEqual(result.items[1].slug, 'rust');
-    assert.strictEqual(result.items[1].provenanceStatus, 'VERIFIED');
+    assert.strictEqual(result.items[1].provenanceStatus, 'INFERRED');
     assert.strictEqual(result.items[2].slug, 'django');
     assert.strictEqual(result.items[2].provenanceStatus, 'CLAIMED');
     assert.strictEqual(result.items[2].confidenceScore, 0.5);
@@ -1044,9 +1044,19 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
     assert.ok(AnalyzeJobFitOutputSchema.safeParse(result).success);
     assert.ok(result.overallFit.atsScore >= 0 && result.overallFit.atsScore <= 100);
     assert.ok(
-      ['EXCELLENT', 'STRONG', 'GOOD', 'MODERATE', 'LOW'].includes(result.overallFit.matchGrade)
+      ['EXCELLENT', 'STRONG', 'GOOD', 'MODERATE', 'LOW', 'WEAK'].includes(
+        result.overallFit.matchGrade
+      )
     );
-    assert.ok(result.requirementSummary.matchedCount >= 1);
+    assert.ok(
+      result.requirementSummary.partialCount >= 1,
+      JSON.stringify(result.requirementSummary)
+    );
+    assert.equal(
+      result.requirementSummary.matchedCount,
+      0,
+      'repository associations do not establish verified proficiency'
+    );
     assert.ok(result.topRelevantProjects.length <= 3);
     assert.ok(result.prioritizedSkillGaps.length <= 5);
     assert.strictEqual(result._meta.cacheControl.cacheScope, 'tenant-private');

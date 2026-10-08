@@ -16,28 +16,16 @@
  * 5. DUAL-SURFACE PARITY: MCP and Extension invoke the identical generation workflow.
  */
 
-import {
-  defaultResumeClaimValidationService,
-  validateClaimEvidenceGrounding,
-} from './resume-claim-validation.service.js';
+import { validateClaimEvidenceGrounding } from './resume-claim-validation.service.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
-import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
 import {
   toEvidenceReference,
-  calculateTokenOverlap,
   sanitizeGroundedAccomplishment,
 } from './resume-composition-primitives.js';
-import {
-  getJobRequirementConcepts,
-  buildCanonicalFactInventory,
-} from './candidate-fact-inventory.service.js';
-import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
+import { buildCanonicalFactInventory } from './candidate-fact-inventory.service.js';
 import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
-import {
-  buildResumeAiContext,
-  validateAiPrivacy,
-  sanitizeProjectName,
-} from './ai-context-sanitizer.service.js';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import { buildResumeAiContext, sanitizeProjectName } from './ai-context-sanitizer.service.js';
 
 export class AiResumeContentGeneratorService {
   /**
@@ -190,10 +178,10 @@ export class AiResumeContentGeneratorService {
       if (slugName) projectBullets[slugName] = bullets;
     }
 
-    return {
+    return enforceEvidenceTrust({
       summary,
       projectBullets,
-    };
+    });
   }
 
   /**
@@ -234,163 +222,41 @@ export class AiResumeContentGeneratorService {
         : candidate.skills || []
     ).map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.slug || ''));
 
-    const verifiedSkillSet = new Set(verifiedSkillsList.map((s) => s.toLowerCase().trim()));
-
-    const targetTitle = String(job.title || job.targetRole || 'Software Engineer').trim();
-    const targetDesc = String(job.description || '').trim();
-    const targetReqs = Array.isArray(job.requirements)
-      ? job.requirements.map((r) => (typeof r === 'string' ? r : r.text || r.concept || ''))
-      : [];
-
-    // Attempt AI Generation if provider client is active
+    // AI output is advisory only. Fact IDs/overlap cannot authorize arbitrary prose.
+    // Preserve the privacy-safe provider contract, but render the server synthesizer.
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
       try {
         const policy = getPromptPolicy('RESUME_SUMMARY_SYNTHESIS');
-
-        // Canonical Privacy-Safe AI Context Builder (Part 55)
-        const { context: sanitizedContext, resolveFactIds } = buildResumeAiContext({
+        const { context: sanitizedContext } = buildResumeAiContext({
           job,
           candidateProfile: candidate,
-          selectedProjects,
-          selectedSkills,
+          selectedProjects: selectedProjects,
           factInventory: availableFacts,
           taskType: 'RESUME_SUMMARY_SYNTHESIS',
         });
-
-        const prompt = `Synthesize a job-conditioned 2-to-3 sentence professional resume summary targeting the position of "${targetTitle}". Emphasize real architectural capabilities and accomplishments verified in the provided candidate facts matching "${targetTitle}". Write in objective third-person WITHOUT mentioning the candidate's name or any personal identifiers. Prefer neutral constructions such as "Backend engineer specializing in...". Map contributing candidate fact IDs into composedFromFactIds[]. Do not use boilerplate templates.`;
-
-        const aiResponse = await activeProvider.generateStructured({
+        await activeProvider.generateStructured({
           taskType: 'RESUME_SUMMARY_SYNTHESIS',
-          prompt,
-          candidateFacts: {
-            verifiedSkills: sanitizedContext.skills,
-            selectedProjects: sanitizedContext.projects,
-            facts: sanitizedContext.facts,
-          },
+          prompt:
+            'Suggest fact selection only. Narrative wording and verification are server controlled.',
+          candidateFacts: sanitizedContext,
           jobRequirements: sanitizedContext.targetJob,
           responseSchema: policy.responseSchema,
         });
-
-        if (aiResponse && aiResponse.data && aiResponse.data.summaryText) {
-          const generatedText = aiResponse.data.summaryText.trim();
-
-          // Privacy Validation (Defense-in-depth)
-          const privacyValidation = validateAiPrivacy({
-            text: generatedText,
-            candidateProfile: candidate,
-          });
-
-          if (!privacyValidation.valid) {
-            console.warn(
-              '[AiResumeContentGenerator] Summary privacy validation failed (PII detected):',
-              privacyValidation.violations
-            );
-          } else {
-            const rawFactIds = aiResponse.data.composedFromFactIds || [];
-            const canonicalFactIds = resolveFactIds(rawFactIds);
-            let validFactIds = canonicalFactIds.filter((id) =>
-              availableFacts.some((f) => (f.factId || f.id) === id)
-            );
-
-            if (generatedText.length >= 40) {
-              let contributingFacts = validFactIds
-                .map((id) => availableFacts.find((f) => (f.factId || f.id) === id))
-                .filter(Boolean);
-
-              // Auto-align contributing facts if overlap is low
-              const currentFactText = contributingFacts.map((f) => f.text).join(' ');
-              const currentOverlap = calculateTokenOverlap(generatedText, currentFactText);
-              if (currentOverlap < 0.05 && availableFacts.length > 0) {
-                let bestFact = null;
-                let bestOverlap = currentOverlap;
-                for (const f of availableFacts) {
-                  const ov = calculateTokenOverlap(generatedText, f.text || '');
-                  if (ov > bestOverlap) {
-                    bestOverlap = ov;
-                    bestFact = f;
-                  }
-                }
-                if (bestFact) {
-                  contributingFacts = [bestFact, ...contributingFacts];
-                  validFactIds = [bestFact.factId || bestFact.id, ...validFactIds];
-                }
-              }
-
-              if (validFactIds.length === 0 && availableFacts.length > 0) {
-                validFactIds = [availableFacts[0].factId || availableFacts[0].id];
-                contributingFacts = [availableFacts[0]];
-              }
-
-              const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
-
-              const groundingResult = validateClaimEvidenceGrounding(
-                {
-                  text: generatedText,
-                  factIds: validFactIds,
-                  composedFromFactIds: validFactIds,
-                  sourceFact: sourceFacts,
-                  transformationType: 'REWRITE',
-                },
-                {
-                  factInventory: availableFacts,
-                  candidateProfile: candidate,
-                  sectionOwnerType: 'SUMMARY',
-                  sectionOwnerId: 'summary',
-                }
-              );
-
-              if (groundingResult.valid) {
-                return {
-                  text: generatedText,
-                  referencedSkillSlugs: aiResponse.data.referencedSkillSlugs || [],
-                  referencedProjectIds:
-                    aiResponse.data.referencedProjectIds ||
-                    selectedProjects.map((p) => p.id || p.projectId),
-                  composedFromFactIds: validFactIds,
-                  evidenceRefs: validFactIds.map((id) =>
-                    toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
-                  ),
-                  provenanceStatus: 'VERIFIED',
-                  sourceFact: sourceFacts,
-                  transformationType: 'REWRITE',
-                };
-              } else {
-                console.warn(
-                  '[AiResumeContentGenerator] Summary grounding failed:',
-                  groundingResult.violations
-                );
-              }
-            } else {
-              console.warn(
-                '[AiResumeContentGenerator] Summary shape check failed. length:',
-                generatedText.length,
-                'validFactIds:',
-                validFactIds
-              );
-            }
-          }
-        } else {
-          console.warn(
-            '[AiResumeContentGenerator] Summary aiResponse.data missing summaryText:',
-            aiResponse?.data
-          );
-        }
-      } catch (err) {
-        console.error(
-          '[AiResumeContentGenerator] Summary generation exception:',
-          err.message || err
-        );
+      } catch {
+        // Malformed output, provider failures and instructions cannot bypass rendering.
       }
     }
 
     // High-Fidelity Job-Adaptive Evidence Synthesizer
-    return this._synthesizeJobConditionedSummary({
-      candidate,
-      job,
-      selectedProjects,
-      verifiedSkillsList,
-      availableFacts,
-    });
+    return enforceEvidenceTrust(
+      this._synthesizeJobConditionedSummary({
+        candidate,
+        job,
+        selectedProjects,
+        verifiedSkillsList,
+        availableFacts,
+      })
+    );
   }
 
   /**
@@ -505,40 +371,17 @@ export class AiResumeContentGeneratorService {
       usedFactIds.push(secondProjFacts[0].factId || secondProjFacts[0].id);
     }
 
-    // Role-conditioned sentence synthesis
-    if (isFrontend) {
-      s1 = `Frontend Engineer focused on building responsive, component-driven web applications and interactive client interfaces with ${techString}.`;
-      s2 = topProjName
-        ? `Architected production web features in ${topProjName}, implementing modular UI hierarchies, state management, and real-time updates.`
-        : `Delivers clean, modular user interfaces with strict attention to accessibility and client performance.`;
-      s3 = `Brings a solid foundation in software design and active problem-solving through disciplined algorithmic practice.`;
-    } else if (isPython || (isBackend && !isDistributed)) {
-      s1 = `Backend Engineer specializing in robust REST API development, database persistence, and service performance using ${techString}.`;
-      s2 = topProjName
-        ? `Engineered modular backend services and asynchronous webhook pipelines in ${topProjName}, optimizing relational schemas and query latency.`
-        : `Demonstrated delivery of reliable backend services backed by automated testing and clean modular design.`;
-      s3 = `Committed to robust server architecture, data integrity, and continuous algorithmic problem-solving.`;
-    } else if (isDevOps) {
-      s1 = `Platform and DevOps-oriented Engineer experienced in containerized service deployment, infrastructure automation, and reliable backend delivery using ${techString}.`;
-      s2 = topProjName
-        ? `Implemented automated build pipelines and Dockerized environments across ${topProjName}${secondProjName ? ` and ${secondProjName}` : ''}, ensuring repeatable local and cloud execution.`
-        : `Focuses on automated workflows, containerized service orchestration, and reliable production operations.`;
-      s3 = `Applies strong system design fundamentals and active algorithmic practice to maintain resilient engineering solutions.`;
-    } else if (isDistributed) {
-      s1 = `Systems-focused Backend Engineer with expertise in concurrent request handling, event processing, and modular service integration using ${techString}.`;
-      s2 = topProjName
-        ? `Engineered asynchronous webhook ingestion endpoints and event workflows in ${topProjName}, maintaining service availability under load.`
-        : `Experienced in architecting decoupled, resilient backend workflows with robust error boundaries.`;
-      s3 = `Grounded in core data structures, concurrency paradigms, and analytical problem-solving.`;
-    } else {
-      // Full-Stack
-      s1 = `Full-Stack Developer adept at engineering end-to-end web applications, bridging responsive client interfaces with modular backend APIs using ${techString}.`;
-      s2 =
-        topProjName && secondProjName
-          ? `Delivered full-lifecycle features across ${topProjName} and ${secondProjName}, implementing authenticated REST APIs, relational persistence, and interactive user experiences.`
-          : `Delivered production web solutions with modular client components and reliable database-backed services.`;
-      s3 = `Maintains strong engineering fundamentals backed by daily practice in algorithmic problem-solving and clean system architecture.`;
-    }
+    // Job relevance chooses associations, never invents candidate accomplishments.
+    s1 = `Profile targeting ${job.title || job.targetRole || 'Software Engineer'} lists ${techString || 'no technology associations'}.`;
+    s2 = topProjName
+      ? `Linked repositories include ${topProjName}${secondProjName ? ` and ${secondProjName}` : ''}; repository access does not establish candidate authorship.`
+      : 'No linked repository is available to support a project-specific statement.';
+    const reportedFacts = availableFacts
+      .filter((fact) => fact.candidateAuthored === true && fact.renderable !== false && fact.text)
+      .slice(0, 2);
+    s3 = reportedFacts.length
+      ? `Candidate-provided claims (not independently verified): ${reportedFacts.map((fact) => fact.text).join(' ')}`
+      : 'Technology associations do not independently establish practical experience or proficiency.';
 
     const summaryText = `${s1} ${s2} ${s3}`;
 
@@ -801,8 +644,8 @@ export class AiResumeContentGeneratorService {
             ownerId: projectOwnerId,
             sectionOwnerId: projectOwnerId,
             candidateId: candId,
-            provenanceStatus: 'VERIFIED',
-            provenance: 'VERIFIED',
+            provenanceStatus: 'CLAIMED',
+            provenance: 'CLAIMED',
           };
         }
         return {
@@ -819,8 +662,8 @@ export class AiResumeContentGeneratorService {
           ownerId: f.ownerId || projectOwnerId,
           sectionOwnerId: f.sectionOwnerId || projectOwnerId,
           candidateId: f.candidateId || candId,
-          provenanceStatus: f.provenanceStatus || 'VERIFIED',
-          provenance: f.provenance || 'VERIFIED',
+          provenanceStatus: enforceEvidenceTrust(f).provenanceStatus || 'CLAIMED',
+          provenance: enforceEvidenceTrust(f).provenance || 'CLAIMED',
         };
       })
       .filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
@@ -850,182 +693,46 @@ export class AiResumeContentGeneratorService {
       jobText
     );
 
-    // AI Generation if active client
+    // AI output is advisory only. Fact IDs/overlap cannot authorize arbitrary prose.
+    // Preserve the privacy-safe provider contract, but render the server synthesizer.
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
       try {
         const policy = getPromptPolicy('RESUME_ACCOMPLISHMENT_SYNTHESIS');
-
-        // Canonical Privacy-Safe AI Context Builder (Part 55)
-        const { context: sanitizedContext, resolveFactIds } = buildResumeAiContext({
+        const { context: sanitizedContext } = buildResumeAiContext({
           job,
           candidateProfile: candidate,
           selectedProjects: [proj],
           factInventory: availableFacts,
           taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
         });
-
-        const cleanProjectName = sanitizedContext.projectName;
-
-        const prompt = `Synthesize exactly 3 distinct, professional engineering accomplishment bullets for project "${cleanProjectName}", tailored specifically toward target position "${job.title || 'Software Engineer'}".
-MANDATORY WRITING RULES:
-1. Every bullet MUST be a complete sentence ending with a period (.), adhering strictly to: [Action Verb] + [Engineering Object / System] + [Technical Method / Mechanism] + [Purpose / Result].
-2. NEVER produce sentence fragments, passive voice, or raw repository descriptions (e.g. do NOT output "Intelligent automated code review system..." or "Real-time collaborative task manager built with...").
-3. Cover 3 DIVERSE technical aspects across the 3 bullets:
-   - Aspect 1: Core application architecture / platform / full-stack execution
-   - Aspect 2: Backend APIs / data persistence / database optimization / schema design
-   - Aspect 3: Integration / performance / asynchronous workflows / automation / security
-4. STRICT EVIDENCE GROUNDING & PRIVACY:
-   - NEVER mention candidate personal name, contact details, or personal identifiers.
-   - Use ONLY the technologies and facts provided in <candidate_facts>. Do NOT invent AWS, cloud infrastructure, or ungrounded technologies.
-   - ZERO OUTCOME EXTRAPOLATION: You may claim an outcome ONLY when a provided fact explicitly supports it. Do NOT infer percentage reductions, time savings, productivity improvements, developer velocity, code quality improvements, or scale from mere automation.
-5. Map every bullet to its contributing factId in factIds[]. Return { bullets: [...] }.`;
-
-        const aiResponse = await activeProvider.generateStructured({
+        await activeProvider.generateStructured({
           taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
-          prompt,
-          candidateFacts: {
-            projectName: cleanProjectName,
-            technologies: sanitizedContext.technologies,
-            facts: sanitizedContext.facts,
-          },
+          prompt:
+            'Suggest fact selection only. Narrative wording and verification are server controlled.',
+          candidateFacts: sanitizedContext,
           jobRequirements: sanitizedContext.targetJob,
           responseSchema: policy.responseSchema,
         });
-
-        if (
-          aiResponse &&
-          aiResponse.data &&
-          Array.isArray(aiResponse.data.bullets) &&
-          aiResponse.data.bullets.length >= 3
-        ) {
-          const validatedBullets = [];
-          for (const rawB of aiResponse.data.bullets) {
-            let rawText = String(rawB.text || '').trim();
-            if (!rawText) continue;
-            let bulletText = sanitizeGroundedAccomplishment(rawText);
-            if (!bulletText.endsWith('.')) bulletText += '.';
-
-            // Privacy check on each bullet
-            const privacyCheck = validateAiPrivacy({
-              text: bulletText,
-              candidateProfile: candidate,
-            });
-            if (!privacyCheck.valid) {
-              console.warn(
-                '[AiResumeContentGenerator] Bullet privacy check failed:',
-                privacyCheck.violations
-              );
-              continue;
-            }
-
-            const rawFactIds = rawB.factIds || [];
-            const canonicalFactIds = resolveFactIds(rawFactIds).filter((id) =>
-              availableFacts.some((f) => (f.factId || f.id) === id)
-            );
-            let contributingFacts = canonicalFactIds
-              .map((id) => availableFacts.find((f) => (f.factId || f.id) === id))
-              .filter(Boolean);
-
-            let finalFactIds = canonicalFactIds;
-
-            // If model mapped factId has poor overlap (< 0.2), re-align to best matching project fact
-            const currentFactText = contributingFacts.map((f) => f.text).join(' ');
-            const currentOverlap = calculateTokenOverlap(bulletText, currentFactText);
-            if (currentOverlap < 0.2 && availableFacts.length > 0) {
-              let bestFact = null;
-              let bestOverlap = currentOverlap;
-              for (const f of availableFacts) {
-                const ov = calculateTokenOverlap(bulletText, f.text || '');
-                if (ov > bestOverlap) {
-                  bestOverlap = ov;
-                  bestFact = f;
-                }
-              }
-              if (bestFact && bestOverlap >= 0.2) {
-                contributingFacts = [bestFact];
-                finalFactIds = [bestFact.factId || bestFact.id];
-              }
-            }
-
-            if (finalFactIds.length === 0 && availableFacts.length > 0) {
-              finalFactIds = [availableFacts[0].factId || availableFacts[0].id];
-              contributingFacts = [availableFacts[0]];
-            }
-
-            const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
-            const transformationType = rawB.transformationType || 'REWRITE';
-            const finalSourceFact =
-              sourceFacts.length > 0 ? sourceFacts : availableFacts[0]?.text || '';
-
-            const validation = validateClaimEvidenceGrounding(
-              {
-                claimId: rawB.claimId || `claim-${validatedBullets.length + 1}`,
-                text: bulletText,
-                factIds: finalFactIds,
-                composedFromFactIds: finalFactIds,
-                sourceFact: finalSourceFact,
-                transformationType,
-              },
-              {
-                factInventory: availableFacts,
-                candidateProfile: candidate,
-                sectionOwnerType: 'PROJECT',
-                sectionOwnerId: proj.id || proj.projectId,
-              }
-            );
-
-            if (validation.valid) {
-              validatedBullets.push({
-                text: bulletText,
-                factId: finalFactIds[0],
-                composedFromFactIds: finalFactIds,
-                evidenceRefs: finalFactIds.map((id) =>
-                  toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
-                ),
-                candidateSupported: true,
-                provenance: 'VERIFIED',
-                sourceFact: finalSourceFact,
-                transformationType,
-              });
-            } else {
-              console.warn(
-                '[AiResumeContentGenerator] Bullet grounding failed:',
-                validation.violations
-              );
-            }
-          }
-          if (validatedBullets.length >= 3) {
-            return validatedBullets.slice(0, 3);
-          } else {
-            console.warn(
-              '[AiResumeContentGenerator] Validated bullets count < 3:',
-              validatedBullets.length
-            );
-          }
-        } else {
-          console.warn(
-            '[AiResumeContentGenerator] Bullets aiResponse.data missing or < 3:',
-            aiResponse?.data
-          );
-        }
-      } catch (err) {
-        console.error('[AiResumeContentGenerator] Project bullets exception:', err.message || err);
+      } catch {
+        // Malformed output, provider failures and instructions cannot bypass rendering.
       }
     }
 
     // High-Fidelity Job-Conditioned Deterministic Bullet Synthesizer
-    return this._synthesizeJobConditionedProjectBullets({
-      proj,
-      jobText,
-      isFullStack,
-      isFrontend,
-      isBackend,
-      isPython,
-      isDevOps,
-      isDistributed,
-      availableFacts,
-      candidate,
-    });
+    return enforceEvidenceTrust(
+      this._synthesizeJobConditionedProjectBullets({
+        proj,
+        jobText,
+        isFullStack,
+        isFrontend,
+        isBackend,
+        isPython,
+        isDevOps,
+        isDistributed,
+        availableFacts,
+        candidate,
+      })
+    );
   }
 
   /**

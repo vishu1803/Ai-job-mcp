@@ -198,6 +198,8 @@ export async function getVerifiedHandoffDocuments(
     try {
       const buffer = await artifactStorage.getDecryptedDocument({
         tenantId: application.tenantId,
+        candidateId: application.candidateId,
+        expectedPackageHash: currentPackageHash,
         storageKey: storedArtifact.storageKey,
       });
       // This is the PDF byte hash — used for artifact integrity verification only

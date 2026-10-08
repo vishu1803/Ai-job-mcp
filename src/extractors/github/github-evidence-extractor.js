@@ -14,7 +14,8 @@
  * - Strict multi-tenant isolation and transactional persistence
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import { createHash, randomUUID } from 'node:crypto';
 import { db } from '../../db/index.js';
 import {
   candidates,
@@ -23,6 +24,7 @@ import {
   skills,
   candidateSkills,
   evidenceItems,
+  resourceConnections,
 } from '../../db/schema.js';
 import { NotFoundError, ValidationError } from '../../errors/index.js';
 import { logger } from '../../utils/logger.js';
@@ -35,6 +37,7 @@ import { RustManifestParser } from './manifest-parsers/rust-manifest-parser.js';
 import { ImportScanner } from './code-scanners/import-scanner.js';
 import { computeEvidenceFingerprint } from './fingerprint.js';
 import { SkillRollupCalculator } from './skill-rollup.js';
+import { EVIDENCE_POLICY_VERSION } from '../../services/evidence/verification-policy.js';
 
 export class GitHubEvidenceExtractorService {
   constructor() {
@@ -86,6 +89,9 @@ export class GitHubEvidenceExtractorService {
     if (!candidate) {
       throw new NotFoundError(`Candidate not found in current tenant scope: ${candidateId}`);
     }
+    if (!context.userId || candidate.userId !== context.userId) {
+      throw new NotFoundError('Candidate not found in current user scope');
+    }
 
     const [resource] = await db
       .select()
@@ -94,6 +100,25 @@ export class GitHubEvidenceExtractorService {
 
     if (!resource) {
       throw new NotFoundError(`Resource not found in current tenant scope: ${resourceId}`);
+    }
+    const [connection] = await db
+      .select()
+      .from(resourceConnections)
+      .where(
+        and(
+          eq(resourceConnections.id, resource.connectionId),
+          eq(resourceConnections.tenantId, tenantId),
+          eq(resourceConnections.userId, context.userId),
+          eq(resourceConnections.status, 'ACTIVE')
+        )
+      );
+    if (
+      resource.candidateId !== candidateId ||
+      resource.status !== 'ACTIVE' ||
+      !connection ||
+      context.connectionId !== resource.connectionId
+    ) {
+      throw new ValidationError('Active candidate-owned repository connection required');
     }
 
     if (resource.provider !== 'GITHUB_APP') {
@@ -113,8 +138,12 @@ export class GitHubEvidenceExtractorService {
         )
       );
 
-    const verifiedUsernames = new Set(
-      identities.map((i) => i.externalUsername?.toLowerCase()).filter(Boolean)
+    const verifiedGithubIds = new Set(
+      identities
+        .filter(
+          (i) => i.verified && i.provider === 'GITHUB_APP' && /^\d+$/.test(i.externalAccountId)
+        )
+        .map((i) => i.externalAccountId)
     );
 
     logger.info(
@@ -131,25 +160,43 @@ export class GitHubEvidenceExtractorService {
     // 2. Fetch External Repository Data via GitHubAppConnector (Outside DB Tx)
     // -------------------------------------------------------------------------
     const externalResourceId = resource.externalResourceId;
+    // Reserve a durable ingestion epoch BEFORE I/O. Starting revalidation invalidates
+    // old proofs, including on a later 403/404/parser/DB failure. A stale run cannot win.
+    const epoch = randomUUID();
+    await db
+      .update(resources)
+      .set({
+        metadata: sql`jsonb_set(${resources.metadata}, '{evidenceEpoch}', ${JSON.stringify(epoch)}::jsonb)`,
+      })
+      .where(and(eq(resources.id, resourceId), eq(resources.tenantId, tenantId)));
+    const repository = await connector.getRepository(context, credentials, externalResourceId);
+    if (
+      !/^[1-9]\d*$/.test(String(repository?.id)) ||
+      !/^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/.test(repository?.fullName || '') ||
+      (String(repository.id) !== externalResourceId && repository.fullName !== externalResourceId)
+    ) {
+      throw new ValidationError('Authoritative repository identity mismatch');
+    }
+    const head = await connector.getBranchHeadSha(
+      context,
+      credentials,
+      externalResourceId,
+      repository.defaultBranch
+    );
+    const commitSha = head?.commitSha;
+    if (!/^[a-f0-9]{40}$/.test(commitSha || ''))
+      throw new ValidationError('Immutable commit required');
+    const pinnedFiles = new Map();
 
     // Fetch repository tree
     let treeEntries = [];
-    try {
-      const treeResult = await connector.getRepositoryTree(
-        context,
-        credentials,
-        externalResourceId,
-        {
-          recursive: true,
-        }
-      );
-      treeEntries = treeResult?.entries || treeResult?.tree || [];
-    } catch (err) {
-      logger.warn(
-        { err: err.message, resourceId, externalResourceId },
-        'Failed to fetch repository directory tree; continuing with available signals'
-      );
-    }
+    const treeResult = await connector.getRepositoryTree(context, credentials, externalResourceId, {
+      recursive: true,
+      treeSha: commitSha,
+    });
+    treeEntries = treeResult?.entries || treeResult?.tree || [];
+    if (treeResult?.truncated || !Array.isArray(treeEntries))
+      throw new ValidationError('Incomplete repository tree');
 
     // Fetch languages
     let languages = {};
@@ -157,7 +204,10 @@ export class GitHubEvidenceExtractorService {
       const langResult = await connector.getLanguages(context, credentials, externalResourceId);
       languages = langResult?.languages || {};
     } catch {
-      // Best-effort
+      throw new ValidationError(
+        'Repository language retrieval failed; evidence revalidation required',
+        'SOURCE_REVALIDATION_REQUIRED'
+      );
     }
 
     // Fetch README
@@ -165,8 +215,9 @@ export class GitHubEvidenceExtractorService {
     try {
       const readmeResult = await connector.getReadme(context, credentials, externalResourceId);
       readmeContent = readmeResult?.content || '';
-    } catch {
-      // README is optional
+    } catch (error) {
+      if (error.statusCode !== 404 && error.status !== 404) throw error;
+      // An absent optional README creates no README evidence.
     }
 
     // Fetch recent commits
@@ -178,11 +229,15 @@ export class GitHubEvidenceExtractorService {
         externalResourceId,
         {
           limit: 10,
+          sha: commitSha,
         }
       );
       recentCommits = commitsResult?.commits || [];
     } catch {
-      // Commits are optional
+      throw new ValidationError(
+        'Repository commit retrieval failed; evidence revalidation required',
+        'SOURCE_REVALIDATION_REQUIRED'
+      );
     }
 
     // Identify candidate manifests from tree (up to 10)
@@ -200,44 +255,52 @@ export class GitHubEvidenceExtractorService {
     // Fetch file contents for manifests
     const fetchedManifests = [];
     for (const item of manifestTreeItems) {
-      try {
-        const fileData = await connector.getFileContent(
-          context,
-          credentials,
-          externalResourceId,
-          item.path
-        );
-        if (fileData?.content) {
-          fetchedManifests.push({
-            path: item.path,
-            content: fileData.content,
-            commitSha: fileData.commitSha || 'HEAD',
-          });
-        }
-      } catch (err) {
-        logger.debug({ path: item.path, err: err.message }, 'Skipping unreadable manifest file');
+      const fileData = await connector.getFileContent(
+        context,
+        credentials,
+        externalResourceId,
+        item.path,
+        { ref: commitSha }
+      );
+      if (fileData?.content) {
+        const blobSha = createHash('sha1')
+          .update(`blob ${Buffer.byteLength(fileData.content)}\0`)
+          .update(fileData.content)
+          .digest('hex');
+        if (blobSha !== item.sha || blobSha !== fileData.sha)
+          throw new ValidationError('Git blob integrity mismatch');
+        pinnedFiles.set(item.path, blobSha);
+        fetchedManifests.push({
+          path: item.path,
+          content: fileData.content,
+          commitSha,
+        });
       }
     }
 
     // Fetch file contents for entrypoint source files
     const fetchedSources = [];
     for (const item of sourceTreeItems) {
-      try {
-        const fileData = await connector.getFileContent(
-          context,
-          credentials,
-          externalResourceId,
-          item.path
-        );
-        if (fileData?.content) {
-          fetchedSources.push({
-            path: item.path,
-            content: fileData.content,
-            commitSha: fileData.commitSha || 'HEAD',
-          });
-        }
-      } catch (err) {
-        logger.debug({ path: item.path, err: err.message }, 'Skipping unreadable source file');
+      const fileData = await connector.getFileContent(
+        context,
+        credentials,
+        externalResourceId,
+        item.path,
+        { ref: commitSha }
+      );
+      if (fileData?.content) {
+        const blobSha = createHash('sha1')
+          .update(`blob ${Buffer.byteLength(fileData.content)}\0`)
+          .update(fileData.content)
+          .digest('hex');
+        if (blobSha !== item.sha || blobSha !== fileData.sha)
+          throw new ValidationError('Git blob integrity mismatch');
+        pinnedFiles.set(item.path, blobSha);
+        fetchedSources.push({
+          path: item.path,
+          content: fileData.content,
+          commitSha,
+        });
       }
     }
 
@@ -292,6 +355,7 @@ export class GitHubEvidenceExtractorService {
           confidenceScore: imp.confidence,
           metadata: {
             rawImport: imp.rawImport,
+            extractionMethod: imp.extractionMethod,
           },
         });
       }
@@ -460,9 +524,7 @@ export class GitHubEvidenceExtractorService {
 
     // G. Candidate Commit Contributions (COMMIT_CONTRIBUTION, confidence 0.50)
     for (const commit of recentCommits) {
-      const authorLogin = commit.author?.login?.toLowerCase();
-      const isCandidateAuthor =
-        (authorLogin && verifiedUsernames.has(authorLogin)) || verifiedUsernames.size === 0; // If no verified identities linked yet, allow repository author
+      const isCandidateAuthor = verifiedGithubIds.has(String(commit.author?.id));
 
       if (isCandidateAuthor && commit.message) {
         // Match conventional commit messages: feat(scope): message
@@ -486,6 +548,8 @@ export class GitHubEvidenceExtractorService {
             metadata: {
               commitSha: commit.sha,
               commitDate: commit.date,
+              githubAuthorId: String(commit.author.id),
+              attributionMethod: 'GITHUB_ACCOUNT_ASSOCIATION',
             },
           });
         }
@@ -591,7 +655,65 @@ export class GitHubEvidenceExtractorService {
     const uniqueSkills = Array.from(skillSlugMap.values());
     const persistedSkills = [];
 
+    for (const ev of processedEvidence) {
+      const loc = ev.sourceLocation;
+      const isStaticReference =
+        ev.evidenceType === 'CODE_IMPORT_USAGE' &&
+        ev.metadata.extractionMethod === 'ACORN_AST' &&
+        pinnedFiles.has(loc.filePath);
+      ev.metadata.verification = {
+        version: EVIDENCE_POLICY_VERSION,
+        status: isStaticReference ? 'VERIFIED' : 'OBSERVED',
+        scope: isStaticReference ? 'REPOSITORY_STATIC_REFERENCE' : 'REPOSITORY_OBSERVATION',
+        method: isStaticReference ? 'ACORN_AST' : ev.evidenceType,
+        validation: isStaticReference ? 'PINNED_TREE_AND_GIT_BLOB' : 'UNVERIFIED_SIGNAL',
+        tenantId,
+        candidateId,
+        resourceId,
+        epoch,
+        repositoryId: String(repository.id),
+        repository: repository.fullName,
+        repositoryOwner: repository.fullName.split('/')[0],
+        branchRef: head.ref || null,
+        repositoryUrl: `https://github.com/${repository.fullName}`,
+        commitSha: loc.commitSha,
+        filePath: loc.filePath,
+        lineRange: loc.lineRange || null,
+        blobSha: pinnedFiles.get(loc.filePath) || null,
+        observedAt: new Date().toISOString(),
+        attribution: {
+          status: 'UNATTRIBUTED',
+          reason: 'Repository access does not establish authorship or proficiency',
+        },
+        fact: isStaticReference
+          ? `Repository ${repository.fullName} contains a static module reference to "${ev.metadata.rawImport}" in ${loc.filePath}:${loc.lineRange.start} at ${loc.commitSha}.`
+          : null,
+      };
+    }
+
     await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(resources)
+        .where(eq(resources.id, resourceId))
+        .for('update');
+      const [activeConnection] = await tx
+        .select()
+        .from(resourceConnections)
+        .where(eq(resourceConnections.id, resource.connectionId))
+        .for('share');
+      if (
+        current?.metadata?.evidenceEpoch !== epoch ||
+        current.status !== 'ACTIVE' ||
+        current.candidateId !== candidateId ||
+        current.connectionId !== resource.connectionId ||
+        activeConnection?.status !== 'ACTIVE' ||
+        activeConnection.userId !== context.userId
+      ) {
+        throw new ValidationError(
+          'Repository access changed during extraction; revalidation required'
+        );
+      }
       // 1. Upsert / Ensure all canonical skills exist in global taxonomy
       for (const skill of uniqueSkills) {
         const [existing] = await tx.select().from(skills).where(eq(skills.slug, skill.slug));

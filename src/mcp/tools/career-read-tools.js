@@ -31,6 +31,7 @@ import {
 } from '../../db/schema.js';
 import { NotFoundError, ValidationError } from '../../errors/index.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
+import { enforceEvidenceTrust } from '../../services/evidence/verification-policy.js';
 import { JobDescriptionParser } from '../../domain/career/job-parser.js';
 import {
   boundRequirementText,
@@ -45,10 +46,7 @@ import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
-import {
-  deriveCanonicalJobId,
-  deriveJobFingerprint,
-} from '../../utils/url-normalizer.js';
+import { deriveCanonicalJobId, deriveJobFingerprint } from '../../utils/url-normalizer.js';
 import { normalizeTruthCategory } from '../../domain/career/truth-category.js';
 import { config } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
@@ -486,11 +484,13 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         : Array.isArray(exp.skills)
           ? exp.skills.slice(0, 15)
           : [],
-      verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed)
-        ? exp.verifiedSkillsUsed.slice(0, 10)
-        : Array.isArray(exp.skills)
-          ? exp.skills.slice(0, 10)
-          : [],
+      verifiedSkillsUsed: [],
+      reportedSkillsUsed: (
+        exp.reportedSkillsUsed ||
+        exp.verifiedSkillsUsed ||
+        exp.skills ||
+        []
+      ).slice(0, 10),
       provenanceStatus: exp.provenanceStatus || 'CLAIMED',
     }));
   }
@@ -678,7 +678,7 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     }
   }
 
-  return GetCandidateProfileOutputSchema.parse(output);
+  return GetCandidateProfileOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================
@@ -838,7 +838,7 @@ export async function handleListVerifiedSkills(context, rawArgs, deps = {}) {
     },
   };
 
-  return ListVerifiedSkillsOutputSchema.parse(output);
+  return ListVerifiedSkillsOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================
@@ -1077,7 +1077,7 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
     },
   };
 
-  return InspectProjectEvidenceOutputSchema.parse(output);
+  return InspectProjectEvidenceOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================
@@ -1872,7 +1872,7 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
   // strict output schema before it leaves the handler for the MCP transport.
   // No partial/unvalidated payload may be returned, and no unknown or invalid
   // enum value may escape — `.strict()` rejects drift instead of stripping it.
-  return AnalyzeJobFitOutputSchema.parse(output);
+  return AnalyzeJobFitOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================

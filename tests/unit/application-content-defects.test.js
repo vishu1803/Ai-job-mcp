@@ -293,7 +293,7 @@ describe('Unit: Application Content Defects & Readiness Regression Suite', () =>
         'Cover letter must never repeat the same project name'
       );
       assert.ok(
-        cl.markdownContent.includes('I built AI Job MCP'),
+        cl.markdownContent.includes('AI Job MCP') && !cl.markdownContent.includes('I built'),
         'Cover letter should mention the project once with clean human-readable name'
       );
     });
@@ -337,12 +337,13 @@ describe('Unit: Application Content Defects & Readiness Regression Suite', () =>
         'Must NOT claim that each skill is verified'
       );
       assert.ok(
-        text.includes('verified proficiency in'),
-        'Must explicitly qualify verified proficiency'
+        !text.includes('verified proficiency in') &&
+          text.includes('repository technology observations'),
+        'Repository observations must not establish verified proficiency'
       );
       assert.ok(
-        text.includes('practical experience with'),
-        'Must separate claimed/self-reported practical experience'
+        text.includes('self-reported skills') && text.includes('[Unverified User Claim]'),
+        'Must preserve self-reported skills without asserting practical experience'
       );
     });
   });

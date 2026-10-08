@@ -911,6 +911,17 @@ export const oauthTokens = pgTable(
     accessTokenHash: text('access_token_hash').notNull().unique(),
     refreshTokenHash: text('refresh_token_hash').unique(),
     familyId: uuid('family_id').notNull(),
+    authorizationCodeId: uuid('authorization_code_id').references(
+      () => oauthAuthorizationCodes.id,
+      {
+        onDelete: 'set null',
+      }
+    ),
+    predecessorId: uuid('predecessor_id').references(() => oauthTokens.id, {
+      onDelete: 'set null',
+    }),
+    rotatedAt: timestamp('rotated_at', { withTimezone: true }),
+    familyRevokedAt: timestamp('family_revoked_at', { withTimezone: true }),
     resource: text('resource').notNull().default('http://localhost:3000/mcp'),
     tokenScopes: jsonb('token_scopes').notNull(), // string[]
     isRevoked: boolean('is_revoked').notNull().default(false),
@@ -924,6 +935,11 @@ export const oauthTokens = pgTable(
     index('idx_oauth_tokens_access_hash').on(table.accessTokenHash),
     index('idx_oauth_tokens_refresh_hash').on(table.refreshTokenHash),
     index('idx_oauth_tokens_family_id').on(table.familyId),
+    uniqueIndex('uq_oauth_tokens_authorization_code').on(table.authorizationCodeId),
+    uniqueIndex('uq_oauth_tokens_predecessor').on(table.predecessorId),
+    uniqueIndex('uq_oauth_tokens_active_family')
+      .on(table.familyId)
+      .where(sql`${table.isRevoked} = false`),
     index('idx_oauth_tokens_tenant_user').on(table.tenantId, table.userId),
     index('idx_oauth_tokens_expires_at').on(table.accessTokenExpiresAt),
   ]

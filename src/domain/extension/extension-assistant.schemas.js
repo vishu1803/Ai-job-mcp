@@ -104,6 +104,7 @@ export const RequirementMatchExplanationSchema = z.object({
   requirement: z.string(),
   satisfied: z.boolean(),
   status: z.enum(['VERIFIED', 'MISSING', 'PARTIAL']),
+  provenanceStatus: z.string().optional(),
   explanation: z.string(),
   evidence: z.string().nullable().optional(),
   source: z.string().nullable().optional(),

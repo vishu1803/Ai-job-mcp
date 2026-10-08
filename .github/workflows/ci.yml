@@ -40,6 +40,8 @@ jobs:
 
     env:
       NODE_ENV: test
+      # npm test:* explicitly preloads tests/setup/approval-signing-env.js.
+      # Its domain-specific test keys are never loaded by production start.
       DATABASE_URL: postgres://postgres:postgres_ci_password@localhost:5432/career_hub_test
       DATABASE_SSL: 'false'
       DATABASE_POOL_MIN: 0

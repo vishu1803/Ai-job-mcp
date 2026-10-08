@@ -25,6 +25,7 @@
  */
 
 import crypto from 'node:crypto';
+import { enforceEvidenceTrust, skillTrustStatus } from './evidence/verification-policy.js';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
@@ -1614,7 +1615,7 @@ export class CandidateArtifactContentService {
     // Fail-closed on malformed or test-contaminated candidate input content
     this.validateCandidateInputIntegrity(snapshot);
 
-    return snapshot;
+    return enforceEvidenceTrust(snapshot);
   }
 
   /**
@@ -1627,12 +1628,12 @@ export class CandidateArtifactContentService {
     const verified = [];
     const claimed = [];
     const learning = [];
+    const observed = [];
 
     for (const skill of candidateData.skills || []) {
       const name = skill.name || skill.skillName;
       if (!name) continue;
-      const provenance =
-        skill.provenanceStatus || skill.provenance || (skill.isUserClaim ? 'CLAIMED' : null);
+      const provenance = skillTrustStatus(skill);
       if (provenance === 'VERIFIED' || provenance === 'CORROBORATED') verified.push(name);
       else if (provenance === 'LEARNING') learning.push(name);
       else if (
@@ -1641,11 +1642,16 @@ export class CandidateArtifactContentService {
         provenance === 'USER_PROVIDED'
       )
         claimed.push(name);
-      else claimed.push(name);
+      else observed.push(name);
     }
 
     const dedupe = (list) => Array.from(new Set(list));
-    return { verified: dedupe(verified), claimed: dedupe(claimed), learning: dedupe(learning) };
+    return {
+      verified: dedupe(verified),
+      claimed: dedupe(claimed),
+      learning: dedupe(learning),
+      observed: dedupe(observed),
+    };
   }
 
   /**
@@ -2048,7 +2054,7 @@ export class CandidateArtifactContentService {
                 ? [p.summary]
                 : [],
           relevance: auditItem?.score || 0,
-          provenanceStatus: p.provenanceStatus || 'VERIFIED',
+          provenanceStatus: skillTrustStatus(p.provenanceStatus),
         };
       })
       .sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
@@ -2695,6 +2701,7 @@ export class CandidateArtifactContentService {
    * @returns {{ markdownContent: string, fitScore: number, title: string, sections: string[], selectedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }}
    */
   buildTailoredResumeMarkdown(candidateData, jobPosting, options = {}) {
+    candidateData = enforceEvidenceTrust(candidateData);
     const { displayName } = candidateData;
     const targetRole = jobPosting.title;
     const _targetCompany = jobPosting.company;
@@ -3553,7 +3560,8 @@ export class CandidateArtifactContentService {
     const targetRole = jobPosting.title;
     const targetCompany = jobPosting.company;
 
-    const { verified, claimed } = this.partitionSkills(candidateData);
+    candidateData = enforceEvidenceTrust(candidateData);
+    const { verified, claimed, observed } = this.partitionSkills(candidateData);
     const verifiedTokens = verified.map(normalizeSkillToken);
     const matchedVerifiedSkills = verified.filter((name) => {
       const token = normalizeSkillToken(name);
@@ -3562,6 +3570,12 @@ export class CandidateArtifactContentService {
       );
     });
     const matchedClaimedSkills = claimed.filter((name) => {
+      const token = normalizeSkillToken(name);
+      return [...candidateData.jobKeywords].some(
+        (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
+      );
+    });
+    const matchedObservedSkills = observed.filter((name) => {
       const token = normalizeSkillToken(name);
       return [...candidateData.jobKeywords].some(
         (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
@@ -3650,11 +3664,11 @@ export class CandidateArtifactContentService {
     // Paragraph 1 — OPENING (supported facts only)
     const openingParts = [`I am applying for the ${targetRole} position at ${targetCompany}.`];
     if (candidateData.headline) {
-      openingParts.push(`I work as a ${candidateData.headline}.`);
+      openingParts.push(`My self-reported professional headline is ${candidateData.headline}.`);
     }
     if (experienceTitle && experienceCompany) {
       openingParts.push(
-        `Most recently, I completed a ${experienceTitle} internship at ${experienceCompany}.`
+        `My provided career history lists ${experienceTitle} at ${experienceCompany}.`
       );
     }
     paragraphs.push({ type: 'OPENING', text: openingParts.join(' ') });
@@ -3691,46 +3705,33 @@ export class CandidateArtifactContentService {
         return `${cleanName}${urlPart}${tech}`;
       });
 
-      let projectSentence;
-      if (projectClauses.length === 1) {
-        projectSentence = `I built ${projectClauses[0]}.`;
-      } else if (projectClauses.length === 2) {
-        projectSentence = `I built ${projectClauses[0]} and ${projectClauses[1]}.`;
-      } else {
-        const last = projectClauses[projectClauses.length - 1];
-        const initial = projectClauses.slice(0, -1).join(', ');
-        projectSentence = `I built ${initial}, and ${last}.`;
-      }
-
+      const projectSentence = projectClauses.join('; ');
       paragraphs.push({
         type: 'PROJECT_EVIDENCE',
-        text: `My technical projects demonstrate hands-on experience in building and deploying production-grade systems. ${projectSentence} These projects reflect my commitment to clean architecture, test coverage, and scalable design.`,
+        status: 'INFERRED',
+        text: `The repositories linked in my profile include ${projectSentence}. These repository technology observations do not independently establish my authorship or proficiency.`,
       });
     }
 
-    // Paragraph 4 — COMPANY_ALIGNMENT (truthfully separates verified from claimed)
-    const verifiedToMention = (
-      matchedVerifiedSkills.length > 0 ? matchedVerifiedSkills : verified
+    const observedToMention = (
+      matchedObservedSkills.length ? matchedObservedSkills : observed
     ).slice(0, 6);
-    const claimedToMention = (
-      matchedClaimedSkills.length > 0 ? matchedClaimedSkills : claimed
-    ).slice(0, 4);
-
-    if (verifiedToMention.length > 0) {
-      let alignmentText = `My technical background aligns with the requirements for the ${targetRole} role, with verified proficiency in ${verifiedToMention.join(', ')} demonstrated across my public repositories.`;
-      if (claimedToMention.length > 0) {
-        alignmentText += ` In addition, my background includes practical experience with ${claimedToMention.join(', ')}.`;
-      }
+    const claimedToMention = (matchedClaimedSkills.length ? matchedClaimedSkills : claimed).slice(
+      0,
+      4
+    );
+    if (observedToMention.length)
       paragraphs.push({
         type: 'COMPANY_ALIGNMENT',
-        text: alignmentText,
+        status: 'INFERRED',
+        text: `Repository technology observations relevant to this role include ${observedToMention.join(', ')}; these are not verified candidate qualifications.`,
       });
-    } else if (claimedToMention.length > 0) {
+    if (claimedToMention.length)
       paragraphs.push({
         type: 'COMPANY_ALIGNMENT',
-        text: `My technical background includes practical experience with ${claimedToMention.join(', ')}, which aligns with the requirements described for the ${targetRole} role.`,
+        status: 'CLAIMED',
+        text: `My self-reported skills include ${claimedToMention.join(', ')}. [Unverified User Claim]`,
       });
-    }
 
     // Paragraph 5 — CLOSING
     paragraphs.push({
@@ -3757,6 +3758,8 @@ export class CandidateArtifactContentService {
       topProjectNames,
       projectUrlByName,
       matchedVerifiedSkills,
+      matchedClaimedSkills,
+      matchedObservedSkills,
       verifiedTokens,
     };
   }
@@ -3817,6 +3820,8 @@ export class CandidateArtifactContentService {
       coverLetterParagraphTypes: coverLetter.paragraphs.map((p) => p.type),
       projectNamesUsed: coverLetter.topProjectNames,
       verifiedSkillsMatched: coverLetter.matchedVerifiedSkills,
+      observedSkillsMatched: coverLetter.matchedObservedSkills,
+      claimedSkillsMatched: coverLetter.matchedClaimedSkills,
       experienceUsed: candidateData.experience.length > 0,
       educationUsed: candidateData.education.length > 0,
       githubUsername: candidateData.githubUsername,

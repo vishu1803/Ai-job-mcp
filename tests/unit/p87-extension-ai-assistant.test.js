@@ -205,11 +205,12 @@ Requirements:
       candidateProfile: mockCandidate,
     });
 
-    // Verified skills are confirmed
+    // Supplied verification labels do not independently establish proficiency.
     const tsMatch = comparison.matches.find((m) => m.requirement === 'TypeScript');
-    assert.ok(tsMatch.satisfied);
-    assert.equal(tsMatch.status, 'VERIFIED');
-    assert.equal(tsMatch.source, 'CANONICAL_VERIFIED_SKILLS');
+    assert.equal(tsMatch.satisfied, false);
+    assert.equal(tsMatch.status, 'PARTIAL');
+    assert.equal(tsMatch.provenanceStatus, 'INFERRED');
+    assert.equal(tsMatch.source, 'UNVERIFIED_PROFILE_ASSOCIATION');
 
     // Unevidenced skills (Rust, AWS Cloud) MUST NOT be fabricated
     const rustMatch = comparison.matches.find((m) => m.requirement === 'Rust');

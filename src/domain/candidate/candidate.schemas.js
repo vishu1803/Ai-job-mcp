@@ -275,6 +275,8 @@ export const EvidenceExcerptSchema = z
 
 export const EvidenceNodeSchema = z.strictObject({
   id: z.string().uuid({ message: 'Evidence ID must be a valid UUID' }),
+  evidenceId: z.string().uuid().optional(),
+  verificationStatus: z.enum(['CLAIMED', 'OBSERVED', 'VERIFIED', 'INVALID']).optional(),
   tenantId: z.string().uuid().optional(),
   candidateId: z.string().uuid({ message: 'Candidate ID must be a valid UUID' }),
   resourceId: z.string().uuid({ message: 'Resource ID must be a valid UUID' }),
@@ -408,7 +410,7 @@ export const ProjectEvidenceSchema = z.strictObject({
   resources: z.array(ResourceSummarySchema).default([]),
   evidence: z.array(EvidenceNodeSchema).default([]),
   confidenceScore: ConfidenceScoreSchema.default(1.0),
-  provenanceStatus: ProvenanceStatusEnum.default('VERIFIED'),
+  provenanceStatus: ProvenanceStatusEnum.default('CLAIMED'),
   metadata: SafeMetadataSchema.default({}),
   createdAt: DateOrIsoStringSchema.optional(),
   updatedAt: DateOrIsoStringSchema.optional(),

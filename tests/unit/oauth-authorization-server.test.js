@@ -251,6 +251,7 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
     mockUsers = [
       {
         id: '11111111-1111-1111-1111-111111111111',
+        tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         role: 'MEMBER',
         status: 'ACTIVE',
       },
@@ -268,12 +269,16 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
     ];
 
     mockDb = {
+      transaction: async (callback) => callback(mockDb),
+      execute: async () => ({ rows: [{ now: new Date() }] }),
       select: () => ({
         from: (table) => ({
           where: (_condition) => ({
             limit: () => {
               if (table === oauthAuthorizationCodes) {
-                return mockCodes.slice(-1);
+                const rows = mockCodes.slice(-1);
+                rows.for = () => Promise.resolve(rows);
+                return rows;
               }
               if (table === oauthTokens) {
                 return mockTokens.slice(-1);
@@ -317,7 +322,8 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
                 Object.assign(t, updates);
               }
             }
-            return Promise.resolve();
+            const rows = table === oauthAuthorizationCodes ? mockCodes : mockTokens;
+            return { then: (resolve) => resolve(rows), returning: () => Promise.resolve(rows) };
           },
         }),
       }),

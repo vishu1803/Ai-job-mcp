@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { isTestRunner } from '../utils/test-env.js';
+import { approvalSecretIssues } from './approval-secrets.js';
 
 // Load base .env if present
 dotenv.config();
@@ -50,6 +51,8 @@ if (explicitEnvFile) {
  * @property {number} READ_CACHE_MAX_ENTRIES
  * @property {string} ENCRYPTION_MASTER_KEY
  * @property {string} ENCRYPTION_KEY_VERSION
+ * @property {string} ACTION_APPROVAL_HMAC_SECRET
+ * @property {string} CAREER_HUB_APPROVAL_SECRET
  * @property {string} GITHUB_CLIENT_ID
  * @property {string} GITHUB_CLIENT_SECRET
  * @property {string} GITHUB_OAUTH_REDIRECT_URI
@@ -59,7 +62,7 @@ if (explicitEnvFile) {
  * @property {string} APP_URL
  */
 
-const envSchema = z
+export const envSchema = z
   .object({
     NODE_ENV: z
       .enum(['development', 'production', 'test'])
@@ -86,6 +89,8 @@ const envSchema = z
       .optional()
       .default(() => process.env.ENCRYPTION_KEY || ''),
     ENCRYPTION_KEY_VERSION: z.string().default('v1'),
+    ACTION_APPROVAL_HMAC_SECRET: z.string().optional(),
+    CAREER_HUB_APPROVAL_SECRET: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional().default(''),
     GITHUB_CLIENT_SECRET: z.string().optional().default(''),
     GITHUB_OAUTH_REDIRECT_URI: z.string().default('http://localhost:3000/auth/github/callback'),
@@ -146,6 +151,9 @@ const envSchema = z
     JOB_FRESHNESS_DAYS: z.coerce.number().int().positive().default(30),
   })
   .superRefine((data, ctx) => {
+    for (const { name, message } of approvalSecretIssues(data)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [name], message });
+    }
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

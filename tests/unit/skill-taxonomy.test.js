@@ -742,7 +742,7 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       assert.ok(res.evidenceExplanation.includes('insufficient'));
     });
 
-    it('3. evaluates Level 1 (PACKAGE_MANIFEST) for GitHub-only technology as SIGNAL + VERIFIED', () => {
+    it('3. evaluates Level 1 (PACKAGE_MANIFEST) for GitHub-only technology as SIGNAL + INFERRED', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         evidenceCount: 1,
         confidenceScore: 0.8,
@@ -753,13 +753,13 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       });
 
       assert.equal(res.evidenceLevel, 1);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.truthStatus, 'INFERRED');
+      assert.equal(res.provenanceStatus, 'INFERRED');
       assert.equal(res.source, 'GITHUB');
       assert.equal(res.tier, 'SIGNAL');
     });
 
-    it('4. evaluates Level 1 for component packages like React Tabs as SIGNAL + VERIFIED', () => {
+    it('4. evaluates Level 1 for component packages like React Tabs as SIGNAL + INFERRED', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         evidenceCount: 1,
         confidenceScore: 0.8,
@@ -770,12 +770,12 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       });
 
       assert.equal(res.evidenceLevel, 1);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.truthStatus, 'INFERRED');
+      assert.equal(res.provenanceStatus, 'INFERRED');
       assert.equal(res.tier, 'SIGNAL');
     });
 
-    it('5. evaluates Level 1 for utility packages like Python Dotenv as SIGNAL + VERIFIED', () => {
+    it('5. evaluates Level 1 for utility packages like Python Dotenv as SIGNAL + INFERRED', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         evidenceCount: 1,
         confidenceScore: 0.8,
@@ -786,12 +786,12 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       });
 
       assert.equal(res.evidenceLevel, 1);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.truthStatus, 'INFERRED');
+      assert.equal(res.provenanceStatus, 'INFERRED');
       assert.equal(res.tier, 'SIGNAL');
     });
 
-    it('6. evaluates Level 3 (SUBSTANTIAL_IMPLEMENTATION) as PRIMARY + VERIFIED for GitHub-only skills with >=3 citations', () => {
+    it('6. evaluates Level 3 (SUBSTANTIAL_IMPLEMENTATION) as PRIMARY + INFERRED for GitHub-only skills with >=3 citations', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         evidenceCount: 5,
         confidenceScore: 0.95,
@@ -801,15 +801,15 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         slug: 'mcp',
       });
 
-      assert.equal(res.evidenceLevel, 3);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'INFERRED');
+      assert.equal(res.provenanceStatus, 'INFERRED');
       assert.equal(res.source, 'GITHUB');
-      assert.equal(res.tier, 'PRIMARY');
+      assert.equal(res.tier, 'SIGNAL');
       assert.ok(res.evidenceExplanation.includes('5 source citations'));
     });
 
-    it('7. evaluates Level 4 (CORROBORATED) as PRIMARY + CORROBORATED for skills with >=3 citations and resume claim', () => {
+    it('7. evaluates Level 4 (CLAIMED) as PRIMARY + CORROBORATED for skills with >=3 citations and resume claim', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         evidenceCount: 24,
         confidenceScore: 0.98,
@@ -819,14 +819,12 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         slug: 'fastify',
       });
 
-      assert.equal(res.evidenceLevel, 4);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
       assert.equal(res.source, 'BOTH');
       assert.equal(res.tier, 'PRIMARY');
-      assert.ok(
-        res.evidenceExplanation.includes('Resume claim corroborated by 24 repository citations')
-      );
+      assert.ok(res.evidenceExplanation.includes('24 source citations'));
     });
   });
 
@@ -874,7 +872,7 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       assert.ok(res.evidenceExplanation.includes('supporting FastAPI ecosystem signal detected'));
     });
 
-    it('C. FastAPI + substantial Python source implementation evaluates as eligible for PRIMARY + CORROBORATED', () => {
+    it('C. FastAPI + substantial 6 source citations evaluates as eligible for PRIMARY + CLAIMED', () => {
       const allSkills = [
         {
           slug: 'fastapi',
@@ -900,11 +898,11 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         allSkills,
       });
 
-      assert.equal(res.evidenceLevel, 4);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
       assert.equal(res.tier, 'PRIMARY');
-      assert.ok(res.evidenceExplanation.includes('Python source implementation'));
+      assert.ok(res.evidenceExplanation.includes('6 source citations'));
       assert.ok(res.evidenceExplanation.includes('FastAPI'));
     });
 
@@ -941,7 +939,7 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       assert.ok(res.evidenceExplanation.includes('insufficient for primary verification'));
     });
 
-    it('F. Substantial .js source implementation evaluates as eligible for PRIMARY + CORROBORATED', () => {
+    it('F. Substantial .js source implementation evaluates as eligible for PRIMARY + CLAIMED', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         slug: 'javascript',
         evidenceCount: 15,
@@ -951,14 +949,14 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         allSkills: [],
       });
 
-      assert.equal(res.evidenceLevel, 4);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
       assert.equal(res.tier, 'PRIMARY');
-      assert.ok(res.evidenceExplanation.includes('corroborated by 15 repository citations'));
+      assert.ok(res.evidenceExplanation.includes('15 source citations'));
     });
 
-    it('G. TypeScript source implementation evaluates as PRIMARY + CORROBORATED', () => {
+    it('G. TypeScript source implementation evaluates as PRIMARY + CLAIMED', () => {
       const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
         slug: 'typescript',
         evidenceCount: 10,
@@ -968,9 +966,9 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         allSkills: [],
       });
 
-      assert.equal(res.evidenceLevel, 4);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
       assert.equal(res.tier, 'PRIMARY');
     });
 
@@ -985,7 +983,7 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         allSkills: [],
       });
 
-      assert.equal(reactSignal.truthStatus, 'VERIFIED');
+      assert.equal(reactSignal.truthStatus, 'INFERRED');
       assert.equal(reactSignal.tier, 'SIGNAL');
     });
 
@@ -1008,9 +1006,9 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         allSkills,
       });
 
-      assert.equal(res.evidenceLevel, 4);
-      assert.equal(res.truthStatus, 'VERIFIED');
-      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
       assert.ok(res.evidenceExplanation.includes('React'));
     });
 
@@ -1033,8 +1031,8 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
         hasGithubEvidence: true,
         allSkills,
       });
-      assert.equal(tsRes.truthStatus, 'VERIFIED');
-      assert.equal(tsRes.provenanceStatus, 'CORROBORATED');
+      assert.equal(tsRes.truthStatus, 'CLAIMED');
+      assert.equal(tsRes.provenanceStatus, 'CLAIMED');
 
       // JavaScript evaluation with 0 direct JS citations
       const jsRes = SkillTaxonomyEngine.evaluateEvidenceStrength({

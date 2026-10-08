@@ -160,6 +160,7 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
         from: () => ({
           where: () => [mockCandidate],
           leftJoin: () => ({
+            innerJoin: () => ({ where: () => [] }),
             where: () => ({
               limit: () => [{ candidate: mockCandidate, userEmail: mockCandidate.canonicalEmail }],
             }),
@@ -272,6 +273,7 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
         from: () => ({
           where: () => [mockCandidate],
           leftJoin: () => ({
+            innerJoin: () => ({ where: () => [] }),
             where: () => ({
               limit: () => [{ candidate: mockCandidate, userEmail: mockCandidate.canonicalEmail }],
             }),

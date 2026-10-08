@@ -15,7 +15,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { candidates, candidateSkills, skills, auditLogs } from '../db/schema.js';
 import { resumeRepository } from '../db/repositories/resume.repository.js';
-import { documentStorageService } from './document-storage.service.js';
+import { documentStorageService, ORIGINAL_SOURCE_READ } from './document-storage.service.js';
 import { resumeParserService } from './resume-parser.service.js';
 import { NotFoundError, AuthorizationError } from '../errors/index.js';
 import { ResumeEntityResolver } from '../domain/career/resume-entity-resolver.js';
@@ -564,6 +564,8 @@ export class SourceResumeIngestionService {
 
     const decryptedBuffer = await this.documentStorage.getDecryptedDocument({
       tenantId,
+      candidateId: resume.candidateId,
+      sourceOriginalAuthority: ORIGINAL_SOURCE_READ,
       storageKey: resume.storageKey,
     });
 

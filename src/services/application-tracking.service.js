@@ -44,6 +44,44 @@ import {
 import { DocumentStorageService } from './document-storage.service.js';
 import { logger } from '../utils/logger.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
+import { assertCurrentPackage, assertHandoffManifest } from './evidence/artifact-policy.js';
+
+function quarantinedPackage(row) {
+  return (
+    row && { ...row, packagePayload: null, answers: {}, quarantineStatus: 'REVALIDATION_REQUIRED' }
+  );
+}
+function documentForCurrentPackage(doc, row) {
+  const pkg = row?.packagePayload;
+  const source =
+    doc.documentType === 'TAILORED_RESUME'
+      ? pkg?.tailoredResume
+      : doc.documentType === 'TAILORED_COVER_LETTER'
+        ? pkg?.coverLetter
+        : null;
+  if (
+    source &&
+    doc.metadata?.packageHash === row.packageHash &&
+    doc.renderedMarkdown === source.markdownContent &&
+    doc.content?.markdownContent === source.markdownContent
+  )
+    return {
+      ...doc,
+      title: source.title,
+      content: { markdownContent: source.markdownContent, packageHash: row.packageHash },
+      renderedPlainText: null,
+      citationRefs: [],
+    };
+  return {
+    ...doc,
+    title: 'Historical artifact (revalidation required)',
+    content: {},
+    renderedMarkdown: null,
+    renderedPlainText: null,
+    citationRefs: [],
+    metadata: { quarantineStatus: 'REVALIDATION_REQUIRED', packageHash: doc.metadata?.packageHash },
+  };
+}
 
 export class ApplicationTrackingService {
   /**
@@ -73,6 +111,41 @@ export class ApplicationTrackingService {
       this._documentStorageInstance = new DocumentStorageService();
     }
     return this._documentStorageInstance;
+  }
+
+  async _safePackage(row, context) {
+    if (!row) return null;
+    try {
+      await assertCurrentPackage(
+        this.db,
+        { ...context, candidateId: row.candidateId },
+        row.packagePayload
+      );
+      return row;
+    } catch (error) {
+      if (error.code !== 'ARTIFACT_REVALIDATION_REQUIRED') throw error;
+      return quarantinedPackage(row);
+    }
+  }
+
+  async _safeApplication(application, context) {
+    const safe = { ...application, metadata: { ...application.metadata } };
+    delete safe.metadata.handoffPackage;
+    delete safe.metadata.applicationPackage;
+    if (safe.metadata.handoffKit) {
+      try {
+        await assertHandoffManifest(
+          this.db,
+          { ...context, candidateId: application.candidateId },
+          safe.metadata.handoffKit
+        );
+      } catch (error) {
+        if (error.code !== 'ARTIFACT_REVALIDATION_REQUIRED') throw error;
+        delete safe.metadata.handoffKit;
+        safe.metadata.artifactStatus = 'REVALIDATION_REQUIRED';
+      }
+    }
+    return safe;
   }
 
   // ---------------------------------------------------------------------------
@@ -880,6 +953,7 @@ export class ApplicationTrackingService {
       throw new ValidationError('pkg.packageHash is required');
     }
     const tenantId = context.tenantId;
+    await assertCurrentPackage(this.db, { tenantId, candidateId: pkg.candidateId }, pkg);
 
     return await this.db.transaction(async (tx) => {
       // 1. Lock application row for serialized version transitions
@@ -1172,6 +1246,7 @@ export class ApplicationTrackingService {
     }
 
     const pkg = packageRow.packagePayload;
+    await assertCurrentPackage(this.db, { tenantId, candidateId: application.candidateId }, pkg);
     const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
     const generationContractVersion =
       pkg?.generationContractVersion ||
@@ -1322,6 +1397,12 @@ export class ApplicationTrackingService {
       .orderBy(desc(applicationPackages.version))
       .limit(1);
 
+    if (current)
+      await assertCurrentPackage(
+        this.db,
+        { tenantId, candidateId: current.candidateId },
+        current.packagePayload
+      );
     return current || null;
   }
 
@@ -1352,33 +1433,36 @@ export class ApplicationTrackingService {
       )
       .orderBy(desc(applicationPackages.version));
 
-    return packages.map((row) => {
-      const pkg = row.packagePayload;
-      const structuredResume =
-        pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
-      const generationContractVersion =
-        pkg?.generationContractVersion ||
-        pkg?.tailoredResume?.generationContractVersion ||
-        (structuredResume ? 'P16-001F' : 'LEGACY');
-      let structuredResumeSchemaVersion;
-      if (pkg?.structuredResumeSchemaVersion !== undefined) {
-        structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
-      } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
-        structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
-      } else if (structuredResume?.schemaVersion) {
-        structuredResumeSchemaVersion = structuredResume.schemaVersion;
-      } else if (generationContractVersion === 'LEGACY') {
-        structuredResumeSchemaVersion = null;
-      } else {
-        structuredResumeSchemaVersion = '2.0.0';
-      }
+    return Promise.all(
+      packages.map(async (original) => {
+        const row = await this._safePackage(original, context);
+        const pkg = row.packagePayload;
+        const structuredResume =
+          pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+        const generationContractVersion =
+          pkg?.generationContractVersion ||
+          pkg?.tailoredResume?.generationContractVersion ||
+          (structuredResume ? 'P16-001F' : 'LEGACY');
+        let structuredResumeSchemaVersion;
+        if (pkg?.structuredResumeSchemaVersion !== undefined) {
+          structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
+        } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+          structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
+        } else if (structuredResume?.schemaVersion) {
+          structuredResumeSchemaVersion = structuredResume.schemaVersion;
+        } else if (generationContractVersion === 'LEGACY') {
+          structuredResumeSchemaVersion = null;
+        } else {
+          structuredResumeSchemaVersion = '2.0.0';
+        }
 
-      return {
-        ...row,
-        generationContractVersion,
-        structuredResumeSchemaVersion,
-      };
-    });
+        return {
+          ...row,
+          generationContractVersion,
+          structuredResumeSchemaVersion,
+        };
+      })
+    );
   }
 
   /**
@@ -1431,6 +1515,12 @@ export class ApplicationTrackingService {
       );
     }
 
+    await assertCurrentPackage(
+      this.db,
+      { tenantId, candidateId: pkg.candidateId },
+      pkg.packagePayload
+    );
+
     const snapshots = await this.db
       .select()
       .from(tailoredDocuments)
@@ -1450,7 +1540,7 @@ export class ApplicationTrackingService {
 
     return {
       package: pkg,
-      documentSnapshots: packageSnapshots,
+      documentSnapshots: packageSnapshots.map((doc) => documentForCurrentPackage(doc, pkg)),
     };
   }
 
@@ -1501,6 +1591,12 @@ export class ApplicationTrackingService {
       if (!targetPackage) {
         throw new NotFoundError(`Application package version ${versionNum} not found`);
       }
+
+      await assertCurrentPackage(
+        tx,
+        { tenantId, candidateId: application.candidateId },
+        targetPackage.packagePayload
+      );
 
       // Promote target package to CURRENT
       const [promoted] = await tx
@@ -1960,11 +2056,18 @@ export class ApplicationTrackingService {
       .orderBy(desc(applicationPackages.version))
       .limit(1);
 
+    const safePackage = await this._safePackage(currentPackage, context);
+    const safeApplication = await this._safeApplication(application, context);
+    if (!safePackage?.packagePayload) {
+      delete safeApplication.metadata.handoffKit;
+      delete safeApplication.metadata.handoffPackage;
+      safeApplication.metadata.artifactStatus = 'REVALIDATION_REQUIRED';
+    }
     return {
-      application,
+      application: safeApplication,
       stages,
-      tailoredDocuments: documents,
-      currentPackage: currentPackage || null,
+      tailoredDocuments: documents.map((doc) => documentForCurrentPackage(doc, safePackage)),
+      currentPackage: safePackage,
     };
   }
 
@@ -2040,7 +2143,7 @@ export class ApplicationTrackingService {
     const total = Number(countResult[0]?.total ?? 0);
 
     return {
-      items,
+      items: await Promise.all(items.map((item) => this._safeApplication(item, context))),
       total,
       limit,
       offset,
@@ -2081,7 +2184,7 @@ export class ApplicationTrackingService {
       throw new NotFoundError(`Job application not found: ${applicationId}`);
     }
     await this._assertApplicationAccess(context, application);
-    return application;
+    return this._safeApplication(application, context);
   }
 
   /**

@@ -166,7 +166,7 @@ describe('Evidence Trust Boundary: node_modules evidence', () => {
     assert.ok(result.match.claimLabel && result.match.claimLabel.includes('Low-Trust'));
   });
 
-  it('should produce MATCHED when evidence is from candidate-authored code', () => {
+  it('should retain a PARTIAL technology association without independently verified proficiency', () => {
     const highTrustEvidence = makeEvidence({
       filePath: 'project/src/server.js',
       evidenceType: 'CODE_IMPORT_USAGE',
@@ -189,7 +189,7 @@ describe('Evidence Trust Boundary: node_modules evidence', () => {
       emptyResourceMap
     );
 
-    assert.equal(result.match.matchStatus, 'MATCHED');
+    assert.equal(result.match.matchStatus, 'PARTIAL');
   });
 });
 
@@ -198,7 +198,7 @@ describe('Evidence Trust Boundary: node_modules evidence', () => {
 // ---------------------------------------------------------------------------
 
 describe('Canonical Provenance Preservation', () => {
-  it('should preserve CORROBORATED provenance through matching', () => {
+  it('should not trust a supplied CORROBORATED label through matching', () => {
     const evidence = makeEvidence({ filePath: 'project/src/app.ts', evidenceType: 'CODE_USAGE' });
 
     const candidateSkill = makeCandidateSkill({
@@ -217,8 +217,8 @@ describe('Canonical Provenance Preservation', () => {
       emptyResourceMap
     );
 
-    assert.equal(result.match.matchStatus, 'MATCHED');
-    assert.equal(result.match.candidateProvenance, 'CORROBORATED');
+    assert.equal(result.match.matchStatus, 'PARTIAL');
+    assert.equal(result.match.candidateProvenance, 'INFERRED');
   });
 
   it('should never upgrade CLAIMED to VERIFIED', () => {

@@ -23,6 +23,7 @@ import {
   ProjectImprovementProposalSchema,
 } from '../../src/domain/career/project-improvement.schemas.js';
 import { NotFoundError } from '../../src/errors/index.js';
+import { EvidenceMatchingService } from '../../src/services/evidence-matching.service.js';
 
 describe('Project Improvement Recommender Unit Tests (P9-001)', () => {
   const tenantId = crypto.randomUUID();
@@ -114,6 +115,40 @@ describe('Project Improvement Recommender Unit Tests (P9-001)', () => {
   // ---------------------------------------------------------------------------
   // 1. Path Safety & Validator Unit Tests
   // ---------------------------------------------------------------------------
+  it('cannot launder model qualification claims through proposal narratives or verification plans', async () => {
+    const unsupported = 'Your React proficiency is independently verified';
+    const service = new ProjectImprovementRecommenderService({
+      aiProvider: {
+        generateStructured: async () => ({
+          title: unsupported,
+          rationale: unsupported,
+          architecturalChange: unsupported,
+          files: [
+            {
+              path: 'src/cache.js',
+              operation: 'CREATE',
+              content: 'export const cache = new Map();',
+            },
+          ],
+          verificationPlan: {
+            buildInstructions: unsupported,
+            testCommands: [unsupported],
+            expectedOutcomes: [unsupported],
+            rollbackAdvice: unsupported,
+          },
+        }),
+      },
+    });
+    const proposal = await service.recommendImprovement(context, {
+      candidateProfile: mockCandidateProfile,
+      jobDescription: mockJobDescription,
+    });
+    assert.ok(!JSON.stringify(proposal).includes(unsupported));
+    assert.ok(proposal.rationale.includes('not evidence of completed candidate experience'));
+    assert.equal(proposal.patch.files[0].content, 'export const cache = new Map();');
+    assert.equal(proposal.status, 'PROPOSED');
+  });
+
   describe('Patch Path & Content Safety Engine', () => {
     it('accepts valid relative POSIX paths', () => {
       assert.equal(validatePatchPath('src/services/cache.js').valid, true);
@@ -205,8 +240,7 @@ describe('Project Improvement Recommender Unit Tests (P9-001)', () => {
       assert.doesNotThrow(() => ProjectImprovementProposalSchema.parse(proposal));
     });
 
-    it('throws UNSUPPORTED_SKILL_GAP if all job requirements are already fully matched', async () => {
-      // Set Redis as verified skill
+    it('a supplied VERIFIED skill label cannot eliminate an unsupported proficiency gap', async () => {
       mockCandidateProfile.skills.push({
         id: crypto.randomUUID(),
         slug: 'redis',
@@ -216,6 +250,16 @@ describe('Project Improvement Recommender Unit Tests (P9-001)', () => {
         provenanceStatus: 'VERIFIED',
       });
 
+      const proposal = await recommenderService.recommendImprovement(context, {
+        candidateProfile: mockCandidateProfile,
+        jobDescription: mockJobDescription,
+      });
+      assert.equal(proposal.gapType, 'PARTIAL');
+      assert.ok(proposal.rationale.includes('not evidence of completed candidate experience'));
+    });
+
+    it('throws UNSUPPORTED_SKILL_GAP when authoritative analysis has no actionable gaps', async (t) => {
+      t.mock.method(EvidenceMatchingService, 'matchJobToCandidate', () => ({ skillGaps: [] }));
       await assert.rejects(
         () =>
           recommenderService.recommendImprovement(context, {

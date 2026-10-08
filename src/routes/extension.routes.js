@@ -74,7 +74,8 @@ export function serializeRequirementMatchesForExtension(fitAnalysis) {
 
   const toDisplay = (m) => ({
     requirement: m.normalizedRequirement || m.originalRequirement || m.extractedValue || '',
-    normalizedRequirement: m.normalizedRequirement || m.extractedValue || m.originalRequirement || '',
+    normalizedRequirement:
+      m.normalizedRequirement || m.extractedValue || m.originalRequirement || '',
     originalRequirement: m.originalRequirement || m.extractedValue || m.normalizedRequirement || '',
     skillSlug: m.skillSlug || undefined,
     status: m.matchStatus || 'UNKNOWN',
@@ -192,7 +193,7 @@ export function normalizeRecommendedProjectsForExtension({
         relevanceScore: Math.round((70 - idx * 5) * 10) / 10,
         relevanceBand: idx === 0 ? 'HIGH' : 'MEDIUM',
         matchedRequirements: [],
-        verificationStatus: 'VERIFIED',
+        verificationStatus: 'OBSERVED',
       };
     });
   }
@@ -249,7 +250,7 @@ export function normalizeRecommendedProjectsForExtension({
       relevanceScore: Math.round(score * 10) / 10,
       relevanceBand: band,
       matchedRequirements: matchedRequirements.slice(0, 5),
-      verificationStatus: 'VERIFIED',
+      verificationStatus: 'OBSERVED',
     };
   });
 }
@@ -541,6 +542,11 @@ export default async function extensionRoutes(app, opts = {}) {
 
     let existingHandoff = null;
     if (match) {
+      const safe = await trackingService.getApplication(
+        { tenantId: tenant.id, userId: user.id, role: 'MEMBER', candidateId: candidate.id },
+        match.id
+      );
+      match.metadata = safe.metadata;
       const existingKit = match.metadata?.handoffKit || match.metadata?.handoffPackage || null;
       const effectiveTitle = match.jobTitle || match.title || title;
       const effectiveCompany = match.companyName || match.company || company;
@@ -1395,13 +1401,18 @@ export default async function extensionRoutes(app, opts = {}) {
 
       // A client body may carry lookup hints, never the content being reviewed.
       const approved = await workflowService.getAuthoritativeApplicationPackage({
-        ...mcpContext, applicationId,
+        ...mcpContext,
+        applicationId,
         packageHash: packageHash || appPackage.packageHash,
         packageVersion: req.body?.packageVersion ?? appPackage.packageVersion,
       });
-      appPackage = { ...approved.applicationPackage, applicationId: approved.applicationId,
-        packageVersion: approved.packageVersion, packageHash: approved.packageHash,
-        preparedAt: approved.preparedAt };
+      appPackage = {
+        ...approved.applicationPackage,
+        applicationId: approved.applicationId,
+        packageVersion: approved.packageVersion,
+        packageHash: approved.packageHash,
+        preparedAt: approved.preparedAt,
+      };
       const rawPreview = workflowService.createApplicationPreview(appPackage);
       const previewMarkdown = SecretScrubber.scrub(rawPreview);
 

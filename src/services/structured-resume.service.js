@@ -19,6 +19,7 @@
  */
 
 import crypto from 'node:crypto';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
 import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
@@ -292,7 +293,7 @@ export function buildStructuredResumeDocument({
   const incomingPlan = tailoringPlan || plan || null;
 
   // Deep clone to guarantee candidateProfile is never mutated
-  const source = JSON.parse(JSON.stringify(candidateProfile));
+  const source = enforceEvidenceTrust(JSON.parse(JSON.stringify(candidateProfile)));
   const meta = source.profileMetadata || {};
   const canonicalJobRequirements = buildCanonicalJobRequirements(jobPosting);
   const canonicalJob = jobPosting ? { ...jobPosting, ...canonicalJobRequirements } : jobPosting;
@@ -1717,7 +1718,7 @@ export function buildStructuredResumeDocument({
     });
   }
 
-  return built;
+  return enforceEvidenceTrust(built);
 }
 
 /**
@@ -2224,7 +2225,7 @@ export function buildStructuredResumeSnapshot({
 
   // P16-001G: deterministic professional composition (summary polish, bullet
   // compression, skill presentation cleanup, section-order integrity).
-  const structuredResume = composeStructuredResumeDocument(builtResume);
+  let structuredResume = composeStructuredResumeDocument(builtResume);
 
   // Phase 12: generic pre-render content quality gate & remediation (Req K).
   // Weak optional sections are remediated (omitted) prior to generating the receipt.
@@ -2254,6 +2255,7 @@ export function buildStructuredResumeSnapshot({
   }
 
   // Audits the exact FINAL text and structure that will be rendered (Req K & Req 15).
+  structuredResume = enforceEvidenceTrust(structuredResume);
   const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
 
   return {

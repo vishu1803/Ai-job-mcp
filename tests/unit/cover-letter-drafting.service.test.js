@@ -324,7 +324,12 @@ describe('Cover Letter Drafting Service Unit Tests (P6-002)', () => {
 
     const opening = letter.paragraphs.find((p) => p.paragraphType === 'OPENING');
     assert.ok(opening);
-    assert.strictEqual(opening.status, 'VERIFIED');
+    assert.strictEqual(opening.status, 'INFERRED');
+    assert.equal(letter.metadata.verifiedParagraphs, 0);
+    assert.equal(
+      letter.metadata.inferredParagraphs,
+      letter.paragraphs.filter((p) => p.status === 'INFERRED').length
+    );
     assert.ok(opening.text.includes('Senior Backend Engineer'));
     assert.ok(opening.text.includes('FinTech Dynamics'));
     assert.ok(opening.text.includes('Go'));
@@ -492,7 +497,7 @@ describe('Cover Letter Drafting Service Unit Tests (P6-002)', () => {
   // -------------------------------------------------------------------------
   // 9. Preferred Skill Handling
   // -------------------------------------------------------------------------
-  it('9. correctly captures verified preferred skills (Docker) in metadata and text', async () => {
+  it('9. retains preferred skill associations without verifying provided career history', async () => {
     const context = { tenantId, userId };
     const letter = await service.draftCoverLetter(
       context,
@@ -505,7 +510,8 @@ describe('Cover Letter Drafting Service Unit Tests (P6-002)', () => {
     );
 
     assert.ok(letter.metadata.totalParagraphs >= 3);
-    assert.strictEqual(letter.integrityStatus, 'PASS');
+    assert.strictEqual(letter.integrityStatus, 'PARTIAL');
+    assert.equal(letter.metadata.verifiedParagraphs, 0);
   });
 
   // -------------------------------------------------------------------------
@@ -678,7 +684,8 @@ describe('Cover Letter Drafting Service Unit Tests (P6-002)', () => {
 
       assert.strictEqual(letter.metadata.tone, tone);
       assert.ok(letter.paragraphs.length >= 3);
-      assert.strictEqual(letter.integrityStatus, 'PASS');
+      assert.strictEqual(letter.integrityStatus, 'PARTIAL');
+      assert.equal(letter.metadata.verifiedParagraphs, 0);
     }
   });
 
@@ -740,9 +747,19 @@ describe('Cover Letter Drafting Service Unit Tests (P6-002)', () => {
       { llmAdapter: mockLlmAdapter }
     );
 
-    assert.strictEqual(
-      letter.paragraphs[0].text,
-      'Refined professional opening text with polished flow.'
+    const authoritative = await service.draftCoverLetter(
+      context,
+      candidateProfile,
+      jobDescription,
+      candidateMatchAnalysis,
+      projectRelevanceAnalysis,
+      atsFitAnalysis,
+      integrityCheckedAssertions
+    );
+    assert.deepEqual(
+      letter.paragraphs.map((p) => p.text),
+      authoritative.paragraphs.map((p) => p.text),
+      'Optional adapter cannot grant arbitrary prose rendering authority'
     );
 
     // Malicious LLM injecting metric

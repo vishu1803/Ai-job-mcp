@@ -10,10 +10,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../config/env.js';
 import { SecurityError, ValidationError } from '../errors/index.js';
+import { db } from '../db/index.js';
+import { assertArtifactReceipt } from './evidence/artifact-policy.js';
 
 const IV_LENGTH_BYTES = 12;
 const AUTH_TAG_LENGTH_BYTES = 16;
 const ALGORITHM = 'aes-256-gcm';
+// Server-only capability: a JSON boolean cannot bypass legacy artifact quarantine.
+export const ORIGINAL_SOURCE_READ = Symbol('owned source-resume original');
 
 export class DocumentStorageService {
   /**
@@ -23,6 +27,7 @@ export class DocumentStorageService {
    * @param {object} [options.s3Provider] Optional S3-compatible / Cloudflare R2 object storage provider
    */
   constructor(options = {}) {
+    this.database = options.database || db;
     this.storageDir = options.storageDir || path.resolve(process.cwd(), 'storage', 'documents');
     this.s3Provider = options.s3Provider || null;
     const rawKey = options.masterKey || config.ENCRYPTION_MASTER_KEY;
@@ -105,10 +110,11 @@ export class DocumentStorageService {
    */
   async storeEncryptedDocument({
     tenantId,
-    candidateId: _candidateId,
+    candidateId,
     buffer,
     originalFileName: _originalFileName,
     mimeType: _mimeType,
+    generatedPackage = null,
   }) {
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
       throw new ValidationError('Document buffer must be a non-empty Buffer');
@@ -117,13 +123,34 @@ export class DocumentStorageService {
     // 1. Calculate immutable SHA-256 hash of original plaintext
     const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
     const storageKey = crypto.randomUUID();
+    if (generatedPackage) {
+      await assertArtifactReceipt(
+        this.database,
+        { tenantId, candidateId },
+        generatedPackage.receipt,
+        generatedPackage.bodyHash
+      );
+    }
+    // Authenticated, server-written envelope. Legacy unmarked bytes are quarantined;
+    // dates, names, S3 metadata and client-supplied version labels are not authority.
+    const plaintext = Buffer.from(
+      JSON.stringify({
+        format: 'career-document-envelope/v1',
+        tenantId,
+        candidateId,
+        purpose: generatedPackage ? 'GENERATED_ARTIFACT' : 'CLAIMED_SOURCE_ORIGINAL',
+        generatedPackage,
+        contentHash,
+        bytes: buffer.toString('base64'),
+      })
+    );
 
     // 2. Generate random 12-byte initialization vector
     const iv = crypto.randomBytes(IV_LENGTH_BYTES);
     const cipher = crypto.createCipheriv(ALGORITHM, this.key, iv);
 
     // 3. Encrypt payload and extract auth tag
-    const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
     // 4. Pack: IV (12B) + AuthTag (16B) + Ciphertext
@@ -161,7 +188,13 @@ export class DocumentStorageService {
    * @param {string} params.storageKey
    * @returns {Promise<Buffer>} Decrypted plaintext binary buffer
    */
-  async getDecryptedDocument({ tenantId, storageKey }) {
+  async getDecryptedDocument({
+    tenantId,
+    candidateId,
+    storageKey,
+    sourceOriginalAuthority,
+    expectedPackageHash,
+  }) {
     let encryptedPayload;
 
     if (this.s3Provider) {
@@ -206,17 +239,60 @@ export class DocumentStorageService {
     );
     const ciphertext = encryptedPayload.subarray(IV_LENGTH_BYTES + AUTH_TAG_LENGTH_BYTES);
 
+    let plaintext;
     try {
       const decipher = crypto.createDecipheriv(ALGORITHM, this.key, iv);
       decipher.setAuthTag(authTag);
-      const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      return plaintext;
+      plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     } catch {
       throw new SecurityError(
         'Document decryption failed: Authentication tag mismatch or corrupted ciphertext',
         'DECRYPTION_FAILED'
       );
     }
+    let envelope;
+    try {
+      envelope = JSON.parse(plaintext.toString('utf8'));
+    } catch {
+      /* legacy bytes */
+    }
+    if (envelope?.format !== 'career-document-envelope/v1') {
+      // Only the scoped source-resume repository may request historical originals.
+      // No download/export/MCP/extension route accepts this option from a client.
+      if (sourceOriginalAuthority === ORIGINAL_SOURCE_READ && !expectedPackageHash)
+        return plaintext;
+      throw new ValidationError(
+        'Historical artifact quarantined; regenerate and review',
+        'ARTIFACT_REVALIDATION_REQUIRED'
+      );
+    }
+    if (envelope.tenantId !== tenantId || (candidateId && envelope.candidateId !== candidateId)) {
+      throw new SecurityError('Document ownership mismatch', 'FORBIDDEN');
+    }
+    if (envelope.purpose === 'GENERATED_ARTIFACT') {
+      if (
+        !candidateId ||
+        (expectedPackageHash && envelope.generatedPackage?.packageHash !== expectedPackageHash)
+      ) {
+        throw new SecurityError('Artifact package/candidate mismatch', 'FORBIDDEN');
+      }
+      await assertArtifactReceipt(
+        this.database,
+        { tenantId, candidateId: envelope.candidateId },
+        envelope.generatedPackage?.receipt,
+        envelope.generatedPackage?.bodyHash
+      );
+    } else if (envelope.purpose !== 'CLAIMED_SOURCE_ORIGINAL' || expectedPackageHash) {
+      throw new ValidationError(
+        'Unknown document trust provenance',
+        'ARTIFACT_REVALIDATION_REQUIRED'
+      );
+    }
+    const bytes = Buffer.from(envelope.bytes, 'base64');
+    if (crypto.createHash('sha256').update(bytes).digest('hex') !== envelope.contentHash) {
+      throw new SecurityError('Document integrity mismatch', 'CORRUPT_PAYLOAD');
+    }
+    return bytes;
   }
 
   /**

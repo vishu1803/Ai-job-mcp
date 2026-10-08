@@ -19,6 +19,7 @@
  */
 
 import crypto from 'node:crypto';
+import { enforceEvidenceTrust } from '../../services/evidence/verification-policy.js';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
 import { candidates, jobApplications } from '../../db/schema.js';
@@ -713,7 +714,7 @@ export async function handleRecommendPortfolioProjects(context, rawArgs, deps = 
     },
   };
 
-  return RecommendPortfolioProjectsOutputSchema.parse(output);
+  return RecommendPortfolioProjectsOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================
@@ -855,7 +856,7 @@ export async function handleDraftCoverLetter(context, rawArgs, deps = {}) {
     },
   };
 
-  return DraftCoverLetterOutputSchema.parse(output);
+  return DraftCoverLetterOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================
@@ -1111,7 +1112,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
     _meta: { cacheControl: DEFAULT_CACHE_CONTROL },
   };
 
-  return GenerateTailoredResumeOutputSchema.parse(output);
+  return GenerateTailoredResumeOutputSchema.parse(enforceEvidenceTrust(output));
 }
 
 // =============================================================================

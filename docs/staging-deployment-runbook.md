@@ -82,6 +82,8 @@ DATABASE_STATEMENT_TIMEOUT_MS=10000
 # Cryptographic Keys (Mandatory in production mode)
 ENCRYPTION_MASTER_KEY=<64-hex-or-44-base64-random-32-byte-key>
 ENCRYPTION_KEY_VERSION=v1
+ACTION_APPROVAL_HMAC_SECRET=<independently-generated-random-32-byte-hex-or-base64-key>
+CAREER_HUB_APPROVAL_SECRET=<different-independently-generated-random-32-byte-hex-or-base64-key>
 SESSION_COOKIE_SECRET=<high-entropy-random-string>
 
 # GitHub App Integration
@@ -104,6 +106,14 @@ GOOGLE_CLOUD_LOCATION=<gcp-location>
 ---
 
 ## 3. Cloudflare Named Tunnel Setup
+
+Before upgrading approval signers or rotating either approval key, stop all old instances;
+do not serve mixed signing versions/keys. Provision both keys through the deployment secret
+store, never test setup or source control. Missing/invalid/reused keys prevent startup.
+All pre-ISSUE-05 approvals are intentionally invalid; require a fresh review and approval.
+Preserve consumed approvals/execution evidence and do not re-sign old records.
+Follow [approval signing key rollout and rotation](security/approval-signing-keys.md), including
+negative startup probes, across every replica before enabling protected traffic.
 
 1. **Install `cloudflared` CLI**:
    ```bash

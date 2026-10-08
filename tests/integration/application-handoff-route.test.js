@@ -16,6 +16,9 @@ import {
 } from '../../src/db/schema.js';
 import { createSession } from '../../src/security/session.service.js';
 import { eq } from 'drizzle-orm';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
+import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
+import { ApplicationHandoffService } from '../../src/services/application-handoff.service.js';
 
 describe('Integration: Application Handoff Kit Web & API Routes', () => {
   let app;
@@ -107,6 +110,64 @@ describe('Integration: Application Handoff Kit Web & API Routes', () => {
         },
       })
       .returning();
+
+    // This suite tests current-generation downloads, not implicit trust of a
+    // legacy application. Model the server generation boundary explicitly.
+    const currentPackage = await sealGeneratedPackage(
+      db,
+      {
+        tenantId: tenant1.id,
+        candidateId: candidate1.id,
+      },
+      {
+        candidateId: candidate1.id,
+        candidateName: candidate1.displayName,
+        candidateEmail: candidate1.canonicalEmail,
+        candidatePhone: '+1-415-555-0199',
+        targetJob: {
+          id: testApp1.id,
+          company: testApp1.companyName,
+          title: testApp1.jobTitle,
+          applicationUrl: testApp1.jobUrl,
+          description: 'Infrastructure engineering role',
+          retrievedAt: new Date().toISOString(),
+        },
+        tailoredResume: {
+          title: 'Resume',
+          markdownContent:
+            '# Synthetic Candidate\n\n## Candidate-provided experience\n\n- I report building backend services with Node.js and PostgreSQL.\n- I report implementing automated tests and deployment pipelines.\n- I report maintaining application infrastructure and reviewing operational reliability.\n',
+          contentHash: 'a'.repeat(64),
+          fitScore: 70,
+        },
+        coverLetter: {
+          title: 'Cover Letter',
+          markdownContent:
+            '# Application\n\nDear Hiring Team,\n\nI am interested in the Staff Infrastructure Engineer position at Vercel. My self-reported interests include backend engineering and operational reliability. I would welcome a discussion of the role and my candidate-provided experience.\n\nThank you for considering my application.\n',
+          contentHash: 'b'.repeat(64),
+        },
+        verifiedSkills: [],
+        claimedSkills: [],
+        portfolioLinks: [],
+        answers: {},
+      }
+    );
+    const currentContext = {
+      tenantId: tenant1.id,
+      userId: user1.id,
+      candidateId: candidate1.id,
+      role: 'MEMBER',
+    };
+    await new ApplicationTrackingService().recordApplicationPackage(
+      currentContext,
+      testApp1.id,
+      currentPackage
+    );
+    await new ApplicationHandoffService().buildApplicationHandoffKit({
+      ...currentContext,
+      applicationId: testApp1.id,
+      applicationPackage: currentPackage,
+      destinationUrl: testApp1.jobUrl,
+    });
 
     // 4. Session cookies
     const session1 = await createSession(db, { userId: user1.id, tenantId: tenant1.id });

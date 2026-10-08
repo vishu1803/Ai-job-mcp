@@ -14,6 +14,7 @@
  */
 
 import crypto from 'node:crypto';
+import { verifiedSourceFact } from './evidence/verification-policy.js';
 import { logger } from '../utils/logger.js';
 import { ValidationError } from '../errors/index.js';
 import {
@@ -314,6 +315,16 @@ export class ZeroHallucinationIntegrityService {
         break;
       }
 
+      // An authentic reference verifies only its exact scoped source fact. An LLM
+      // assertion, proficiency claim or achievement cannot self-verify by citing it.
+      if (assertion.status === 'VERIFIED' || assertion.assertionType === 'SUMMARY') {
+        if (
+          !verifiedSourceFact(evidenceItem) ||
+          assertion.statement !== evidenceItem.metadata.verification.fact
+        ) {
+          continue;
+        }
+      }
       validEvidenceRefs.push(ref);
     }
 

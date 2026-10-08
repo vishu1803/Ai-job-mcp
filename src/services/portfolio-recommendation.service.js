@@ -11,6 +11,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import { registerCurrentNarrativeArtifact } from './evidence/narrative-policy.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { ZeroHallucinationIntegrityService } from './zero-hallucination-integrity.service.js';
@@ -130,6 +132,8 @@ export class PortfolioRecommendationService {
     options = {}
   ) {
     const startTime = Date.now();
+    candidateProfile = enforceEvidenceTrust(candidateProfile);
+    integrityCheckedAssertions = enforceEvidenceTrust(integrityCheckedAssertions);
 
     // 1. Enforce Multi-Tenant Sovereign Isolation (404 Default-Deny)
     this._assertTenantIsolation(
@@ -322,7 +326,9 @@ export class PortfolioRecommendationService {
       },
     };
 
-    return PortfolioRecommendationSchema.parse(recommendationPayload);
+    return registerCurrentNarrativeArtifact(
+      PortfolioRecommendationSchema.parse(enforceEvidenceTrust(recommendationPayload))
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -594,18 +600,12 @@ export class PortfolioRecommendationService {
     if (project.role === 'OWNER' || project.isOwner === true) {
       return 'DIRECT_OWNER';
     }
-    return 'DIRECT_OWNER';
+    return 'UNCERTAIN';
   }
 
-  static _determineContributionConfidence(project) {
-    if (typeof project.commitSharePercentage === 'number') {
-      if (project.commitSharePercentage >= 60) return 'PRIMARY_AUTHOR';
-      if (project.commitSharePercentage >= 20) return 'MAJOR_CONTRIBUTOR';
-      return 'MINOR_CONTRIBUTOR';
-    }
-    if (project.isOwner === true || !project.role) {
-      return 'PRIMARY_AUTHOR';
-    }
+  static _determineContributionConfidence(_project) {
+    // No authoritative contribution-share verifier exists. A supplied percentage
+    // or repository ownership is not proof that this candidate authored its code.
     return 'UNVERIFIED';
   }
 
@@ -999,8 +999,8 @@ export class PortfolioRecommendationService {
       rank,
       selectionScore: project.selectionScore || 0.0,
       marginalValue: project.marginalValue || 0.0,
-      ownershipConfidence: project.ownershipConfidence || 'DIRECT_OWNER',
-      contributionConfidence: project.contributionConfidence || 'PRIMARY_AUTHOR',
+      ownershipConfidence: project.ownershipConfidence || 'UNCERTAIN',
+      contributionConfidence: 'UNVERIFIED',
       tutorialClassification: project.tutorialClassification || 'LIKELY_ORIGINAL',
       storyCompleteness: project.storyCompleteness || 'PARTIAL',
       interviewDiscussionValue: project.interviewDiscussionValue || 50.0,
@@ -1430,7 +1430,7 @@ export class PortfolioRecommendationService {
     const targetTitle = jobDescription.title;
     const company = jobDescription.companyName || 'Target Organization';
 
-    return `Curated ${count} high-impact featured project(s) tailored for the ${targetTitle} role at ${company}. Strategy covers ${coverage.requiredCovered}/${coverage.requiredCount} core requirements with robust architectural signals in ${activeSignals}. Emphasizes production-ready systems, verified commits, and technical decision-making.`;
+    return `Curated ${count} repository project(s) relevant to the ${targetTitle} role at ${company}. Repository signals in ${activeSignals} relate to ${coverage.requiredCovered}/${coverage.requiredCount} core requirements; candidate authorship, proficiency and production readiness are not independently verified.`;
   }
 
   // ---------------------------------------------------------------------------

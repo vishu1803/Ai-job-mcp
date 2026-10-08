@@ -217,11 +217,11 @@ describe('Evidence Linking Engine Unit Tests (P4-004)', () => {
       assert.strictEqual(ref.commitSha, '5017539ddb5d8d616b5fbfa2682dba7d4910b039');
       assert.deepStrictEqual(ref.lineRange, { start: 10, end: 10 });
       assert.strictEqual(ref.confidenceScore, 1.0);
-      assert.strictEqual(ref.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(ref.provenanceStatus, 'INFERRED');
       assert.strictEqual(ref.detectedAt, '2026-08-22T08:00:00.000Z');
       // Must not contain excerpt or raw metadata in lightweight reference
       assert.strictEqual(ref.excerpt, undefined);
-      assert.strictEqual(ref.metadata, undefined);
+      assert.equal(ref.metadata.verification.status, 'OBSERVED');
     });
 
     it('formats detailed EvidenceNode including excerpt and source location', () => {

@@ -33,6 +33,11 @@ import {
   DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
 } from '../domain/job/job-workflow.schemas.js';
 import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
+import {
+  assertCurrentPackage,
+  packageBodyHash,
+  sealHandoffManifest,
+} from './evidence/artifact-policy.js';
 
 export class ApplicationHandoffService {
   /**
@@ -264,6 +269,34 @@ export class ApplicationHandoffService {
       throw new ValidationError('Valid applicationPackage with packageHash is required');
     }
 
+    try {
+      await assertCurrentPackage(
+        this.applicationTrackingService.db,
+        { tenantId, candidateId },
+        applicationPackage
+      );
+    } catch (error) {
+      // prepare() also returns UI-only enrichment. It is not execution content.
+      // Resolve the exact scoped persisted version, never bless client additions
+      // or regenerate from mutable profile data to repair a failed receipt.
+      if (
+        error.code !== 'ARTIFACT_REVALIDATION_REQUIRED' ||
+        !applicationId ||
+        typeof this.applicationTrackingService.getApplicationPackageByVersion !== 'function'
+      )
+        throw error;
+      const authoritative = await this.applicationTrackingService.getApplicationPackageByVersion(
+        { tenantId, userId, candidateId, role: 'MEMBER' },
+        applicationId,
+        applicationPackage.packageHash
+      );
+      applicationPackage = authoritative.package.packagePayload;
+      await assertCurrentPackage(
+        this.applicationTrackingService.db,
+        { tenantId, candidateId },
+        applicationPackage
+      );
+    }
     const packageHash = applicationPackage.packageHash;
     const directPortalUrl = destinationUrl || applicationPackage.targetJob?.applicationUrl || '';
 
@@ -816,6 +849,11 @@ export class ApplicationHandoffService {
     const storedResumePdf = await this.documentStorage.storeEncryptedDocument({
       tenantId,
       candidateId,
+      generatedPackage: {
+        receipt: applicationPackage.evidenceTrustReceipt,
+        bodyHash: packageBodyHash(applicationPackage),
+        packageHash,
+      },
       buffer: resumePdfResult.pdfBuffer,
       originalFileName: resumeFilename,
       mimeType: 'application/pdf',
@@ -824,6 +862,11 @@ export class ApplicationHandoffService {
     const storedResumeTex = await this.documentStorage.storeEncryptedDocument({
       tenantId,
       candidateId,
+      generatedPackage: {
+        receipt: applicationPackage.evidenceTrustReceipt,
+        bodyHash: packageBodyHash(applicationPackage),
+        packageHash,
+      },
       buffer: Buffer.from(resumeLatexResult.texContent, 'utf8'),
       originalFileName: resumeTexFilename,
       mimeType: 'text/x-tex',
@@ -832,6 +875,11 @@ export class ApplicationHandoffService {
     const storedClPdf = await this.documentStorage.storeEncryptedDocument({
       tenantId,
       candidateId,
+      generatedPackage: {
+        receipt: applicationPackage.evidenceTrustReceipt,
+        bodyHash: packageBodyHash(applicationPackage),
+        packageHash,
+      },
       buffer: clPdfResult.pdfBuffer,
       originalFileName: clFilename,
       mimeType: 'application/pdf',
@@ -930,6 +978,7 @@ export class ApplicationHandoffService {
       });
     }
 
+    sealHandoffManifest(handoffKit, { tenantId, candidateId }, applicationPackage);
     // 10. Persist metadata back to tracked application record if available.
     // setApplicationHandoffKit atomically writes the kit and syncs
     // metadata.currentPackageHash so inspection tools resolve the same package.

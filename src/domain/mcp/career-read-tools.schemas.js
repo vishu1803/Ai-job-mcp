@@ -336,8 +336,16 @@ export const GetCandidateProfileOutputSchema = z
           endDate: z.string().nullable().optional(),
           linkedResourceCount: z.number().int().nonnegative().optional(),
           verifiedSignalCount: z.number().int().nonnegative().optional(),
+          observedSignalCount: z.number().int().nonnegative().optional(),
           provenanceStatus: z
-            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED', 'USER_PROVIDED'])
+            .enum([
+              'VERIFIED',
+              'CORROBORATED',
+              'CLAIMED',
+              'UNVERIFIED',
+              'USER_PROVIDED',
+              'INFERRED',
+            ])
             .optional(),
         })
       )
@@ -357,6 +365,7 @@ export const GetCandidateProfileOutputSchema = z
           bullets: z.array(z.string()).max(3).optional().default([]),
           technologies: z.array(z.string()).max(15).optional().default([]),
           verifiedSkillsUsed: z.array(z.string()).max(10).optional().default([]),
+          reportedSkillsUsed: z.array(z.string()).max(10).optional().default([]),
           provenanceStatus: z
             .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
             .optional(),
@@ -681,7 +690,11 @@ export const AnalyzeJobFitInputSchema = z
     sourceUrl: z.string().max(2048).optional().describe('Optional source posting URL.'),
     url: z.string().max(2048).optional().describe('Optional URL alias for sourceUrl.'),
     applicationUrl: z.string().max(2048).optional().describe('Optional direct application URL.'),
-    provider: z.string().max(50).optional().describe('Optional job provider name (e.g. GREENHOUSE, LEVER, LINKEDIN).'),
+    provider: z
+      .string()
+      .max(50)
+      .optional()
+      .describe('Optional job provider name (e.g. GREENHOUSE, LEVER, LINKEDIN).'),
     externalJobId: z.string().max(100).optional().describe('Optional external job identifier.'),
   })
   .strict()
@@ -914,7 +927,7 @@ export const CAREER_READ_TOOL_DEFINITIONS = Object.freeze({
   get_candidate_profile: {
     name: 'get_candidate_profile',
     description:
-      'Retrieves a high-level candidate profile summary, verified skills rollup, highlighted projects, and work experience.',
+      'Retrieves candidate-provided profile information, inferred repository technology associations, projects, and self-reported work history; completeness does not verify proficiency.',
     inputSchema: GetCandidateProfileInputSchema,
     outputSchema: GetCandidateProfileOutputSchema,
     requiredRole: McpRoleEnum.enum.READONLY,
@@ -924,7 +937,7 @@ export const CAREER_READ_TOOL_DEFINITIONS = Object.freeze({
   list_verified_skills: {
     name: 'list_verified_skills',
     description:
-      'Lists paginated candidate skills verified by code repository evidence with confidence scores and evidence counts.',
+      'Legacy tool name: lists paginated skill observations and self-reports with explicit trust labels. Confidence and repository references do not independently verify candidate proficiency.',
     inputSchema: ListVerifiedSkillsInputSchema,
     outputSchema: ListVerifiedSkillsOutputSchema,
     requiredRole: McpRoleEnum.enum.READONLY,

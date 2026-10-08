@@ -16,17 +16,15 @@
 
 import { eq, and, desc } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
-import {
-  projects,
-  projectResources,
-  evidenceItems,
-  skills,
-  resources,
-  jobApplications,
-  applicationStages,
-  tailoredDocuments,
-} from '../../db/schema.js';
+import { projects, projectResources, evidenceItems, skills, resources } from '../../db/schema.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
+import { ApplicationTrackingService } from '../../services/application-tracking.service.js';
+import {
+  enforceEvidenceTrust,
+  trustDatabaseEvidence,
+  copyEvidenceAuthority,
+} from '../../services/evidence/verification-policy.js';
+import { EvidenceRefMapper } from '../../services/evidence/evidence-ref-mapper.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
 import { config } from '../../config/env.js';
 import { NotFoundError, ValidationError } from '../../errors/index.js';
@@ -193,7 +191,7 @@ export function registerCareerResources(server, deps = {}) {
         endDate: proj.endDate ? String(proj.endDate) : null,
         connectedResources: linkedRes,
         evidence: evRows,
-        metadata: proj.metadata || {},
+        metadata: enforceEvidenceTrust(proj.metadata || {}),
       };
     }
   );
@@ -201,10 +199,10 @@ export function registerCareerResources(server, deps = {}) {
   // 5. career://evidence/{evidenceId}
   server.registerResource(
     {
-      name: 'Verified AST Evidence Item',
+      name: 'Source Evidence Item',
       uri: 'career://evidence/{evidenceId}',
       description:
-        'Commit-pinned AST evidence item details, code snippet excerpts, line numbers, and confidence scoring.',
+        'Source evidence with explicit verification status. Only server-verified pinned static references are VERIFIED; repository observations do not verify candidate proficiency or authorship.',
       mimeType: 'application/json',
       requiredScopes: ['career:read'],
       requiredRole: 'READONLY',
@@ -218,6 +216,7 @@ export function registerCareerResources(server, deps = {}) {
       const [ev] = await db
         .select({
           id: evidenceItems.id,
+          tenantId: evidenceItems.tenantId,
           candidateId: evidenceItems.candidateId,
           projectId: evidenceItems.projectId,
           resourceId: evidenceItems.resourceId,
@@ -242,22 +241,27 @@ export function registerCareerResources(server, deps = {}) {
         throw new NotFoundError(`Evidence item not found: ${evidenceId}`);
       }
 
-      return {
-        id: ev.id,
-        candidateId: ev.candidateId,
-        projectId: ev.projectId,
-        skillSlug: ev.skillSlug,
-        skillName: ev.skillName,
-        evidenceType: ev.evidenceType,
-        sourceProvider: ev.sourceProvider,
-        sourceLocation: ev.sourceLocation,
-        excerpt: ev.excerpt,
-        confidenceScore: ev.confidenceScore,
-        resourceDisplayName: ev.resourceDisplayName || null,
-        resourceUrl: ev.resourceUrl || null,
-        detectedAt: ev.detectedAt ? new Date(ev.detectedAt).toISOString() : null,
-        metadata: ev.metadata || {},
-      };
+      trustDatabaseEvidence([ev], { tenantId: context.tenantId, candidateId: ev.candidateId });
+      const node = EvidenceRefMapper.toEvidenceNode(ev);
+      return enforceEvidenceTrust(
+        copyEvidenceAuthority(node, {
+          ...node,
+          id: ev.id,
+          candidateId: ev.candidateId,
+          projectId: ev.projectId,
+          skillSlug: ev.skillSlug,
+          skillName: ev.skillName,
+          evidenceType: ev.evidenceType,
+          sourceProvider: ev.sourceProvider,
+          sourceLocation: ev.sourceLocation,
+          excerpt: ev.excerpt,
+          confidenceScore: ev.confidenceScore,
+          resourceDisplayName: ev.resourceDisplayName || null,
+          resourceUrl: ev.resourceUrl || null,
+          detectedAt: ev.detectedAt ? new Date(ev.detectedAt).toISOString() : null,
+          metadata: node.metadata,
+        })
+      );
     }
   );
 
@@ -299,38 +303,10 @@ export function registerCareerResources(server, deps = {}) {
         throw new ValidationError('Invalid applicationId format in resource URI');
       }
 
-      const [app] = await db
-        .select()
-        .from(jobApplications)
-        .where(
-          and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, context.tenantId))
-        );
-
-      if (!app) {
-        throw new NotFoundError(`Job application not found: ${applicationId}`);
-      }
-
-      const stages = await db
-        .select()
-        .from(applicationStages)
-        .where(
-          and(
-            eq(applicationStages.tenantId, context.tenantId),
-            eq(applicationStages.applicationId, applicationId)
-          )
-        )
-        .orderBy(applicationStages.orderIndex);
-
-      const docs = await db
-        .select()
-        .from(tailoredDocuments)
-        .where(
-          and(
-            eq(tailoredDocuments.tenantId, context.tenantId),
-            eq(tailoredDocuments.applicationId, applicationId)
-          )
-        )
-        .orderBy(desc(tailoredDocuments.version));
+      const tracking =
+        deps.applicationTrackingService || new ApplicationTrackingService({ database: db });
+      const details = await tracking.getApplicationDetails(context, applicationId);
+      const { application: app, stages, tailoredDocuments: docs } = details;
 
       return {
         id: app.id,

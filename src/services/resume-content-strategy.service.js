@@ -306,7 +306,8 @@ export function generateGroundedSummary({
     referencedProjectIds: result.referencedProjectIds || [],
     evidenceRefs: result.evidenceRefs || [],
     matchedRequirementIds: result.matchedRequirementIds || [],
-    provenanceStatus: 'VERIFIED',
+    // A generated summary is a composition, not an independently verified fact.
+    provenanceStatus: 'CLAIMED',
     provenance: null,
     composedFromFactIds: result.composedFromFactIds || [],
     targetRole: result.targetRole,

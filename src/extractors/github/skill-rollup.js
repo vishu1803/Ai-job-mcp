@@ -5,22 +5,12 @@
  * RollupScore = min(1.0, max(item.confidenceScore) * (0.8 + 0.05 * min(4, evidenceCount)))
  *
  * Classifies provenanceStatus into:
- * - VERIFIED: Contains direct production manifest, code import, or structural configuration evidence (confidence >= 0.75).
- * - INFERRED: Only contains indirect signals (README mentions, conventional commit messages, indirect dependencies).
+ * - INFERRED: Repository observations, including source-backed static references.
  * - CLAIMED: Unverified user assertions or manual claims.
  * - MISSING: No detected evidence.
  */
 
 export class SkillRollupCalculator {
-  /**
-   * Evidence types considered strong enough for VERIFIED provenance when confidence >= 0.75.
-   */
-  static VERIFIED_EVIDENCE_TYPES = new Set([
-    'PACKAGE_MANIFEST_DEPENDENCY',
-    'CODE_IMPORT_USAGE',
-    'FILE_PATTERN_MATCH',
-  ]);
-
   /**
    * Computes aggregated rollup metrics for a candidate skill from its evidence items.
    *
@@ -28,6 +18,9 @@ export class SkillRollupCalculator {
    * @returns {{ confidenceScore: number, provenanceStatus: 'VERIFIED' | 'INFERRED' | 'CLAIMED' | 'MISSING', evidenceCount: number, firstObservedAt: Date | null, lastObservedAt: Date | null }}
    */
   static calculateRollup(evidenceItems) {
+    evidenceItems = Array.isArray(evidenceItems)
+      ? evidenceItems.filter((item) => item.metadata?.verification?.status !== 'INVALID')
+      : [];
     if (!Array.isArray(evidenceItems) || evidenceItems.length === 0) {
       return {
         confidenceScore: 0.0,
@@ -40,7 +33,6 @@ export class SkillRollupCalculator {
 
     const count = evidenceItems.length;
     let maxConfidence = 0.0;
-    let hasVerifiedType = false;
     let hasInferredType = false;
     let earliestTime = Infinity;
     let latestTime = -Infinity;
@@ -51,14 +43,8 @@ export class SkillRollupCalculator {
         maxConfidence = conf;
       }
 
-      if (SkillRollupCalculator.VERIFIED_EVIDENCE_TYPES.has(item.evidenceType) && conf >= 0.75) {
-        hasVerifiedType = true;
-      } else if (
-        item.evidenceType === 'README_SPECIFICATION' ||
-        item.evidenceType === 'COMMIT_CONTRIBUTION' ||
-        item.evidenceType === 'DIRECTORY_STRUCTURE' ||
-        conf < 0.75
-      ) {
+      // Repository observations do not independently establish candidate proficiency.
+      if (item.evidenceType !== 'DOCUMENT_CLAIM') {
         hasInferredType = true;
       }
 
@@ -78,14 +64,7 @@ export class SkillRollupCalculator {
     const boundedRollup = Math.min(1.0, Math.max(0.0, Number(rawRollup.toFixed(2))));
 
     // Determine provenance status
-    let provenanceStatus = 'INFERRED';
-    if (hasVerifiedType) {
-      provenanceStatus = 'VERIFIED';
-    } else if (hasInferredType) {
-      provenanceStatus = 'INFERRED';
-    } else {
-      provenanceStatus = 'CLAIMED';
-    }
+    const provenanceStatus = hasInferredType ? 'INFERRED' : 'CLAIMED';
 
     const firstObservedAt = earliestTime !== Infinity ? new Date(earliestTime) : new Date();
     const lastObservedAt = latestTime !== -Infinity ? new Date(latestTime) : new Date();

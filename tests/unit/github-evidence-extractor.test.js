@@ -345,10 +345,10 @@ sqlx = "0.7"
   describe('6. Safe Code Import Scanner', () => {
     it('identifies scannable entrypoint files accurately', () => {
       assert.strictEqual(ImportScanner.isScannableSourceFile('src/index.js'), true);
-      assert.strictEqual(ImportScanner.isScannableSourceFile('server.ts'), true);
-      assert.strictEqual(ImportScanner.isScannableSourceFile('main.py'), true);
-      assert.strictEqual(ImportScanner.isScannableSourceFile('main.go'), true);
-      assert.strictEqual(ImportScanner.isScannableSourceFile('src/main.rs'), true);
+      assert.strictEqual(ImportScanner.isScannableSourceFile('server.ts'), false);
+      assert.strictEqual(ImportScanner.isScannableSourceFile('main.py'), false);
+      assert.strictEqual(ImportScanner.isScannableSourceFile('main.go'), false);
+      assert.strictEqual(ImportScanner.isScannableSourceFile('src/main.rs'), false);
       assert.strictEqual(ImportScanner.isScannableSourceFile('bundle.min.js'), false);
       assert.strictEqual(
         ImportScanner.isScannableSourceFile('node_modules/express/index.js'),
@@ -356,7 +356,7 @@ sqlx = "0.7"
       );
     });
 
-    it('scans JavaScript and TypeScript ESM & CommonJS imports', () => {
+    it('parses JavaScript ESM without treating unparsed CommonJS calls as verified', () => {
       const code = `
 import fastify from 'fastify';
 import { eq } from 'drizzle-orm';
@@ -365,15 +365,15 @@ import localModule from './local-utils.js';
 `;
 
       const imports = ImportScanner.scanImports(code, 'src/app.js');
-      assert.strictEqual(imports.length, 3);
+      assert.strictEqual(imports.length, 2);
       assert.ok(imports.some((i) => i.packageName === 'fastify'));
       assert.ok(imports.some((i) => i.packageName === 'drizzle-orm'));
-      assert.ok(imports.some((i) => i.packageName === 'react'));
+      assert.ok(!imports.some((i) => i.packageName === 'react'));
       // Does not extract local relative import
       assert.ok(!imports.some((i) => i.packageName.includes('local-utils')));
     });
 
-    it('scans Python import and from ... import statements', () => {
+    it('does not claim AST verification for unsupported Python syntax', () => {
       const code = `
 import fastapi
 from pydantic import BaseModel
@@ -382,13 +382,10 @@ from .local import config
 `;
 
       const imports = ImportScanner.scanImports(code, 'main.py');
-      assert.strictEqual(imports.length, 3);
-      assert.ok(imports.some((i) => i.packageName === 'fastapi'));
-      assert.ok(imports.some((i) => i.packageName === 'pydantic'));
-      assert.ok(imports.some((i) => i.packageName === 'sqlalchemy'));
+      assert.deepEqual(imports, []);
     });
 
-    it('scans Go imports and import blocks', () => {
+    it('does not claim AST verification for unsupported Go syntax', () => {
       const code = `
 package main
 
@@ -400,12 +397,10 @@ import "github.com/google/uuid"
 `;
 
       const imports = ImportScanner.scanImports(code, 'main.go');
-      assert.strictEqual(imports.length, 3);
-      assert.ok(imports.some((i) => i.packageName === 'github.com/gin-gonic/gin'));
-      assert.ok(imports.some((i) => i.packageName === 'github.com/google/uuid'));
+      assert.deepEqual(imports, []);
     });
 
-    it('scans Rust use statements', () => {
+    it('does not claim AST verification for unsupported Rust syntax', () => {
       const code = `
 use tokio::time::sleep;
 use actix_web::{web, App, HttpServer};
@@ -414,9 +409,7 @@ use super::helper;
 `;
 
       const imports = ImportScanner.scanImports(code, 'src/main.rs');
-      assert.strictEqual(imports.length, 2);
-      assert.ok(imports.some((i) => i.packageName === 'tokio'));
-      assert.ok(imports.some((i) => i.packageName === 'actix-web'));
+      assert.deepEqual(imports, []);
     });
 
     it('bounds processing when given excessive lines (>1000) or oversized lines (>500 chars)', () => {
@@ -427,8 +420,9 @@ use super::helper;
       const code = lines.join('\n');
 
       const imports = ImportScanner.scanImports(code, 'index.js');
-      // Must not exceed 1000 lines scanned
-      assert.strictEqual(imports.length, 1000);
+      // Reject the whole oversized input rather than verifying a truncated program.
+      assert.strictEqual(imports.length, 0);
+      assert.equal(ImportScanner.scanImports(lines.slice(0, 10).join('\n'), 'index.js').length, 10);
     });
   });
 
@@ -609,7 +603,7 @@ MIIEowIBAAKCAQEA0Y3y1a5b8
   // 10. Candidate Skill Rollup & Provenance Scoring
   // -------------------------------------------------------------------------
   describe('10. Candidate Skill Rollup Formula & Provenance Status', () => {
-    it('computes single verified production evidence: 1.00 * (0.8 + 0.05 * 1) = 0.85', () => {
+    it('computes single repository observation: 1.00 * (0.8 + 0.05 * 1) = 0.85', () => {
       const items = [
         {
           confidenceScore: 1.0,
@@ -620,7 +614,7 @@ MIIEowIBAAKCAQEA0Y3y1a5b8
 
       const rollup = SkillRollupCalculator.calculateRollup(items);
       assert.strictEqual(rollup.confidenceScore, 0.85);
-      assert.strictEqual(rollup.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(rollup.provenanceStatus, 'INFERRED');
       assert.strictEqual(rollup.evidenceCount, 1);
     });
 
@@ -634,7 +628,7 @@ MIIEowIBAAKCAQEA0Y3y1a5b8
 
       const rollup = SkillRollupCalculator.calculateRollup(items);
       assert.strictEqual(rollup.confidenceScore, 1.0);
-      assert.strictEqual(rollup.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(rollup.provenanceStatus, 'INFERRED');
       assert.strictEqual(rollup.evidenceCount, 4);
     });
 

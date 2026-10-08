@@ -171,6 +171,7 @@ export const OAuthTokenRequestSchema = z
     code_verifier: z.string().min(43).max(128).optional(),
     resource: z.string().url('resource must be a valid URL').optional(),
     refresh_token: z.string().optional(),
+    scope: z.string().min(1).optional(),
     client_secret: z.string().optional(),
   })
   .superRefine((data, ctx) => {

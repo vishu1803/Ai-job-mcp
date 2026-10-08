@@ -115,8 +115,9 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
     });
 
     assert.equal(verifiedResult.canAdd, true);
-    assert.equal(verifiedResult.verified, true);
-    assert.match(verifiedResult.message, /Verified evidence found/);
+    assert.equal(verifiedResult.verified, false);
+    assert.equal(verifiedResult.provenanceStatus, 'CLAIMED');
+    assert.match(verifiedResult.message, /not independent proficiency verification/);
   });
 
   // =========================================================================
@@ -170,9 +171,8 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
       candidateProfile: mockCandidate,
     });
 
-    assert.equal(jobAnalysis.verifiedMatches.length, 1);
-    assert.equal(jobAnalysis.verifiedMatches[0].requirement, 'Node.js');
-    assert.equal(jobAnalysis.missingRequirements.length, 2);
+    assert.equal(jobAnalysis.verifiedMatches.length, 0);
+    assert.equal(jobAnalysis.missingRequirements.length, 3);
 
     const awsMissing = jobAnalysis.missingRequirements.find((r) => r.requirement === 'AWS');
     assert.ok(awsMissing);

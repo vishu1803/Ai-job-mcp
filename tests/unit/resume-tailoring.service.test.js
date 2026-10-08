@@ -444,9 +444,9 @@ describe('Resume Tailoring Service Unit Tests (P6-001)', () => {
     assert.ok(langCat);
     const goSkill = langCat.skills.find((s) => s.canonicalSlug === 'go');
     assert.ok(goSkill);
-    assert.strictEqual(goSkill.status, 'VERIFIED');
+    assert.strictEqual(goSkill.status, 'INFERRED');
     assert.strictEqual(goSkill.relevanceScore, 100.0);
-    assert.strictEqual(goSkill.claimLabel, null);
+    assert.ok(goSkill.claimLabel.includes('Inferred'));
   });
 
   // -------------------------------------------------------------------------
@@ -469,7 +469,7 @@ describe('Resume Tailoring Service Unit Tests (P6-001)', () => {
     assert.strictEqual(proj.relevanceScore, 92.0);
     assert.strictEqual(proj.relevanceBand, 'HIGH');
     assert.ok(proj.bullets.length >= 1);
-    assert.strictEqual(proj.bullets[0].status, 'VERIFIED');
+    assert.strictEqual(proj.bullets[0].status, 'INFERRED');
     assert.ok(proj.bullets[0].evidenceRefs.length > 0);
   });
 
@@ -811,14 +811,17 @@ describe('Resume Tailoring Service Unit Tests (P6-001)', () => {
       { llmAdapter: mockLlmAdapter }
     );
 
-    assert.strictEqual(
-      resume.headline,
-      'Lead Distributed Systems Engineer | Go & PostgreSQL Specialist'
+    const authoritative = await service.tailorResume(
+      context,
+      candidateProfile,
+      jobDescription,
+      candidateMatchAnalysis,
+      projectRelevanceAnalysis,
+      integrityCheckedAssertions
     );
-    assert.strictEqual(
-      resume.summary,
-      'Specialist in distributed systems engineering with deep Go expertise.'
-    );
+    assert.equal(resume.headline, authoritative.headline);
+    assert.equal(resume.summary, authoritative.summary);
+    assert.doesNotMatch(resume.summary, /deep Go expertise/);
   });
 
   // -------------------------------------------------------------------------

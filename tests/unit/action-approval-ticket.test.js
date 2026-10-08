@@ -108,7 +108,7 @@ describe('Action Approval Signer & Cryptographic Binding (Unit)', () => {
     const canonical = buildCanonicalTicketPayload(sampleTicket);
     const parts = canonical.split('|');
 
-    assert.equal(parts[0], 'V1');
+    assert.equal(parts[0], 'antigravity:action-approval:v2');
     assert.equal(parts[1], tenantA);
     assert.equal(parts[2], userId);
     assert.equal(parts[3], candidateId);

@@ -442,35 +442,52 @@ describe('Part 55: AI-Context Privacy & Content-Grounding Fix', () => {
 
   describe('15. Candidate Source-of-Truth Invariance', () => {
     it('15. Candidate source-of-truth remains unchanged in database', async () => {
-      const candId = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
-      const beforeRes = await pool.query(
-        'SELECT id, display_name, canonical_email, profile_metadata FROM candidates WHERE id = $1',
-        [candId]
-      );
-      assert.equal(beforeRes.rows.length, 1, 'Production candidate must exist');
-      const beforeRow = beforeRes.rows[0];
-
-      // Execute AI context building on production candidate
-      buildResumeAiContext({
-        job: SAMPLE_JOB,
-        candidateProfile: {
-          id: beforeRow.id,
-          displayName: beforeRow.display_name,
-          email: beforeRow.canonical_email,
-          profileMetadata: beforeRow.profile_metadata,
-        },
-        taskType: 'RESUME_SUMMARY_SYNTHESIS',
-      });
-
-      const afterRes = await pool.query(
-        'SELECT id, display_name, canonical_email, profile_metadata FROM candidates WHERE id = $1',
-        [candId]
-      );
-      const afterRow = afterRes.rows[0];
-
-      assert.equal(beforeRow.display_name, afterRow.display_name);
-      assert.equal(beforeRow.canonical_email, afterRow.canonical_email);
-      assert.deepEqual(beforeRow.profile_metadata, afterRow.profile_metadata);
+      // Isolated synthetic database fixture, never a personal/production candidate.
+      const { randomUUID } = await import('node:crypto');
+      const tenantId = randomUUID(),
+        candId = randomUUID();
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('INSERT INTO tenants (id, name, slug) VALUES ($1, $2, $3)', [
+          tenantId,
+          'Privacy regression',
+          'privacy-' + tenantId,
+        ]);
+        await client.query(
+          'INSERT INTO candidates (id, tenant_id, display_name, canonical_email, profile_metadata) VALUES ($1, $2, $3, $4, $5)',
+          [
+            candId,
+            tenantId,
+            SYNTHETIC_CANDIDATE.displayName,
+            SYNTHETIC_CANDIDATE.email,
+            JSON.stringify({ userClaim: 'Preserve this' }),
+          ]
+        );
+        const query =
+          'SELECT id, display_name, canonical_email, profile_metadata FROM candidates WHERE id = $1 AND tenant_id = $2';
+        const beforeRow = (await client.query(query, [candId, tenantId])).rows[0];
+        assert.ok(beforeRow, 'Synthetic candidate must exist');
+        buildResumeAiContext({
+          job: SAMPLE_JOB,
+          candidateProfile: {
+            id: beforeRow.id,
+            displayName: beforeRow.display_name,
+            email: beforeRow.canonical_email,
+            profileMetadata: beforeRow.profile_metadata,
+          },
+          taskType: 'RESUME_SUMMARY_SYNTHESIS',
+        });
+        const afterRow = (await client.query(query, [candId, tenantId])).rows[0];
+        assert.deepEqual(
+          afterRow,
+          beforeRow,
+          'AI context building must not mutate stored claims/identity'
+        );
+      } finally {
+        await client.query('ROLLBACK');
+        client.release();
+      }
     });
   });
 

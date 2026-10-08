@@ -29,6 +29,7 @@ import { logger } from '../utils/logger.js';
 import { PrimaryEvidenceSelector } from './evidence/primary-evidence-selector.js';
 import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
 import { SkillRollupCalculator } from '../extractors/github/skill-rollup.js';
+import { trustDatabaseEvidence } from './evidence/verification-policy.js';
 
 export class EvidenceLinkingService {
   /**
@@ -42,6 +43,7 @@ export class EvidenceLinkingService {
    */
   async getEvidenceById({ context, candidateId, evidenceId }) {
     this._validateContext(context);
+    await this._assertCandidateOwner(context, candidateId);
     if (!candidateId || !evidenceId) {
       throw new ValidationError('candidateId and evidenceId are required');
     }
@@ -63,6 +65,7 @@ export class EvidenceLinkingService {
       throw new NotFoundError(`Evidence node not found: ${evidenceId}`);
     }
 
+    trustDatabaseEvidence([item], { tenantId, candidateId });
     return EvidenceRefMapper.toEvidenceNode(item);
   }
 
@@ -84,7 +87,7 @@ export class EvidenceLinkingService {
     evidenceId,
     skillId,
     skillSlug,
-    requestedConfidence,
+    requestedConfidence: _requestedConfidence,
     tx: externalTx,
   }) {
     this._validateContext(context);
@@ -106,6 +109,9 @@ export class EvidenceLinkingService {
 
       if (!candidate) {
         throw new NotFoundError(`Candidate not found: ${candidateId}`);
+      }
+      if (!context.userId || candidate.userId !== context.userId) {
+        throw new NotFoundError('Candidate not found in current user scope');
       }
 
       // 2. Verify Evidence belongs to Tenant and Candidate
@@ -133,6 +139,9 @@ export class EvidenceLinkingService {
       if (!resource) {
         throw new NotFoundError(`Resource not found: ${evidence.resourceId}`);
       }
+      if (resource.candidateId !== candidateId || resource.status !== 'ACTIVE') {
+        throw new ValidationError('Evidence source is not active for this candidate');
+      }
 
       // 4. Resolve Canonical Skill
       let targetSkill;
@@ -148,14 +157,14 @@ export class EvidenceLinkingService {
       if (!targetSkill) {
         throw new NotFoundError(`Skill not found: ${skillId || skillSlug}`);
       }
+      if (evidence.skillId && evidence.skillId !== targetSkill.id) {
+        throw new ValidationError('Evidence cannot be substituted for a different skill');
+      }
 
       // 5. Monotonic Confidence Update on Evidence Item
       const currentConfidence =
         typeof evidence.confidenceScore === 'number' ? evidence.confidenceScore : 1.0;
-      const newConfidence =
-        typeof requestedConfidence === 'number'
-          ? Math.max(currentConfidence, Math.min(1.0, Math.max(0.0, requestedConfidence)))
-          : currentConfidence;
+      const newConfidence = currentConfidence; // Client confidence is not verification.
 
       // Update Evidence Item with linked skillId
       const [updatedEvidence] = await tx
@@ -163,7 +172,6 @@ export class EvidenceLinkingService {
         .set({
           skillId: targetSkill.id,
           confidenceScore: newConfidence,
-          detectedAt: new Date(),
         })
         .where(eq(evidenceItems.id, evidence.id))
         .returning();
@@ -200,7 +208,10 @@ export class EvidenceLinkingService {
           .update(candidateSkills)
           .set({
             category: targetSkill.category,
-            provenanceStatus: rollup.provenanceStatus,
+            provenanceStatus:
+              existingCandidateSkill.provenanceStatus === 'CLAIMED'
+                ? 'CLAIMED'
+                : rollup.provenanceStatus,
             confidenceScore: Math.max(
               existingCandidateSkill.confidenceScore,
               rollup.confidenceScore
@@ -278,6 +289,7 @@ export class EvidenceLinkingService {
         'candidateId, evidenceId, and projectId are required for project linking'
       );
     }
+    await this._assertCandidateOwner(context, candidateId);
 
     const tenantId = context.tenantId;
 
@@ -452,6 +464,7 @@ export class EvidenceLinkingService {
    */
   async listEvidenceForCandidateSkill({ context, candidateId, skillId }) {
     this._validateContext(context);
+    await this._assertCandidateOwner(context, candidateId);
     if (!candidateId || !skillId) {
       throw new ValidationError('candidateId and skillId are required');
     }
@@ -470,7 +483,9 @@ export class EvidenceLinkingService {
       )
       .orderBy(desc(evidenceItems.confidenceScore), desc(evidenceItems.detectedAt));
 
-    return items.map((item) => EvidenceRefMapper.toEvidenceRef(item, 'VERIFIED'));
+    return trustDatabaseEvidence(items, { tenantId, candidateId }).map((item) =>
+      EvidenceRefMapper.toEvidenceRef(item)
+    );
   }
 
   /**
@@ -484,6 +499,7 @@ export class EvidenceLinkingService {
    */
   async listEvidenceForProject({ context, candidateId, projectId }) {
     this._validateContext(context);
+    await this._assertCandidateOwner(context, candidateId);
     if (!candidateId || !projectId) {
       throw new ValidationError('candidateId and projectId are required');
     }
@@ -502,7 +518,9 @@ export class EvidenceLinkingService {
       )
       .orderBy(desc(evidenceItems.confidenceScore), desc(evidenceItems.detectedAt));
 
-    return items.map((item) => EvidenceRefMapper.toEvidenceRef(item));
+    return trustDatabaseEvidence(items, { tenantId, candidateId }).map((item) =>
+      EvidenceRefMapper.toEvidenceRef(item)
+    );
   }
 
   /**
@@ -545,6 +563,21 @@ export class EvidenceLinkingService {
    * @param {object} context
    * @private
    */
+  async _assertCandidateOwner(context, candidateId) {
+    if (!candidateId || !context.userId) throw new NotFoundError('Candidate not found');
+    const [candidate] = await db
+      .select()
+      .from(candidates)
+      .where(
+        and(
+          eq(candidates.id, candidateId),
+          eq(candidates.tenantId, context.tenantId),
+          eq(candidates.userId, context.userId)
+        )
+      );
+    if (!candidate) throw new NotFoundError('Candidate not found in current user scope');
+  }
+
   _validateContext(context) {
     if (!context || !context.tenantId) {
       throw new ValidationError('Trusted connector context with tenantId is required');

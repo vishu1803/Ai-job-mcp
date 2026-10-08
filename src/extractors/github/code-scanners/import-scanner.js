@@ -1,410 +1,69 @@
 /**
- * @file Safe Code Import Scanner (P4-003)
- *
- * Scans entrypoint and key source code files for active library import statements
- * using linear, non-backtracking regular expressions.
- *
- * Strictly adheres to:
- * - Zero code execution (no eval, vm, import() or dynamic execution)
- * - Maximum 500 characters per scanned line
- * - Maximum 1000 lines per scanned file
- * - EvidenceType: CODE_IMPORT_USAGE
- * - Confidence: 1.00
+ * ISSUE-06: JavaScript static references, not execution/proficiency verification.
+ * Unsupported syntax/languages fail closed. Never execute repository content.
  */
-
-const PYTHON_STDLIB_AND_INTERNAL_MODULES = new Set([
-  'os',
-  'sys',
-  'time',
-  'random',
-  'json',
-  'math',
-  're',
-  'datetime',
-  'pathlib',
-  'typing',
-  'collections',
-  'itertools',
-  'functools',
-  'io',
-  'threading',
-  'multiprocessing',
-  'subprocess',
-  'unittest',
-  'logging',
-  'argparse',
-  'shutil',
-  'tempfile',
-  'urllib',
-  'http',
-  'socket',
-  'asyncio',
-  'abc',
-  'contextlib',
-  'enum',
-  'copy',
-  'glob',
-  'hashlib',
-  'hmac',
-  'secrets',
-  'uuid',
-  'base64',
-  'csv',
-  'sqlite3',
-  'ctypes',
-  'warnings',
-  'inspect',
-  'queue',
-  'struct',
-  'array',
-  'codecs',
-  'gc',
-  'select',
-  'signal',
-  'zipfile',
-  'tarfile',
-  'zlib',
-  'gzip',
-  'pickle',
-  'sched',
-  'platform',
-  'dis',
-  'ast',
-  'token',
-  'tokenize',
-  'parser',
-  'builtins',
-  'posixpath',
-  'ntpath',
-  'macpath',
-  'string',
-  'operator',
-  'decimal',
-  'fractions',
-  'cmath',
-  'bisect',
-  'heapq',
-  'weakref',
-  'types',
-  'pprint',
-  'reprlib',
-  'zoneinfo',
-  'traceback',
-  'timeit',
-  'tracemalloc',
-  'site',
-  // Generic internal module names
-  'server',
-  'app',
-  'main',
-  'tasks',
-  'forms',
-  'core',
-  'config',
-  'utils',
-  'helpers',
-  'models',
-  'views',
-  'controllers',
-  'services',
-  'routes',
-  'handlers',
-  'schemas',
-  'constants',
-  'tests',
-  'test',
-  'common',
-  'lib',
-  'shared',
-  'index',
-  'run',
-  'cli',
-  'db',
-  'database',
-  'api',
-  'auth',
-  'middleware',
-]);
+import { parse } from 'acorn';
+import { isObservationOnlyPath } from '../../../services/evidence/verification-policy.js';
 
 export class ImportScanner {
   static MAX_LINES = 1000;
   static MAX_LINE_LENGTH = 500;
-  static PYTHON_FILTERED_MODULES = PYTHON_STDLIB_AND_INTERNAL_MODULES;
+  static MAX_BYTES = 256 * 1024;
 
-  /**
-   * Generic module names that should not be treated as third-party packages
-   * in JavaScript/TypeScript imports (e.g., local modules like 'app', 'server').
-   */
-  static JS_INTERNAL_MODULES = new Set([
-    'app',
-    'server',
-    'main',
-    'core',
-    'config',
-    'utils',
-    'helpers',
-    'models',
-    'views',
-    'controllers',
-    'services',
-    'routes',
-    'handlers',
-    'schemas',
-    'constants',
-    'tests',
-    'test',
-    'common',
-    'lib',
-    'shared',
-    'index',
-    'run',
-    'cli',
-    'db',
-    'database',
-    'api',
-    'auth',
-    'middleware',
-    'tasks',
-    'forms',
-    'parser',
-  ]);
-
-  /**
-   * Checks if the file is an entrypoint or representative source file suitable for import scanning.
-   *
-   * @param {string} filePath - Relative file path.
-   * @returns {boolean}
-   */
   static isScannableSourceFile(filePath) {
-    if (!filePath || typeof filePath !== 'string') return false;
-    const lower = filePath.toLowerCase();
-
-    // Skip minified, test fixtures, node_modules, vendor
-    if (
-      lower.includes('min.js') ||
-      lower.includes('bundle.js') ||
-      lower.includes('.min.') ||
-      lower.includes('vendor/') ||
-      lower.includes('node_modules/') ||
-      lower.includes('dist/') ||
-      lower.includes('build/')
-    ) {
-      return false;
-    }
-
-    const fileName = lower.split('/').pop() || lower;
-
-    // Common entrypoints and key files
     return (
-      fileName === 'index.js' ||
-      fileName === 'index.ts' ||
-      fileName === 'app.js' ||
-      fileName === 'app.ts' ||
-      fileName === 'server.js' ||
-      fileName === 'server.ts' ||
-      fileName === 'main.js' ||
-      fileName === 'main.ts' ||
-      fileName === 'main.py' ||
-      fileName === 'app.py' ||
-      fileName === 'server.py' ||
-      fileName === 'main.go' ||
-      fileName === 'main.rs' ||
-      fileName === 'lib.rs' ||
-      fileName.endsWith('.routes.js') ||
-      fileName.endsWith('.service.js') ||
-      fileName.endsWith('.controller.js')
+      typeof filePath === 'string' &&
+      /\.(?:js|mjs|cjs)$/.test(filePath) &&
+      !isObservationOnlyPath(filePath)
     );
   }
 
-  /**
-   * Scans source code lines for verified import statements.
-   *
-   * @param {string} content - Raw source code text.
-   * @param {string} filePath - File path (used to determine language patterns).
-   * @returns {Array<{ rawImport: string, packageName: string, confidence: number, rawExcerpt: string, lineRange: { start: number, end: number } }>}
-   */
   static scanImports(content, filePath) {
-    if (!content || typeof content !== 'string') {
+    if (
+      typeof content !== 'string' ||
+      !this.isScannableSourceFile(filePath) ||
+      Buffer.byteLength(content) > this.MAX_BYTES ||
+      content.split('\n').length > this.MAX_LINES ||
+      /@generated|automatically generated|do not edit/i.test(content.slice(0, 2000))
+    )
       return [];
+    let ast;
+    try {
+      ast = parse(content, {
+        ecmaVersion: 'latest',
+        sourceType: filePath.endsWith('.cjs') ? 'commonjs' : 'module',
+        locations: true,
+      });
+    } catch {
+      return []; // Includes TS/JSX, malformed input and unsupported grammar. No regex fallback.
     }
-
-    const rawLines = content.split(/\r?\n/);
-    const lineLimit = Math.min(rawLines.length, ImportScanner.MAX_LINES);
-    const lowerPath = (filePath || '').toLowerCase();
-
     const extracted = [];
-    let inGoImportBlock = false;
-
-    for (let i = 0; i < lineLimit; i++) {
-      let line = rawLines[i];
-      if (line.length > ImportScanner.MAX_LINE_LENGTH) {
-        line = line.slice(0, ImportScanner.MAX_LINE_LENGTH);
-      }
-      const trimmed = line.trim();
-
+    // ESM declarations are unambiguous static references. CommonJS require can be
+    // shadowed; don't claim verified references without scope-aware binding resolution.
+    for (const node of ast.body) {
       if (
-        !trimmed ||
-        trimmed.startsWith('//') ||
-        trimmed.startsWith('#') ||
-        trimmed.startsWith('/*')
-      ) {
+        !['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(node.type)
+      )
         continue;
-      }
-
-      // 1. JavaScript / TypeScript imports
+      const pkg = node.source?.value;
       if (
-        lowerPath.endsWith('.js') ||
-        lowerPath.endsWith('.ts') ||
-        lowerPath.endsWith('.mjs') ||
-        lowerPath.endsWith('.cjs')
-      ) {
-        // ES Module: import ... from 'pkg'
-        const esmMatch = trimmed.match(/^import\s+.*?\s+from\s+['"]([^'"]+)['"]/);
-        if (esmMatch) {
-          const pkg = esmMatch[1].trim();
-          if (!pkg.startsWith('.') && !pkg.startsWith('/')) {
-            // Scoped packages (@scope/pkg) are always third-party — never filter them
-            const isScoped = pkg.startsWith('@');
-            const bareName = isScoped && pkg.includes('/') ? pkg.split('/')[1] : pkg;
-            const shouldFilter =
-              !isScoped && ImportScanner.JS_INTERNAL_MODULES.has(bareName.toLowerCase());
-            if (!shouldFilter) {
-              extracted.push({
-                rawImport: pkg,
-                packageName: pkg,
-                confidence: 1.0,
-                rawExcerpt: trimmed,
-                lineRange: { start: i + 1, end: i + 1 },
-              });
-            }
-          }
-          continue;
-        }
-
-        // CommonJS: require('pkg') or const x = require('pkg')
-        const cjsMatch = trimmed.match(/require\(['"]([^'"]+)['"]\)/);
-        if (cjsMatch) {
-          const pkg = cjsMatch[1].trim();
-          if (!pkg.startsWith('.') && !pkg.startsWith('/')) {
-            // Scoped packages (@scope/pkg) are always third-party — never filter them
-            const isScoped = pkg.startsWith('@');
-            const bareName = isScoped && pkg.includes('/') ? pkg.split('/')[1] : pkg;
-            const shouldFilter =
-              !isScoped && ImportScanner.JS_INTERNAL_MODULES.has(bareName.toLowerCase());
-            if (!shouldFilter) {
-              extracted.push({
-                rawImport: pkg,
-                packageName: pkg,
-                confidence: 1.0,
-                rawExcerpt: trimmed,
-                lineRange: { start: i + 1, end: i + 1 },
-              });
-            }
-          }
-          continue;
-        }
-      }
-
-      // 2. Python imports
-      if (lowerPath.endsWith('.py')) {
-        // from pkg import ...
-        const fromMatch = trimmed.match(/^from\s+([a-zA-Z0-9_]+)(?:\.[a-zA-Z0-9_]+)*\s+import/);
-        if (fromMatch) {
-          const pkg = fromMatch[1].trim().toLowerCase();
-          if (!PYTHON_STDLIB_AND_INTERNAL_MODULES.has(pkg)) {
-            extracted.push({
-              rawImport: pkg,
-              packageName: pkg.replace(/_/g, '-'),
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
-          }
-          continue;
-        }
-
-        // import pkg, import pkg.sub
-        const importMatch = trimmed.match(/^import\s+([a-zA-Z0-9_]+)/);
-        if (importMatch) {
-          const pkg = importMatch[1].trim().toLowerCase();
-          if (!PYTHON_STDLIB_AND_INTERNAL_MODULES.has(pkg)) {
-            extracted.push({
-              rawImport: pkg,
-              packageName: pkg.replace(/_/g, '-'),
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
-          }
-          continue;
-        }
-      }
-
-      // 3. Go imports
-      if (lowerPath.endsWith('.go')) {
-        if (trimmed.startsWith('import (')) {
-          inGoImportBlock = true;
-          continue;
-        }
-
-        if (inGoImportBlock) {
-          if (trimmed === ')') {
-            inGoImportBlock = false;
-            continue;
-          }
-
-          const quotedMatch = trimmed.match(/['"]([^'"]+)['"]/);
-          if (quotedMatch) {
-            const pkg = quotedMatch[1].trim();
-            extracted.push({
-              rawImport: pkg,
-              packageName: pkg,
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
-          }
-          continue;
-        }
-
-        const singleGoMatch = trimmed.match(/^import\s+['"]([^'"]+)['"]/);
-        if (singleGoMatch) {
-          const pkg = singleGoMatch[1].trim();
-          extracted.push({
-            rawImport: pkg,
-            packageName: pkg,
-            confidence: 1.0,
-            rawExcerpt: trimmed,
-            lineRange: { start: i + 1, end: i + 1 },
-          });
-          continue;
-        }
-      }
-
-      // 4. Rust use statements
-      if (lowerPath.endsWith('.rs')) {
-        const useMatch = trimmed.match(/^use\s+([a-zA-Z0-9_]+)::/);
-        if (useMatch) {
-          const crateName = useMatch[1].trim();
-          if (
-            crateName !== 'crate' &&
-            crateName !== 'super' &&
-            crateName !== 'self' &&
-            crateName !== 'std'
-          ) {
-            extracted.push({
-              rawImport: crateName,
-              packageName: crateName.toLowerCase().replace(/_/g, '-'),
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
-          }
-          continue;
-        }
-      }
+        typeof pkg !== 'string' ||
+        pkg.length > 512 ||
+        pkg.startsWith('.') ||
+        pkg.startsWith('/') ||
+        pkg.startsWith('node:') ||
+        !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:\/[^\s]+)?$/i.test(pkg)
+      )
+        continue;
+      extracted.push({
+        rawImport: pkg,
+        packageName: pkg,
+        confidence: 1,
+        extractionMethod: 'ACORN_AST',
+        rawExcerpt: content.slice(node.start, node.end),
+        lineRange: { start: node.loc.start.line, end: node.loc.end.line },
+      });
     }
-
     return extracted;
   }
 }

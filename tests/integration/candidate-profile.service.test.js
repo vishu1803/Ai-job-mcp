@@ -313,7 +313,7 @@ describe('Live Candidate Profile Service Integration Tests (P4-005)', () => {
       assert.strictEqual(rustSkill.primaryEvidence, null);
     });
 
-    it('elevates manual claim to VERIFIED when evidence is subsequently linked', async () => {
+    it('preserves CLAIMED when a manifest observation is subsequently linked', async () => {
       const ownerCtx = makeContext(tenantA, userOwnerA);
 
       // Fetch candidate resource
@@ -343,7 +343,7 @@ describe('Live Candidate Profile Service Integration Tests (P4-005)', () => {
 
       // Link evidence to Rust skill via EvidenceLinkingService
       await linkingService.linkEvidenceToSkill({
-        context: ownerCtx,
+        context: makeContext(tenantA, userMemberA),
         candidateId: candidateA.id,
         evidenceId: evidence.id,
         skillId: skillRust.id,
@@ -353,15 +353,15 @@ describe('Live Candidate Profile Service Integration Tests (P4-005)', () => {
       const profile = await profileService.getProfile(ownerCtx, candidateA.id);
       const rustSkill = profile.skills.find((s) => s.slug === `rust-${testRunId}`);
       assert.ok(rustSkill);
-      assert.strictEqual(rustSkill.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(rustSkill.provenanceStatus, 'CLAIMED');
       assert.strictEqual(rustSkill.confidenceScore, 0.85);
       assert.strictEqual(rustSkill.evidenceCount, 1);
       assert.ok(rustSkill.primaryEvidence);
       assert.strictEqual(rustSkill.primaryEvidence.evidenceId, evidence.id);
-      assert.strictEqual(rustSkill.claimLabel, null);
+      assert.strictEqual(rustSkill.claimLabel, '[Unverified User Claim]');
     });
 
-    it('preserves verified status and score when addSkillClaim is called on already-verified skill', async () => {
+    it('preserves self-report and observation score when addSkillClaim is repeated', async () => {
       const ownerCtx = makeContext(tenantA, userOwnerA);
 
       const claim = await profileService.addSkillClaim(ownerCtx, candidateA.id, {
@@ -369,12 +369,12 @@ describe('Live Candidate Profile Service Integration Tests (P4-005)', () => {
         claimNote: 'Updated self-assessment note',
       });
 
-      assert.strictEqual(claim.provenanceStatus, 'VERIFIED');
+      assert.strictEqual(claim.provenanceStatus, 'CLAIMED');
       assert.strictEqual(claim.confidenceScore, 0.85); // NOT downgraded to 0!
-      assert.strictEqual(claim.claimLabel, null); // Not labeled unverified since real evidence exists
+      assert.strictEqual(claim.claimLabel, '[Unverified User Claim]'); // Not labeled unverified since real evidence exists
     });
 
-    it('removeSkillClaim preserves verified skill while clearing user claim note', async () => {
+    it('removeSkillClaim preserves observed skill while clearing user claim note', async () => {
       const ownerCtx = makeContext(tenantA, userOwnerA);
 
       const res = await profileService.removeSkillClaim(ownerCtx, candidateA.id, skillRust.id);
@@ -383,8 +383,8 @@ describe('Live Candidate Profile Service Integration Tests (P4-005)', () => {
       // Verify skill still exists and remains VERIFIED in profile
       const profile = await profileService.getProfile(ownerCtx, candidateA.id);
       const rustSkill = profile.skills.find((s) => s.slug === `rust-${testRunId}`);
-      assert.ok(rustSkill, 'Verified skill must not be deleted');
-      assert.strictEqual(rustSkill.provenanceStatus, 'VERIFIED');
+      assert.ok(rustSkill, 'Observed skill must not be deleted');
+      assert.strictEqual(rustSkill.provenanceStatus, 'CLAIMED');
     });
 
     it('removeSkillClaim deletes candidate_skills row if skill was purely a manual claim', async () => {
