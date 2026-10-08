@@ -3867,6 +3867,7 @@ export default async function webRoutes(app, opts = {}) {
         userId: user.id,
         candidateId: candidate.id,
         approvalTicketId: body.approvalTicketId,
+        applicationId: appId,
         packageHash,
         destinationUrl,
         applicationPackage: currentPackage,
@@ -3886,7 +3887,7 @@ export default async function webRoutes(app, opts = {}) {
           ? 403
           : err.code === 'TICKET_NOT_FOUND' || err.code === 'NOT_FOUND'
             ? 404
-            : err.code === 'TICKET_ALREADY_CONSUMED'
+            : err.code === 'TICKET_ALREADY_CONSUMED' || err.code === 'CONFLICT'
               ? 409
               : 400;
 
@@ -3894,6 +3895,7 @@ export default async function webRoutes(app, opts = {}) {
         return reply.code(statusCode).send({
           error: err.code || 'SUBMISSION_FAILED',
           message: err.message,
+          ...(err.details ? { details: err.details } : {}),
         });
       }
       return reply.redirect(
@@ -3955,7 +3957,7 @@ export default async function webRoutes(app, opts = {}) {
         userId: user.id,
         candidateId: candidate.id,
         clientId: 'career-hub-web',
-        jobId: application.canonicalJobId || application.id,
+        applicationId: appId,
         destinationUrl,
         packageHash,
         packageVersion,

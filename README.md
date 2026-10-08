@@ -313,7 +313,7 @@ Career Hub includes a full web application with the following views:
 
 - **Node.js** 20+ (tested on v24)
 - **PostgreSQL** 16+ (local instance or managed service like [Aiven](https://aiven.io))
-- **GitHub App** configured with `contents:read` and `metadata:read` permissions
+- **GitHub App** configured with `contents:read` and `metadata:read` permissions; organization linking additionally requires `members:read` and an active organization owner. Installation linking requires the App's client ID/secret, separate from login OAuth credentials. Configure both callbacks as described in [secure installation linking](docs/security/github-installation-linking.md).
 
 ### Setup
 

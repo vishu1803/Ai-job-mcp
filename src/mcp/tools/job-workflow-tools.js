@@ -186,7 +186,17 @@ export function registerJobWorkflowTools(
     async (context, params) => {
       assertToolPermission(context, JOB_WORKFLOW_TOOL_DEFINITIONS.create_application_preview);
 
-      const pkg = params.applicationPackage;
+      const requested = params.applicationPackage;
+      const candidateId = await resolveCandidateId(context, requested.candidateId, database);
+      const approved = await workflowService.getAuthoritativeApplicationPackage({
+        tenantId: context.tenantId, userId: context.userId || context.id,
+        candidateId, applicationId: requested.applicationId,
+        packageVersion: requested.packageVersion, packageHash: requested.packageHash,
+        role: context.role,
+      });
+      const pkg = { ...approved.applicationPackage, applicationId: approved.applicationId,
+        packageVersion: approved.packageVersion, packageHash: approved.packageHash,
+        preparedAt: approved.preparedAt };
       const previewMarkdown = workflowService.createApplicationPreview(pkg);
 
       return {
@@ -219,6 +229,9 @@ export function registerJobWorkflowTools(
         warnings: [],
         previewMarkdown: SecretScrubber.scrub(previewMarkdown),
         packageHash: pkg.packageHash,
+        packageVersion: pkg.packageVersion,
+        // Complete approval-sensitive payload, beyond the prose summary.
+        approvalContent: approved.applicationPackage,
       };
     }
   );
@@ -238,6 +251,9 @@ export function registerJobWorkflowTools(
         userId: context.userId || context.id,
         candidateId: targetCandidateId,
         clientId: context.clientId || 'mcp-client',
+        applicationId: params.applicationId,
+        packageVersion: params.packageVersion,
+        role: context.role,
         jobId: params.jobId,
         destinationUrl: params.destinationUrl,
         packageHash: params.packageHash,
@@ -266,6 +282,7 @@ export function registerJobWorkflowTools(
         userId: context.userId || context.id,
         candidateId: targetCandidateId,
         approvalTicketId: params.approvalTicketId,
+        applicationId: params.applicationId,
         packageHash: params.packageHash,
         destinationUrl: params.destinationUrl,
         applicationPackage: params.applicationPackage,

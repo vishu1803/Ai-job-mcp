@@ -1,7 +1,422 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-10-04*
+*Last Updated: 2026-10-07*
+
+## P0 Security Fix Publication (2026-10-07)
+
+**Status:** COMPLETE — requested ISSUE-01/02/03 fixes committed and published to the dedicated GitHub fix branch; live remediation acceptance remains pending separately.
+
+- Publish only the remediation source/tests/docs and journaled migrations 0018/0019 to GitHub `origin`, on `fix/p0-security-issues-01-03`. `goal.md` prohibits direct default-branch pushes; `main` remains unchanged. No force push or PR creation.
+- Exclude unrelated `.claude/`, private environment files, credentials, Temp databases and test logs. Preserve all security invariants and existing live-verification requirements. ISSUE-04/05 remain open; no completion percentages change.
+- Verification carried forward from the immediately preceding remediation: 748 selected tests / 703 PASS / 45 FAIL / 0 cancelled/skipped; 50/50 new ISSUE-03 tests and real-PostgreSQL 50-caller at-most-once proof passed. Commit-boundary checks and remote publication evidence will be recorded below; no new database/live-provider test-pass claim is made by this publication task.
+- Commit-boundary verification: explicit 36-file staged allowlist; strict staged diff secret scan 0 findings (fixture exemptions disabled); syntax checks 26/26 JavaScript files PASS; lint 0 errors / 11 existing warnings; canonical package identity tests 27/27 PASS; staged whitespace check PASS. Fetched origin and verified base HEAD matched origin/main before creating the fix branch. Private/unrelated files remain unstaged.
+- Security commit: `2672a410e32a0c85c4fd4f4b774d3b7e30e57b9b` (`fix(security): secure linking and approvals`), 36 files. `git push --set-upstream origin fix/p0-security-issues-01-03` succeeded; independent `git ls-remote --heads origin refs/heads/fix/p0-security-issues-01-03` matched that exact commit. This publication evidence is recorded in a follow-up documentation commit. No force push, PR creation, merge, GitLab push or default-branch update was performed; local main remains `7f03b64ac5908f248c2d5b82dc510779c02f9aca`.
+- Publication does not close live ISSUE-01/02/03 acceptance, clear the 45 recorded wider test failures, authorize deployment, or advance ISSUE-04/05. Migrations/stop-old-worker rollout requirements remain mandatory.
+
+## ISSUE-03: Atomic Single-Owner Application Execution (2026-10-07)
+
+**Status:** IN_PROGRESS — implementation and local PostgreSQL security verification complete; coordinated staging/deployment acceptance remains pending.
+
+**Completion decision:** FIX IMPLEMENTED BUT LIVE VERIFICATION REQUIRED.
+
+**Phase / scope:** P0 audit security remediation only. Read AGENTS.md, goal.md and this ledger before implementation; aligned with tenant isolation, explicit human approval and modular services. Preserve ISSUE-01 and ISSUE-02. No ISSUE-04/05 work, new product automation or overall completion-percentage changes. Existing user/uncommitted work and `.claude/` preserved. No commits made.
+
+### Re-investigation and original evidence
+
+- Traced persisted signed ISSUE-02 snapshot -> ticket load/context/signature/content validation -> status check -> unconditional consumed update -> adapter/manual boundary -> independent tracking/status/audit writes. Read the approval repository/schema/migrations, application package persistence, portal registry/base/all built-in adapters, MCP/web entry points and relevant tests.
+- Original `_updateApprovalTicketStatus` passed no expected prior status and swallowed errors. Two service instances could both read ISSUED, both update CONSUMED and both execute. Tracking failures were also swallowed; approval, intent, result and application status had no durable atomic relationship.
+- BEFORE product-code changes, the new real-PostgreSQL regression forced both service instances to finish loading the same valid snapshot/ticket before proceeding. `%TEMP%/issue03-original-race.log`: **adapterCalls=2, successes=2; 1 regression FAIL**. No employer was contacted.
+- Ran the wider baseline before editing product code: `%TEMP%/issue03-baseline.log`, **232 total / 190 PASS / 42 FAIL / 0 cancelled/skipped**. Final wider run has the identical 42 failing test locations.
+
+### Architecture / enforced invariants
+
+- Existing approval enum retained. Only a valid current content-bound **ISSUED** ticket is executable. Claim commits `CONSUMED` permanently, meaning the right is spent, not necessarily an external submission. No reset, lease, automatic retry or takeover after failure/restart.
+- New durable execution state: `CLAIMED -> STARTED -> SUCCEEDED | FAILED | UNKNOWN`; known pre-start failure may do `CLAIMED -> FAILED`. CLAIMED/STARTED left by process death are non-reusable and require operator inspection. Definite no-side-effect failure still spends the approval.
+- Tenant-scoped SELECT FOR UPDATE, followed by conditional UPDATE WHERE ISSUED RETURNING, validates expiry using PostgreSQL clock AFTER acquiring the lock. The CAS also matches all verified context/signature/hash/version/expiry and complete snapshot metadata. ISSUE-02 TOCTOU changes cannot be claimed.
+- In ONE transaction: consume approval + insert random execution UUID/intent + execution_claimed audit. Global UNIQUE(approval_id) independently blocks second execution records. No in-memory lock or cache grants ownership.
+- In a second transaction: STARTED + execution_started audit, before invoking any adapter/manual boundary. Execute exactly the detached, frozen ISSUE-02 snapshot; pass durable executionId/idempotencyKey and approval ID. No mutable ledger/profile/attachment substitution.
+- In a result transaction: execution result + the exact approved application's status/applied timestamp/metadata + success audit commit together. Do not resolve/create another application or rewrite the CURRENT package ledger. Retain executed package UUID/version in execution/application metadata.
+- PostgreSQL and external HTTP are explicitly NOT one ACID transaction. Uncertain adapter/network/response/result-write outcomes become UNKNOWN if writable, otherwise STARTED remains. Confirmed commit with lost acknowledgement cannot be overwritten. No fallback execution when persistence/ownership cannot be confirmed.
+- Adapter failure is definitive only for an explicit FAILED/REJECTED response with `sideEffectOccurred === false`; thrown exceptions after STARTED are ambiguous. All built-in adapters stage/handoff and block final submission; no provider-backed idempotency/reconciliation exists. Forwarded UUID is locally tested, not proof of provider idempotency.
+- Expiry/revoke helpers use conditional terminal transitions and cannot overwrite a consumed approval. Web duplicate errors use HTTP 409 with deterministic CONFLICT / TICKET_ALREADY_CONSUMED; execution identity is retained in result/error details.
+- Critical audit events persist with their corresponding local transaction. Duplicate-rejection audit is best-effort and never consumption authority. A maintenance-only result persistence option records execution_reconciliation_completed, expected prior state, operator-attested evidence reference and PostgreSQL current_user atomically with proven result/status; UNKNOWN requires evidence and terminal states cannot be overwritten. No public reconciliation endpoint or automatic reconciler was added; operators must quiesce owners and verify provider evidence first.
+
+### Files changed for ISSUE-03 (12)
+
+1. `src/services/job-application-workflow.service.js`: atomic ownership gateway, durable state/result handling, no tracking-write fallback, permanent terminal approval helpers and transactional issuance audit.
+2. `src/db/repositories/application-execution.repository.js` (new): locked CAS, unique durable intent, start/result transactions and audit events.
+3. `src/db/repositories/application-approval-ticket.repository.js`: correct expected-status array predicate used by expiry/revocation.
+4. `src/db/schema.js`: execution table, ownership/context/result fields, state CHECK and unique approval index; ISSUE-01 tables/indexes unchanged.
+5. `drizzle/0019_atomic_application_execution.sql` (new): additive journaled migration; preserve old approvals/consumed history.
+6. `drizzle/meta/_journal.json`: migration 0019 entry after existing 0018.
+7. `src/domain/job/job-workflow.schemas.js`: optional server execution UUID in submission results.
+8. `src/routes/web.routes.js`: map domain CONFLICT to HTTP 409 and preserve execution error details.
+9. `tests/integration/application-approval-execution.test.js` (new): 50 real-PostgreSQL security/rollback/restart/concurrency/reconciliation cases.
+10. `tests/integration/application-approval-content-binding.test.js`: preserve snapshot-write failure injection inside the transaction; assert real HTTP replay returns 409. All 44 existing cases retained.
+11. `docs/security/application-approval-execution.md` (new): state machine, crash matrix, provider limits, rollout/rollback, operator reconciliation contract and verification evidence.
+12. `project.md`: mandatory execution evidence and remaining acceptance.
+
+### New test inventory / security proof
+
+- Six contention scenarios: two interleaved service objects; 10 callers on one service; 50 separate service objects; 50 callers blocked on an observed PostgreSQL row lock; 10-way manual handoff; two independent Node processes/connection pools. Exactly ONE winner in each. **Adapter calls = 1** in every adapter scenario; 49 deterministic rejections in both 50-caller cases.
+- Immediate replay while adapter runs, replay after success/definitive failure/unknown outcome, and reconstructed-service/restarted-process replay of durable CLAIMED/STARTED/SUCCEEDED states. Explicit post-success foreign-tenant/user and retained-hash modified-content replays also reject; final focused rerun remains 131/131 PASS.
+- Ten invalid context/state/content categories (tenant, user, candidate, hash, legacy, tampered snapshot, expired, PENDING, APPROVED and unknown state); snapshot TOCTOU; expiry and revocation while waiting for a DB lock.
+- Six transaction/commit-acknowledgement failure boundaries; actual PostgreSQL trigger failures on intent/claim/start/success audit inserts and application status update; result rollback after audit insert; simultaneous result/recovery storage unavailability.
+- Hard child-process termination during adapter and after adapter success before result persistence; both leave durable STARTED and reject restart replay.
+- Definitive vs uncertain rejection, timeout, malformed response and verified-adapter success; durable result/reference/identity/audit assertions; permanent terminal helpers; uniqueness even after deliberately corrupting approval status; audit failure cannot reopen approval.
+- ISSUE-02 regression: concurrent supplied package B still executes frozen approved A, including answers/attachments; manual handoff uses A; all canonical identity/content-binding tests remain green.
+- Two reconciliation cases: operator-attested UNKNOWN -> proven success commits result/application/audit with database actor and no adapter replay; evidence-less UNKNOWN success is rejected. Terminal overwrite is rejected. Synthetic evidence proves persistence, not live provider lookup.
+
+### Final verification / exact results
+
+Node 24.13.0; installed dependencies reused. Disposable PostgreSQL 17 loopback cluster at `127.0.0.1:55431`, synthetic explicit `ENV_FILE=%TEMP%/ai-job-issue01-test.env`. No real provider credentials, employer requests or user database. Applied migration 0019 to the disposable cluster; separately applied all **20 migrations** to fresh `issue03_schema_1791392146559`, repeated migration successfully, inspected actual unique approval index/state CHECK. No destructive rollback/evidence deletion.
+
+| Final gate / Temp log | PASS | FAIL | CANCELLED | SKIPPED |
+|---|---:|---:|---:|---:|
+| `issue03-focused-final.log`: new ISSUE-03 (50), ISSUE-02 (71), approval persistence (10) | 131 | 0 | 0 | 0 |
+| `issue03-security-final.log`: ISSUE-01, auth, authorization, tenants, database/schema, tracking/artifacts | 209 | 0 | 0 | 0 |
+| `issue03-extension-final.log`: extension API/matrix | 25 | 0 | 0 | 0 |
+| `issue03-regression-final.log`: broader application/MCP/document/workflow suites | 190 | 42 | 0 | 0 |
+| `issue03-adapters-final.log`: portal adapters/contracts/lifecycle/tracking | 148 | 3 | 0 | 0 |
+| **Selected unique totals** | **703** | **45** | **0** | **0** |
+
+**748 selected unique tests. New tests: 50/50 PASS. Contention tests: 6/6 PASS. Maximum concurrent callers: 50. Same-approval adapter invocations: 1.** Automated tests blocked by environment: 0. These totals are not a whole-repository green claim. External provider/live staging acceptance is NOT VERIFIED — EXTERNAL DEPENDENCY and is not counted as an automated pass/skip.
+
+Commands (all tests with synthetic ENV_FILE; outputs retained in named logs):
+
+```text
+node --test --test-timeout=90000 tests/integration/application-approval-execution.test.js tests/integration/application-approval-content-binding.test.js tests/integration/phase9-4-approval-persistence.test.js tests/unit/application-package-identity.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/unit/github-installation-service.test.js tests/integration/github-installation-linking.test.js tests/integration/auth.test.js tests/integration/security-authorization.test.js tests/integration/application-tracking.service.test.js tests/integration/job-application-schema.test.js tests/integration/application-handoff-route.test.js tests/integration/mcp-application-artifact-tools.test.js tests/integration/tenant-isolation-hardening.test.js tests/integration/candidate-tenant-isolation.test.js tests/integration/db.test.js
+node --test --test-concurrency=2 --test-timeout=120000 tests/integration/extension-api.test.js tests/integration/extension-matrix.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/integration/application-package-consistency.test.js tests/integration/mcp-job-workflow.test.js tests/integration/mcp-workflow-remediation.test.js tests/integration/mcp-workflows-regression.test.js tests/integration/multi-tenant-application-isolation.test.js tests/integration/web-application-routes.test.js tests/unit/application-package-lifecycle.test.js tests/unit/job-application-submission-truth.test.js tests/unit/p16-001f1-structured-snapshot-persistence.test.js tests/unit/application-regeneration.test.js tests/unit/mcp-application-submission-status.test.js tests/regression/phase7-application-actions.test.js tests/unit/job-application-workflow-corroborated.test.js tests/unit/job-application-email-integrity.test.js tests/unit/application-document-pipeline-fixes.test.js tests/unit/application-content-defects.test.js tests/unit/p86-job-application-workflow.test.js tests/artifacts/application-handoff.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/regression/phase8-1-portal-contract.test.js tests/regression/phase8-2-universal-adapter.test.js tests/regression/phase8-4-provider-adapters.test.js tests/regression/phase8-5-job-source-to-portal.test.js tests/integration/handoff-kit-lifecycle.test.js tests/unit/application-tracking.service.test.js
+node node_modules/eslint/bin/eslint.js src/db/repositories/application-execution.repository.js tests/integration/application-approval-execution.test.js src/services/job-application-workflow.service.js src/db/schema.js src/db/repositories/application-approval-ticket.repository.js src/domain/job/job-workflow.schemas.js src/routes/web.routes.js tests/integration/application-approval-content-binding.test.js
+node src/db/migrate.js
+node scripts/check-db-lifecycle.js
+git diff --check -- <ISSUE-03 changed tracked paths>
+```
+
+- Final modified-file lint: **0 errors / 10 pre-existing unused-variable warnings** (`issue03-lint-final.log`). Lifecycle audit: **104 integration files / 90 DB-using / 0 violations**. Whitespace checks PASS. Migration check PASS (`issue03-migration-check.log`), including fresh/repeated application and actual PostgreSQL constraint inspection.
+- Intermediate failures were not counted as passing: expected original race failure; one ISSUE-02 write-injection fixture bypassed by the new transaction until injection was moved inside tx; two new assertion mistakes (zero-call pre-start failure and JSONB omission of undefined keys); one contention observation failed because pg_stat_activity was cached inside the observer transaction (fixed using pg_stat_clear_snapshot); transient lint errors in a new assertion were corrected. Final gates above supersede intermediate runs; none cancelled/skipped.
+- Pre-edit baseline **42 FAIL** and final wider **42 FAIL** have identical test-location sets: 12 MCP feed/cascade/stale cases, 1 dashboard HTML assertion, 3 submission-truth fixtures/expectations, 3 hardcoded application-status fixtures, 18 incomplete structured-snapshot Drizzle mocks, 5 hardcoded identity/deprecated-flow document/email cases. Same failure locations do not imply every error message is identical.
+- Additional adapter gate **3 FAIL**, `phase8-1-portal-contract.test.js:378,527,577`: changed destination with original content/hash is rejected by unchanged ISSUE-02 target validation; stale/tamper tests submit through a different application's route and hit unchanged APPLICATION_ID_MISMATCH before their expected version/hash errors. These failures were not baseline-executed before this task; do not claim a before/after baseline run for them. They are outside ISSUE-03 and remain FAIL, not hidden/skipped/weakened.
+
+### Crash recovery / remaining acceptance / next task
+
+- Full boundary matrix and state semantics in `docs/security/application-approval-execution.md`. No safe same-approval retry after a confirmed claim, even for definite failure. After a confirmed rollback before claim, a still-valid ISSUED ticket can be attempted normally. Lost commit acknowledgements require inspection, never fallback.
+- Interrupted CLAIMED/STARTED/UNKNOWN executions require an authorized operator to quiesce the old owner, obtain provider/human evidence and persist proven result/application/audit together. No automatic recovery worker, lease takeover, reconciliation UI or provider duplicate lookup is implemented or advertised.
+- **Rollout dependency:** disable submission and stop ALL vulnerable old workers before migration/deployment. Mixed serving is unsafe even with the new table. Rollback also requires disabling submission; retain execution/approval evidence and never reset spent tickets. Existing consumed/legacy tickets remain denied.
+- **Manual/staging required:** coordinated migration/deployment, authenticated concurrent HTTP/MCP across deployed instances, actual provider UUID/idempotency/reconciliation behavior if an authorized external adapter is configured, operator interruption runbook. External idempotency **NO — not live verified**. Real GitHub ISSUE-01 staging remains separately pending.
+- One approval/one gateway boundary is proven locally; this is not an exactly-once external side-effect guarantee, nor prevention of repeated manual browser submissions or separately issued approvals. Existing adapters do not automatically final-submit. Signing fallback ISSUE-05 remains unchanged. The deprecated unused local-only JobApplicationFlowService path remains outside scope.
+- **ISSUE-04 STILL OPEN. Next recommended task: ISSUE-04**, only when requested. Overall production release remains blocked; no overall percentages changed.
+- End-of-session: verified PostgreSQL **17.4** and exact disposable data_directory, then stopped that cluster successfully. Logs, synthetic settings and disposable database files are retained in OS Temp for reproduction. No user database or old worker was stopped.
+
+## ISSUE-02: Bind Application Execution to Approved Content (2026-10-07)
+
+Historical ISSUE-02 record below is preserved. Its references to ISSUE-03 being open/not fixed are superseded by the ISSUE-03 section above; ISSUE-02 live staging acceptance is still pending.
+
+**Status:** IN_PROGRESS — implementation and local content-binding security acceptance verified; live staging/browser acceptance pending. Broader release gates remain red.
+
+**Completion decision:** FIX IMPLEMENTED BUT LIVE VERIFICATION REQUIRED.
+
+**Current phase / scope:** P0 audited security remediation. Only ISSUE-02 plus the minimal blocked-staging versioning prerequisite described below. This follows the implemented/local-verified ISSUE-01; its files and security invariants were preserved. No work was performed on ISSUE-03's atomic consumption/status-persistence race or other audit remediations. Aligned with goal.md's human-approval, evidence-backed, provider-neutral and multi-tenant principles. No overall completion, feature-completion, verified-working or production-readiness percentages were changed. Existing `.claude/` was not touched.
+
+### Re-investigation and reproduced root cause
+
+- Traced server preparation -> document generation -> application resolution -> versioned package payload -> enriched preparation response -> MCP/extension preview -> MCP/web approval -> PostgreSQL ticket -> submission -> adapter/manual handoff -> tracking/status updates. Reviewed schema, package ledger/version readers/writers, approval repository/signatures, document storage and portal adapters.
+- Original approval trusted client `packageHash` without loading package content. Original submission compared caller identity strings and then passed the independently supplied `applicationPackage` to an adapter or handoff renderer. Signatures did not bind package version. Existing tests changed the hash, not the content while retaining the hash.
+- BEFORE edits, a hermetic service reproduction signed an approval identity, retained its hash and changed resume content. Output: `{"error":"REACHED_ADAPTER","executed":"PACKAGE B: changed after approval","approvedHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`. No external employer was contacted.
+- Package rows have UUIDs, numeric versions and JSONB payloads, but historical hashes cover only a subset of content; null payloads and legacy records exist. Preparation stores the base package before enriching its response with artifact metadata. Therefore the returned client object cannot be treated as immutable execution authority.
+
+### Architecture decision / enforced invariants
+
+- Choose an immutable, content-addressed **approval snapshot** in existing `application_approval_tickets.metadata.approvalTarget`; no schema migration, destructive backfill or dependency changes.
+- Preview and approval resolve exactly one tenant/candidate-owned persisted package, validate application ownership, and independently compute its canonical hash. Client hash, application and version values are selectors only. Unknown, ambiguous, corrupt, legacy or absent payloads fail closed.
+- One canonical package hashing implementation uses a fixed versioned envelope, recursively lexical object-key serialization and ordered dense arrays. It rejects lossy non-JSON input. All content, including candidate/contact/profile data, complete job/destination, Markdown/structured documents, answers, screening, attachments/artifacts, portal fields, metadata and future extensions, is sensitive by default.
+- Explicitly exclude only top-level `packageHash`, `preparedAt`, `applicationId`, `packageVersion`, `packageStatus`, `lifecycleAction`. Strip these from execution payloads; reconstruct signed application/version/hash context separately. Do not pass unhashed bookkeeping to adapters.
+- Sign format, source package UUID, content hash, numeric version, ticket/tenant/user/candidate/application/job/destination and expiry. Snapshot and signature persist in one successful PostgreSQL insert before issuance. Snapshot storage read/write failures cannot use memory as execution authority.
+- Submission verifies signature and independently hashes the stored snapshot, validates candidate/job/destination, rejects legacy tickets, and executes only a detached recursively frozen snapshot. Client package B with A's identity can never reach execution; where its context hints match, A executes instead. Later ledger changes do not change the approval target. Explicit historical-version approval remains valid until its lifecycle/expiry ends; it never silently switches to CURRENT.
+- Manual handoff does not regenerate documents from live profile data or substitute mutable handoff metadata after approval. Only approved text/answers/artifact metadata are returned. Post-preparation presentation-only PDFs not in the persisted payload are not implicitly approved/substituted.
+- Required narrow prerequisite: changed answers bypass reuse and create a new version. Tracking permits new versions after explicitly final-submit-blocked HANDOFF_READY/READY_FOR_FINAL_REVIEW staging only, with no applied timestamp or external SUBMITTED evidence. Unverified staging/actually submitted records remain protected. This addresses the one introduced regression found by the baseline comparison without allowing changes under an old hash.
+
+### Files changed for ISSUE-02 (14 repository files)
+
+- `src/domain/job/application-package-identity.js`: canonical JSON, execution projection, content hash and recursive freeze.
+- `src/services/job-application-workflow.service.js`: authoritative lookup, durable approval snapshots, version/context signatures, execution verification, safe handoff and changed-answer/legacy package reuse behavior.
+- `src/services/application-tracking.service.js`: narrowly permit new content versions after explicitly blocked staging, never actual submission.
+- `src/domain/job/job-workflow.schemas.js`, `src/domain/mcp/job-workflow-tools.schemas.js`: application/version selectors and reference-only submission compatibility.
+- `src/mcp/tools/job-workflow-tools.js`: authoritative preview with complete approval content, bound approval selectors and server-only execution flow.
+- `src/routes/web.routes.js`: bind web approval/submission to the route's application; derive the job from persisted package rather than unrelated canonical ID.
+- `src/routes/extension.routes.js`: authoritative persisted preview even when a caller supplies a different package body.
+- `tests/unit/application-package-identity.test.js`: 27 new deterministic/field-binding/non-JSON tests.
+- `tests/integration/application-approval-content-binding.test.js`: 44 new real-PostgreSQL tests, including both adapter methods, A/B attacks, tampering, restart, storage failures, tenant/context checks, manual handoff, versioning, MCP and real extension/web HTTP injection.
+- `tests/integration/phase9-4-approval-persistence.test.js`: seed actual canonical persisted content and close the database; retain lifecycle/security assertions.
+- `tests/integration/security-authorization.test.js`: replace the legitimate-approval arbitrary-hash fixture with actual versioned content and assert the existing ISSUED default. Separate legacy handoff/IDOR fixtures remain unchanged.
+- `docs/security/application-approval-content-binding.md`: contract, rollout, compatibility and verification evidence.
+- `project.md`: this execution record.
+
+### Final verification
+
+Environment: Node 24.13.0, existing installed dependencies, disposable PostgreSQL 17 on `127.0.0.1:55431`, all 19 existing migrations applied. Explicit synthetic `ENV_FILE=%TEMP%/ai-job-issue01-test.env`; no real GitHub/AI/employer credentials or user database used. Cluster stopped after verification; logs retained in Temp. No dependency install/build/schema migration was needed.
+
+| Final gate / Temp log | PASS | FAIL | CANCELLED / SKIPPED |
+|---|---:|---:|---:|
+| `issue02-content-gate-final.log` — canonical identity, content binding, approval persistence, security authorization, Phase 7 | 145 | 0 | 0 |
+| `issue02-security-final.log` — ISSUE-01, authentication, DB/schema, tracking, artifact routes, tenant isolation | 209 | 0 | 0 |
+| `issue02-extension-regression.log` — extension API/matrix | 25 | 0 | 0 |
+| `issue02-workflow-final.log` — wider application/MCP/workflow/lifecycle | 118 | 37 | 0 |
+| `issue02-documents-regression.log` — document/content/email suites | 72 | 5 | 0 |
+| `issue02-tracking-unit-final.log` — tracking unit | 5 | 0 | 0 |
+
+The gates overlap by 39 authorization and 25 Phase 7 tests. **Selected final unique tests: 552 total, 510 PASS, 42 FAIL, 0 cancelled/skipped. New tests: 71/71 PASS.** This is not a whole-repository test-pass claim. Intermediate failed/cancelled runs were not counted as passes: an initial new fixture omitted a required display name (36 cancelled), a preview fixture lacked schema/display fields (1 fail), and early regression runs exposed the blocked-staging/new-answer prerequisite, since corrected and retested.
+
+Exact final test commands (each with the synthetic ENV_FILE; outputs tee to the logs above):
+
+```text
+node --test --test-concurrency=4 --test-timeout=90000 tests/unit/application-package-identity.test.js tests/integration/application-approval-content-binding.test.js tests/integration/phase9-4-approval-persistence.test.js tests/integration/security-authorization.test.js tests/regression/phase7-application-actions.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/unit/github-installation-service.test.js tests/integration/github-installation-linking.test.js tests/integration/auth.test.js tests/integration/security-authorization.test.js tests/integration/application-tracking.service.test.js tests/integration/job-application-schema.test.js tests/integration/application-handoff-route.test.js tests/integration/mcp-application-artifact-tools.test.js tests/integration/tenant-isolation-hardening.test.js tests/integration/candidate-tenant-isolation.test.js tests/integration/db.test.js
+node --test --test-concurrency=2 --test-timeout=120000 tests/integration/extension-api.test.js tests/integration/extension-matrix.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/integration/application-package-consistency.test.js tests/integration/mcp-job-workflow.test.js tests/integration/mcp-workflow-remediation.test.js tests/integration/mcp-workflows-regression.test.js tests/integration/multi-tenant-application-isolation.test.js tests/integration/web-application-routes.test.js tests/unit/application-package-lifecycle.test.js tests/unit/job-application-submission-truth.test.js tests/unit/p16-001f1-structured-snapshot-persistence.test.js tests/unit/application-regeneration.test.js tests/unit/mcp-application-submission-status.test.js tests/regression/phase7-application-actions.test.js
+node --test --test-concurrency=4 --test-timeout=90000 tests/unit/job-application-workflow-corroborated.test.js tests/unit/job-application-email-integrity.test.js tests/unit/application-document-pipeline-fixes.test.js tests/unit/application-content-defects.test.js tests/unit/p86-job-application-workflow.test.js tests/artifacts/application-handoff.test.js
+node --test --test-timeout=90000 tests/unit/application-tracking.service.test.js
+node node_modules/eslint/bin/eslint.js <12 changed JavaScript files listed above>
+node scripts/check-db-lifecycle.js
+git diff --check -- <changed tracked ISSUE-02 paths>
+```
+
+- Targeted lint: PASS, 0 errors, 9 pre-existing unused-variable warnings. Database lifecycle static audit: PASS, 103 integration files/89 DB-using files/0 violations. Whitespace diff check: PASS.
+- Read-only baseline comparison used Node `registerHooks` to load the relevant pre-fix modules via `git show HEAD:<path>` without replacing working-tree files. `issue02-baseline-comparison.log`: 93 cases/56 pass/37 fail; `issue02-documents-baseline.log`: 77 cases/72 pass/5 fail. Failure test-location sets match the final 37 and 5 red cases exactly. Some unsafe fixtures now fail earlier at stronger integrity/destination checks; identical failing locations do not imply identical causes.
+- Wider failures: 12 MCP job-workflow cases depend on an empty/unconfigured job feed and cascade/stale adapter expectations; 1 dashboard HTML expectation; 3 submission-truth cases (incomplete authorized-adapter fixture/destination mismatch, stale SAVED expectation, absent historical record); 3 status cases require hardcoded historical application; 18 structured-snapshot cases use an incomplete Drizzle mock (including an obsolete structured-content hash-neutrality expectation reached only after fixing the mock); 5 additional document/email/flow cases require hardcoded identities or use deprecated no-ticket submission expectations. These remain FAIL, not PASS/SKIP.
+
+### Remaining risks / rollout / next action
+
+- Staging/manual browser acceptance and real configured employer-adapter behavior: **NOT VERIFIED — EXTERNAL DEPENDENCY**. Built-in adapters currently stage/handoff; local spies do not prove live transmission.
+- Redeploy all workers; do not leave vulnerable old workers serving requests. Reject old tickets; re-prepare and review old narrow-hash packages. No destructive data migration/backfill. A code rollback reintroduces the issue and requires disabling submission endpoints first.
+- ISSUE-03 remains: ticket consumption/status writes are not atomic/failure-safe; concurrent replay is not fixed. ISSUE-05 remains: deterministic fallback signing secret; no weakening or unrelated secret/config work was done.
+- Binary-transmitting adapters must separately verify actual bytes against approved attachment hashes; approval of a URL is not proof of immutable remote bytes. Unsnapshotted presentation PDF metadata is intentionally not substituted during execution. Legacy web readiness/profile display is not an authoritative approval package; MCP/extension authoritative preview and explicit web API package selection are the supported verified paths. Do not infer full browser onboarding completion.
+- Snapshot PII inherits tenant cascade deletion/access controls; operational retention policy remains to be verified. Deprecated `JobApplicationFlowService.submitApplication` only checks ticket presence before local status mutation but has no route caller/external transmission; noted, not changed outside ISSUE-02.
+- Next recommended audit remediation: **ISSUE-03**, only when requested. Live ISSUE-01 GitHub staging verification remains separately pending. Overall release is still BLOCKED; no project completion percentages recalculated.
+
+## ISSUE-01: Secure GitHub Installation Claiming (2026-10-07)
+
+**Status:** IN_PROGRESS — implementation and local security verification complete; real GitHub/HTTPS staging acceptance remains required.
+
+**Completion decision:** FIX IMPLEMENTED BUT LIVE VERIFICATION REQUIRED.
+
+**Scope:** Only ISSUE-01 and its necessary login-subject, state/cookie, database, test and deployment-documentation changes. This is P0 security remediation following the repository audit; the historical Phase 9 completion does not certify a release. Aligned with goal.md's multi-tenant isolation and least-privilege principles. No overall project, feature-completion, verified-working or production-readiness percentage has been recalculated or changed. Other audit findings and existing untracked `.claude/` were not modified.
+
+### Re-investigation and root cause
+
+- Traced platform GitHub OAuth -> verified provider profile -> database session -> installation initiation -> HMAC state -> setup callback -> App JWT installation fetch -> connection repository -> tenant association.
+- Original service verified only `/app/installations/{id}` using App credentials. It never proved that the authenticated GitHub user could access or own the exact installation. Knowing an unclaimed foreign installation ID was sufficient; the isolated reproduction again returned `FOREIGN_INSTALLATION_LINKED` before edits.
+- Login sessions did not retain the verified numeric GitHub subject. Candidate identity records and email/username matching were not suitable installation-claim proof. The update callback bypassed state, state was not durably consumed, and check-then-insert lacked global database uniqueness.
+- Existing login OAuth App credentials are distinct from the GitHub App credentials required for user-authorized installation access. No login-token or App-JWT-only fallback was retained.
+
+### Implementation and enforced policy
+
+- Persist the verified GitHub numeric subject in newly minted login sessions. Legacy/non-GitHub sessions must log in again, without email/username backfill.
+- Signed state binds user, tenant, session, numeric GitHub identity, phase, callback, random nonce and expiry. Persist only state hashes and encrypted PKCE verifiers in a cascading, indexed state table.
+- Atomically consume initial state and issue second state bound to the returned installation ID. Both install/update require state. Pending installation requests do not link.
+- Separate GitHub App authorization-code + S256 PKCE flow; verify `/user`, paginate `/user/installations`, and require the exact App/installation/account.
+- Personal installation: numeric account ID must match verified user ID. Organization installation: exact org ID and active `admin` membership (organization owner) via App user token. Repository collaborators/members alone cannot claim installation-wide access. Missing Members permission fails closed.
+- Verify App-level lifecycle and minimum permissions only AFTER user authority. Invalid JSON/responses, missing access, revoked/suspended/deleted installations, network failures and database failures do not link. OAuth state is burned before network verification, including on failed attempts.
+- Global partial UNIQUE index on non-null GITHUB_APP installation IDs; atomic insert-on-conflict, locked same-tenant reconnect and deterministic foreign-tenant HTTP 409 `CONFLICT` / reason `INSTALLATION_ALREADY_LINKED`. Connection and success audit commit together or roll back together. Cache eviction follows commit.
+- Production cookie is `__Host-gh_install_state; Secure; HttpOnly; SameSite=Lax; Path=/`, with no Domain and no dependency on database TLS. No development-cookie fallback in production.
+
+### Files changed in this remediation (18 repository files)
+
+- `src/services/github-installation.service.js`: user authority, durable state, PKCE, lifecycle validation and transactional claiming.
+- `src/routes/integrations.routes.js`: two-stage setup/authorization callbacks and compliant cookies; remove stateless update bypass.
+- `src/routes/integrations.schemas.js`: required bounded state/code and safe installation IDs.
+- `src/security/auth.service.js`, `src/security/session.service.js`: retain verified numeric GitHub login subject.
+- `src/db/schema.js`: session subject, state table/constraints/indexes and global installation uniqueness.
+- `src/db/repositories/connection.repository.js`: atomic ownership claim and locked reconnect.
+- `drizzle/0018_secure_github_installation_claims.sql`, `drizzle/meta/_journal.json`: journaled additive migration; historical duplicates fail rather than selecting an owner.
+- `tests/unit/github-installation-service.test.js`, `tests/integration/github-installation-linking.test.js`: replace 33 earlier installation tests with 72 focused cases (net +39); PostgreSQL migration, races, rollback and Fastify route checks are real, GitHub HTTP is mocked.
+- `tests/helpers/github-installation.fixture.js`: remote HTTP fixture, without mocking service authorization or SQL.
+- `tests/integration/auth.test.js`: assert verified login subject persisted in the session.
+- `.env.example`, `README.md`: required App OAuth credentials, callbacks and org permission policy.
+- `docs/github-app-installation-linking-review.md`: explicitly supersede unsafe historical design.
+- `docs/security/github-installation-linking.md`: security flow, policy, migration/rollback, deployment checklist and complete 72-case inventory.
+- `project.md`: this mandatory evidence record; prior audit record preserved.
+
+### Verification evidence
+
+All commands used a disposable, loopback-only PostgreSQL 17 cluster on port 55431 and an explicit temporary ENV_FILE containing synthetic test settings. No application/private credentials or existing database were used. Direct `pg_ctl start` was blocked by Windows restricted-token errors; launching the installed PostgreSQL binary as a hidden process succeeded. The original database-environment blocker from the audit was therefore bypassed safely using isolated test infrastructure, not by weakening application authentication.
+
+After verification, confirmed the server's data_directory matched the exact disposable cluster, then stopped it successfully. Temporary test data/settings remain under the OS temp directory for reproducibility; no production/user database was stopped or deleted.
+
+```powershell
+$env:ENV_FILE="$env:TEMP/ai-job-issue01-test.env"
+node src/db/migrate.js
+node node_modules/drizzle-kit/bin.cjs check
+node --test --test-concurrency=1 tests/unit/github-installation-service.test.js tests/integration/github-installation-linking.test.js
+node --test --test-concurrency=4 --test-timeout=180000 tests/unit/github-*.test.js tests/unit/session.test.js tests/unit/oauth-state.test.js tests/unit/oauth-authorization-server.test.js tests/unit/oauth-routes-redirect.test.js tests/unit/mcp-auth.test.js tests/unit/tenant-isolation.test.js tests/unit/connection-service.test.js tests/unit/resource-connections.test.js
+node --test --test-concurrency=1 --test-timeout=180000 tests/integration/github-installation-linking.test.js tests/integration/github-connector.test.js tests/integration/github-evidence-extractor.test.js tests/integration/github-webhook.test.js tests/integration/github-write-operations.test.js tests/integration/connections.test.js tests/integration/auth.test.js tests/integration/oauth-seamless-ux.test.js tests/integration/security-authorization.test.js tests/integration/tenant-isolation-hardening.test.js tests/integration/candidate-tenant-isolation.test.js tests/integration/multi-tenant-application-isolation.test.js tests/integration/db.test.js tests/integration/resource-connections-schema.test.js tests/integration/mcp-server.test.js tests/integration/mcp-write-tools.test.js tests/integration/mcp-workflows-regression.test.js
+node node_modules/eslint/bin/eslint.js src/services/github-installation.service.js src/db/repositories/connection.repository.js src/db/schema.js src/routes/integrations.routes.js src/routes/integrations.schemas.js src/security/auth.service.js src/security/session.service.js tests/helpers/github-installation.fixture.js tests/unit/github-installation-service.test.js tests/integration/github-installation-linking.test.js tests/integration/auth.test.js
+node scripts/scan-secrets.js
+node scripts/check-db-lifecycle.js
+git diff --check
+```
+
+| Check | Result |
+|---|---|
+| Focused ISSUE-01 cases, final TAP run | PASS: 72 passed, 0 failed, 0 cancelled/skipped |
+| Broader unit regression | PASS: 326 passed, 0 failed, 0 cancelled/skipped |
+| Broader integration regression, final run | FAIL: 254 passed, 1 failed, 0 cancelled/skipped (255 total) |
+| Unique automated cases across broader runs, without counting focused reruns twice | 581 total: 580 passed, 1 failed, 0 cancelled/skipped |
+| Modified JavaScript lint (11 files) | PASS: no errors or warnings |
+| Actual migrations and rerun; Drizzle journal/snapshot check | PASS |
+| Exact new SQL in isolated schemas: expansion/preservation and duplicate-owner rejection/rollback | PASS (included among focused cases) |
+| Secret scan; whitespace/diff validation | PASS |
+| Static database lifecycle audit | FAIL: existing approval-persistence test lacks closeDatabase teardown |
+| Real GitHub consent/access/org/SSO and HTTPS browser acceptance | NOT VERIFIED — EXTERNAL DEPENDENCY |
+
+Failures were not hidden: the first focused run passed 66/67 and failed a race assertion expecting an installation-specific error code, while the shared ConflictError contract returns `CONFLICT`. The fix preserves that public contract with a deterministic reason in details; subsequent focused runs passed, ending at 72/72 after migration tests were added.
+
+Remaining regression failure: `tests/integration/security-authorization.test.js:800` expects approval status `PENDING`; unchanged `src/services/job-application-workflow.service.js:2857` defaults to `ISSUED`. Both files were compared with HEAD and left unchanged. This failure repeated in the final regression run. Static lifecycle failure is in unchanged `tests/integration/phase9-4-approval-persistence.test.js`. Neither is necessary to remediate ISSUE-01, so neither was fixed.
+
+### Deployment and remaining acceptance
+
+- Migration required. Review historical duplicate/possibly unauthorized claims before release; this patch does not retroactively authorize existing connections or select a legitimate owner. Require reconnect or disconnect suspect claims through incident review.
+- Drain old application instances before migration/new deployment: database expansion is read-compatible, but old installation writers remain vulnerable. Restart clears process-local caches. Keep setup disabled on rollback; do not restore the unsafe write path.
+- Configure the App Setup URL and new user authorization Callback URL, App client ID/secret, HTTPS APP_URL and Members:read for org checks. Disable GitHub's automatic during-install authorization; the server initiates installation-bound PKCE explicitly.
+- Complete staging with real personal/org-owner/member accounts, SSO/App policy, account switching, reinstall/reconnect, revocation/suspension/deletion, replay/expiry and HTTPS cookie acceptance. Mark this task COMPLETE only after that acceptance is recorded. Continuous org-role monitoring and historical incident/data response are not implemented by this linking fix.
+- Next requested work should remain live ISSUE-01 acceptance; next recommended audit remediation after acceptance is ISSUE-02 (server-authoritative package hash verification). No work on ISSUE-02 was performed.
+
+---
+
+## AUDIT-2026-10-07: Comprehensive Repository Technical Audit
+
+**Audit Status:** COMPLETE (inspection, safe verification, findings, and limitations recorded; no application fixes implemented).
+
+**Release Status:** BLOCKED - NOT PRODUCTION READY.
+
+**Audited Revision:** `7f03b64ac5908f248c2d5b82dc510779c02f9aca` (local checkout; origin is `https://github.com/vishu1803/Ai-job-mcp.git`). Remote HEAD equality could not be verified because shell GitHub network access was unavailable.
+
+**Scope Decision:** Read-only application audit aligned with `goal.md`; only this mandatory execution ledger changed. Existing untracked `.claude/` was preserved. The preceding Phase 9 implementation record remains historical; its production-ready certification is superseded by this audit. No historical phase percentages were inflated or recomputed from test counts.
+
+### Current project interpretation
+
+- Current implementation phase recorded before the audit: Phase 9, Unified Runtime + Real Browser Execution, previously marked COMPLETE & VERIFIED. README separately presents public staging/security as Phase 14 next; goal.md's Phase 0 status footer is stale.
+- Product: provider-neutral, multi-tenant, evidence-backed career platform with GitHub/resource ingestion, candidate provenance, job analysis, application packages, approval-gated draft PRs, remote MCP, web UI, and an MV3 browser extension. Automatic final job submission is intentionally outside the normal human-review workflow.
+- Runtime: Fastify ESM modular monolith, PostgreSQL/Drizzle, official MCP v2 HTTP handler, 28 schema tables, 18 journaled SQL migrations, encrypted document blobs on local disk by default.
+- Observed default MCP inventory: **30 tools, 8 resources, 4 prompts**; optional ATS factory exposes 35 tools. An authenticated Fastify injection through the real SDK returned 30 tools. README and transport acceptance fixtures still claim 26.
+
+### Verification performed (2026-10-07)
+
+Environment: Windows PowerShell, Node `v24.13.0`, npm.cmd `11.6.2`, existing installed dependencies. Tests used `ENV_FILE=.env.example` with placeholder credentials; no private `.env` contents, live GitHub writes, or live AI calls were used. Example environment values are not production credentials. Suite failures below must not all be attributed to application defects.
+
+| Check | Result | Interpretation |
+|---|---|---|
+| `npm.cmd ls --depth=0` | PASS | Installed top-level dependency tree resolves; installation itself was not repeated. |
+| `npm.cmd run lint` | FAIL: 304 problems, 129 errors, 175 warnings | Includes five duplicate sidebar class methods; release gate is not green. |
+| `npm.cmd run format:check` | BLOCKED/ERROR | Prettier directory expansion hit EPERM under scratch/chrome_dev_profile; its intermediate formatting-success text is not a completed gate. |
+| `npm.cmd run test:unit` | 3744 tests: 3605 pass, 96 fail, 43 cancelled | Mix of independent assertion regressions, stale mocks, invalid example RSA key, and live DB dependencies. |
+| `npm.cmd run test:artifacts` | 175 tests: 162 pass, 13 fail | Real Tectonic PDF compilation succeeded; p50 production-tailoring family failed after missing live candidate/DB access. |
+| `node --test --test-concurrency=4 --test-timeout=120000 tests/regression/*.test.js` | 341 tests: 138 pass, 0 fail, 203 cancelled | Suite setup blocked by PostgreSQL password authentication error 28P01; not a 341/341 pass. |
+| `node --test --test-concurrency=1 --test-timeout=60000 tests/integration/mcp-server.test.js tests/integration/mcp-final-transport-acceptance.test.js tests/integration/db.test.js` | 46 tests: 1 pass, 4 fail, 41 cancelled | Live DB health/setup failed with 28P01; full integration suite not attempted after dependency failure. |
+| Focused `node --test` on analyze-job-fit-evidence-trust, analyze-job-fit-deep-audit, p72-linkedin-description-hydration | 119 tests: 114 pass, 5 fail, 0 cancelled | Independent repeatable failures: provenance upgrade, SQL/AWS extraction expectations, two sidebar DOM-harness failures. The latter two alone are not proof of a real-browser crash. |
+| Headless Chromium fixture E2E: Phase9.2,9.6,9.7,9.9 with temporary spawn preloader | 22 tests: 0 pass, 0 fail, 22 cancelled; 4 suite setup failures | Each setup failed at Playwright connectOverCDP (30s timeout, WebSocket1006). Browser behavior NOT VERIFIED - TOOLCHAIN/ENVIRONMENT. Temporary preloader added headless/background-network suppression/windowsHide; repository test/application files unchanged. |
+| `npm.cmd run db:check` | PASS | Journal/snapshot consistency only, not successful live migration. |
+| `npm.cmd run audit:drizzle-columns` | PASS | 28 tables; source scanner reported zero missing direct schema-column references. Dynamic result-row property mistakes are outside this check. |
+| `npm.cmd run audit:schema-integrity` | PASS with informational findings | Zero FK columns missing every index, zero tenant tables missing tenant-leading index; non-leading and reference-like columns need contextual review. |
+| `npm.cmd run audit:db-drift` | BLOCKED/FAIL: 28P01 | Live migrated schema consistency NOT VERIFIED - EXTERNAL DEPENDENCY. No migration or seed was applied to an unknown user DB. |
+| `npm.cmd run test:db-lifecycle-check` | FAIL | phase9-4-approval-persistence.test.js lacks required closeDatabase teardown. |
+| `npm.cmd run scan:secrets` | PASS, scanner's configured scope | Scanner excludes local env/storage and broadly exempts tests/docs; not a proof that all history is secret-free. |
+| `npm.cmd run audit:deps` | FALSE PASS | npm advisory request failed, but wrapper treated missing vulnerability metadata as zero findings and exited successfully. Dependency vulnerability status UNKNOWN. |
+| Build / typecheck | NOT APPLICABLE | No build/typecheck scripts; plain JavaScript runtime. |
+
+Execution logs: `%TEMP%/ai-job-audit-{unit,artifacts,regression,integration,focused,browser,lint,format,secrets,deps,drift}.log`. Isolated non-repository reproduction harnesses: `%TEMP%/ai-job-audit-repro.mjs` and `%TEMP%/ai-job-audit-extra.mjs`; headless test preloader `%TEMP%/ai-job-audit-headless.mjs`. These use mocked DB/provider boundaries and real services/routes; they are audit evidence, not checked-in regression fixes.
+
+Not executed: live OAuth providers, hosted Claude/ChatGPT/Gemini, live GitHub read/write/PR operations, live ATS portals, fresh DB migration/restore, and production load. Browser fixture suites were attempted headlessly but blocked at CDP setup; the checked-in harnesses use Windows-specific visible-Chrome launch paths. Benchmark harness was inspected but not executed: it explicitly reloads .env.local and creates DB fixtures. Such results remain NOT VERIFIED - EXTERNAL DEPENDENCY (or toolchain/deployment dependency), not working claims. An initial browser command used a Windows absolute --import path and failed ESM URL parsing; corrected to a file URL before the substantive attempted run reported above.
+
+### Ranked confirmed findings
+
+IDs are shared with the user-facing report. Counts: **1 CRITICAL, 9 HIGH, 8 MEDIUM, 2 LOW**. Conditional exploit prerequisites and mocked-vs-live evidence are explicitly retained.
+
+| ID | Severity | Finding and source |
+|---|---|---|
+| ISSUE-01 | CRITICAL | GitHub installation linking verifies App installation existence/permissions but not requesting user's authority over that installation; an unclaimed foreign account installation was linked in an isolated service reproduction. github-installation.service.js:318-393; integrations.routes.js:150-170. |
+| ISSUE-02 | HIGH | Application submission compares caller-provided packageHash strings instead of recomputing the supplied package/server-authoritative package; altered content retained the approved hash and reached the adapter. job-application-workflow.service.js:2939-3068. |
+| ISSUE-03 | HIGH | Application approval ticket consumption is non-atomic, status writes use no expected-status predicate, DB failures fall back to process memory, and failed persistence does not stop execution. Two interleaved requests reached the adapter. job-application-workflow.service.js:2726-2801,3037-3068. |
+| ISSUE-04 | HIGH | OAuth code consumption and refresh rotation use read-check-unconditional-update without transaction/lock/CAS. Mocked concurrent interleavings minted two tokens for each credential; live PostgreSQL race test remains blocked. oauth-authorization.service.js:602-740,761-880. |
+| ISSUE-05 | HIGH | Approval signing silently uses public deterministic fallback keys outside tests. approval-signer.js:19-29; job-application-workflow.service.js:282-309. This is not by itself proof of unauthenticated ticket-row creation. |
+| ISSUE-06 | HIGH | Evidence trust can upgrade CLAIMED to VERIFIED through overly broad qualifying-evidence logic; commented-out imports are also emitted at confidence 1 and roll up to VERIFIED. Independent regression and scanner reproduction confirmed. evidence-matching.service.js:623-690; import-scanner.js:226-275; skill-rollup.js:54-83. |
+| ISSUE-07 | HIGH | hardDeleteAccount deletes tenant DB root but never enumerates/deletes encrypted document blobs, while claiming all data erased. data-sovereignty.service.js:507-583; document-storage.service.js:26-27,224-239. |
+| ISSUE-08 | HIGH | Production trusts all proxies and accepts caller CF-Connecting-IP when a caller also supplies X-Forwarded-For. Direct-ingress spoof reproduced; exploit requires origin reachability or a proxy that fails to sanitize. app.js:108; extract-client-ip.js:35-48. |
+| ISSUE-09 | HIGH | MCP transport failure releases semaphore twice (inner finally and outer catch), consuming another request's capacity accounting. Reproduction left 0 inflight instead of 1 and counted 2 releases. mcp.routes.js:492-494,645-653. Duplicate close hooks also present at206 and741. |
+| ISSUE-10 | HIGH | Project improvement path uses absent proposal/connection fields, mock HEAD fallback, first connection fallback, and default repository name. Real recommender has no expectedHeadSha/targetRepositoryId, so live HEAD lookup is skipped and default fake SHA is ticketed. Generic default synthesis is a success-return stub with assert.ok(true), not an implemented skill. career-write-tools.js:356-434; project-improvement-recommender.service.js:378-385,513-539. |
+| ISSUE-11 | MEDIUM | Production GitHub transit cookie uses __Host- prefix with Path=/integrations/github rather than / and ties Secure to DB SSL. Supporting browsers reject it; initial linking callback requires that cookie. integrations.routes.js:62-71,110-113. |
+| ISSUE-12 | MEDIUM | /mcp does not reject invalid Origin. Real authenticated HTTP injection with hostile.example returned200 and30tools, not403. mcp.routes.js:212-284; current official MCP Streamable HTTP spec requires Origin validation. |
+| ISSUE-13 | MEDIUM | Dependency audit accepts npm endpoint-error JSON as a zero-vulnerability report. scripts/audit-dependencies.js:19-31,46-54,100-105. |
+| ISSUE-14 | MEDIUM | Documented GITHUB_APP_PRIVATE_KEY_BASE64 is stripped by Zod config but read by runtime app/installation bootstrap. Base64-only deployment cannot initialize the documented connector. env.js:62-147; app.js credential construction; .env.example:72. |
+| ISSUE-15 | MEDIUM | Five duplicate sidebar methods override previous behavior; later _handleFormDetectedEvent omits earlier per-tab state persistence. sidebar.js:1083-1091,1512-1520,1780,1814,2277,2345. |
+| ISSUE-16 | MEDIUM | Webhook delivery marked processed before handler succeeds; transient failure followed by same-delivery retry is acknowledged duplicate without reprocessing. Isolated signed-webhook reproduction processed once only. github-webhook.service.js:90-124. |
+| ISSUE-17 | MEDIUM | prepare_job_application requires career:read while persisting application/package state. A MEMBER's read-scoped token can mutate data. job-workflow-tools.schemas.js:41-46; job-workflow-tools.js:143-158; workflow service:1401. |
+| ISSUE-18 | MEDIUM | Release gates are red and npm test/CI omit tests/regression and tests/e2e; lifecycle check rejects new approval suite. package.json:17-20; .github/workflows/ci.yml:225-233. |
+| ISSUE-19 | LOW | propose_project_improvement accepts jobDescriptionId but resolver always throws NotFound for that branch. career-write-tools.js:309-310. |
+| ISSUE-20 | LOW | README/tool fixture counts, registry repository/domain, phase/status documents disagree with actual default runtime. README.md:71,157,235-239,427; server.json:7-16; project historical Phase9 verdict; goal.md status footer. |
+
+Needs verification (not counted as confirmed vulnerabilities): email-based OAuth account resolution rather than stable provider identity, consent missing explicit CSRF validation (SameSite mitigations must be considered), confidential-client metadata versus client-secret enforcement, cancellation/stream forwarding, live per-user-vs-workspace sharing policy, and production ingress firewall/header sanitization.
+
+### Production gaps beyond confirmed bugs
+
+- Default DB pool circuit breaker is not wired in normal bootstrap; health pool metrics substitute zeros without it.
+- Rate/concurrency limits, webhook dedup, connector caches and metrics are process-local. Redis in .env.example is not wired. Define a tested single-instance boundary or shared-state implementation before horizontal deployment.
+- S3/R2 provider exists but is injection-only; normal singleton document storage remains local disk. Deployment durability, backup/restore, tenant blob cleanup and document key rotation are unproven.
+- No tracked backend container/IaC/reproducible deployment pipeline was found. Manual tunnel runbooks are not production deployment proof. Both registry manifests use staging.careerhub.ai while current staging docs/env reference dev.aicareershub.tech.
+- No durable worker/retry/dead-letter pipeline was found for webhook recovery, cleanup, ingestion synchronization or retention.
+- GitLab/Drive/OneDrive/Notion remain future connectors, not implemented integrations. Automatic final application submission is a deliberate non-goal, not a missing release feature.
+
+### Evidence-based release-scope assessment
+
+Five acceptance checkpoints per area, each worth20points: full implementation credit1, partial0.5, missing/broken0. Working credit requires observed passing behavior (partial/hermetic0.5); production credit requires safe failure/lifecycle/deployment evidence. Scores are engineering estimates with explicit evidence, not test-pass-rate percentages. Future aspirational connectors excluded from the MVP denominator.
+
+Checkpoint inventory (five per row, in order; full/partial implementation counts explain the implementation score):
+
+- Core: modular boundaries, normalized models, provider abstractions, shared entry surfaces, lifecycle wiring (4 full/1 partial).
+- MCP server: HTTP SDK transport, discovery inventory, input dispatch, protocol/security conformance, capacity/lifecycle (3 full/2 partial).
+- MCP tools: default registration, schemas/permissions, real handler plumbing, faithful workflow semantics, durable/error behavior (3 full/2 partial).
+- Authentication: login/state/PKCE, server-side sessions, personal tokens, OAuth issuance/rotation, identity/consent assurance (3 full/2 partial).
+- Security: installation authority, tenant-filtered reads, approval integrity, abuse/perimeter controls, erasure/secrets lifecycle (1 full/4 partial).
+- Database: schema/migrations, query/index design, main persistence, transactional concurrency, live drift/restore lifecycle (3 full/2 partial).
+- Career: profile/evidence models, job intake/matching, artifact/tracking services, provenance correctness, approval/end-to-end durability (3 full/2 partial).
+- GitHub: installation authorization, connector reads, evidence ingestion, webhook recovery, safe useful PR execution (2 full/3 partial).
+- Extension: MV3 runtime, job extraction, canonical autofill model, state recovery, real portal/browser reliability (3 full/2 partial).
+- External: provider abstractions, implemented HTTP adapters, AI client verification, hosted OAuth clients, live destination/provider matrix (2 full/2 partial/1 absent).
+- Testing: unit breadth, artifact tests, integration isolation, adversarial/failure coverage, complete green release gates (2 full/3 partial).
+- Observability: structured logging, health/metrics primitives, wired accurate metrics, reliable error/audit recording, recovery/alert operations (2 full/3 partial).
+- Deployment: reproducible packaging, startup/runbook, persistent storage/restore, ingress/secrets rollout, verified production release (1 full/3 partial/1 absent).
+- Documentation: product definition, subsystem docs, operating guidance, current contract accuracy, current verification status (3 full/2 partial).
+- Production controls: secure perimeter, health primitives, durable storage/state, release/restore operations, demonstrated safe production acceptance (1 full/3 partial/1 absent).
+
+| Area | Implementation | Verified behavior | Production controls |
+|---|---:|---:|---:|
+| Core architecture |90|70|50|
+| MCP server |80|60|40|
+| MCP tools |80|60|40|
+| Authentication |80|50|30|
+| Authorization/security |60|40|20|
+| Database |80|40|30|
+| Main career/job features |80|60|40|
+| GitHub |70|50|20|
+| Browser extension |80|50|40|
+| External integrations |60|30|20|
+| Testing |70|50|30|
+| Error handling/observability |70|50|30|
+| Deployment |50|30|20|
+| Documentation |80|60|40|
+| Production readiness controls |50|30|20|
+
+Overall feature completion = unweighted first10 product-area implementation scores = **76%**. Verified working = same10 areas' observed-behavior scores = **51%**. Production readiness = all15 production-control scores = **31%** rounded from31.33%. Security findings remain absolute release blockers regardless of arithmetic. Audit classification: **Alpha**, not production ready.
+
+### Next recommended task
+
+**P0 / NOT_STARTED remediation backlog (not implemented):** First fix GitHub installation claim authorization: resolve requester by stable GitHub identity, verify authenticated-user installation access/organization authority against GitHub before tenant linking, fail closed on unavailable verification, bind the exact installation to the completed state flow, and enforce a globally unique installation claim atomically. Include the __Host transit cookie correction and adversarial tests for foreign-unclaimed, foreign-claimed, inaccessible/revoked installation, and concurrent claims. Relevant: integrations.routes.js, github-installation.service.js, connection.repository.js, schema/migrations, GitHub provider/auth identity, installation tests.
+
+Then repair authoritative package hashing and transactional fail-closed approval consumption, OAuth one-time credential rotation, production secret validation, evidence provenance, deletion lifecycle, and MCP cleanup/perimeter. Restore all mandatory gates against a dedicated disposable DB before any new production certification. No approval to perform these implementation changes was inferred from the audit request.
 
 ## Phase 9: Unified Runtime + Real Browser Execution
 **Status:** COMPLETE & VERIFIED  

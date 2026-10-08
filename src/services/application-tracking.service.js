@@ -902,8 +902,13 @@ export class ApplicationTrackingService {
       await this._assertApplicationAccess(context, application, tx);
 
       // 1b. SAFE PRESERVE INVARIANT: If application was submitted, do not overwrite with a different package
+      // A content change after approval must create a new version, never reuse
+      // the old hash. Explicitly blocked staging is not an external submission.
+      const blockedStaging =
+        ['HANDOFF_READY', 'READY_FOR_FINAL_REVIEW'].includes(application.status) &&
+        application.metadata?.finalSubmitBlocked === true;
       const isSubmitted =
-        application.status !== 'SAVED' ||
+        (application.status !== 'SAVED' && !blockedStaging) ||
         Boolean(application.appliedAt) ||
         application.metadata?.externalSubmissionState === 'SUBMITTED';
 
