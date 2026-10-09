@@ -218,8 +218,7 @@ export class McpRateLimiter {
    * @throws {Error} With statusCode 429 if rate limit exceeded
    */
   checkIpLimit(ip, limit) {
-    if (!ip) return;
-    const result = this.checkLimit(`ip:${ip}`, limit || this.ipLimit);
+    const result = this.checkLimit(`ip:${ip || 'unknown'}`, limit || this.ipLimit);
     if (!result.allowed) {
       const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
       throw new AppError(
@@ -238,8 +237,7 @@ export class McpRateLimiter {
    * @returns {{ allowed: boolean, retryAfterMs: number }}
    */
   checkIpLimitResult(ip, limit) {
-    if (!ip) return { allowed: true, retryAfterMs: 0 };
-    return this.checkLimit(`ip:${ip}`, limit || this.ipLimit);
+    return this.checkLimit(`ip:${ip || 'unknown'}`, limit || this.ipLimit);
   }
 
   /**
@@ -248,8 +246,7 @@ export class McpRateLimiter {
    * @returns {{ allowed: boolean, retryAfterMs: number }}
    */
   checkAuthLimit(ip) {
-    if (!ip) return { allowed: true, retryAfterMs: 0 };
-    return this.checkLimit(`auth:${ip}`, this.authLimit);
+    return this.checkLimit(`auth:${ip || 'unknown'}`, this.authLimit);
   }
 
   /**

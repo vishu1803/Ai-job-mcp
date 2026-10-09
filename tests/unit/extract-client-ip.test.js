@@ -10,14 +10,15 @@
  * 2. Direct localhost request with fake X-Forwarded-For → must use req.ip
  * 3. Normal localhost req.ip behavior
  * 4. Both spoofed headers present on direct request → must use req.ip
- * 5. Simulated trusted Cloudflare request (trustProxy=true) → CF-Connecting-IP trusted
- * 6. trustProxy=true without CF-Connecting-IP → X-Forwarded-For used
+ * 5. Explicit trusted loopback/upstream topology → sanitized X-Forwarded-For used
+ * 6. Provider-specific headers have no identity authority
  * 7. Rate-limit key selection in each case
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import Fastify from 'fastify';
+import { createProxyPolicy, installProxyPolicy } from '../../src/security/proxy-policy.js';
 import { extractClientIp } from '../../src/utils/extract-client-ip.js';
 
 /**
@@ -26,9 +27,11 @@ import { extractClientIp } from '../../src/utils/extract-client-ip.js';
  * @param {boolean|number} [opts.trustProxy]
  */
 async function createTestApp(opts = {}) {
+  const policy = createProxyPolicy(opts.trustProxy ? ['127.0.0.1', '10.0.0.1'] : []);
   const app = Fastify({
-    trustProxy: opts.trustProxy !== undefined ? opts.trustProxy : false,
+    trustProxy: policy.trust,
   });
+  installProxyPolicy(app, policy);
 
   app.get('/test-ip', async (req) => {
     return { ip: extractClientIp(req) };
@@ -142,20 +145,20 @@ describe('extractClientIp — Spoofing Prevention (P14-003)', () => {
   // 5. Simulated trusted Cloudflare request (trustProxy=true)
   // =========================================================================
 
-  it('trusts CF-Connecting-IP when trustProxy=true (behind Cloudflare)', async () => {
+  it('uses sanitized XFF through explicit trusted peers, not CF header precedence', async () => {
     const app = await createTestApp({ trustProxy: true });
 
     const response = await app.inject({
       method: 'GET',
       url: '/test-ip',
       headers: {
-        'cf-connecting-ip': '203.0.113.50',
+        'cf-connecting-ip': '192.0.2.200',
         'x-forwarded-for': '203.0.113.50, 10.0.0.1',
       },
     });
 
     const body = JSON.parse(response.payload);
-    // CF-Connecting-IP takes precedence when behind proxy
+    // A conflicting provider header cannot override the validated XFF identity.
     assert.strictEqual(body.ip, '203.0.113.50');
 
     await app.close();
@@ -225,7 +228,7 @@ describe('extractClientIp — Spoofing Prevention (P14-003)', () => {
     await app.close();
   });
 
-  it('rate-limit key uses CF-Connecting-IP on trusted proxy request', async () => {
+  it('rate-limit key uses canonical XFF identity on explicit trusted proxy request', async () => {
     const app = await createTestApp({ trustProxy: true });
 
     const response = await app.inject({

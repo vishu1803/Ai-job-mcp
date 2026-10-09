@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { normalizeIp, resolveClientIdentity } from '../security/proxy-policy.js';
 import { config } from '../config/env.js';
 
 /**
@@ -116,13 +117,22 @@ export const REDACTION_PATHS = [
  */
 export function safeRequestSerializer(req) {
   if (!req) return req;
+  const identity = req.peerIp
+    ? { clientIp: req.ip, peerIp: req.peerIp }
+    : req.server?.proxyPolicy
+      ? resolveClientIdentity(req, req.server.proxyPolicy)
+      : {
+          clientIp: normalizeIp(req.ip) || normalizeIp(req.socket?.remoteAddress) || 'unknown',
+          peerIp: normalizeIp(req.socket?.remoteAddress) || 'unknown',
+        };
   return {
     id: req.id,
     method: req.method,
     url: req.url,
     routeUrl: req.routeUrl,
     hostname: req.hostname,
-    remoteAddress: req.ip || req.socket?.remoteAddress,
+    remoteAddress: identity.clientIp,
+    peerAddress: identity.peerIp,
   };
 }
 

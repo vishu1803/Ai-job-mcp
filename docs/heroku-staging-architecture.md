@@ -1,5 +1,7 @@
 # Heroku Staging Architecture Review (P14-004)
 
+> ISSUE-08 security correction (2026-10-09): the historical all-hop trust/CF-header claims below are obsolete. `NODE_ENV=production` no longer enables proxy trust. Use [the explicit proxy runbook](security/proxy-trust-client-identity.md); discover and authenticate actual ingress networks and their header-sanitization contract. Do not assume provider routing strips attacker headers or that an IP inequality proves proxy authority. Live topology acceptance remains outstanding.
+
 *Architecture review only — no deployment, no domain purchase, no production infrastructure.*
 
 ---

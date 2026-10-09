@@ -1,150 +1,179 @@
-/**
- * @file Automated Dependency Vulnerability & Supply Chain Security Auditor.
- *
- * Implements CI gating policy for Phase 14:
- * 1. Executes `npm audit --json` to inspect all direct and transitive dependencies.
- * 2. Strict CI Gate: FAILS (exit code 1) on any HIGH or CRITICAL vulnerability.
- * 3. Moderate Policy: Reports known development-only moderate advisories with dependency chains
- *    without breaking CI, conforming to approved ADR-071 policy.
- * 4. Categorizes production runtime vs devDependency impact.
- */
-
+/** Fail-closed npm audit gate. Default: block high/critical; --strict also blocks moderate. */
 import { execSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-/**
- * Runs npm audit and returns the parsed report.
- *
- * @returns {object} Parsed JSON audit report
- */
-export function runNpmAudit() {
-  try {
-    const stdout = execSync('npm audit --json', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
-    return JSON.parse(stdout);
-  } catch (error) {
-    // npm audit returns non-zero exit code if vulnerabilities are found
-    if (error.stdout) {
-      try {
-        return JSON.parse(error.stdout);
-      } catch {
-        // Fallback if stdout wasn't valid JSON
-      }
-    }
-    throw new Error(`Failed to execute npm audit: ${error.message}`);
+export const AUDIT_COMMAND =
+  'npm audit --json --package-lock-only --include=dev --include=optional --include=peer --audit-level=low';
+export const AUDIT_TIMEOUT_MS = 60000;
+const SEVERITIES = ['info', 'low', 'moderate', 'high', 'critical'];
+const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+
+export class AuditIncompleteError extends Error {
+  constructor(reason) {
+    // Only server-authored reason codes: never echo npm output, URLs, credentials or exception text.
+    super(`ERROR — SECURITY AUDIT INCOMPLETE (${reason})`);
+    this.name = 'AuditIncompleteError';
+    this.code = reason;
+    this.exitCode = 2;
   }
 }
 
-/**
- * Evaluates the audit report against repository security policies.
- *
- * @param {object} report The parsed npm audit report
- * @param {object} [options={}] Gating options
- * @param {boolean} [options.strict=false] If true, fails on moderate vulnerabilities
- * @returns {{ passed: boolean, summary: object, criticalHighFindings: Array, moderateFindings: Array }}
- */
-export function evaluateAudit(report, options = {}) {
-  const { strict = false } = options;
-  const meta = report.metadata?.vulnerabilities || {
-    info: 0,
-    low: 0,
-    moderate: 0,
-    high: 0,
-    critical: 0,
-    total: 0,
-  };
-
-  const vulnerabilities = report.vulnerabilities || {};
-  const criticalHighFindings = [];
-  const moderateFindings = [];
-
-  for (const [pkgName, vuln] of Object.entries(vulnerabilities)) {
-    const item = {
-      package: pkgName,
-      severity: vuln.severity,
-      isDirect: vuln.isDirect,
-      range: vuln.range,
-      effects: vuln.effects || [],
-      fixAvailable: vuln.fixAvailable || null,
-      via: (vuln.via || []).map((v) => (typeof v === 'string' ? v : v.title || v.name)),
-    };
-
-    if (vuln.severity === 'critical' || vuln.severity === 'high') {
-      criticalHighFindings.push(item);
-    } else if (vuln.severity === 'moderate') {
-      moderateFindings.push(item);
-    }
+/** Accept npm's v2 report, not merely parseable JSON. Counts must agree with findings. */
+export function validateAuditReport(report) {
+  if (!isObject(report) || Object.hasOwn(report, 'error')) {
+    throw new AuditIncompleteError('NPM_ERROR_OR_INVALID_REPORT');
   }
+  const counts = report.metadata?.vulnerabilities;
+  if (
+    report.auditReportVersion !== 2 ||
+    !isObject(report.vulnerabilities) ||
+    !isObject(counts) ||
+    !isObject(report.metadata?.dependencies) ||
+    !isCount(report.metadata.dependencies.total) ||
+    ![...SEVERITIES, 'total'].every((severity) => isCount(counts[severity]))
+  ) {
+    throw new AuditIncompleteError('UNEXPECTED_REPORT_SCHEMA');
+  }
+  const observed = Object.fromEntries(SEVERITIES.map((severity) => [severity, 0]));
+  for (const [name, finding] of Object.entries(report.vulnerabilities)) {
+    if (
+      !/^(@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i.test(name) ||
+      name.length > 214 ||
+      !isObject(finding) ||
+      finding.name !== name ||
+      !SEVERITIES.includes(finding.severity) ||
+      typeof finding.isDirect !== 'boolean' ||
+      typeof finding.range !== 'string' ||
+      !Array.isArray(finding.via) ||
+      finding.via.length === 0 ||
+      !finding.via.every(
+        (via) =>
+          (typeof via === 'string' && via.length > 0) ||
+          (isObject(via) &&
+            typeof via.name === 'string' &&
+            typeof via.title === 'string' &&
+            SEVERITIES.includes(via.severity) &&
+            SEVERITIES.indexOf(via.severity) <= SEVERITIES.indexOf(finding.severity))
+      ) ||
+      !Array.isArray(finding.effects) ||
+      !finding.effects.every((effect) => typeof effect === 'string') ||
+      !Array.isArray(finding.nodes) ||
+      finding.nodes.length === 0 ||
+      !finding.nodes.every((node) => typeof node === 'string' && node.length > 0) ||
+      !(
+        typeof finding.fixAvailable === 'boolean' ||
+        (isObject(finding.fixAvailable) &&
+          typeof finding.fixAvailable.name === 'string' &&
+          typeof finding.fixAvailable.version === 'string' &&
+          typeof finding.fixAvailable.isSemVerMajor === 'boolean')
+      )
+    ) {
+      throw new AuditIncompleteError('INCOMPLETE_FINDING');
+    }
+    observed[finding.severity] += 1;
+  }
+  if (
+    !SEVERITIES.every((severity) => counts[severity] === observed[severity]) ||
+    counts.total !== SEVERITIES.reduce((sum, severity) => sum + counts[severity], 0) ||
+    report.metadata.dependencies.total < counts.total
+  ) {
+    throw new AuditIncompleteError('INCONSISTENT_FINDING_COUNTS');
+  }
+  return report;
+}
 
-  const hasCriticalOrHigh = criticalHighFindings.length > 0;
-  const hasModerate = moderateFindings.length > 0;
+/** Nonzero npm status 1 may be a completed vulnerability report. All other failures close the gate. */
+export function runNpmAudit(options = {}) {
+  const { execute = execSync, cwd = process.cwd(), timeoutMs = AUDIT_TIMEOUT_MS } = options;
+  let stdout;
+  let status = 0;
+  try {
+    stdout = execute(AUDIT_COMMAND, {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: timeoutMs,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+  } catch (error) {
+    if (error.code || error.signal || error.status !== 1) {
+      throw new AuditIncompleteError('SUBPROCESS_FAILED_OR_TERMINATED');
+    }
+    status = error.status;
+    stdout = error.stdout;
+  }
+  if (typeof stdout !== 'string' || !stdout.trim()) {
+    throw new AuditIncompleteError('EMPTY_AUDIT_OUTPUT');
+  }
+  let report;
+  try {
+    report = JSON.parse(stdout);
+  } catch {
+    throw new AuditIncompleteError('MALFORMED_AUDIT_JSON');
+  }
+  validateAuditReport(report);
+  if (status === 1 && report.metadata.vulnerabilities.total === 0) {
+    throw new AuditIncompleteError('NONZERO_WITHOUT_FINDINGS');
+  }
+  return report;
+}
 
-  const passed = strict ? !hasCriticalOrHigh && !hasModerate : !hasCriticalOrHigh;
-
+export function evaluateAudit(report, options = {}) {
+  validateAuditReport(report);
+  const findings = Object.entries(report.vulnerabilities).map(([name, finding]) => ({
+    package: name,
+    ...finding,
+  }));
+  const criticalHighFindings = findings.filter((finding) =>
+    ['critical', 'high'].includes(finding.severity)
+  );
+  const moderateFindings = findings.filter((finding) => finding.severity === 'moderate');
+  const passed =
+    criticalHighFindings.length === 0 && (!options.strict || moderateFindings.length === 0);
   return {
     passed,
-    summary: meta,
+    outcome: passed ? 'PASS' : 'FAIL_VULNERABILITIES',
+    exitCode: passed ? 0 : 1,
+    summary: report.metadata.vulnerabilities,
+    findings,
     criticalHighFindings,
     moderateFindings,
   };
 }
 
-// Direct CLI Execution
-if (
-  process.argv[1] &&
-  import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop())
-) {
-  const isStrict = process.argv.includes('--strict');
-
-  console.log('======================================================');
-  console.log('🛡️ ANTIGRAVITY CAREER HUB - DEPENDENCY VULNERABILITY AUDIT');
-  console.log('======================================================');
-
+export function runAuditCli(options = {}) {
+  const { args = process.argv.slice(2), log = console.log, error = console.error } = options;
   try {
-    console.log('Executing npm audit --json across dependency tree...');
-    const report = runNpmAudit();
-    const result = evaluateAudit(report, { strict: isStrict });
-
-    console.log('\n📊 Vulnerability Summary:');
-    console.log(`  - Critical:    ${result.summary.critical}`);
-    console.log(`  - High:        ${result.summary.high}`);
-    console.log(`  - Moderate:    ${result.summary.moderate}`);
-    console.log(`  - Low / Info:  ${result.summary.low + result.summary.info}`);
-    console.log(`  - Total Nodes: ${report.metadata?.dependencies?.total || 0}`);
-
-    if (result.criticalHighFindings.length > 0) {
-      console.error('\n❌ CRITICAL / HIGH VULNERABILITIES DETECTED (CI GATE BLOCKED):');
-      for (const finding of result.criticalHighFindings) {
-        console.error(
-          `  - [${finding.severity.toUpperCase()}] Package: ${finding.package} (${finding.range})`
-        );
-        console.error(`    Direct: ${finding.isDirect} | Via: ${finding.via.join(' -> ')}`);
-        console.error(`    Effects: ${finding.effects.join(', ')}`);
-      }
-      process.exit(1);
-    }
-
-    if (result.moderateFindings.length > 0) {
-      console.log('\n⚠️ Known Moderate Advisory Notices (Isolated to devDependencies):');
-      for (const finding of result.moderateFindings) {
-        console.log(`  - [MODERATE] Package: ${finding.package} (${finding.range})`);
-        console.log(`    Direct: ${finding.isDirect} | Via: ${finding.via.join(' -> ')}`);
-        console.log(`    Effects: ${finding.effects.join(', ')}`);
-      }
-      console.log(
-        '  -> Evaluated in ADR-071: 0 production runtime impact. Monitored for upstream patch.'
+    if (args.some((arg) => arg !== '--strict')) throw new AuditIncompleteError('INVALID_ARGUMENT');
+    log('Auditing package-lock.json (all dependency types; registry access required).');
+    const report = runNpmAudit(options);
+    const result = evaluateAudit(report, { strict: args.includes('--strict') });
+    log(`Vulnerability counts: ${JSON.stringify(result.summary)}`);
+    for (const finding of result.findings) {
+      // Do not print arbitrary advisory prose, registry URLs, npm diagnostics or subprocess commands.
+      log(
+        `[${finding.severity.toUpperCase()}] ${finding.package}; direct=${finding.isDirect}; fixAvailable=${Boolean(finding.fixAvailable)}`
       );
     }
-
-    if (result.passed) {
-      console.log('\n✅ DEPENDENCY AUDIT PASSED: 0 High/Critical vulnerabilities.');
-      process.exit(0);
-    } else {
-      console.error(
-        '\n❌ DEPENDENCY AUDIT FAILED: Strict mode violation on moderate vulnerabilities.'
-      );
-      process.exit(1);
-    }
-  } catch (error) {
-    console.error(`\n❌ Error during dependency audit: ${error.message}`);
-    process.exit(1);
+    log(
+      result.passed
+        ? 'PASS — SECURITY AUDIT CLEAN (no findings prohibited by the configured policy).'
+        : 'FAIL — SECURITY ADVISORIES DETECTED'
+    );
+    return result.exitCode;
+  } catch (failure) {
+    error(
+      failure instanceof AuditIncompleteError
+        ? failure.message
+        : 'ERROR — SECURITY AUDIT INCOMPLETE (UNEXPECTED_FAILURE)'
+    );
+    return 2;
   }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  process.exitCode = runAuditCli();
 }

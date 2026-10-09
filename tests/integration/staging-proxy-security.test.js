@@ -4,7 +4,9 @@
  * Verifies the proxy trust boundary, header spoofing defenses, rate-limiting
  * client identity derivation, and public staging URL generation across:
  *
- * 1. Scenario A: Real request behind Cloudflare Tunnel (trustProxy=true with CF-Connecting-IP)
+ * LOCAL simulation only; no live tunnel acceptance is claimed. All trusted
+ * addresses below are explicit synthetic fixture topology, not deployment defaults.
+ * 1. Scenario A: Explicit trusted loopback/upstream peers and sanitized XFF
  * 2. Scenario B: Spoofed X-Forwarded-For header on direct request (trustProxy=false)
  * 3. Scenario C: Spoofed CF-Connecting-IP header on direct request (trustProxy=false)
  * 4. Scenario D: Direct localhost request without proxy headers
@@ -29,9 +31,9 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
   // =========================================================================
   // Scenario A: Real Request behind Cloudflare Tunnel (trustProxy=true)
   // =========================================================================
-  it('Scenario A: Correctly extracts authoritative CF-Connecting-IP behind Cloudflare Tunnel', async () => {
+  it('Scenario A: accepts a synthetic explicit ingress topology', async () => {
     const app = buildApp({
-      trustProxy: true,
+      trustProxy: ['127.0.0.1', '172.70.0.0/16'],
     });
 
     const realClientIp = '198.51.100.42';
@@ -160,7 +162,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
     });
 
     const app = buildApp({
-      trustProxy: true,
+      trustProxy: ['127.0.0.1', '172.70.0.0/16'],
       rateLimiter: customLimiter,
     });
 
@@ -203,7 +205,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
   // =========================================================================
   it('serves RFC 9728 and RFC 8414 metadata discovery with proper JSON headers', async () => {
     const app = buildApp({
-      trustProxy: true,
+      trustProxy: ['127.0.0.1', '172.70.0.0/16'],
     });
 
     // 1. RFC 9728 Protected Resource Metadata
@@ -249,7 +251,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
   // =========================================================================
   it('unauthenticated POST /mcp returns 401 with WWW-Authenticate header', async () => {
     const app = buildApp({
-      trustProxy: true,
+      trustProxy: ['127.0.0.1', '172.70.0.0/16'],
     });
 
     const response = await app.inject({
@@ -291,7 +293,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
   // =========================================================================
   it('rejects state-changing request from unauthorized origin with 403 CSRF_DETECTED', async () => {
     const app = buildApp({
-      trustProxy: true,
+      trustProxy: ['127.0.0.1', '172.70.0.0/16'],
     });
 
     // POST /auth/logout requires verifyCsrf

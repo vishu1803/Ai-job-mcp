@@ -1,5 +1,7 @@
 # Cloudflare Named Tunnel & Staging Infrastructure Specification
 
+> ISSUE-08 security correction (2026-10-09): historical `trustProxy: true` and automatic CF-Connecting-IP precedence below are superseded and MUST NOT be deployed. Use [the explicit proxy runbook](security/proxy-trust-client-identity.md). This document describes a proposed topology, not current live acceptance. No loopback, private or Cloudflare networks are trusted by default; verify actual socket peers and sanitize XFF at the ingress before configuring them.
+
 **Document Reference**: ARCH-054  
 **Governing Standard**: Cloudflare Named Tunnels (Argo Tunnel), Model Context Protocol (MCP) Streamable HTTP Spec (2026-07-28), RFC 8414, RFC 9728, RFC 8707, RFC 9700 (OAuth 2.1 / BCP)  
 **Status**: IN_PROGRESS (Staging Infrastructure Setup)  

@@ -1,5 +1,7 @@
 # Production Staging Deployment Runbook & Architecture Specification (ARCH-049)
 
+> Mandatory ISSUE-08 deployment gate: [explicit ingress configuration and staging acceptance](security/proxy-trust-client-identity.md). Empty TRUSTED_PROXY_CIDRS means direct socket identity in every environment. Historical IMPLEMENTED/VERIFIED labels in this document do not establish current live security acceptance. Stop old all-trusting workers; do not enable forwarding trust without verified ingress peers, network isolation and header sanitization.
+
 **Document Identifier:** ARCH-049  
 **Associated ADR:** ADR-069  
 **Status:** IMPLEMENTED & VERIFIED  

@@ -15,7 +15,7 @@
  *
  * Rate limit architecture (P14-003):
  *
- *   [BEFORE AUTH] IP rate limit (30/min/IP using CF-Connecting-IP)
+ *   [BEFORE AUTH] IP rate limit (30/min/IP using validated proxy/socket identity)
  *       ↓
  *   [BEFORE AUTH] Payload validation (body size, prototype pollution)
  *       ↓
@@ -233,7 +233,7 @@ export async function mcpRoutes(fastify, opts = {}) {
         }
 
         // 1. IP Rate Limiting Tier (PRE-AUTH)
-        //    Uses CF-Connecting-IP when available, falls back to req.ip
+        //    Uses the canonical identity established by the application proxy policy
         const clientIp = extractClientIp(req);
         const ipResult = rateLimiter.checkIpLimitResult(clientIp);
         if (!ipResult.allowed) {

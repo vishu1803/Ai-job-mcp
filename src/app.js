@@ -18,6 +18,7 @@ import skillRoutes from './routes/skill.routes.js';
 import extensionRoutes from './routes/extension.routes.js';
 import { config } from './config/env.js';
 import { assertApprovalSecrets } from './config/approval-secrets.js';
+import { createProxyPolicy, installProxyPolicy } from './security/proxy-policy.js';
 import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -76,8 +77,12 @@ export function buildApp(opts = {}) {
     careerArtifactToolsOverride: _careerArtifactToolsOverride,
     extensionAllowedOriginsOverride: _extensionAllowedOriginsOverride,
     resumeService: _resumeService,
+    trustProxy: proxyOverride,
     ...fastifyOpts
   } = opts;
+  const proxyPolicy = createProxyPolicy(
+    proxyOverride === undefined ? config.TRUSTED_PROXY_CIDRS : proxyOverride
+  );
 
   /** @type {object} */
   let loggerConfig;
@@ -103,13 +108,10 @@ export function buildApp(opts = {}) {
     keepAliveTimeout: 30000, // 30s — close idle keep-alive connections
     headersTimeout: 15000, // 15s — reject slow header senders (slowloris defense)
     maxRequestsPerSocket: 100, // Limit HTTP pipelining on a single connection
-    // Trust proxy for correct client IP behind Cloudflare/reverse proxy.
-    // Cloudflare sends X-Forwarded-For: <client-ip>, <cf-ip>. We need the
-    // leftmost IP (the original client), so we trust all hops.
-    // In local dev, this defaults to false (no proxy — spoofed headers ignored).
-    trustProxy: config.NODE_ENV === 'production' ? true : false,
     ...fastifyOpts,
+    trustProxy: proxyPolicy.trust,
   });
+  installProxyPolicy(app, proxyPolicy);
 
   const activeDb = opts.db || defaultDb;
   app.decorate('db', activeDb);

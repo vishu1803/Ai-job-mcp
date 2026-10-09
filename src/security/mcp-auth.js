@@ -21,6 +21,7 @@ import {
   ROLE_SCOPE_CEILINGS,
 } from '../services/mcp-api-token.service.js';
 import { defaultOAuthAuthorizationService } from '../services/oauth-authorization.service.js';
+import { extractClientIp } from '../utils/extract-client-ip.js';
 
 export { hashMcpToken };
 
@@ -74,7 +75,7 @@ export async function authenticateMcpRequest(req, options = {}) {
   const clientInfo = {
     userAgent: req.headers['user-agent'] || undefined,
     protocolVersion: /** @type {string} */ (req.headers['mcp-protocol-version']) || '2026-07-28',
-    ipAddress: req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1',
+    ipAddress: extractClientIp(req),
   };
 
   // ---------------------------------------------------------------------------

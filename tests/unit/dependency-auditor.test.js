@@ -12,14 +12,15 @@ import { evaluateAudit } from '../../scripts/audit-dependencies.js';
 describe('Security: Dependency Auditor Unit Tests', () => {
   it('should pass when zero critical and high vulnerabilities exist', () => {
     const mockReport = {
+      auditReportVersion: 2,
       metadata: {
         vulnerabilities: {
           info: 0,
           low: 0,
-          moderate: 2,
+          moderate: 1,
           high: 0,
           critical: 0,
-          total: 2,
+          total: 1,
         },
         dependencies: { total: 250 },
       },
@@ -30,6 +31,9 @@ describe('Security: Dependency Auditor Unit Tests', () => {
           isDirect: false,
           range: '<=1.0.0',
           via: ['transitive-parser'],
+          effects: [],
+          nodes: ['node_modules/mock-build-tool'],
+          fixAvailable: false,
         },
       },
     };
@@ -42,6 +46,7 @@ describe('Security: Dependency Auditor Unit Tests', () => {
 
   it('should fail when a high vulnerability is detected', () => {
     const mockReport = {
+      auditReportVersion: 2,
       metadata: {
         vulnerabilities: {
           info: 0,
@@ -60,6 +65,9 @@ describe('Security: Dependency Auditor Unit Tests', () => {
           isDirect: true,
           range: '<=2.0.0',
           via: ['RCE Advisory'],
+          effects: [],
+          nodes: ['node_modules/vulnerable-package'],
+          fixAvailable: false,
         },
       },
     };
@@ -72,6 +80,7 @@ describe('Security: Dependency Auditor Unit Tests', () => {
 
   it('should fail when a critical vulnerability is detected', () => {
     const mockReport = {
+      auditReportVersion: 2,
       metadata: {
         vulnerabilities: {
           info: 0,
@@ -90,6 +99,9 @@ describe('Security: Dependency Auditor Unit Tests', () => {
           isDirect: true,
           range: '*',
           via: ['Zero Day Vulnerability'],
+          effects: [],
+          nodes: ['node_modules/critical-package'],
+          fixAvailable: false,
         },
       },
     };
@@ -102,6 +114,7 @@ describe('Security: Dependency Auditor Unit Tests', () => {
 
   it('should fail on moderate vulnerabilities when strict mode is active', () => {
     const mockReport = {
+      auditReportVersion: 2,
       metadata: {
         vulnerabilities: {
           info: 0,
@@ -120,6 +133,9 @@ describe('Security: Dependency Auditor Unit Tests', () => {
           isDirect: false,
           range: '*',
           via: ['minor flaw'],
+          effects: [],
+          nodes: ['node_modules/dev-tool'],
+          fixAvailable: false,
         },
       },
     };

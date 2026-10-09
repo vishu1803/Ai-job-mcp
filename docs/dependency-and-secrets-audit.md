@@ -20,6 +20,14 @@ This document establishes the official Phase 14 audit findings, tooling specific
 
 ## 2. Dependency Vulnerability Audit & Supply Chain Security
 
+**2026-10-08 security correction:** the2026-08-27 inventory below is historical,
+not current release evidence. ISSUE-13 replaces the false-PASS audit wrapper with
+validated PASS(0), advisory FAIL(1), and incomplete ERROR(2). Both nonzero outcomes
+block the independent CI dependency-security job. Default HIGH/CRITICAL and optional
+strict MODERATE thresholds are unchanged. See the current contract, fresh inventory,
+clean-install requirements and release procedure in
+[Fail-closed dependency audit](security/dependency-audit-fail-closed.md).
+
 ### 2.1. Current Dependency Audit State (`npm audit --json`)
 An automated audit of the repository's dependency tree was executed on **2026-08-27**:
 

@@ -12,6 +12,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-security:
+    name: Dependency Security (fail closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Setup Node.js runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the locked dependency tree without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit
+        timeout-minutes: 10
+      - name: Verify audit error and vulnerability propagation
+        run: node --test tests/unit/dependency-auditor.test.js tests/unit/dependency-audit-fail-closed.test.js
+        timeout-minutes: 2
+      - name: Verify patched SDK, proxy and glob compatibility
+        env:
+          NODE_ENV: test
+        run: node --import ./tests/setup/approval-signing-env.js --test tests/unit/dependency-security-compatibility.test.js
+        timeout-minutes: 2
+      - name: Run blocking dependency audit
+        run: npm run audit:deps
+        timeout-minutes: 2
+      - name: Verify explicit proxy trust over real HTTP
+        env:
+          NODE_ENV: test
+          TRUSTED_PROXY_CIDRS: ''
+          LOG_LEVEL: error
+        run: node --import ./tests/setup/approval-signing-env.js --test --test-concurrency=1 --test-timeout=60000 tests/unit/proxy-policy.test.js tests/integration/proxy-trust-security.test.js tests/unit/extract-client-ip.test.js tests/integration/staging-proxy-security.test.js
+        timeout-minutes: 2
+
   verify:
     name: Code Quality, Migration & Test Verification
     runs-on: ubuntu-latest
@@ -121,10 +155,6 @@ jobs:
       # rather than to whatever ran out of connections first. Dependency-free.
       - name: Audit integration test database lifecycle compliance
         run: npm run test:db-lifecycle-check
-        timeout-minutes: 5
-
-      - name: Run automated dependency vulnerability audit (npm audit)
-        run: npm run audit:deps
         timeout-minutes: 5
 
       - name: Scan repository for secret & credential leaks

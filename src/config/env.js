@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 import { isTestRunner } from '../utils/test-env.js';
 import { approvalSecretIssues } from './approval-secrets.js';
+import { parseTrustedProxies } from '../security/proxy-policy.js';
 
 // Load base .env if present
 dotenv.config();
@@ -40,6 +41,7 @@ if (explicitEnvFile) {
  * @property {'development' | 'production' | 'test'} NODE_ENV
  * @property {number} PORT
  * @property {string} HOST
+ * @property {string[]} TRUSTED_PROXY_CIDRS Validated canonical ingress networks; empty trusts no proxy
  * @property {'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'} LOG_LEVEL
  * @property {string} DATABASE_URL
  * @property {number} DATABASE_POOL_MIN
@@ -69,6 +71,20 @@ export const envSchema = z
       .default(() => (isTestRunner() ? 'test' : 'development')),
     PORT: z.coerce.number().int().positive().default(3000),
     HOST: z.string().default('0.0.0.0'),
+    TRUSTED_PROXY_CIDRS: z
+      .string()
+      .default('')
+      .transform((value, ctx) => {
+        try {
+          return parseTrustedProxies(value);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'TRUSTED_PROXY_CIDRS must contain explicit IP addresses or nonzero CIDRs only',
+          });
+          return z.NEVER;
+        }
+      }),
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
     DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/career_hub_dev'),
     DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(1),
