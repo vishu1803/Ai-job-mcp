@@ -5,12 +5,13 @@
 
 ## Publish current security fixes (2026-10-09)
 
-**Status: IN_PROGRESS — reviewed fixes ready for authorized commit/push to origin/main.** Scope: ISSUE-08, ISSUE-13 and compatible critical/high dependency patches, with existing ISSUE-01–06 protections preserved. Current phase remains P0 acceptance; no deployment or completion-percentage changes.
+**Status: COMPLETE — security fixes committed and pushed to origin/main.** Scope: ISSUE-08, ISSUE-13 and compatible critical/high dependency patches, with existing ISSUE-01–06 protections preserved. Current phase remains P0 acceptance; no deployment or completion-percentage changes.
 
 - User explicitly requested commit and push. Remote origin confirmed as vishu1803/Ai-job-mcp; fetched main and confirmed HEAD matches origin/main before publication. Normal fast-forward push only; no force, merge or GitLab push.
 - Selected28 reviewed files; unrelated .claude directory and unreviewed scripts/execute-staging-quarantine-and-migrate.mjs excluded. Code/tests/audit scripts/lockfile exactly match the isolated verified tree.
 - Re-ran Node22 focused proxy/audit/dependency compatibility checks:195 PASS /0 FAIL /0 SKIP /0 CANCEL. This publication check does not replace outstanding hosted/live acceptance. Earlier957 selected regression evidence remains in the ISSUE-08 entry.
 - Whitespace checks PASS. Secret scan has one unchanged HEAD false-positive in .env.example: placeholder PEM declaration, not a parseable private key. No introduced real secret finding. No private .env files, certificates, tokens or generated artifacts selected. Production remains NO-GO; six moderate advisories and existing release blockers remain documented.
+- Publication verified: commit7b42e664e1afb75406fd5d755399225bc24812a8 (fix(security): close audit and proxy trust gaps),28 reviewed files. Normal git push origin main succeeded; git ls-remote confirmed the exact same SHA on refs/heads/main. Sandbox index-write denial resolved with authorized elevated Git operation, not security bypass. Follow-up documentation commit records this verified result. Hosted CI and live/staging acceptance remain pending; unrelated local files retained.
 
 ## ISSUE-08 — Explicit proxy trust and canonical client identity (2026-10-09)
 
