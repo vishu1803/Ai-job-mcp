@@ -1,3 +1,7 @@
+import {
+  formatResumeSourceEntry,
+  normalizeResumeSourceSections,
+} from '../utils/resume-source-normalizer.js';
 /**
  * @file Candidate Application Document Content Service (P14-006).
  *
@@ -1458,30 +1462,8 @@ export class CandidateArtifactContentService {
         ? /github\.com\/([^/?#]+)/i.exec(githubPortfolioLink.url || '')?.[1] || null
         : null);
 
-    // Experience: prefer userCustom.experience (structured), fall back to systemInferred resume extraction
-    const rawExperience = Array.isArray(userCustom.experience)
-      ? userCustom.experience
-      : Array.isArray(metadata.experience)
-        ? metadata.experience
-        : Array.isArray(metadata.resumeData?.experience)
-          ? metadata.resumeData.experience
-          : [];
-
-    // Experience entries and candidate-reported metrics are classified as USER_PROVIDED / CLAIMED
-    const experience = rawExperience.map((exp) => ({
-      ...exp,
-      provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
-      bullets: (exp.bullets || []).map((b) =>
-        typeof b === 'object' && b !== null ? b : String(b)
-      ),
-    }));
-
-    // Education: prefer userCustom.education, fall back to systemInferred resume extraction
-    const education = Array.isArray(userCustom.education)
-      ? userCustom.education
-      : Array.isArray(metadata.education)
-        ? metadata.education
-        : [];
+    const sourceSections = normalizeResumeSourceSections(candidate);
+    const { experience, education } = sourceSections;
 
     const resumeDataProjects = Array.isArray(metadata.resumeData?.projects)
       ? metadata.resumeData.projects
@@ -1573,36 +1555,8 @@ export class CandidateArtifactContentService {
       summary: candidate.summary || userCustom.summary || null,
       experience,
       education,
-      certifications: Array.isArray(userCustom.certifications)
-        ? userCustom.certifications
-        : Array.isArray(metadata.certifications)
-          ? metadata.certifications
-          : [],
-      coursework: Array.isArray(userCustom.coursework)
-        ? userCustom.coursework
-        : Array.isArray(metadata.coursework)
-          ? metadata.coursework
-          : [],
-      publications: Array.isArray(userCustom.publications)
-        ? userCustom.publications
-        : Array.isArray(metadata.publications)
-          ? metadata.publications
-          : [],
-      achievements: Array.isArray(userCustom.achievements)
-        ? userCustom.achievements
-        : Array.isArray(metadata.achievements)
-          ? metadata.achievements
-          : [],
-      additionalSkills: Array.isArray(userCustom.additionalSkills)
-        ? userCustom.additionalSkills
-        : Array.isArray(metadata.additionalSkills)
-          ? metadata.additionalSkills
-          : [],
-      awards: Array.isArray(userCustom.awards)
-        ? userCustom.awards
-        : Array.isArray(metadata.awards)
-          ? metadata.awards
-          : [],
+      certifications: sourceSections.certifications,
+      ...sourceSections.optionalSections,
       skills: profileView.skills || [],
       projects: reconciledProjects.length > 0 ? reconciledProjects : profileView.projects || [],
       storedProjectByUrl,
@@ -3336,6 +3290,10 @@ export class CandidateArtifactContentService {
         if (Array.isArray(edu.coursework) && edu.coursework.length > 0) {
           lines.push(`  - Relevant coursework: ${edu.coursework.join(', ')}`);
         }
+        if (edu.grade) lines.push(`  - Grade: ${edu.grade}`);
+        if (edu.isCurrent && edu.endDate) lines.push(`  - Expected completion: ${edu.endDate}`);
+        for (const text of [...(edu.honors || []), ...(edu.bullets || [])])
+          lines.push(`  - ${text}`);
       }
       lines.push('');
       pushSection('EDUCATION');
@@ -3351,7 +3309,7 @@ export class CandidateArtifactContentService {
       lines.push('## Certifications');
       lines.push('');
       for (const cert of certifications) {
-        const name = typeof cert === 'string' ? cert : cert.name || cert.title;
+        const name = formatResumeSourceEntry(cert);
         if (name) lines.push(`- ${name}`);
       }
       lines.push('');
@@ -3361,12 +3319,14 @@ export class CandidateArtifactContentService {
     // ---- Relevant Coursework (optional standalone section) --------------------
     const coursework = (candidateData.coursework || []).filter(Boolean);
     const includeCoursework =
-      options.includeCoursework !== undefined ? Boolean(options.includeCoursework) : false;
+      options.includeCoursework !== undefined
+        ? Boolean(options.includeCoursework)
+        : coursework.length > 0;
     if (includeCoursework && coursework.length > 0) {
       lines.push('## Relevant Coursework');
       lines.push('');
       for (const cw of coursework) {
-        const title = typeof cw === 'string' ? cw : cw.name || cw.title;
+        const title = formatResumeSourceEntry(cw);
         if (title) lines.push(`- ${title}`);
       }
       lines.push('');
@@ -3383,7 +3343,7 @@ export class CandidateArtifactContentService {
       lines.push('## Publications');
       lines.push('');
       for (const pub of publications) {
-        const title = typeof pub === 'string' ? pub : pub.title || pub.name;
+        const title = formatResumeSourceEntry(pub);
         if (title) lines.push(`- ${title}`);
       }
       lines.push('');
@@ -3400,7 +3360,7 @@ export class CandidateArtifactContentService {
       lines.push('## Achievements');
       lines.push('');
       for (const ach of achievements) {
-        const title = typeof ach === 'string' ? ach : ach.title || ach.name;
+        const title = formatResumeSourceEntry(ach);
         if (title) lines.push(`- ${title}`);
       }
       lines.push('');
@@ -3417,7 +3377,7 @@ export class CandidateArtifactContentService {
       lines.push('## Additional Skills');
       lines.push('');
       for (const sk of additionalSkills) {
-        const name = typeof sk === 'string' ? sk : sk.name || sk.skill;
+        const name = formatResumeSourceEntry(sk);
         if (name) lines.push(`- ${name}`);
       }
       lines.push('');
@@ -3432,11 +3392,24 @@ export class CandidateArtifactContentService {
       lines.push('## Awards');
       lines.push('');
       for (const aw of awards) {
-        const title = typeof aw === 'string' ? aw : aw.title || aw.name;
+        const title = formatResumeSourceEntry(aw);
         if (title) lines.push(`- ${title}`);
       }
       lines.push('');
       pushSection('AWARDS');
+    }
+
+    for (const [field, key, title] of [
+      ['languages', 'LANGUAGES', 'Languages'],
+      ['volunteerExperience', 'VOLUNTEER', 'Volunteer Experience'],
+      ['leadership', 'LEADERSHIP', 'Leadership'],
+      ['customSections', 'CUSTOM', 'Additional Information'],
+    ]) {
+      if (!candidateData[field]?.length) continue;
+      lines.push('## ' + title, '');
+      for (const entry of candidateData[field]) lines.push('- ' + formatResumeSourceEntry(entry));
+      lines.push('');
+      pushSection(key);
     }
 
     // Build structured section content snapshots

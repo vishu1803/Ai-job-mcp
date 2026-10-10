@@ -16,7 +16,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import extensionRoutes from '../../src/routes/extension.routes.js';
@@ -39,6 +39,10 @@ import { ApplicationTrackingService } from '../../src/services/application-track
 import { JobAnalysisSnapshotService } from '../../src/services/job-analysis-snapshot.service.js';
 import { computeJobContentHash } from '../../src/domain/career/analysis-snapshot.schemas.js';
 import { deriveCanonicalJobId } from '../../src/utils/url-normalizer.js';
+import {
+  canonicalPackageJson,
+  computeApplicationPackageHash,
+} from '../../src/domain/job/application-package-identity.js';
 import { defaultAiResumeContentGenerator } from '../../src/services/ai-resume-content-generator.service.js';
 
 const TEST_JOB = {
@@ -55,6 +59,7 @@ const TEST_JOB = {
 
 describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)', () => {
   let app;
+  let baseUrl;
   const createdTenantIds = [];
 
   let tenantAId;
@@ -71,9 +76,12 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
   let snapshotService;
 
   let boundSnapshotId;
+  let savedSnapshot;
+  let originalGenerateResumeAiContent;
   let initialCandidateProfileMetadata;
 
   before(async () => {
+    originalGenerateResumeAiContent = defaultAiResumeContentGenerator.generateResumeAiContent;
     workflowService = new JobApplicationWorkflowService({ database: db });
     // Fast mock for LaTeX compiler
     workflowService.applicationHandoffService.latexCompilerService = {
@@ -114,7 +122,7 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
       applicationTrackingService: trackingService,
       snapshotService,
     });
-    await app.ready();
+    baseUrl = await app.listen({ host: '127.0.0.1', port: 0 });
 
     // 1. Create Tenant A
     tenantAId = crypto.randomUUID();
@@ -304,6 +312,7 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
         score: 88,
         confidence: 0.9,
         classification: 'STRONG_MATCH',
+        analyzedAt: new Date('2026-10-10T08:15:30.125Z'),
       },
       projectRankings: [
         {
@@ -315,6 +324,9 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
       ],
       matchAnalysis: {
         skillGaps: [],
+        evidence: [
+          { detectedAt: '2026-10-10T13:45:30.125+05:30', excerpt: 'Synthetic fixture source' },
+        ],
       },
       parsedJobDescription: {
         title: TEST_JOB.title,
@@ -322,9 +334,11 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
       },
     });
     boundSnapshotId = snap.id;
+    savedSnapshot = snap;
   });
 
   after(async () => {
+    defaultAiResumeContentGenerator.generateResumeAiContent = originalGenerateResumeAiContent;
     if (app) await app.close();
     if (createdTenantIds.length > 0) {
       await db.delete(jobAnalysisSnapshots).where(eq(jobAnalysisSnapshots.tenantId, tenantAId));
@@ -343,15 +357,23 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
   // Test 1: Authenticated Candidate Prepare-Handoff Success & Scope Verification
   // ---------------------------------------------------------------------------
   it('1-7. Authenticated candidate calls prepare-handoff: binds snapshot, resolves profile without ReferenceError, returns HTTP 200', async () => {
-    const res = await app.inject({
+    const snapshot = await snapshotService.getSnapshotById(boundSnapshotId);
+    assert.ok(snapshot.analyzedAt instanceof Date, 'Drizzle timestamp mapping returns a Date');
+    const fit = snapshotService.toWorkflowJobFit(snapshot);
+    assert.deepEqual(fit, snapshotService.toWorkflowJobFit(savedSnapshot));
+    assert.equal(fit.overallFit.analyzedAt, '2026-10-10T08:15:30.125Z');
+    assert.equal(fit.matchAnalysis.evidence[0].detectedAt, '2026-10-10T08:15:30.125Z');
+    assert.doesNotThrow(() => canonicalPackageJson(fit));
+
+    const response = await fetch(`${baseUrl}/api/extension/prepare-handoff`, {
       method: 'POST',
-      url: '/api/extension/prepare-handoff',
-      headers: { authorization: `Bearer ${sessionA.rawToken}` },
-      payload: {
+      headers: { authorization: `Bearer ${sessionA.rawToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
         job: TEST_JOB,
         analysisSnapshotId: boundSnapshotId,
-      },
+      }),
     });
+    const res = { statusCode: response.status, payload: await response.text() };
 
     // Verify no HTTP 500
     assert.equal(res.statusCode, 200, `Expected HTTP 200, got ${res.statusCode}: ${res.payload}`);
@@ -369,6 +391,7 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
 
     // 4. Existing handoff schema remains valid
     assert.equal(json.packageStatus, 'SAVED');
+    assert.ok(Number.isInteger(json.packageVersion) && json.packageVersion > 0);
     assert.equal(json.artifactStatus, 'READY');
     assert.ok(json.artifacts?.resume?.downloadUrl, 'Resume download URL must exist');
     assert.ok(json.artifacts?.coverLetter?.downloadUrl, 'Cover letter download URL must exist');
@@ -382,13 +405,99 @@ describe('Extension Prepare-Handoff Regression & Scope Verification (Defect 2)',
       .limit(1);
 
     assert.ok(pkgRow, 'Application package row must exist in DB');
+    assert.equal(pkgRow.version, json.packageVersion);
     const pkgPayload = pkgRow.packagePayload;
+    assert.equal(computeApplicationPackageHash(pkgPayload), json.packageHash);
+    assert.equal(pkgPayload.jobFitAnalysis.analyzedAt, snapshot.analyzedAt.toISOString());
+    for (let reload = 0; reload < 3; reload++) {
+      const loaded = await snapshotService.getSnapshotById(boundSnapshotId);
+      assert.deepEqual(snapshotService.toWorkflowJobFit(loaded), fit);
+      assert.equal(
+        computeApplicationPackageHash({
+          ...pkgPayload,
+          jobFitAnalysis: snapshotService.toWorkflowJobFit(loaded),
+        }),
+        json.packageHash
+      );
+      const [reloadedPackage] = await db
+        .select()
+        .from(applicationPackages)
+        .where(eq(applicationPackages.id, pkgRow.id))
+        .limit(1);
+      assert.equal(reloadedPackage.version, json.packageVersion);
+      assert.equal(computeApplicationPackageHash(reloadedPackage.packagePayload), json.packageHash);
+    }
     assert.equal(pkgPayload.candidateId, candidateA.id);
     assert.equal(pkgPayload.candidateEmail, userA.email);
     assert.equal(
       pkgPayload.candidatePhone,
       '+91 7905087928',
       'Candidate phone from profile must be preserved'
+    );
+
+    const preview = await fetch(`${baseUrl}/api/extension/preview-package`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${sessionA.rawToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        applicationId: json.applicationId,
+        packageHash: json.packageHash,
+        packageVersion: json.packageVersion,
+      }),
+    });
+    assert.equal(preview.status, 200);
+    const reviewed = await preview.json();
+    assert.equal(reviewed.packageHash, json.packageHash);
+    assert.equal(reviewed.packageVersion, json.packageVersion);
+    assert.equal(computeApplicationPackageHash(reviewed.approvalContent), json.packageHash);
+  });
+
+  it('PRD-001: real authenticated HTTP analyze, persistence, reload and preparation journey', async () => {
+    const post = async (route, body, token = sessionA.rawToken) => {
+      const response = await fetch(`${baseUrl}/api/extension/${route}`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    assert.equal((await post('prepare-handoff', { job: TEST_JOB }, null)).status, 401);
+    const analyzed = await post('analyze-job', { job: TEST_JOB });
+    assert.equal(analyzed.status, 200, JSON.stringify(analyzed.body));
+    assert.ok(analyzed.body.analysisSnapshotId);
+    const loaded = await snapshotService.getSnapshotById(analyzed.body.analysisSnapshotId);
+    assert.equal(loaded.candidateId, candidateA.id);
+    assert.ok(loaded.analyzedAt instanceof Date);
+    assert.doesNotThrow(() => canonicalPackageJson(snapshotService.toWorkflowJobFit(loaded)));
+    const prepared = await post('prepare-handoff', {
+      job: TEST_JOB,
+      analysisSnapshotId: loaded.id,
+    });
+    assert.equal(prepared.status, 200, JSON.stringify(prepared.body));
+    assert.equal(prepared.body.analysisSnapshotId, loaded.id);
+    assert.equal(prepared.body.packageStatus, 'SAVED');
+    assert.match(prepared.body.packageHash, /^[a-f0-9]{64}$/);
+    const [persisted] = await db
+      .select()
+      .from(applicationPackages)
+      .where(
+        and(
+          eq(applicationPackages.applicationId, prepared.body.applicationId),
+          eq(applicationPackages.packageHash, prepared.body.packageHash),
+          eq(applicationPackages.version, prepared.body.packageVersion)
+        )
+      )
+      .limit(1);
+    assert.ok(persisted, 'Select the exact package returned, not an earlier version');
+    assert.equal(
+      computeApplicationPackageHash(persisted.packagePayload),
+      prepared.body.packageHash
+    );
+    assert.equal(
+      persisted.packagePayload.jobFitAnalysis.analyzedAt,
+      loaded.analyzedAt.toISOString()
     );
   });
 

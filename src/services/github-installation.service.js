@@ -30,11 +30,15 @@ const deny = () =>
     'GitHub installation authority could not be verified',
     'INSTALLATION_ACCESS_DENIED'
   );
-const invalidState = () =>
-  new AuthenticationError(
+const invalidState = (reason) => {
+  const error = new AuthenticationError(
     'Invalid, expired, or already used installation state',
     'INVALID_OAUTH_STATE'
   );
+  // Fixed server-only reason codes; never retain tokens or decoded identity values.
+  Object.defineProperty(error, 'installationStateFailure', { value: reason });
+  return error;
+};
 
 export function getInstallationCookieOptions(appConfig = config) {
   const secure = appConfig.NODE_ENV === 'production';
@@ -170,19 +174,27 @@ export class GitHubInstallationService {
 
   validateInstallationState({ stateToken, cookieToken, phase, ...params }) {
     const context = this.#context(params);
-    if (!stateToken || stateToken.length > 4096 || !equal(stateToken, cookieToken))
-      throw invalidState();
+    if (!stateToken || stateToken.length > 4096 || !equal(stateToken, cookieToken)) {
+      const reason = !stateToken
+        ? 'MISSING_STATE'
+        : stateToken.length > 4096
+          ? 'STATE_TOO_LONG'
+          : !cookieToken || typeof cookieToken !== 'string'
+            ? 'MISSING_COOKIE'
+            : 'COOKIE_MISMATCH';
+      throw invalidState(reason);
+    }
     const [encoded, signature, extra] = stateToken.split('.');
     const expected = crypto
       .createHmac('sha256', this.masterKey)
       .update(encoded)
       .digest('base64url');
-    if (extra !== undefined || !equal(signature, expected)) throw invalidState();
+    if (extra !== undefined || !equal(signature, expected)) throw invalidState('INVALID_SIGNATURE');
     let payload;
     try {
       payload = JSON.parse(Buffer.from(encoded, 'base64url').toString());
     } catch {
-      throw invalidState();
+      throw invalidState('MALFORMED_PAYLOAD');
     }
     if (
       !payload ||
@@ -191,8 +203,25 @@ export class GitHubInstallationService {
       !Number.isSafeInteger(payload.expiresAt) ||
       Date.now() >= payload.expiresAt ||
       Object.entries(context).some(([key, value]) => payload[key] !== value)
-    )
-      throw invalidState();
+    ) {
+      let reason;
+      if (!payload) reason = 'MALFORMED_PAYLOAD';
+      else if (payload.phase !== phase) reason = 'PHASE_MISMATCH';
+      else if (payload.callbackUrl !== this.callbackUrl) reason = 'CALLBACK_MISMATCH';
+      else if (!Number.isSafeInteger(payload.expiresAt)) reason = 'INVALID_EXPIRY';
+      else if (Date.now() >= payload.expiresAt) reason = 'EXPIRED_STATE';
+      else {
+        const field = Object.keys(context).find((key) => payload[key] !== context[key]);
+        reason =
+          {
+            userId: 'USER_MISMATCH',
+            tenantId: 'TENANT_MISMATCH',
+            sessionId: 'SESSION_MISMATCH',
+            githubUserId: 'GITHUB_IDENTITY_MISMATCH',
+          }[field] || 'CONTEXT_MISMATCH';
+      }
+      throw invalidState(reason);
+    }
     return payload;
   }
 
@@ -211,7 +240,8 @@ export class GitHubInstallationService {
         )
       )
       .returning();
-    if (!state || state.installationId !== payload.installationId) throw invalidState();
+    if (!state || state.installationId !== payload.installationId)
+      throw invalidState(!state ? 'DURABLE_STATE_UNAVAILABLE' : 'INSTALLATION_MISMATCH');
     return { payload, state };
   }
 
@@ -374,13 +404,13 @@ export class GitHubInstallationService {
     this.#configured();
     this.#context(params);
     if (typeof params.code !== 'string' || !params.code || params.code.length > 1024)
-      throw invalidState();
+      throw invalidState('INVALID_CODE');
     const payload = this.validateInstallationState({ ...params, phase: 'authorize' });
     if (
       params.installationId !== undefined &&
       String(params.installationId) !== payload.installationId
     )
-      throw invalidState();
+      throw invalidState('INSTALLATION_MISMATCH');
     // Burn state BEFORE network verification: every failed attempt requires a fresh flow.
     const consumed = await this.#consumeState(this.db, params, 'authorize');
     const verified = await this.#verifyUserAuthority(params.code, consumed.state, consumed.payload);

@@ -1,0 +1,17 @@
+tests/unit/github-large-tree.test.js
+tests/unit/github-deep-inspection.test.js
+tests/unit/github-connector.test.js
+tests/unit/github-installation-service.test.js
+tests/unit/prd001-analysis-serialization.test.js
+tests/unit/evidence-verification-security.test.js
+tests/unit/terminal-logging.test.js
+tests/integration/github-large-tree-synchronization.test.js
+tests/integration/github-repository-reconnection.test.js
+tests/integration/github-installation-linking.test.js
+tests/integration/candidate-repository-ingestion.test.js
+tests/integration/application-approval-content-binding.test.js
+tests/integration/application-approval-execution.test.js
+tests/integration/evidence-verification-security.test.js
+tests/integration/evidence-verification-migration.test.js
+tests/integration/historical-artifact-quarantine.test.js
+tests/integration/handoff-quarantine-recovery.test.js

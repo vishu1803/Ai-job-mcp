@@ -174,6 +174,10 @@ export function formatNormalizedDateRange(startDate, endDate) {
     if (!d) return '';
     if (/present/i.test(d)) return 'Present';
     const ym = d.match(/^(\d{4})-(\d{2})$/);
+    const full = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (full) {
+      return `${Number(full[3])} ${formatNormalizedDateRange(`${full[1]}-${full[2]}`, '')}`;
+    }
     if (ym) {
       const months = [
         'Jan',
@@ -201,6 +205,30 @@ export function formatNormalizedDateRange(startDate, endDate) {
   const fEnd = formatPart(end);
   if (fStart && fEnd) return `${fStart} -- ${fEnd}`;
   return fStart || fEnd || '';
+}
+
+function optionalEntryLatex(entry) {
+  if (typeof entry === 'string') return escapeLatex(entry);
+  const parts = [
+    entry.title,
+    entry.name,
+    entry.language,
+    entry.proficiency,
+    entry.organization,
+    entry.category,
+    entry.issuer,
+    entry.publisher,
+    entry.authors?.join(', '),
+    entry.date ? formatNormalizedDateRange(entry.date, '') : '',
+    formatNormalizedDateRange(entry.startDate, entry.isCurrent ? 'Present' : entry.endDate),
+    entry.location,
+    entry.description,
+    entry.summary,
+    ...(entry.bullets || []),
+    ...(entry.items || []),
+  ];
+  const text = [...new Set(parts.filter(Boolean))].map(escapeLatex).join(' | ');
+  return `${text}${entry.url ? ` | \\href{${escapeLatex(entry.url)}}{${escapeLatex(entry.url)}}` : ''}`;
 }
 
 /**
@@ -562,7 +590,7 @@ ${bulletTex}`;
     let experienceLatexSection = '';
     if (experienceRecords.length > 0) {
       const expEntries = experienceRecords.map((exp, index) => {
-        const title = escapeLatex(exp.title || exp.role || 'Role');
+        const title = escapeLatex(exp.title || exp.role || '');
         const company = exp.company ? escapeLatex(exp.company) : '';
         const endDate = exp.isCurrent ? 'Present' : exp.endDate || '';
         const dates = formatNormalizedDateRange(exp.startDate, endDate);
@@ -580,6 +608,9 @@ ${bulletTex}`;
           entryLines.push('\\vspace{\\atsRoleToMetadata}');
           entryLines.push(`{\\small\\textit{${location}}}\\par`);
         }
+        if (exp.employmentType) entryLines.push(`${escapeLatex(exp.employmentType)}\\par`);
+        if (exp.technologies?.length)
+          entryLines.push(`Technologies: ${escapeLatex(exp.technologies.join(', '))}\\par`);
         entryLines.push('\\vspace{\\atsMetadataToBullets}');
         if (bullets) entryLines.push(bullets);
 
@@ -606,7 +637,7 @@ ${bulletTex}`;
         const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
         const institution = edu.institution ? escapeLatex(edu.institution) : '';
         const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
-        const dates = [edu.startDate || '', endDate].filter(Boolean).join(' -- ');
+        const dates = formatNormalizedDateRange(edu.startDate, endDate);
         const coursework =
           Array.isArray(edu.coursework) && edu.coursework.length > 0
             ? `\\textit{Relevant Coursework: ${escapeLatex(edu.coursework.join(', '))}}`
@@ -624,6 +655,19 @@ ${bulletTex}`;
           entryLines.push('\\vspace{\\atsRoleToMetadata}');
           entryLines.push(`{\\small ${coursework}}\\par`);
         }
+        if (edu.isCurrent && edu.endDate)
+          entryLines.push(
+            `Expected completion: ${escapeLatex(formatNormalizedDateRange(edu.endDate, ''))}\\par`
+          );
+        for (const detail of [
+          edu.location,
+          edu.grade ? `Grade: ${edu.grade}` : '',
+          ...(edu.honors || []),
+        ]) {
+          if (detail) entryLines.push(`{\\small ${escapeLatex(detail)}}\\par`);
+        }
+        const educationBullets = formatLatexBullets(edu.bullets || []);
+        if (educationBullets) entryLines.push(educationBullets);
 
         if (index < educationRecords.length - 1) {
           entryLines.push('\\vspace{\\atsEntryToEntry}');
@@ -640,13 +684,33 @@ ${bulletTex}`;
     let certLatexSection = '';
     if (certRecords.length > 0) {
       const certNames = certRecords
-        .map((c) => (typeof c === 'string' ? c : c.name || c.title || ''))
+        .map((c) =>
+          typeof c === 'string'
+            ? escapeLatex(c)
+            : [
+                escapeLatex(c.name || c.title || ''),
+                escapeLatex(c.issuingOrganization || c.issuer || ''),
+                c.issueDate
+                  ? `Issued: ${escapeLatex(formatNormalizedDateRange(c.issueDate, ''))}`
+                  : '',
+                c.expirationDate || c.expiryDate
+                  ? `Expires: ${escapeLatex(formatNormalizedDateRange(c.expirationDate || c.expiryDate, ''))}`
+                  : '',
+                c.credentialId ? `ID: ${escapeLatex(c.credentialId)}` : '',
+                escapeLatex(c.notes || ''),
+                c.credentialUrl
+                  ? `\\href{${escapeLatex(c.credentialUrl)}}{${escapeLatex(c.credentialUrl)}}`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' | ')
+        )
         .filter(Boolean);
       if (certNames.length > 0) {
         certLatexSection = `\\atssection{Certifications}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
+${certNames.map((c) => `  \\item ${c}`).join('\n')}
 \\end{itemize}`;
       }
     }
@@ -658,7 +722,7 @@ ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
       courseworkLatexSection = `\\atssection{Relevant Coursework}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${optional.coursework.map((c) => `  \\item ${escapeLatex(typeof c === 'string' ? c : c.name || c.title)}`).join('\n')}
+${optional.coursework.map((c) => `  \\item ${optionalEntryLatex(c)}`).join('\n')}
 \\end{itemize}`;
     }
 
@@ -667,7 +731,7 @@ ${optional.coursework.map((c) => `  \\item ${escapeLatex(typeof c === 'string' ?
       publicationsLatexSection = `\\atssection{Publications}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${optional.publications.map((p) => `  \\item ${escapeLatex(typeof p === 'string' ? p : p.title || p.name)}`).join('\n')}
+${optional.publications.map((p) => `  \\item ${optionalEntryLatex(p)}`).join('\n')}
 \\end{itemize}`;
     }
 
@@ -676,7 +740,7 @@ ${optional.publications.map((p) => `  \\item ${escapeLatex(typeof p === 'string'
       achievementsLatexSection = `\\atssection{Achievements}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${optional.achievements.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.title || a.name)}`).join('\n')}
+${optional.achievements.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
 \\end{itemize}`;
     }
 
@@ -685,7 +749,7 @@ ${optional.achievements.map((a) => `  \\item ${escapeLatex(typeof a === 'string'
       additionalSkillsLatexSection = `\\atssection{Additional Skills}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${optional.additionalSkills.map((s) => `  \\item ${escapeLatex(typeof s === 'string' ? s : s.name || s.skill)}`).join('\n')}
+${optional.additionalSkills.map((s) => `  \\item ${optionalEntryLatex(s)}`).join('\n')}
 \\end{itemize}`;
     }
 
@@ -694,7 +758,7 @@ ${optional.additionalSkills.map((s) => `  \\item ${escapeLatex(typeof s === 'str
       awardsLatexSection = `\\atssection{Awards}
 \\begin{itemize}
 \\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.title || a.name)}`).join('\n')}
+${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
 \\end{itemize}`;
     }
 
@@ -718,6 +782,22 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       ADDITIONAL_SKILLS: additionalSkillsLatexSection,
       AWARDS: awardsLatexSection,
     };
+    for (const key of ['LANGUAGES', 'VOLUNTEER', 'LEADERSHIP']) {
+      const [field, title] = {
+        LANGUAGES: ['languages', 'Languages'],
+        VOLUNTEER: ['volunteerExperience', 'Volunteer Experience'],
+        LEADERSHIP: ['leadership', 'Leadership'],
+      }[key];
+      sectionBlocks[key] = optional[field]?.length
+        ? `\\atssection{${title}}\n\\begin{itemize}\n${optional[field].map((entry) => `\\item ${optionalEntryLatex(entry)}`).join('\n')}\n\\end{itemize}`
+        : '';
+    }
+    sectionBlocks.CUSTOM = (optional.customSections || [])
+      .map(
+        (entry) =>
+          `\\atssection{${escapeLatex(entry.title || entry.name || 'Additional Information')}}\n${optionalEntryLatex({ ...entry, title: null, name: entry.title && entry.title !== entry.name ? entry.name : null })}\\par`
+      )
+      .join('\n');
 
     // Generic content-aware fallback (used only when the canonical snapshot lacks
     // an explicit sectionOrder — the snapshot builder normally derives one via
@@ -734,9 +814,36 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
         ? ['SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'EDUCATION']
         : ['SUMMARY', 'SKILLS', 'PROJECTS', 'EDUCATION'];
 
-    const authoritativeOrder = rawOrder
-      .map((s) => String(s).toUpperCase())
-      .filter((s) => s !== 'HEADER');
+    const authoritativeOrder = [
+      ...new Set(
+        rawOrder
+          .map(
+            (s) =>
+              ({
+                TECHNICAL_SKILLS: 'SKILLS',
+                TECHNICAL_PROJECTS: 'PROJECTS',
+                PROFESSIONAL_EXPERIENCE: 'EXPERIENCE',
+                PROBLEM_SOLVING: 'DSA',
+                ALGORITHMIC_PRACTICE: 'DSA',
+              })[String(s).toUpperCase()] || String(s).toUpperCase()
+          )
+          .filter((s) => s !== 'HEADER')
+      ),
+    ];
+    for (const [key, block] of Object.entries(sectionBlocks)) {
+      if (
+        ![
+          'TECHNICAL_SKILLS',
+          'TECHNICAL_PROJECTS',
+          'PROBLEM_SOLVING',
+          'ALGORITHMIC_PRACTICE',
+          'PROFESSIONAL_EXPERIENCE',
+        ].includes(key) &&
+        block &&
+        !authoritativeOrder.includes(key)
+      )
+        authoritativeOrder.push(key);
+    }
 
     // DSA safety net (mirrors the legacy renderer's explicit-selection rule):
     // if the structured snapshot carries real candidate-owned DSA content, DSA must

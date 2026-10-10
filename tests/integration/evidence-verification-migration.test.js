@@ -14,7 +14,16 @@ async function isolatedDatabase(run) {
   // The parent pool must be the explicitly configured disposable loopback cluster.
   const url = new URL(pool.options.connectionString);
   assert.equal(url.hostname, '127.0.0.1');
-  assert.equal(Number(url.port), 55431);
+  if (Number(url.port) === 55442) {
+    assert.equal(url.pathname, '/product_audit_large_tree');
+    const directory = (await pool.query('SHOW data_directory')).rows[0].data_directory.replaceAll(
+      '\\',
+      '/'
+    );
+    assert.equal(directory, 'C:/Users/VISHW/AppData/Local/Temp/career-large-tree-20261010/pgdata');
+  } else {
+    assert.equal(Number(url.port), 55431);
+  }
   const name = `issue06_${randomUUID().replaceAll('-', '')}`;
   assert.match(name, /^issue06_[a-f0-9]{32}$/);
   await pool.query(`CREATE DATABASE ${name}`);

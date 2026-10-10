@@ -38,6 +38,19 @@ export function sanitizeFilenameComponent(text, fallback = '') {
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
+/** HTTP headers require ASCII; RFC 5987 preserves the authentic Unicode filename. */
+export function buildArtifactContentDisposition(filename, disposition = 'attachment') {
+  const safe = sanitizeFilenameComponent(filename, 'document.pdf');
+  const fallback = safe.replace(/[^\x20-\x7e]/g, '_');
+  const prefix = `${disposition === 'inline' ? 'inline' : 'attachment'}; filename="${fallback}"`;
+  if (safe === fallback) return prefix;
+  const encoded = encodeURIComponent(safe).replace(
+    /['()*]/g,
+    (char) => '%' + char.charCodeAt(0).toString(16).toUpperCase()
+  );
+  return `${prefix}; filename*=UTF-8''${encoded}`;
+}
+
 /**
  * Builds a canonical, filesystem-safe filename for an application artifact.
  *

@@ -96,9 +96,9 @@ import {
  * Best-effort package persistence for prepare_job_application (P14-005BA).
  *
  * Persists the freshly prepared package as the authoritative CURRENT version
- * for the application resolved for the candidate + job target. Failures are
- * logged and swallowed so preparation itself never fails due to persistence:
- * the package is still returned to the caller with its packageHash intact.
+ * for the application resolved for the candidate + job target. Evidence-policy
+ * rejection and access/lifecycle errors propagate. Other persistence failures
+ * retain the existing best-effort behavior and return an unpersisted result.
  * A failed persistence attempt therefore never replaces a previously valid
  * package (the previous CURRENT version simply remains).
  *
@@ -127,6 +127,9 @@ async function persistPreparedPackage({
 }) {
   try {
     const context = { tenantId, userId, role: 'MEMBER' };
+    // Reject known unusable source bindings before application/snapshot writes.
+    // Later persistence guards still revalidate the exact immutable package.
+    await assertCurrentPackage(service.db, { tenantId, candidateId }, preparedPackage);
     const targetJob = preparedPackage.targetJob || {};
     const directUrl =
       targetJob.directPortalUrl || targetJob.applicationUrl || targetJob.sourceUrl || null;
@@ -227,6 +230,7 @@ async function persistPreparedPackage({
     };
   } catch (err) {
     if (
+      err.code === 'ARTIFACT_REVALIDATION_REQUIRED' ||
       err.code === 'APPLICATION_ALREADY_SUBMITTED' ||
       err.code === 'APPLICATION_JOB_MISMATCH' ||
       err instanceof ConflictError ||
@@ -1379,7 +1383,7 @@ export class JobApplicationWorkflowService {
     );
 
     // 8. Persist as the authoritative CURRENT package version (P14-005BA).
-    // Best-effort: persistence failures never fail preparation, but a
+    // Evidence-policy rejection fails preparation. Other persistence remains best-effort; a
     // successful persist guarantees the invariant
     // prepare().packageHash === get_job_application().currentPackage.packageHash.
     const persisted = await persistPreparedPackage({
@@ -1488,6 +1492,7 @@ export class JobApplicationWorkflowService {
           };
         }
       } catch (err) {
+        if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') throw err;
         this.logger.error(
           { error: err.message, candidateId, packageHash: validatedPackage.packageHash },
           'Failed to compile, QA, or store PDF artifacts for prepared application'
@@ -1603,7 +1608,8 @@ export class JobApplicationWorkflowService {
     // 1. Fetch Application & verify state
     const appDetails = await this.applicationTrackingService.getApplicationDetails(
       context,
-      applicationId
+      applicationId,
+      { includeStages: false, includeDocuments: scope !== 'BOTH' }
     );
     const application = appDetails.application;
 

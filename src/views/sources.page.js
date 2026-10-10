@@ -48,6 +48,7 @@ export function renderSourcesPage({
   candidate = null,
   gitHubConnection = null,
   resources = [],
+  disconnectedRepositoryCount = 0,
   activeResume = null,
   previousResumes = [],
   resumeVersions = [],
@@ -275,6 +276,7 @@ export function renderSourcesPage({
           </div>
         </div>
 
+        ${isConnected && disconnectedRepositoryCount > 0 ? `<p role="status">${escapeHtml(String(disconnectedRepositoryCount))} historical repositories remain disconnected. Use Manage Repositories to select those you still want to connect. Your existing projects and analysis are preserved.</p>` : ''}
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; padding-top:18px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
           <div>
             <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Access Scope</span>

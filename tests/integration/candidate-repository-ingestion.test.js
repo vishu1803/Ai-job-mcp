@@ -46,6 +46,8 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
             { path: 'package.json', type: 'blob' },
             { path: 'src/index.js', type: 'blob' },
             { path: 'src/app.js', type: 'blob' },
+            // A repeated provider entry must not duplicate immutable facts.
+            { path: 'src/app.js', type: 'blob' },
             { path: 'Dockerfile', type: 'blob' },
             { path: 'drizzle.config.js', type: 'blob' },
           ],
@@ -104,7 +106,8 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
           return {
             path: 'src/app.js',
             commitSha: 'abc123def456789012345678901234567890abcd',
-            content: "import { z } from 'zod';\nimport pg from 'pg';\n",
+            content:
+              "import { z } from 'zod';\nimport pg from 'pg';\nimport Fastify from 'fastify';\nimport cookie from '@fastify/cookie';\n",
           };
         }
         return { path, content: '', commitSha: 'HEAD' };
@@ -332,6 +335,35 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
   // 2. Idempotency
   // ---------------------------------------------------------------------------
   describe('2. Idempotency', () => {
+    it('preserves distinct same-skill imports and their verification through repeated sync', async () => {
+      const service = new CandidateRepositoryIngestionService({ db, registry: mockRegistry });
+      const readImports = async () =>
+        (await db.select().from(evidenceItems).where(eq(evidenceItems.resourceId, resourceA.id)))
+          .filter(
+            (row) =>
+              row.evidenceType === 'CODE_IMPORT_USAGE' &&
+              row.sourceLocation?.filePath === 'src/app.js' &&
+              ['fastify', '@fastify/cookie'].includes(row.metadata?.rawImport)
+          )
+          .sort((a, b) => a.id.localeCompare(b.id));
+      const before = await readImports();
+      assert.equal(before.length, 2, 'Both distinct source facts must be persisted');
+      assert.equal(before[0].skillId, before[1].skillId);
+      assert.equal(before[0].metadata.fingerprint, before[1].metadata.fingerprint);
+      for (const row of before) assert.equal(row.metadata.verification.status, 'VERIFIED');
+      const result = await service.syncCandidateRepositories({
+        context: { tenantId: tenantA.id, userId: userA.id },
+        candidateId: candidateA.id,
+      });
+      assert.deepEqual(result.warnings, []);
+      assert.equal(result.repositoriesProcessed, 1);
+      const after = await readImports();
+      assert.deepEqual(
+        after.map(({ id, sourceLocation, excerpt }) => ({ id, sourceLocation, excerpt })),
+        before.map(({ id, sourceLocation, excerpt }) => ({ id, sourceLocation, excerpt }))
+      );
+      for (const row of after) assert.equal(row.metadata.verification.status, 'VERIFIED');
+    });
     it('running sync twice should not create duplicate projects, project_resources, or evidence', async () => {
       const service = new CandidateRepositoryIngestionService({
         db,
@@ -395,6 +427,89 @@ describe('CandidateRepositoryIngestionService Integration Tests (P5/Pipeline Fix
       assert.strictEqual(result2.projectsCreated, 0, 'No new projects on second run');
       assert.strictEqual(result2.evidenceLinked, 0, 'No newly linked evidence on second run');
       assert.strictEqual(result2.repositoriesProcessed, 1, 'Still processed 1 repository');
+    });
+    it('concurrent full sync and a repository rename reuse project, evidence and skill IDs', async () => {
+      const read = async () => ({
+        projectIds: (await db.select().from(projects).where(eq(projects.tenantId, tenantA.id)))
+          .map((row) => row.id)
+          .sort(),
+        linkIds: (
+          await db.select().from(projectResources).where(eq(projectResources.tenantId, tenantA.id))
+        )
+          .map((row) => row.id)
+          .sort(),
+        evidenceIds: (
+          await db.select().from(evidenceItems).where(eq(evidenceItems.tenantId, tenantA.id))
+        )
+          .map((row) => row.id)
+          .sort(),
+        skillIds: (
+          await db.select().from(candidateSkills).where(eq(candidateSkills.tenantId, tenantA.id))
+        )
+          .map((row) => row.id)
+          .sort(),
+      });
+      const before = await read();
+      await db
+        .update(resources)
+        .set({ name: 'owner/renamed-historical-repository', displayName: 'Renamed Repository' })
+        .where(eq(resources.id, resourceA.id));
+      try {
+        const result = await Promise.all(
+          Array.from({ length: 3 }, () =>
+            new CandidateRepositoryIngestionService({
+              db,
+              registry: mockRegistry,
+            }).syncCandidateRepositories({
+              context: { tenantId: tenantA.id, userId: userA.id },
+              candidateId: candidateA.id,
+            })
+          )
+        );
+        assert.ok(result.some((summary) => summary.repositoriesProcessed === 1));
+        assert.ok(result.every((summary) => summary.projectsCreated === 0));
+        assert.ok(
+          result
+            .flatMap((summary) => summary.warnings)
+            .every((warning) =>
+              warning.includes('Repository access changed during extraction; revalidation required')
+            ),
+          JSON.stringify(result)
+        );
+        assert.deepEqual(await read(), before);
+      } finally {
+        await db
+          .update(resources)
+          .set({ name: resourceA.name, displayName: resourceA.displayName })
+          .where(eq(resources.id, resourceA.id));
+      }
+    });
+    it('preserves legacy exact duplicate IDs without creating more duplicates', async () => {
+      const [original] = await db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.resourceId, resourceA.id));
+      const { id: _id, ...legacy } = original;
+      const [duplicate] = await db.insert(evidenceItems).values(legacy).returning();
+      const before = await db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.resourceId, resourceA.id));
+      const result = await new CandidateRepositoryIngestionService({
+        db,
+        registry: mockRegistry,
+      }).syncCandidateRepositories({
+        context: { tenantId: tenantA.id, userId: userA.id },
+        candidateId: candidateA.id,
+      });
+      assert.deepEqual(result.warnings, []);
+      const after = await db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.resourceId, resourceA.id));
+      assert.deepEqual(after.map((row) => row.id).sort(), before.map((row) => row.id).sort());
+      assert.ok(after.some((row) => row.id === duplicate.id));
+      assert.ok(after.some((row) => row.id === original.id));
     });
   });
 

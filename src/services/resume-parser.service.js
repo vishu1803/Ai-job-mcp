@@ -672,6 +672,11 @@ export class ResumeParserService {
         /^(?:certifications?|licenses?|licenses?\s*(?:&|and)\s*certifications?|courses?|credentials?)$/i,
     },
     {
+      type: 'OTHER',
+      regex:
+        /^(?:publications?|research|awards?|achievements?|volunteer(?: experience)?|leadership|languages|coursework|professional activities|custom sections?)$/i,
+    },
+    {
       type: 'CONTACT_INFO',
       regex:
         /^(?:contact\s*(?:info(?:rmation)?|details?)?|personal\s+details?|links|profiles?|social\s+profiles?)$/i,
@@ -857,6 +862,7 @@ export class ResumeParserService {
         }
       }
 
+      if (!matchedType && /^#{1,6}\s+/.test(clean)) matchedType = 'OTHER';
       if (matchedType) {
         if (currentLines.length > 0) {
           const text = currentLines.join('\n').trim();
@@ -1189,9 +1195,65 @@ export class ResumeParserService {
         .split('\n')
         .map((l) => l.trim().replace(/^[●•\-*]\s*/, ''))
         .filter((l) => l.length > 2);
-      return { certs };
+      // Ambiguous text remains verbatim; labeled pipe-delimited metadata is parsed without guessing.
+      const certifications = certs.map((line) => {
+        const [name, ...parts] = line.split(' | ');
+        const record = { name, provenanceStatus: 'CLAIMED' };
+        const unparsed = [];
+        for (const part of parts) {
+          const match = /^(Issuer|Issued|Expires|ID|URL):\s*(.+)$/i.exec(part);
+          if (!match) {
+            unparsed.push(part);
+            continue;
+          }
+          record[
+            {
+              issuer: 'issuingOrganization',
+              issued: 'issueDate',
+              expires: 'expirationDate',
+              id: 'credentialId',
+              url: 'credentialUrl',
+            }[match[1].toLowerCase()]
+          ] = match[2];
+        }
+        if (unparsed.length) record.notes = unparsed.join(' | ');
+        return record;
+      });
+      return { certs, certifications };
     }
 
+    if (sectionType === 'OTHER') {
+      const cleanHeading = heading.replace(/^#{1,6}\s*/, '').toLowerCase();
+      const field = /^publications?|research$/.test(cleanHeading)
+        ? 'publications'
+        : /^awards?/.test(cleanHeading)
+          ? 'awards'
+          : /^achievements?/.test(cleanHeading)
+            ? 'achievements'
+            : /^volunteer/.test(cleanHeading)
+              ? 'volunteerExperience'
+              : /^leadership/.test(cleanHeading)
+                ? 'leadership'
+                : /^languages/.test(cleanHeading)
+                  ? 'languages'
+                  : /^coursework/.test(cleanHeading)
+                    ? 'coursework'
+                    : 'customSections';
+      const entries = text
+        .split('\n')
+        .map((line) => line.trim().replace(/^[\u2022\u25cf*-]\s*/, ''))
+        .filter(Boolean);
+      return {
+        sourceSectionKey: field,
+        entries:
+          field === 'customSections'
+            ? [{ title: heading.replace(/^#{1,6}\s*/, ''), items: entries }]
+            : entries.map((line) =>
+                field === 'languages' ? { language: line } : { description: line }
+              ),
+        content: text,
+      };
+    }
     return {
       content: text,
       urls,

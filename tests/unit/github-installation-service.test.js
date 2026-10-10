@@ -4,7 +4,10 @@ import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
-import { getInstallationCookieOptions } from '../../src/services/github-installation.service.js';
+import {
+  GitHubInstallationService,
+  getInstallationCookieOptions,
+} from '../../src/services/github-installation.service.js';
 import { githubFixture, masterKey, installation } from '../helpers/github-installation.fixture.js';
 
 const context = {
@@ -29,6 +32,47 @@ const sign = (data) => {
 };
 
 describe('ISSUE-01 installation state and lifecycle validation', () => {
+  it('derives the fixed connector callback from the configured public address', () => {
+    const service = new GitHubInstallationService({
+      db: {},
+      appUrl: 'https://dev.aicareershub.tech/',
+      authManager: {},
+      masterKey,
+    });
+    assert.equal(
+      service.callbackUrl,
+      'https://dev.aicareershub.tech/integrations/github/authorize/callback'
+    );
+    const token = sign({ ...payload(), callbackUrl: service.callbackUrl });
+    assert.equal(
+      service.validateInstallationState({
+        ...context,
+        stateToken: token,
+        cookieToken: token,
+        phase: 'authorize',
+      }).callbackUrl,
+      service.callbackUrl
+    );
+  });
+  it('rejects localhost state after the configured connector address changes', () => {
+    const service = new GitHubInstallationService({
+      db: {},
+      appUrl: 'https://dev.aicareershub.tech',
+      authManager: {},
+      masterKey,
+    });
+    const token = sign(payload());
+    assert.throws(
+      () =>
+        service.validateInstallationState({
+          ...context,
+          stateToken: token,
+          cookieToken: token,
+          phase: 'authorize',
+        }),
+      { code: 'INVALID_OAUTH_STATE' }
+    );
+  });
   it('accepts signed session/user/tenant/identity/callback/installation context', () => {
     const { service } = githubFixture({});
     const token = sign(payload());
@@ -45,6 +89,22 @@ describe('ISSUE-01 installation state and lifecycle validation', () => {
 
   const invalidCases = [
     ['missing state', () => ({ stateToken: undefined })],
+    ['oversized state', () => ({ stateToken: 'x'.repeat(4097), cookieToken: 'x'.repeat(4097) })],
+    [
+      'malformed payload',
+      () => {
+        const encoded = Buffer.from('{').toString('base64url');
+        const token = `${encoded}.${crypto.createHmac('sha256', masterKey).update(encoded).digest('base64url')}`;
+        return { stateToken: token, cookieToken: token };
+      },
+    ],
+    [
+      'null payload',
+      () => {
+        const token = sign(null);
+        return { stateToken: token, cookieToken: token };
+      },
+    ],
     ['missing cookie', () => ({ cookieToken: undefined })],
     ['mismatched cookie', () => ({ cookieToken: 'different' })],
     [
@@ -91,18 +151,44 @@ describe('ISSUE-01 installation state and lifecycle validation', () => {
     ],
     ['wrong phase', () => ({ phase: 'install' })],
   ];
+  const failureReasons = {
+    'missing state': 'MISSING_STATE',
+    'oversized state': 'STATE_TOO_LONG',
+    'malformed payload': 'MALFORMED_PAYLOAD',
+    'null payload': 'MALFORMED_PAYLOAD',
+    'missing cookie': 'MISSING_COOKIE',
+    'mismatched cookie': 'COOKIE_MISMATCH',
+    'invalid signature': 'INVALID_SIGNATURE',
+    'expired state': 'EXPIRED_STATE',
+    'invalid expiry': 'INVALID_EXPIRY',
+    'another user': 'USER_MISMATCH',
+    'another tenant': 'TENANT_MISMATCH',
+    'another session': 'SESSION_MISMATCH',
+    'another GitHub identity': 'GITHUB_IDENTITY_MISMATCH',
+    'another callback': 'CALLBACK_MISMATCH',
+    'wrong phase': 'PHASE_MISMATCH',
+  };
   for (const [name, change] of invalidCases)
     it(`rejects ${name}`, () => {
       const { service } = githubFixture({});
       const token = sign(payload());
-      assert.throws(() =>
-        service.validateInstallationState({
-          ...context,
-          stateToken: token,
-          cookieToken: token,
-          phase: 'authorize',
-          ...change(),
-        })
+      assert.throws(
+        () =>
+          service.validateInstallationState({
+            ...context,
+            stateToken: token,
+            cookieToken: token,
+            phase: 'authorize',
+            ...change(),
+          }),
+        (error) => {
+          assert.equal(error.code, 'INVALID_OAUTH_STATE');
+          assert.equal(error.statusCode, 401);
+          assert.equal(error.details, null);
+          assert.equal(error.installationStateFailure, failureReasons[name]);
+          assert.ok(!JSON.stringify(error).includes('installationStateFailure'));
+          return true;
+        }
       );
     });
 

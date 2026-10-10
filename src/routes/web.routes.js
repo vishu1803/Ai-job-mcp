@@ -1,3 +1,4 @@
+import { buildArtifactContentDisposition } from '../utils/artifact-filename-builder.js';
 /**
  * @file Web Application View Routes (P13.5-002).
  *
@@ -22,7 +23,7 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and, or, desc, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import {
   validateSession,
   getSessionCookieOptions,
@@ -46,6 +47,7 @@ import {
 } from '../db/schema.js';
 import { config } from '../config/env.js';
 import { CandidateRepositoryIngestionService } from '../services/candidate-repository-ingestion.service.js';
+import { GitHubRepositorySelectionService } from '../services/github-repository-selection.service.js';
 import { connectionService as defaultConnectionService } from '../services/connection.service.js';
 import { connectorRegistry } from '../connectors/registry/connector-registry.js';
 import { ApplicationHandoffService } from '../services/application-handoff.service.js';
@@ -107,7 +109,7 @@ import {
   normalizeEmploymentTypes,
   normalizeVisaSponsorship,
 } from '../domain/candidate/career-preferences.schemas.js';
-import { NotFoundError } from '../errors/index.js';
+import { NotFoundError, ValidationError } from '../errors/index.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 
 /**
@@ -193,6 +195,10 @@ export default async function webRoutes(app, opts = {}) {
   const database = opts.db || defaultDb;
   const ingestionService =
     opts.ingestionService || new CandidateRepositoryIngestionService({ db: database });
+  const repositorySelectionService = new GitHubRepositorySelectionService({
+    db: database,
+    installationService: opts.installationService,
+  });
   const ingestionStateService = opts.ingestionStateService || defaultIngestionStateService;
   const connectionService = opts.connectionService || defaultConnectionService;
   const resumeService = opts.resumeService || defaultSourceResumeIngestionService;
@@ -581,7 +587,7 @@ export default async function webRoutes(app, opts = {}) {
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
 
     const stepParam = parseInt(req.query?.step, 10) || 1;
-    const errorMsg = req.query?.error || '';
+    let errorMsg = req.query?.error || '';
     const successMsg = req.query?.success || '';
 
     // Fetch active GitHub App connection
@@ -591,6 +597,7 @@ export default async function webRoutes(app, opts = {}) {
       .where(
         and(
           eq(resourceConnections.tenantId, tenant.id),
+          eq(resourceConnections.userId, user.id),
           eq(resourceConnections.provider, 'GITHUB_APP'),
           eq(resourceConnections.status, 'ACTIVE')
         )
@@ -621,30 +628,19 @@ export default async function webRoutes(app, opts = {}) {
     // Available repositories: derive from connector or selected resources
     let availableRepos = [...selectedResources];
     // Lazy external provider load: Only contact GitHub on Step 3 (Repository Selection) when requested or empty
-    const shouldFetchExternal =
-      stepParam === 3 && (req.query?.refresh === 'true' || availableRepos.length === 0);
+    const shouldFetchExternal = stepParam === 3;
     if (
       shouldFetchExternal &&
       gitHubConnection?.installationId &&
       connectorRegistry.has('GITHUB_APP')
     ) {
       try {
-        const connector = connectorRegistry.get('GITHUB_APP');
-        const listRes = await connector.listResources(
-          {
-            tenantId: tenant.id,
-            userId: user.id,
-            connectionId: gitHubConnection.id,
-            installationId: gitHubConnection.installationId,
-            connectionStatus: gitHubConnection.status,
-          },
-          {
-            installationId: gitHubConnection.installationId,
-          },
-          { limit: 100 }
+        const listed = await repositorySelectionService.listAvailable(
+          { tenantId: tenant.id, userId: user.id },
+          gitHubConnection
         );
-        if (listRes && Array.isArray(listRes.items) && listRes.items.length > 0) {
-          availableRepos = listRes.items.map((item) => ({
+        {
+          availableRepos = listed.map((item) => ({
             id: String(item.id),
             externalResourceId: String(item.id),
             name: item.name,
@@ -660,9 +656,11 @@ export default async function webRoutes(app, opts = {}) {
           }));
         }
       } catch (err) {
+        errorMsg =
+          'GitHub repository access could not be verified. Retry before saving selections.';
         req.log.warn(
           { err: err.message },
-          'Could not list external repositories from connector; using existing resources'
+          'Could not verify current repository access for selection'
         );
       }
     }
@@ -777,6 +775,7 @@ export default async function webRoutes(app, opts = {}) {
       .where(
         and(
           eq(resourceConnections.tenantId, tenant.id),
+          eq(resourceConnections.userId, user.id),
           eq(resourceConnections.provider, 'GITHUB_APP'),
           eq(resourceConnections.status, 'ACTIVE')
         )
@@ -796,221 +795,27 @@ export default async function webRoutes(app, opts = {}) {
       return reply.redirect('/onboarding?step=2&error=GitHub+App+is+not+connected');
     }
 
-    // Authoritative server-side validation against GitHub App installation
-    let authorizedRepos = [];
-    if (gitHubConnection?.installationId && connectorRegistry.has('GITHUB_APP')) {
-      try {
-        const connector = connectorRegistry.get('GITHUB_APP');
-        const listRes = await connector.listResources(
-          {
-            tenantId: tenant.id,
-            userId: user.id,
-            connectionId: gitHubConnection.id,
-            installationId: gitHubConnection.installationId,
-            connectionStatus: gitHubConnection.status,
-          },
-          {
-            installationId: gitHubConnection.installationId,
-          },
-          { limit: 100 }
-        );
-        if (listRes && Array.isArray(listRes.items) && listRes.items.length > 0) {
-          authorizedRepos = listRes.items;
-        }
-      } catch (err) {
-        req.log.warn(
-          { err },
-          'Failed to fetch authorized repositories from connector; falling back to stored resources'
-        );
-      }
-    }
-
-    if (authorizedRepos.length === 0) {
-      try {
-        const existingDbResources = await database
-          .select()
-          .from(resources)
-          .where(
-            and(
-              eq(resources.tenantId, tenant.id),
-              eq(resources.candidateId, candidate.id),
-              eq(resources.provider, 'GITHUB_APP')
-            )
-          );
-        if (existingDbResources && existingDbResources.length > 0) {
-          authorizedRepos = existingDbResources.map((r) => ({
-            id: r.externalResourceId || r.id,
-            fullName: r.name,
-            name: r.displayName || r.name,
-            url: r.url,
-            isPrivate: r.isPrivate,
-            metadata: r.metadata || {},
-          }));
-        }
-      } catch (fallbackErr) {
-        req.log.error({ fallbackErr }, 'Failed database fallback during repository selection');
-      }
-    }
-
-    // Multi-tier fallback for test suites and initial selection when connector is unconfigured
-    if (authorizedRepos.length === 0 && repoKeys.length > 0) {
-      authorizedRepos = repoKeys.map((key) => {
-        const repoName = String(key);
-        const owner =
-          gitHubConnection.externalAccountName || gitHubConnection.account || 'candidate';
-        const fullName = repoName.includes('/') ? repoName : `${owner}/${repoName}`;
-        return {
-          id: repoName,
-          fullName,
-          name: repoName.split('/').pop() || repoName,
-          url: `https://github.com/${fullName}`,
-          isPrivate: false,
-          metadata: {},
-        };
-      });
-    }
-
-    // Build authorization lookup map (id, fullName, name)
-    const authMap = new Map();
-    for (const r of authorizedRepos) {
-      authMap.set(String(r.id), r);
-      if (r.fullName) authMap.set(r.fullName, r);
-      if (r.name) authMap.set(r.name, r);
-    }
-
-    // Validate, deduplicate, and resolve each selected key (fail closed on unauthorized repo IDs)
-    const validReposToIngest = [];
-    const seenValidIds = new Set();
-    for (const key of repoKeys) {
-      const matched = authMap.get(key);
-      if (matched && !seenValidIds.has(String(matched.id))) {
-        seenValidIds.add(String(matched.id));
-        validReposToIngest.push(matched);
-      } else if (!matched) {
-        req.log.warn(
-          { key, tenantId: tenant.id },
-          'Rejected unauthorized or unknown repository selection'
-        );
-      }
-    }
-
-    // Upsert validated repositories into resources table with canonical numeric externalResourceId
-    const activeExternalIds = new Set();
-    for (const repo of validReposToIngest) {
-      const externalId = String(repo.id);
-      activeExternalIds.add(externalId);
-      const repoName = repo.fullName || repo.name;
-      const repoUrl = repo.url || repo.metadata?.htmlUrl || `https://github.com/${repoName}`;
-
-      const [existing] = await database
-        .select()
-        .from(resources)
-        .where(
-          and(
-            eq(resources.tenantId, tenant.id),
-            eq(resources.provider, 'GITHUB_APP'),
-            or(
-              eq(resources.externalResourceId, externalId),
-              eq(resources.externalResourceId, repoName),
-              eq(resources.externalResourceId, repo.fullName || repoName)
-            )
-          )
-        )
-        .limit(1);
-
-      if (existing) {
-        await database
-          .update(resources)
-          .set({
-            candidateId: candidate.id,
-            connectionId: gitHubConnection.id,
-            externalResourceId: externalId,
-            name: repoName,
-            displayName: repoName,
-            url: repoUrl,
-            isPrivate: Boolean(repo.isPrivate),
-            status: 'ACTIVE',
-            updatedAt: new Date(),
-          })
-          .where(eq(resources.id, existing.id));
-      } else {
-        try {
-          await database.insert(resources).values({
-            tenantId: tenant.id,
-            candidateId: candidate.id,
-            connectionId: gitHubConnection.id,
-            provider: 'GITHUB_APP',
-            resourceType: 'REPOSITORY',
-            externalResourceId: externalId,
-            name: repoName,
-            displayName: repoName,
-            url: repoUrl,
-            isPrivate: Boolean(repo.isPrivate),
-            status: 'ACTIVE',
-          });
-        } catch {
-          await database
-            .update(resources)
-            .set({
-              candidateId: candidate.id,
-              connectionId: gitHubConnection.id,
-              name: repoName,
-              displayName: repoName,
-              url: repoUrl,
-              isPrivate: Boolean(repo.isPrivate),
-              status: 'ACTIVE',
-              updatedAt: new Date(),
-            })
-            .where(
-              and(
-                eq(resources.tenantId, tenant.id),
-                eq(resources.provider, 'GITHUB_APP'),
-                eq(resources.externalResourceId, externalId)
-              )
-            );
-        }
-      }
-    }
-
-    // Deselection: Update any previously ACTIVE resources for this candidate/connection not in activeExternalIds
-    const existingActiveResources = await database
-      .select()
-      .from(resources)
-      .where(
-        and(
-          eq(resources.tenantId, tenant.id),
-          eq(resources.candidateId, candidate.id),
-          eq(resources.provider, 'GITHUB_APP'),
-          eq(resources.status, 'ACTIVE')
-        )
-      );
-
-    for (const res of existingActiveResources) {
-      if (!activeExternalIds.has(res.externalResourceId)) {
-        await database
-          .update(resources)
-          .set({
-            status: 'DISCONNECTED',
-            updatedAt: new Date(),
-          })
-          .where(eq(resources.id, res.id));
-      }
-    }
+    const result = await repositorySelectionService.select({
+      context: { tenantId: tenant.id, userId: user.id, requestId: req.id },
+      candidateId: candidate.id,
+      connectionId: gitHubConnection.id,
+      repositoryIds: repoKeys,
+    });
 
     req.log.info(
       {
         tenantId: tenant.id,
         candidateId: candidate.id,
         receivedCount: repoKeys.length,
-        validatedCount: validReposToIngest.length,
-        persistedCount: activeExternalIds.size,
+        validatedCount: result.count,
+        persistedCount: result.count,
       },
       'Onboarding repository selection processed successfully'
     );
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, count: validReposToIngest.length });
+      return reply.send({ success: true, count: result.count });
     }
 
     if (isFromSources) {
@@ -1862,6 +1667,7 @@ export default async function webRoutes(app, opts = {}) {
       .where(
         and(
           eq(resourceConnections.tenantId, tenant.id),
+          eq(resourceConnections.userId, user.id),
           eq(resourceConnections.provider, 'GITHUB_APP'),
           eq(resourceConnections.status, 'ACTIVE')
         )
@@ -1879,6 +1685,21 @@ export default async function webRoutes(app, opts = {}) {
         )
       )
       .orderBy(desc(resources.createdAt));
+
+    const disconnectedRepositories = gitHubConnection
+      ? await database
+          .select({ id: resources.id })
+          .from(resources)
+          .where(
+            and(
+              eq(resources.tenantId, tenant.id),
+              eq(resources.candidateId, candidate.id),
+              eq(resources.connectionId, gitHubConnection.id),
+              eq(resources.provider, 'GITHUB_APP'),
+              eq(resources.status, 'DISCONNECTED')
+            )
+          )
+      : [];
 
     const resumesList = await resumeService.listResumes({
       context: {
@@ -1922,6 +1743,7 @@ export default async function webRoutes(app, opts = {}) {
       github: {
         connection: gitHubConnection || null,
         repositories: resourceList,
+        disconnectedRepositoryCount: disconnectedRepositories.length,
       },
       providers,
     };
@@ -1943,6 +1765,7 @@ export default async function webRoutes(app, opts = {}) {
       candidate,
       gitHubConnection: gitHubConnection || null,
       resources: resourceList,
+      disconnectedRepositoryCount: disconnectedRepositories.length,
       activeResume,
       previousResumes,
       resumesList,
@@ -2613,7 +2436,7 @@ export default async function webRoutes(app, opts = {}) {
 
     reply
       .header('Content-Type', mimeType || 'application/octet-stream')
-      .header('Content-Disposition', `attachment; filename="${fileName}"`)
+      .header('Content-Disposition', buildArtifactContentDisposition(fileName))
       .header('Content-Length', fileSizeBytes)
       .send(buffer);
   });
@@ -2852,23 +2675,31 @@ export default async function webRoutes(app, opts = {}) {
         undefined
       );
     }
-    if (body.experience !== undefined || identitySec.experience !== undefined) {
-      sectionUpdates.experience = parseJsonField(
-        body.experience || identitySec.experience,
-        undefined
-      );
-    }
-    if (body.education !== undefined || identitySec.education !== undefined) {
-      sectionUpdates.education = parseJsonField(body.education || identitySec.education, undefined);
-    }
-    if (body.certifications !== undefined || identitySec.certifications !== undefined) {
-      sectionUpdates.certifications = parseJsonField(
-        body.certifications || identitySec.certifications,
-        undefined
-      );
-    }
-    if (body.languages !== undefined || identitySec.languages !== undefined) {
-      sectionUpdates.languages = parseJsonField(body.languages || identitySec.languages, undefined);
+    for (const field of [
+      'experience',
+      'education',
+      'certifications',
+      'languages',
+      'coursework',
+      'publications',
+      'achievements',
+      'awards',
+      'volunteerExperience',
+      'leadership',
+      'customSections',
+    ]) {
+      const value = resolveField(field, identitySec);
+      if (value !== undefined) {
+        // Do not turn malformed JSON into a successful no-op or lose explicit null clears.
+        try {
+          sectionUpdates[field] = typeof value === 'string' ? JSON.parse(value) : value;
+        } catch {
+          throw new ValidationError(
+            'Invalid JSON in resume section: ' + field,
+            'INVALID_RESUME_SOURCE'
+          );
+        }
+      }
     }
     if (body.portfolioLinks !== undefined || contactSec.portfolioLinks !== undefined) {
       sectionUpdates.portfolioLinks = parseJsonField(
@@ -3382,6 +3213,18 @@ export default async function webRoutes(app, opts = {}) {
           section: 'additionalSkills',
         });
       }
+    }
+
+    for (const field of [
+      'coursework',
+      'publications',
+      'achievements',
+      'awards',
+      'volunteerExperience',
+      'leadership',
+      'customSections',
+    ]) {
+      if (Object.hasOwn(sections, field)) sectionUpdates[field] = sections[field];
     }
 
     // Save profile sections via existing service
@@ -4123,6 +3966,7 @@ export default async function webRoutes(app, opts = {}) {
     let currentPackage = null;
     let targetPackage = null;
     let targetSnapshots = [];
+    let requiresRevalidation = false;
 
     if (includeHistory) {
       try {
@@ -4139,7 +3983,13 @@ export default async function webRoutes(app, opts = {}) {
           context,
           appId
         );
-      } catch {
+      } catch (err) {
+        // A rejected persisted package is unavailable, not an absent package
+        // that a GET may replace with freshly generated content.
+        requiresRevalidation = err.code === 'ARTIFACT_REVALIDATION_REQUIRED';
+        if (requiresRevalidation) {
+          req.log.warn({ err, applicationId: appId }, 'Handoff package requires regeneration');
+        }
         currentPackage = null;
       }
     }
@@ -4154,10 +4004,8 @@ export default async function webRoutes(app, opts = {}) {
         targetPackage = res.package;
         targetSnapshots = res.documentSnapshots;
       } catch (err) {
-        req.log.warn(
-          { err: err.message, viewingVersion },
-          'Requested package version not found; falling back to current'
-        );
+        if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') requiresRevalidation = true;
+        req.log.warn({ err, viewingVersion }, 'Requested package version unavailable');
       }
     }
 
@@ -4175,7 +4023,8 @@ export default async function webRoutes(app, opts = {}) {
             targetPackage.version
           );
           targetSnapshots = res.documentSnapshots;
-        } catch {
+        } catch (err) {
+          if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') requiresRevalidation = true;
           // Best effort
         }
       }
@@ -4189,11 +4038,19 @@ export default async function webRoutes(app, opts = {}) {
       targetPackage && currentPackage && targetPackage.version !== currentPackage.version
     );
 
-    let handoffKit = application.metadata?.handoffKit;
+    requiresRevalidation ||= Boolean(
+      targetPackage?.quarantineStatus === 'REVALIDATION_REQUIRED' ||
+      (!targetPackage && application.metadata?.artifactStatus === 'REVALIDATION_REQUIRED')
+    );
+    let handoffKit = requiresRevalidation ? null : application.metadata?.handoffKit;
 
     // If targetPackage is specified and differs from handoffKit on application metadata,
     // reconstruct handoffKit from stored snapshot artifacts
-    if (targetPackage && (!handoffKit || handoffKit.packageHash !== targetPackage.packageHash)) {
+    if (
+      !requiresRevalidation &&
+      targetPackage &&
+      (!handoffKit || handoffKit.packageHash !== targetPackage.packageHash)
+    ) {
       const resumeSnapshot = targetSnapshots.find((d) => d.documentType === 'TAILORED_RESUME');
       const clSnapshot = targetSnapshots.find((d) => d.documentType === 'TAILORED_COVER_LETTER');
 
@@ -4262,7 +4119,7 @@ export default async function webRoutes(app, opts = {}) {
       req.query?.generate === 'true' ||
       Boolean(req.query?.success);
 
-    if (!handoffKit && !targetPackage && shouldGenerateSync) {
+    if (!requiresRevalidation && !handoffKit && !targetPackage && shouldGenerateSync) {
       const contentService =
         applicationHandoffContentService || new CandidateArtifactContentService({ database });
       let documentContent;
@@ -4297,8 +4154,8 @@ export default async function webRoutes(app, opts = {}) {
             undefined,
         });
       } catch (contentErr) {
-        req.log.warn(
-          { error: contentErr.message },
+        req.log.error(
+          { err: contentErr, applicationId: appId },
           'Real document content generation failed for handoff kit'
         );
         return reply
@@ -4384,8 +4241,17 @@ export default async function webRoutes(app, opts = {}) {
 
         packageHistory = await applicationTrackingService.listApplicationPackages(context, appId);
       } catch (buildErr) {
-        req.log.warn({ error: buildErr.message }, 'Failed to generate initial handoff kit');
-        return reply.code(500).send('Error generating application handoff kit');
+        if (buildErr.code === 'ARTIFACT_REVALIDATION_REQUIRED') {
+          requiresRevalidation = true;
+          handoffKit = null;
+          req.log.warn({ err: buildErr, applicationId: appId }, 'Handoff requires regeneration');
+        } else {
+          req.log.error(
+            { err: buildErr, applicationId: appId },
+            'Failed to generate initial handoff kit'
+          );
+          return reply.code(500).send('Error generating application handoff kit');
+        }
       }
     }
 
@@ -4411,7 +4277,10 @@ export default async function webRoutes(app, opts = {}) {
           evalResult.readinessSemantics || (evalResult && evalResult.readinessSemantics) || null;
       }
     } catch (evalErr) {
-      req.log.warn({ err: evalErr.message }, 'Failed to refresh canonical readiness evaluation');
+      req.log.warn(
+        { err: evalErr, applicationId: appId },
+        'Failed to refresh canonical readiness evaluation'
+      );
     }
 
     const canDeletePackages =
@@ -4424,6 +4293,7 @@ export default async function webRoutes(app, opts = {}) {
       tenant,
       application,
       handoffKit,
+      requiresRevalidation,
       packageHistory,
       currentPackage,
       viewingVersion: targetPackage?.version || currentPackage?.version || 1,
@@ -4476,12 +4346,35 @@ export default async function webRoutes(app, opts = {}) {
       );
     } catch (err) {
       if (err.name === 'NotFoundError') {
+        req.log.warn({ err, appId }, 'Package regeneration resource not found');
         return reply.code(404).send('Application not found');
       }
       if (err.name === 'AuthorizationError') {
+        req.log.warn({ err, appId }, 'Package regeneration access denied');
         return reply.code(403).send('Forbidden: You do not have access to this application');
       }
-      req.log.error({ err: err.message, appId }, 'Package regeneration failed');
+      req.log.error({ err, appId }, 'Package regeneration failed');
+      if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') {
+        const blockers = err.evidenceDiagnostics?.blockedSources || [];
+        let recovery =
+          'Regeneration was blocked by evidence validation. Check your connected resources before retrying.';
+        if (blockers.some((source) => source.issues.includes('CONNECTION_OWNER_MISMATCH'))) {
+          recovery =
+            'A resource connection does not belong to this candidate. Review Sources and reconnect using the correct account before regenerating.';
+        } else if (blockers.some((source) => source.issues.includes('CONNECTION_INACTIVE'))) {
+          recovery =
+            'A resource connection is inactive. Reconnect it on Sources before regenerating.';
+        } else if (blockers.some((source) => source.issues.includes('RESOURCE_INACTIVE'))) {
+          recovery =
+            'A repository or resource is unavailable or deselected. Review Sources and Manage Repositories before regenerating.';
+        } else if (err.evidenceDiagnostics?.bindingsChanged) {
+          recovery =
+            'Your connected resources changed during generation. Wait for synchronization to finish, then regenerate.';
+        }
+        return reply.redirect(
+          `/applications/${appId}/handoff?error=${encodeURIComponent(`${recovery} Fresh review and approval will be required.`)}`
+        );
+      }
       return reply.redirect(
         `/applications/${appId}/handoff?error=${encodeURIComponent(sanitizeErrorMessage(err, "We couldn't regenerate this package. Please try again."))}`
       );
@@ -4764,7 +4657,7 @@ export default async function webRoutes(app, opts = {}) {
 
       return reply
         .type(mimeType)
-        .header('Content-Disposition', `inline; filename="${filename}"`)
+        .header('Content-Disposition', buildArtifactContentDisposition(filename, 'inline'))
         .header(
           'Content-Security-Policy',
           "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self';"
@@ -5136,7 +5029,7 @@ export default async function webRoutes(app, opts = {}) {
 
       return reply
         .type(mimeType)
-        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .header('Content-Disposition', buildArtifactContentDisposition(filename))
         .header('X-Content-Type-Options', 'nosniff')
         .header('X-Package-Hash', resolvedPackageHash || '')
         .header('X-Application-Id', appId)

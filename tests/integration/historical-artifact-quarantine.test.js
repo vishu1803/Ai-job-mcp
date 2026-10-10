@@ -40,7 +40,19 @@ let tenantId, userId, candidateId, connectionId, resourceId, context, storage, o
 let app;
 beforeEach(async () => {
   const identity = await pool.query('SHOW data_directory');
-  assert.match(identity.rows[0].data_directory, /ai-job-issue01-pg-20261007/);
+  const directory = identity.rows[0].data_directory.replaceAll('\\', '/');
+  if (
+    [
+      'C:/Users/VISHW/AppData/Local/Temp/career-prd003-20261010/pgdata',
+      'C:/Users/VISHW/AppData/Local/Temp/career-large-tree-20261010/pgdata',
+    ].includes(directory)
+  ) {
+    const target = new URL(process.env.DATABASE_URL);
+    assert.ok(['localhost', '127.0.0.1'].includes(target.hostname));
+    assert.match(target.pathname, /^\/product_audit_/);
+  } else {
+    assert.match(directory, /ai-job-issue01-pg-20261007/);
+  }
   tenantId = crypto.randomUUID();
   userId = crypto.randomUUID();
   candidateId = crypto.randomUUID();

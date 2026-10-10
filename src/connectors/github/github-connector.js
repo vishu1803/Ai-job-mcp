@@ -18,6 +18,8 @@
  */
 
 import { Buffer } from 'node:buffer';
+import { GitHubSyncBudget, syncLimits } from './github-sync-budget.js';
+import { traverseGitTree } from './github-tree-traversal.js';
 import path from 'node:path';
 import { BaseResourceConnector } from '../base/resource-connector.js';
 import { CONNECTOR_CAPABILITIES } from '../base/capabilities.js';
@@ -91,8 +93,6 @@ const BLOCKED_BINARY_EXTENSIONS = new Set([
 
 const MAX_FILE_SIZE_BYTES = 1048576; // 1 MB
 const MAX_README_SIZE_BYTES = 262144; // 256 KB
-const MAX_TREE_ENTRIES = 1000;
-const MAX_TREE_DEPTH = 10;
 const MAX_COMMITS_LIMIT = 100;
 const DEFAULT_COMMITS_LIMIT = 30;
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
@@ -162,6 +162,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
     timeoutMs = 10000,
     cache = defaultGitHubConnectorCache,
     rateLimiter = defaultGitHubRateLimiter,
+    limits,
   } = {}) {
     super('GITHUB_APP');
     if (!authManager) {
@@ -173,6 +174,47 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.timeoutMs = timeoutMs;
     this.cache = cache;
     this.rateLimiter = rateLimiter;
+    this.syncLimits = syncLimits(limits);
+  }
+
+  withSyncBudget(budget) {
+    const scoped = new GitHubAppConnector({
+      authManager: this.authManager,
+      fetchFn: (url, options) => budget.fetch(this.fetch, url, options),
+      baseUrl: this.baseUrl,
+      timeoutMs: this.timeoutMs,
+      cache: null,
+      rateLimiter: this.rateLimiter,
+      limits: this.syncLimits,
+    });
+    scoped.syncBudget = budget;
+    return scoped;
+  }
+
+  async assertRepositorySelected(context, credentials, externalResourceId) {
+    const id = String(externalResourceId);
+    const visited = new Set();
+    let cursor = null;
+    do {
+      const page = await this.listResources(context, credentials, {
+        cursor,
+        limit: 100,
+        bypassCache: true,
+      });
+      if (page.items.some((resource) => String(resource.id) === id)) return;
+      if (!page.hasMore) break;
+      if (!page.nextCursor || visited.has(page.nextCursor))
+        throw new ValidationError(
+          'Incomplete GitHub selection pagination',
+          'SOURCE_REVALIDATION_REQUIRED'
+        );
+      cursor = page.nextCursor;
+      visited.add(cursor);
+    } while (cursor !== null);
+    throw new ValidationError(
+      'Repository is no longer selected for this installation',
+      'SOURCE_REVALIDATION_REQUIRED'
+    );
   }
 
   /**
@@ -286,6 +328,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
    */
   async _request(context, credentials, endpoint, options = {}) {
     this._assertActiveConnection(context);
+    this.syncBudget?.assertActive();
 
     const installationId = credentials?.installationId;
     if (!installationId) {
@@ -370,7 +413,10 @@ export class GitHubAppConnector extends BaseResourceConnector {
         }
 
         // 403 Rate Limit / 429 Too Many Requests
-        if (res.status === 429 || (res.status === 403 && rateLimitRemaining === '0')) {
+        if (
+          res.status === 429 ||
+          (res.status === 403 && (rateLimitRemaining === '0' || retryAfter !== null))
+        ) {
           const resetTimestamp = rateLimitReset ? Number(rateLimitReset) : undefined;
           const retryAfterSec = retryAfter
             ? Number(retryAfter)
@@ -380,7 +426,9 @@ export class GitHubAppConnector extends BaseResourceConnector {
 
           if (retryAfterSec <= 2 && attempt < maxRetries) {
             attempt++;
-            await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000));
+            await (this.syncBudget
+              ? this.syncBudget.wait(retryAfterSec * 1000)
+              : new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000)));
             continue;
           }
 
@@ -409,7 +457,9 @@ export class GitHubAppConnector extends BaseResourceConnector {
         if (res.status >= 500 && attempt < maxRetries) {
           attempt++;
           const backoffMs = Math.min(500 * Math.pow(2, attempt) + Math.random() * 100, 3000);
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          await (this.syncBudget
+            ? this.syncBudget.wait(backoffMs)
+            : new Promise((resolve) => setTimeout(resolve, backoffMs)));
           continue;
         }
 
@@ -438,7 +488,9 @@ export class GitHubAppConnector extends BaseResourceConnector {
         ) {
           attempt++;
           const backoffMs = Math.min(500 * Math.pow(2, attempt) + Math.random() * 100, 3000);
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          await (this.syncBudget
+            ? this.syncBudget.wait(backoffMs)
+            : new Promise((resolve) => setTimeout(resolve, backoffMs)));
           continue;
         }
 
@@ -591,9 +643,10 @@ export class GitHubAppConnector extends BaseResourceConnector {
     const params = { page, limit };
     const ttl = GITHUB_CACHE_TTL.LIST_RESOURCES;
 
-    const cached = this.cache
-      ? this.cache.get(context.tenantId, installationId, operation, null, params)
-      : null;
+    const cached =
+      this.cache && !options.bypassCache
+        ? this.cache.get(context.tenantId, installationId, operation, null, params)
+        : null;
 
     if (cached && !cached.isExpired) {
       return cached.data;
@@ -888,116 +941,20 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
-    const installationId = credentials?.installationId;
-    const resourceId = String(externalResourceId).trim();
-    const operation = 'getRepositoryTree';
-    const treeSha = options?.treeSha ? String(options.treeSha).trim() : 'HEAD';
-    const isPinned = /^[0-9a-f]{40}$/i.test(treeSha);
-    const ttl = isPinned
-      ? GITHUB_CACHE_TTL.GET_REPOSITORY_TREE_PINNED
-      : GITHUB_CACHE_TTL.GET_REPOSITORY_TREE;
-    const params = { treeSha };
-
-    const cached = this.cache
-      ? this.cache.get(context.tenantId, installationId, operation, resourceId, params)
-      : null;
-
-    if (cached && !cached.isExpired) {
-      return cached.data;
-    }
-
+    const identity = String(options.treeSha || 'HEAD').trim();
+    const scoped = this.syncBudget
+      ? this
+      : this.withSyncBudget(new GitHubSyncBudget(this.syncLimits, options.signal));
     const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
-    const endpoint = `${prefix}/git/trees/${encodeURIComponent(treeSha)}?recursive=1`;
-
-    try {
-      const res = await this._request(context, credentials, endpoint, {
-        etag: cached?.etag,
-        operation,
-        resourceId,
-      });
-
-      if (res.status === 304 && cached) {
-        this.cache.touch(context.tenantId, installationId, operation, resourceId, params, ttl);
-        return cached.data;
-      }
-
-      const data = res.data;
-      if (!data || !Array.isArray(data.tree)) {
-        throw new ProviderUnavailableError(
-          'GITHUB_APP',
-          'Malformed Git tree response received from GitHub',
-          false
-        );
-      }
-
-      const rawEntries = data.tree;
-      const normalizedEntries = [];
-      let isTruncated = Boolean(data.truncated);
-
-      for (const item of rawEntries) {
-        if (!item || !item.path) continue;
-
-        // Exclude symlinks (Git mode 120000)
-        if (item.mode === '120000') continue;
-
-        // Exclude binary extensions
-        if (isBlockedBinaryExtension(item.path)) continue;
-
-        // Validate & normalize path
-        let normalizedPath;
-        try {
-          normalizedPath = sanitizeRelativePosixPath(item.path);
-        } catch {
-          // Skip invalid/unsafe paths
-          continue;
-        }
-
-        // Calculate directory depth
-        const depth = normalizedPath.split('/').length;
-        if (depth > MAX_TREE_DEPTH) continue;
-
-        normalizedEntries.push({
-          path: normalizedPath,
-          mode: item.mode,
-          type: item.type === 'tree' ? 'tree' : 'blob',
-          sha: item.sha,
-          size: typeof item.size === 'number' ? item.size : undefined,
-          depth,
-        });
-
-        if (normalizedEntries.length >= MAX_TREE_ENTRIES) {
-          isTruncated = true;
-          break;
-        }
-      }
-
-      const normalizedTree = {
-        sha: data.sha || treeSha,
-        entries: normalizedEntries,
-        totalEntries: normalizedEntries.length,
-        truncated: isTruncated,
-      };
-
-      if (this.cache) {
-        const etag = res.headers?.get?.('etag') || null;
-        this.cache.set(
-          context.tenantId,
-          installationId,
-          operation,
-          resourceId,
-          params,
-          { data: normalizedTree, etag },
-          ttl
-        );
-      }
-
-      return normalizedTree;
-    } catch (err) {
-      if (err instanceof ResourceNotFoundError) {
-        throw new ResourceNotFoundError('GITHUB_APP', externalResourceId);
-      }
-      throw err;
-    }
+    // No HEAD/tree cache: every attempt must prove current installation access.
+    return traverseGitTree({
+      identity,
+      commitPinned: /^[a-f0-9]{40}$/.test(identity),
+      budget: scoped.syncBudget,
+      isBinary: isBlockedBinaryExtension,
+      request: async (suffix) =>
+        (await scoped._request(context, credentials, `${prefix}${suffix}`)).data,
+    });
   }
 
   /**

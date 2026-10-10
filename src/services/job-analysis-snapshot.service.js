@@ -6,6 +6,9 @@ import {
   ANALYSIS_SNAPSHOT_CONTRACT_VERSION,
   ANALYSIS_SNAPSHOT_TTL_MS,
   computeJobContentHash,
+  serializeAnalysisTimestamps,
+  serializeJobAnalysisSnapshot,
+  AnalysisTimestampSchema,
 } from '../domain/career/analysis-snapshot.schemas.js';
 import { AuthorizationError, ConflictError, ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
@@ -110,6 +113,23 @@ export class JobAnalysisSnapshotService {
       throw new ValidationError('canonicalJobId is required for snapshot persistence');
     if (!jobContentHash)
       throw new ValidationError('jobContentHash is required for snapshot persistence');
+
+    // Normalize known analysis timestamps before JSONB can implicitly stringify them.
+    ({
+      overallFit,
+      matchAnalysis,
+      projectRankings,
+      topRelevantProjects,
+      parsedJobDescription,
+      metadata,
+    } = serializeAnalysisTimestamps({
+      overallFit,
+      matchAnalysis,
+      projectRankings,
+      topRelevantProjects,
+      parsedJobDescription,
+      metadata,
+    }));
 
     await this._ensureTable();
 
@@ -347,6 +367,9 @@ export class JobAnalysisSnapshotService {
     }
 
     // 5. TTL Staleness Gate (2 hours)
+    if (!AnalysisTimestampSchema.safeParse(snapshot.analyzedAt).success) {
+      return { valid: false, reason: 'INVALID_ANALYSIS_TIMESTAMP', snapshot };
+    }
     const elapsedMs = Date.now() - new Date(snapshot.analyzedAt).getTime();
     if (elapsedMs > this.ttlMs) {
       logger.info(
@@ -377,6 +400,7 @@ export class JobAnalysisSnapshotService {
    */
   toWorkflowJobFit(snapshot) {
     if (!snapshot) return null;
+    snapshot = serializeJobAnalysisSnapshot(snapshot);
 
     const rankings = Array.isArray(snapshot.projectRankings) ? snapshot.projectRankings : [];
     const topProjects =

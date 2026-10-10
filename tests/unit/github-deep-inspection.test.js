@@ -3,7 +3,7 @@
  *
  * Tests:
  * 1. getReadme (Base64 decoding, 256KB truncation, missing 404 safety)
- * 2. getRepositoryTree (10-level depth, 1000-entry cap, symlink & binary filtering, upstream truncated flag)
+ * 2. getRepositoryTree (complete bounded trees, explicit filtering, truncated subtree rejection)
  * 3. getLanguages (byte-to-percentage conversion, deterministic sort, empty map handling)
  * 4. getRecentCommits (pagination, 500-char message pruning, author PII removal, SHA validation)
  * 5. getFileContent (1MB limit, binary extension blocklist, null-byte sniffing, symlink/dir rejection, path traversal)
@@ -14,6 +14,7 @@ import { describe, it, before, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { treeFixture, largeFixture } from '../fixtures/github-large-tree.js';
 import { GitHubAppConnector } from '../../src/connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from '../../src/connectors/github/auth.js';
 import { GitHubTokenCache } from '../../src/connectors/github/token-cache.js';
@@ -264,187 +265,52 @@ describe('GitHub Deep Repository Inspection Unit Tests (P3-005)', () => {
   // 3. getRepositoryTree() Tests
   // -------------------------------------------------------------------------
   describe('3. getRepositoryTree()', () => {
-    it('normalizes tree, excludes symlinks and binaries, and calculates depth', async () => {
-      const mockTree = [
-        { path: 'package.json', mode: '100644', type: 'blob', sha: 'sha-pkg', size: 500 },
-        { path: 'src', mode: '040000', type: 'tree', sha: 'sha-src' },
-        { path: 'src/index.js', mode: '100644', type: 'blob', sha: 'sha-idx', size: 1200 },
-        { path: 'src/components', mode: '040000', type: 'tree', sha: 'sha-cmp' },
-        { path: 'src/components/App.js', mode: '100644', type: 'blob', sha: 'sha-app', size: 800 },
-        { path: 'assets/logo.png', mode: '100644', type: 'blob', sha: 'sha-png', size: 4000 }, // binary -> exclude
-        { path: 'bundle.wasm', mode: '100644', type: 'blob', sha: 'sha-wasm', size: 50000 }, // binary -> exclude
-        { path: 'link_to_src', mode: '120000', type: 'blob', sha: 'sha-sym' }, // symlink -> exclude
-        {
-          path: 'a/b/c/d/e/f/g/h/i/j/k/deep.js',
-          mode: '100644',
-          type: 'blob',
-          sha: 'sha-deep',
-          size: 100,
-        }, // depth 12 > 10 -> exclude
-      ];
-
-      const mockFetch = async (url) => {
-        if (url.includes('/access_tokens')) {
-          return {
-            ok: true,
-            status: 201,
-            json: async () => ({
-              token: 'ghs_mock_token_123',
-              expires_at: new Date(Date.now() + 3600000).toISOString(),
-            }),
-          };
-        }
-
-        return {
-          ok: true,
-          status: 200,
-          headers: new globalThis.Headers(),
-          json: async () => ({
-            sha: 'root-tree-sha-123',
-            tree: mockTree,
-            truncated: false,
-          }),
-        };
-      };
-
-      const customAuth = new GitHubAppAuthManager({
-        appId: testAppId,
-        privateKey: rawPemPrivateKey,
-        fetchFn: mockFetch,
-        cache: tokenCache,
+    it('normalizes a complete immutable tree with explicit binary exclusions', async () => {
+      const fixture = treeFixture({
+        'package.json': '{}',
+        'src/index.js': 'source',
+        'assets/logo.png': 'image',
       });
-
       const connector = new GitHubAppConnector({
-        authManager: customAuth,
-        fetchFn: mockFetch,
+        authManager,
+        cache: null,
+        fetchFn: async () => globalThis.Response.json(fixture.recursive),
       });
-
-      const result = await connector.getRepositoryTree(
-        activeContext,
-        mockCredentials,
-        'vishu1803/Ai-job-mcp'
-      );
-
-      assert.strictEqual(result.sha, 'root-tree-sha-123');
-      assert.strictEqual(result.truncated, false);
-      assert.strictEqual(result.totalEntries, 5);
-      assert.strictEqual(result.entries.length, 5);
-
-      const paths = result.entries.map((e) => e.path);
-      assert.ok(paths.includes('package.json'));
-      assert.ok(paths.includes('src/index.js'));
-      assert.ok(paths.includes('src/components/App.js'));
-      assert.ok(!paths.includes('assets/logo.png')); // binary excluded
-      assert.ok(!paths.includes('bundle.wasm')); // binary excluded
-      assert.ok(!paths.includes('link_to_src')); // symlink excluded
-      assert.ok(!paths.includes('a/b/c/d/e/f/g/h/i/j/k/deep.js')); // depth > 10 excluded
-
-      const appEntry = result.entries.find((e) => e.path === 'src/components/App.js');
-      assert.strictEqual(appEntry.depth, 3);
-    });
-
-    it('caps tree at 1,000 entries and marks truncated: true', async () => {
-      const mockHugeTree = [];
-      for (let i = 1; i <= 1200; i++) {
-        mockHugeTree.push({
-          path: `file_${i}.js`,
-          mode: '100644',
-          type: 'blob',
-          sha: `sha-${i}`,
-          size: 100,
-        });
-      }
-
-      const mockFetch = async (url) => {
-        if (url.includes('/access_tokens')) {
-          return {
-            ok: true,
-            status: 201,
-            json: async () => ({
-              token: 'ghs_mock_token_123',
-              expires_at: new Date(Date.now() + 3600000).toISOString(),
-            }),
-          };
-        }
-
-        return {
-          ok: true,
-          status: 200,
-          headers: new globalThis.Headers(),
-          json: async () => ({
-            sha: 'huge-tree-sha',
-            tree: mockHugeTree,
-            truncated: false,
-          }),
-        };
-      };
-
-      const customAuth = new GitHubAppAuthManager({
-        appId: testAppId,
-        privateKey: rawPemPrivateKey,
-        fetchFn: mockFetch,
-        cache: tokenCache,
-      });
-
-      const connector = new GitHubAppConnector({
-        authManager: customAuth,
-        fetchFn: mockFetch,
-      });
-
       const result = await connector.getRepositoryTree(
         activeContext,
         mockCredentials,
         '1338724502'
       );
-
-      assert.strictEqual(result.totalEntries, 1000);
-      assert.strictEqual(result.entries.length, 1000);
-      assert.strictEqual(result.truncated, true);
+      assert.equal(result.complete, true);
+      assert.equal(result.entries.find((e) => e.path === 'src/index.js').depth, 2);
+      assert.ok(!result.entries.some((e) => e.path === 'assets/logo.png'));
     });
-
-    it('propagates upstream GitHub truncated flag', async () => {
-      const mockFetch = async (url) => {
-        if (url.includes('/access_tokens')) {
-          return {
-            ok: true,
-            status: 201,
-            json: async () => ({
-              token: 'ghs_mock_token_123',
-              expires_at: new Date(Date.now() + 3600000).toISOString(),
-            }),
-          };
-        }
-
-        return {
-          ok: true,
-          status: 200,
-          headers: new globalThis.Headers(),
-          json: async () => ({
-            sha: 'tree-truncated-sha',
-            tree: [{ path: 'index.js', mode: '100644', type: 'blob', sha: 'sha-1' }],
-            truncated: true,
-          }),
-        };
-      };
-
-      const customAuth = new GitHubAppAuthManager({
-        appId: testAppId,
-        privateKey: rawPemPrivateKey,
-        fetchFn: mockFetch,
-        cache: tokenCache,
-      });
-
+    it('retains all 1200 entries rather than applying the obsolete 1000 cap', async () => {
+      const fixture = largeFixture(1200);
       const connector = new GitHubAppConnector({
-        authManager: customAuth,
-        fetchFn: mockFetch,
+        authManager,
+        cache: null,
+        fetchFn: async () => globalThis.Response.json(fixture.recursive),
       });
-
       const result = await connector.getRepositoryTree(
         activeContext,
         mockCredentials,
         '1338724502'
       );
-      assert.strictEqual(result.truncated, true);
+      assert.equal(result.entries.length, 1200);
+      assert.equal(result.truncated, false);
+    });
+    it('fails closed when a direct subtree remains truncated', async () => {
+      const fixture = largeFixture(1);
+      const connector = new GitHubAppConnector({
+        authManager,
+        cache: null,
+        fetchFn: async () => globalThis.Response.json({ ...fixture.recursive, truncated: true }),
+      });
+      await assert.rejects(
+        connector.getRepositoryTree(activeContext, mockCredentials, '1338724502'),
+        /DIRECT_SUBTREE_TRUNCATED/
+      );
     });
   });
 

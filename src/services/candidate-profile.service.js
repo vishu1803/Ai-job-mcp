@@ -1,3 +1,5 @@
+import { normalizeResumeSourceSections } from '../utils/resume-source-normalizer.js';
+import { OPTIONAL_RESUME_SECTIONS } from '../domain/career/resume-source-fields.js';
 /**
  * @file Candidate Profile Service (P4-005)
  *
@@ -1555,110 +1557,18 @@ export class CandidateProfileService {
       }
     }
 
-    // 3. Experience Records (Multi-record CRUD)
-    if (Array.isArray(input.experience)) {
-      updatedCustom.experience = input.experience.map((exp) => {
-        const rawDates =
-          exp.rawDateRange ||
-          (exp.startDate && exp.endDate
-            ? `${exp.startDate} - ${exp.endDate}`
-            : exp.startDate || '');
-        const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
-        return {
-          company:
-            String(exp.company || '')
-              .trim()
-              .slice(0, 255) || 'Company',
-          title:
-            String(exp.title || exp.role || '')
-              .trim()
-              .slice(0, 255) || 'Role',
-          employmentType: String(exp.employmentType || 'FULL_TIME')
-            .toUpperCase()
-            .trim(),
-          location: exp.location ? String(exp.location).trim().slice(0, 255) : null,
-          startDate: exp.startDate || dNorm?.startDate || null,
-          endDate: exp.isCurrent ? null : exp.endDate || dNorm?.endDate || null,
-          isCurrent: Boolean(exp.isCurrent || dNorm?.isCurrent),
-          rawDateRange: exp.rawDateRange || dNorm?.rawDateRange || null,
-          bullets: Array.isArray(exp.bullets)
-            ? exp.bullets
-                .map(String)
-                .map((b) => b.trim())
-                .filter(Boolean)
-            : [],
-          technologies: Array.isArray(exp.technologies)
-            ? exp.technologies
-                .map(String)
-                .map((t) => t.trim())
-                .filter(Boolean)
-            : [],
-          provenanceStatus: 'USER_PROVIDED',
-        };
-      });
-      currentMeta.experience = updatedCustom.experience;
-    }
-
-    // 4. Education Records (Multi-record CRUD)
-    if (Array.isArray(input.education)) {
-      updatedCustom.education = EducationNormalizer.normalize(input.education, {
-        provenanceStatus: 'USER_PROVIDED',
-      });
-      currentMeta.education = updatedCustom.education;
-    }
-
-    // 5. Certifications (Multi-record CRUD)
-    if (Array.isArray(input.certifications)) {
-      updatedCustom.certifications = input.certifications
-        .map((cert) => {
-          if (typeof cert === 'string') {
-            return {
-              name: cert.trim(),
-              provenanceStatus: 'USER_PROVIDED',
-            };
-          }
-          return {
-            name: String(cert.name || '')
-              .trim()
-              .slice(0, 255),
-            issuer: cert.issuer ? String(cert.issuer).trim().slice(0, 255) : null,
-            issueDate: cert.issueDate ? String(cert.issueDate).trim() : null,
-            expiryDate: cert.expiryDate ? String(cert.expiryDate).trim() : null,
-            credentialId: cert.credentialId ? String(cert.credentialId).trim().slice(0, 255) : null,
-            credentialUrl: cert.credentialUrl
-              ? String(cert.credentialUrl).trim().slice(0, 1000)
-              : null,
-            notes: cert.notes ? String(cert.notes).trim().slice(0, 1000) : null,
-            provenanceStatus: 'USER_PROVIDED',
-          };
-        })
-        .filter((c) => Boolean(c.name));
-      currentMeta.certifications = updatedCustom.certifications;
-    }
-
-    // 6. Languages (Multi-record CRUD)
-    if (Array.isArray(input.languages)) {
-      updatedCustom.languages = input.languages
-        .map((lang) => {
-          if (typeof lang === 'string') {
-            return {
-              language: lang.trim(),
-              proficiency: 'PROFESSIONAL',
-              provenanceStatus: 'USER_PROVIDED',
-            };
-          }
-          return {
-            language: String(lang.language || '')
-              .trim()
-              .slice(0, 100),
-            proficiency: String(lang.proficiency || 'PROFESSIONAL')
-              .toUpperCase()
-              .trim(),
-            provenanceStatus: 'USER_PROVIDED',
-          };
-        })
-        .filter((l) => Boolean(l.language));
-      currentMeta.languages = updatedCustom.languages;
+    // Validate authoritative records before writing; explicit null/empty arrays clear stale data.
+    const sourceSections = normalizeResumeSourceSections(input);
+    for (const field of [
+      'experience',
+      'education',
+      'certifications',
+      ...Object.keys(OPTIONAL_RESUME_SECTIONS),
+    ]) {
+      if (Object.hasOwn(input, field)) {
+        updatedCustom[field] = sourceSections[field] || sourceSections.optionalSections[field];
+        currentMeta[field] = updatedCustom[field];
+      }
     }
 
     // 7. Portfolio Links & Contact URLs
@@ -2222,100 +2132,11 @@ export class CandidateProfileService {
       });
     }
 
-    // 7. Recent Work Experience Reconciliation
-    const rawCustomExperience = userCustom.experience || candidate.profileMetadata?.experience;
-    let recentExperience = [];
-
-    if (Array.isArray(rawCustomExperience) && rawCustomExperience.length > 0) {
-      recentExperience = rawCustomExperience.slice(0, 10).map((exp) => {
-        const rawDates =
-          exp.rawDateRange ||
-          (exp.startDate && exp.endDate
-            ? `${exp.startDate} - ${exp.endDate}`
-            : exp.startDate || '');
-        const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
-        const empType =
-          exp.employmentType ||
-          TenureCalculator.inferEmploymentType({
-            title: exp.title || exp.role,
-            company: exp.company,
-          });
-        return {
-          company: exp.company || 'Company',
-          title: exp.title || exp.role || 'Role',
-          employmentType: empType,
-          location: exp.location || null,
-          startDate: exp.startDate || dNorm?.startDate || null,
-          endDate: exp.isCurrent ? null : exp.endDate || dNorm?.endDate || null,
-          isCurrent: Boolean(exp.isCurrent || dNorm?.isCurrent),
-          rawDateRange: exp.rawDateRange || dNorm?.rawDateRange || null,
-          bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
-          technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
-          reportedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
-          verifiedSkillsUsed: [],
-          provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
-        };
-      });
-    } else if (Array.isArray(resumeData?.experience) && resumeData.experience.length > 0) {
-      recentExperience = resumeData.experience.slice(0, 10).map((exp) => {
-        const rawDates = exp.rawDateRange || exp.startDate || '';
-        const dNorm = DateRangeNormalizer.normalize(rawDates);
-        const empType =
-          exp.employmentType ||
-          TenureCalculator.inferEmploymentType({
-            title: exp.title || exp.role,
-            company: exp.company,
-          });
-        return {
-          company: exp.company || 'Company',
-          title: exp.title || exp.role || 'Role',
-          employmentType: empType,
-          location: exp.location || null,
-          startDate: dNorm.startDate || exp.startDate || null,
-          endDate: dNorm.endDate || exp.endDate || null,
-          isCurrent: Boolean(exp.isCurrent || dNorm.isCurrent),
-          rawDateRange: dNorm.rawDateRange || null,
-          bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
-          technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
-          reportedSkillsUsed: exp.reportedSkillsUsed || exp.verifiedSkillsUsed || [],
-          verifiedSkillsUsed: [],
-          provenanceStatus: 'CLAIMED',
-        };
-      });
-    }
-
-    // 8. Education Reconciliation
-    const rawCustomEducation = userCustom.education || candidate.profileMetadata?.education;
-    let education = [];
-
-    if (Array.isArray(rawCustomEducation) && rawCustomEducation.length > 0) {
-      education = EducationNormalizer.normalize(rawCustomEducation, {
-        provenanceStatus: userCustom.education ? 'USER_PROVIDED' : 'CLAIMED',
-      });
-    } else if (Array.isArray(resumeData?.education) && resumeData.education.length > 0) {
-      education = EducationNormalizer.normalize(resumeData.education, {
-        provenanceStatus: 'CLAIMED',
-      });
-    }
-
-    // 9. Certifications & Languages
-    const certifications =
-      Array.isArray(userCustom.certifications) && userCustom.certifications.length > 0
-        ? userCustom.certifications
-        : Array.isArray(resumeData?.certifications) && resumeData.certifications.length > 0
-          ? resumeData.certifications
-          : Array.isArray(candidate.profileMetadata?.certifications)
-            ? candidate.profileMetadata.certifications
-            : [];
-
-    const languages =
-      Array.isArray(userCustom.languages) && userCustom.languages.length > 0
-        ? userCustom.languages
-        : Array.isArray(resumeData?.languages) && resumeData.languages.length > 0
-          ? resumeData.languages
-          : Array.isArray(candidate.profileMetadata?.languages)
-            ? candidate.profileMetadata.languages
-            : [];
+    // Shared projection preserves complete records and explicit empty-state overrides.
+    const sourceSections = normalizeResumeSourceSections(candidate);
+    const recentExperience = sourceSections.experience;
+    const education = sourceSections.education;
+    const certifications = sourceSections.certifications;
 
     // 10. Derive Tenure, Seniority, Career Status, Current Employment, Current Role
     const tenureMetrics = TenureCalculator.calculateTenure(recentExperience);
@@ -2530,7 +2351,7 @@ export class CandidateProfileService {
       recentExperience,
       education,
       certifications,
-      languages,
+      ...sourceSections.optionalSections,
       completeness,
       profileReadiness,
       updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,

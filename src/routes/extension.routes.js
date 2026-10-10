@@ -1250,6 +1250,16 @@ export default async function extensionRoutes(app, opts = {}) {
         });
       }
 
+      if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') {
+        req.log.warn({ err }, 'Application preparation blocked by evidence policy');
+        return reply.code(400).send({
+          error: 'Bad Request',
+          code: err.code,
+          message:
+            'Source evidence is unavailable or changed. Review Sources, reconnect and synchronize your repositories, then prepare again. Fresh review and approval will be required.',
+          recoveryAction: { type: 'navigate', label: 'Review Sources', href: '/sources' },
+        });
+      }
       req.log.error({ error: err.message }, 'Failed to prepare job application handoff kit');
       return reply.code(500).send({
         error: 'Internal Server Error',

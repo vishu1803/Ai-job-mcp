@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start:logs": "node src/index.js --verbose-logs",
+    "dev": "node --watch src/index.js --verbose-logs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

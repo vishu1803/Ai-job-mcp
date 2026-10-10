@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { OPTIONAL_RESUME_SECTIONS } from './resume-source-fields.js';
 
 export const SectionPresencePolicyEnum = z.enum(['REQUIRED', 'REQUIRED_IF_DATA', 'OPTIONAL']);
 
@@ -21,6 +22,12 @@ export const MasterResumeSectionKeyEnum = z.enum([
   'COURSEWORK',
   'PUBLICATIONS',
   'ACHIEVEMENTS',
+  'ADDITIONAL_SKILLS',
+  'AWARDS',
+  'LANGUAGES',
+  'VOLUNTEER',
+  'LEADERSHIP',
+  'CUSTOM',
 ]);
 
 export const DEFAULT_MASTER_SECTION_ORDER = Object.freeze([
@@ -31,6 +38,8 @@ export const DEFAULT_MASTER_SECTION_ORDER = Object.freeze([
   'DSA',
   'EXPERIENCE',
   'EDUCATION',
+  'CERTIFICATIONS',
+  ...Object.values(OPTIONAL_RESUME_SECTIONS),
 ]);
 
 export const DEFAULT_MASTER_SECTION_TITLES = Object.freeze({
@@ -45,6 +54,12 @@ export const DEFAULT_MASTER_SECTION_TITLES = Object.freeze({
   COURSEWORK: 'Relevant Coursework',
   PUBLICATIONS: 'Publications',
   ACHIEVEMENTS: 'Key Achievements',
+  ADDITIONAL_SKILLS: 'Additional Skills',
+  AWARDS: 'Awards',
+  LANGUAGES: 'Languages',
+  VOLUNTEER: 'Volunteer Experience',
+  LEADERSHIP: 'Leadership',
+  CUSTOM: 'Additional Information',
 });
 
 export const DEFAULT_SECTION_POLICY = Object.freeze({
@@ -59,6 +74,12 @@ export const DEFAULT_SECTION_POLICY = Object.freeze({
   COURSEWORK: 'OPTIONAL',
   PUBLICATIONS: 'OPTIONAL',
   ACHIEVEMENTS: 'OPTIONAL',
+  ADDITIONAL_SKILLS: 'REQUIRED_IF_DATA',
+  AWARDS: 'REQUIRED_IF_DATA',
+  LANGUAGES: 'REQUIRED_IF_DATA',
+  VOLUNTEER: 'REQUIRED_IF_DATA',
+  LEADERSHIP: 'REQUIRED_IF_DATA',
+  CUSTOM: 'REQUIRED_IF_DATA',
 });
 
 export const MasterResumeStructureSchema = z.object({

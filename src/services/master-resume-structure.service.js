@@ -17,6 +17,7 @@ import {
   MasterResumeStructureSchema,
 } from '../domain/career/master-resume-structure.schemas.js';
 import { isMeaningfulDsa } from './resume-content-strategy.service.js';
+import { OPTIONAL_RESUME_SECTIONS } from '../domain/career/resume-source-fields.js';
 
 /**
  * Normalizes raw section type string into canonical section key.
@@ -71,7 +72,6 @@ export function normalizeSectionType(rawType) {
     case 'RESEARCH':
       return 'PUBLICATIONS';
     case 'ACHIEVEMENTS':
-    case 'AWARDS':
     case 'HONORS':
       return 'ACHIEVEMENTS';
     default:
@@ -297,7 +297,9 @@ export class MasterResumeStructureService {
           );
           break;
         default:
-          hasData = true;
+          hasData = Object.entries(OPTIONAL_RESUME_SECTIONS).some(
+            ([field, section]) => section === canonicalKey && candidateData[field]?.length > 0
+          );
           break;
       }
 

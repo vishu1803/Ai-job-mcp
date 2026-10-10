@@ -1309,17 +1309,27 @@ export class ApplicationTrackingService {
       throw new ValidationError('pkg.packageHash is required');
     }
 
-    const details = await this.getApplicationDetails(context, applicationId);
+    const { application } = await this.getApplicationDetails(context, applicationId, {
+      includeStages: false,
+      includeDocuments: false,
+    });
     const packageHash = pkg.packageHash;
-    const rows = details.tailoredDocuments || [];
+    // Deduplication only needs document types for this exact package. Do not
+    // load every historical resume body, content object and citation list.
+    const rows = await this.db
+      .selectDistinct({ documentType: tailoredDocuments.documentType })
+      .from(tailoredDocuments)
+      .where(
+        and(
+          eq(tailoredDocuments.tenantId, context.tenantId),
+          eq(tailoredDocuments.applicationId, applicationId),
+          eq(tailoredDocuments.candidateId, application.candidateId),
+          sql`${tailoredDocuments.metadata}->>'packageHash' = ${packageHash}`
+        )
+      );
 
     const hasSnapshotForPackage = (documentType) =>
-      rows.some(
-        (document) =>
-          document.documentType === documentType &&
-          (document.metadata?.packageHash === packageHash ||
-            document.metadata?.artifact?.packageHash === packageHash)
-      );
+      rows.some((document) => document.documentType === documentType);
 
     const documents = [
       ['TAILORED_RESUME', pkg.tailoredResume],
@@ -1338,7 +1348,7 @@ export class ApplicationTrackingService {
         continue;
       }
       await this.attachTailoredDocument(context, applicationId, {
-        candidateId: pkg.candidateId || details.application.candidateId,
+        candidateId: pkg.candidateId || application.candidateId,
         documentType,
         title: source.title,
         content: {
@@ -1991,9 +2001,17 @@ export class ApplicationTrackingService {
    *
    * @param {object} context Authenticated context { tenantId, userId, role }
    * @param {string} applicationId Application UUID
+   * @param {object} [options] Internal callers can omit unused history without changing defaults.
+   * @param {boolean} [options.includeStages=true]
+   * @param {boolean} [options.includeDocuments=true]
+   * @param {string|null} [options.documentPackageHash=null] Read only this package's snapshots.
    * @returns {Promise<object>} Complete application details
    */
-  async getApplicationDetails(context, applicationId) {
+  async getApplicationDetails(
+    context,
+    applicationId,
+    { includeStages = true, includeDocuments = true, documentPackageHash = null } = {}
+  ) {
     this._validateContext(context, false);
 
     if (!applicationId) {
@@ -2015,28 +2033,35 @@ export class ApplicationTrackingService {
     await this._assertApplicationAccess(context, application);
 
     // 2. Fetch Chronological Stages
-    const stages = await this.db
-      .select()
-      .from(applicationStages)
-      .where(
-        and(
-          eq(applicationStages.applicationId, applicationId),
-          eq(applicationStages.tenantId, tenantId)
-        )
-      )
-      .orderBy(asc(applicationStages.orderIndex), asc(applicationStages.createdAt));
+    const stages = includeStages
+      ? await this.db
+          .select()
+          .from(applicationStages)
+          .where(
+            and(
+              eq(applicationStages.applicationId, applicationId),
+              eq(applicationStages.tenantId, tenantId)
+            )
+          )
+          .orderBy(asc(applicationStages.orderIndex), asc(applicationStages.createdAt))
+      : [];
 
     // 3. Fetch Tailored Document Snapshots
-    const documents = await this.db
-      .select()
-      .from(tailoredDocuments)
-      .where(
-        and(
-          eq(tailoredDocuments.applicationId, applicationId),
-          eq(tailoredDocuments.tenantId, tenantId)
-        )
-      )
-      .orderBy(desc(tailoredDocuments.createdAt));
+    const documents = includeDocuments
+      ? await this.db
+          .select()
+          .from(tailoredDocuments)
+          .where(
+            and(
+              eq(tailoredDocuments.applicationId, applicationId),
+              eq(tailoredDocuments.tenantId, tenantId),
+              ...(documentPackageHash
+                ? [sql`${tailoredDocuments.metadata}->>'packageHash' = ${documentPackageHash}`]
+                : [])
+            )
+          )
+          .orderBy(desc(tailoredDocuments.createdAt))
+      : [];
 
     // 4. Resolve the authoritative CURRENT application package version
     // (P14-005BA). Exactly one package version per application is CURRENT;

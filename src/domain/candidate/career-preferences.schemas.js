@@ -1,3 +1,7 @@
+import {
+  OPTIONAL_RESUME_SECTIONS,
+  ResumeOptionalEntrySchema,
+} from '../career/resume-source-fields.js';
 /**
  * @file Canonical Domain Zod Schemas for Candidate Career Preferences & Intent (P14-004C / ARCH-056).
  *
@@ -404,7 +408,11 @@ export function formatNoticePeriodLabel(period, customValue = null) {
 export const CertificationItemSchema = z.union([
   z.string(),
   z.object({
-    name: z.string().min(1),
+    id: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    issuingOrganization: z.string().nullable().optional(),
+    expirationDate: z.string().nullable().optional(),
+    legacyFields: z.record(z.unknown()).optional(),
     issuer: z.string().optional().nullable(),
     issueDate: z.string().optional().nullable(),
     expiryDate: z.string().optional().nullable(),
@@ -421,11 +429,13 @@ export const CertificationItemSchema = z.union([
 export const LanguageItemSchema = z.union([
   z.string(),
   z.object({
+    id: z.string().nullable().optional(),
     language: z.string().min(1),
+    legacyFields: z.record(z.unknown()).optional(),
     proficiency: z
       .enum(['NATIVE', 'FLUENT', 'PROFESSIONAL', 'INTERMEDIATE', 'BASIC'])
       .optional()
-      .default('PROFESSIONAL'),
+      .nullable(),
     provenanceStatus: z
       .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED'])
       .optional()
@@ -707,9 +717,11 @@ export const CandidateCareerProfileSchema = z.strictObject({
   recentExperience: z
     .array(
       z.object({
-        company: z.string(),
-        title: z.string(),
-        employmentType: z.string().optional().default('FULL_TIME'),
+        id: z.string().nullable().optional(),
+        legacyFields: z.record(z.unknown()).optional(),
+        company: z.string().nullable(),
+        title: z.string().nullable(),
+        employmentType: z.string().nullable().optional(),
         location: z.string().nullable().optional(),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
@@ -729,7 +741,12 @@ export const CandidateCareerProfileSchema = z.strictObject({
   education: z
     .array(
       z.object({
-        institution: z.string(),
+        id: z.string().nullable().optional(),
+        grade: z.string().nullable().optional(),
+        honors: z.array(z.string()).default([]),
+        bullets: z.array(z.string()).default([]),
+        legacyFields: z.record(z.unknown()).optional(),
+        institution: z.string().nullable(),
         degree: z.string().optional().nullable(),
         fieldOfStudy: z.string().optional().nullable(),
         degreeType: z
@@ -763,6 +780,11 @@ export const CandidateCareerProfileSchema = z.strictObject({
     .default([]),
   certifications: z.array(CertificationItemSchema).optional().default([]),
   languages: z.array(LanguageItemSchema).optional().default([]),
+  ...Object.fromEntries(
+    Object.keys(OPTIONAL_RESUME_SECTIONS)
+      .filter((key) => key !== 'languages')
+      .map((key) => [key, z.array(ResumeOptionalEntrySchema).default([])])
+  ),
   completeness: ProfileCompletenessSchema.optional(),
   profileReadiness: ProfileReadinessSchema.optional(),
   updatedAt: DateOrIsoStringSchema.optional().nullable(),

@@ -1041,6 +1041,49 @@ describe('GitHubAppConnector Unit Tests (P3-004)', () => {
   // 7. Caching, HTTP 304 Revalidation, & Rate Limiting (P3-006)
   // -------------------------------------------------------------------------
   describe('7. Caching, HTTP 304 Revalidation, & Rate Limiting (P3-006)', () => {
+    it('selection bypasses a fresh cached installation listing when GitHub removes repository access', async () => {
+      let calls = 0;
+      const fetchFn = async (url) => {
+        if (url.includes('/access_tokens'))
+          return {
+            ok: true,
+            status: 201,
+            json: async () => ({
+              token: 'ghs_fixture',
+              expires_at: new Date(Date.now() + 3600000).toISOString(),
+            }),
+          };
+        calls++;
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () =>
+            calls === 1
+              ? { total_count: 1, repositories: [{ id: 100, name: 'old', full_name: 'owner/old' }] }
+              : { total_count: 0, repositories: [] },
+        };
+      };
+      const auth = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn,
+      });
+      const connector = new GitHubAppConnector({
+        authManager: auth,
+        fetchFn,
+        cache: new GitHubConnectorCache(),
+      });
+      assert.equal((await connector.listResources(activeContext, mockCredentials)).items.length, 1);
+      assert.equal((await connector.listResources(activeContext, mockCredentials)).items.length, 1);
+      assert.equal(calls, 1);
+      assert.equal(
+        (await connector.listResources(activeContext, mockCredentials, { bypassCache: true })).items
+          .length,
+        0
+      );
+      assert.equal(calls, 2);
+    });
     it('caches 200 OK responses with ETag and serves subsequent fresh requests from cache without network egress', async () => {
       let networkFetchCalls = 0;
       const mockFetch = async (url) => {

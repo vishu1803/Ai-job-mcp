@@ -167,7 +167,8 @@ export class ApplicationHandoffService {
     const context = { tenantId, userId, role: 'MEMBER' };
     const existingDetails = await this.applicationTrackingService.getApplicationDetails(
       context,
-      applicationId
+      applicationId,
+      { includeStages: false, documentPackageHash: applicationPackage.packageHash }
     );
     const packageHash = applicationPackage.packageHash;
 
@@ -285,11 +286,22 @@ export class ApplicationHandoffService {
         typeof this.applicationTrackingService.getApplicationPackageByVersion !== 'function'
       )
         throw error;
-      const authoritative = await this.applicationTrackingService.getApplicationPackageByVersion(
-        { tenantId, userId, candidateId, role: 'MEMBER' },
-        applicationId,
-        applicationPackage.packageHash
-      );
+      let authoritative;
+      try {
+        authoritative = await this.applicationTrackingService.getApplicationPackageByVersion(
+          { tenantId, userId, candidateId, role: 'MEMBER' },
+          applicationId,
+          applicationPackage.packageHash
+        );
+      } catch (lookupError) {
+        // Fresh generation has not been persisted yet. A missing exact version
+        // cannot replace the original policy rejection with "application missing".
+        if (lookupError.name === 'NotFoundError') {
+          error.cause = lookupError;
+          throw error;
+        }
+        throw lookupError;
+      }
       applicationPackage = authoritative.package.packagePayload;
       await assertCurrentPackage(
         this.applicationTrackingService.db,

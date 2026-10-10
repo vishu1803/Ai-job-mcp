@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { safeLogUrl } from './log-url.js';
 import { normalizeIp, resolveClientIdentity } from '../security/proxy-policy.js';
 import { config } from '../config/env.js';
 
@@ -128,8 +129,8 @@ export function safeRequestSerializer(req) {
   return {
     id: req.id,
     method: req.method,
-    url: req.url,
-    routeUrl: req.routeUrl,
+    url: safeLogUrl(req.url),
+    routeUrl: safeLogUrl(req.routeUrl),
     hostname: req.hostname,
     remoteAddress: identity.clientIp,
     peerAddress: identity.peerIp,
@@ -157,7 +158,13 @@ export function safeResponseSerializer(res) {
  */
 export function getLoggerConfig(overrides = {}) {
   const isTest = config.NODE_ENV === 'test';
-  const defaultLevel = isTest ? 'silent' : config.LOG_LEVEL;
+  // Explicit terminal diagnostics applies to HTTP and service child loggers alike.
+  // CLI wins over dotenv levels, while caller overrides and normal test silence remain intact.
+  const defaultLevel = process.argv.includes('--verbose-logs')
+    ? 'trace'
+    : isTest
+      ? 'silent'
+      : config.LOG_LEVEL;
 
   return {
     level: overrides.level || defaultLevel,

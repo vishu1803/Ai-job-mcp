@@ -1,3 +1,4 @@
+import { normalizeResumeSourceSections } from '../utils/resume-source-normalizer.js';
 /**
  * @file Source Resume Ingestion & Lifecycle Management Service (P13.5-003 / ARCH-052).
  *
@@ -314,24 +315,6 @@ export class SourceResumeIngestionService {
       context.role
     );
 
-    let updatedResume;
-    if (promoteToBase) {
-      updatedResume = await this.resumeRepo.setBaseResume({
-        id: resumeId,
-        tenantId,
-        candidateId,
-      });
-    } else {
-      updatedResume = await this.resumeRepo.updateResume({
-        id: resumeId,
-        tenantId,
-        updates: {
-          lifecycleState: 'USER_APPROVED',
-          reviewedAt: new Date(),
-        },
-      });
-    }
-
     // 1. Fetch parsed resume sections and resolve canonical resume graph
     const sections = await this.resumeRepo.getResumeSections({
       resumeId,
@@ -340,28 +323,45 @@ export class SourceResumeIngestionService {
 
     const canonicalGraph = ResumeEntityResolver.resolveCanonicalGraph(sections);
 
-    const resumeExperiences = canonicalGraph.canonicalExperiences.map((exp) => ({
-      company: exp.company || 'Company',
-      title: exp.role || 'Role',
-      role: exp.role || 'Role',
-      location: exp.location || null,
-      startDate: exp.startDate || null,
-      endDate: null,
-      isCurrent: exp.isCurrent,
-      bullets: exp.bullets,
-      verifiedSkillsUsed: exp.technologiesUsed.map((t) => t.name),
-      provenanceStatus: 'CLAIMED',
-    }));
-
-    const resumeEducation = canonicalGraph.canonicalEducation.map((edu) => ({
-      institution: edu.institution,
-      degree: edu.degree || null,
-      fieldOfStudy: edu.fieldOfStudy || null,
-      startDate: null,
-      endDate: null,
-      text: edu.rawText || edu.institution,
-      provenanceStatus: 'CLAIMED',
-    }));
+    const optionalSections = {};
+    for (const section of sections) {
+      const key = section.structuredData?.sourceSectionKey;
+      if (key)
+        optionalSections[key] = [
+          ...(optionalSections[key] || []),
+          ...(section.structuredData.entries || []).map((entry) => ({
+            ...entry,
+            provenanceStatus: 'CLAIMED',
+          })),
+        ];
+    }
+    const certificationRecords = sections
+      .filter((section) => section.sectionType === 'CERTIFICATIONS')
+      .flatMap(
+        (section) => section.structuredData?.certifications || section.structuredData?.certs || []
+      );
+    const sourceSections = normalizeResumeSourceSections({
+      experience: canonicalGraph.canonicalExperiences.map((exp) => ({
+        ...exp,
+        title: exp.role,
+        startDate: null,
+        rawDateRange: exp.startDate || null,
+        technologies: exp.technologiesUsed.map((t) => t.name),
+        provenanceStatus: 'CLAIMED',
+      })),
+      education: canonicalGraph.canonicalEducation.map((edu) => ({
+        ...edu,
+        institution: edu.institution === 'Institution' ? null : edu.institution,
+        provenanceStatus: 'CLAIMED',
+      })),
+      certifications: certificationRecords.map((entry) => ({
+        ...(typeof entry === 'string' ? { name: entry } : entry),
+        provenanceStatus: 'CLAIMED',
+      })),
+      ...optionalSections,
+    });
+    const resumeExperiences = sourceSections.experience;
+    const resumeEducation = sourceSections.education;
 
     const resumeProjects = canonicalGraph.canonicalProjects.map((proj) => ({
       name: proj.canonicalName,
@@ -380,10 +380,10 @@ export class SourceResumeIngestionService {
     }));
 
     const resumeSkills = Array.from(canonicalGraph.canonicalSkills.values()).map((s) => s.name);
-    const resumeCerts = canonicalGraph.canonicalCertifications;
+    const resumeCerts = sourceSections.certifications;
     const contact = canonicalGraph.canonicalContact;
 
-    const detectedRole = resumeExperiences[0]?.role || null;
+    const detectedRole = resumeExperiences[0]?.title || null;
     const detectedLocation = resumeExperiences[0]?.location || null;
 
     const resumeData = {
@@ -407,9 +407,28 @@ export class SourceResumeIngestionService {
       education: resumeEducation,
       projects: resumeProjects,
       certifications: resumeCerts,
+      ...sourceSections.optionalSections,
       skills: resumeSkills,
       provenance: 'RESUME_CLAIM',
     };
+
+    let updatedResume;
+    if (promoteToBase) {
+      updatedResume = await this.resumeRepo.setBaseResume({
+        id: resumeId,
+        tenantId,
+        candidateId,
+      });
+    } else {
+      updatedResume = await this.resumeRepo.updateResume({
+        id: resumeId,
+        tenantId,
+        updates: {
+          lifecycleState: 'USER_APPROVED',
+          reviewedAt: new Date(),
+        },
+      });
+    }
 
     // 2. Fetch current candidate to preserve existing narrative and metadata
     const [currentCandidate] = await this.db

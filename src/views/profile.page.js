@@ -1650,10 +1650,11 @@ export function renderProfilePage({
                   </div>
                   ${exp.description ? `<p class="record-description">${escapeHtml(exp.description)}</p>` : ''}
                   ${
-                    Array.isArray(exp.highlights) && exp.highlights.length > 0
+                    Array.isArray(exp.bullets || exp.highlights) &&
+                    (exp.bullets || exp.highlights).length > 0
                       ? `
                     <ul class="record-bullets">
-                      ${exp.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+                      ${(exp.bullets || exp.highlights).map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
                     </ul>
                   `
                       : ''
@@ -1705,7 +1706,7 @@ export function renderProfilePage({
                       <h3 class="record-title">${escapeHtml(edu.degree || 'Degree')}</h3>
                       <span class="record-subtitle">${escapeHtml(edu.institution || 'University')} • ${escapeHtml(edu.fieldOfStudy || '')}</span>
                     </div>
-                    <span class="record-dates">${escapeHtml(edu.graduationYear || edu.year || '')}</span>
+                    <span class="record-dates">${escapeHtml([edu.startDate, edu.isCurrent ? 'Present' : edu.endDate || edu.graduationYear || edu.year].filter(Boolean).join(' - '))}</span>
                   </div>
                 </div>
               `
@@ -1888,7 +1889,7 @@ export function renderProfilePage({
                       (c) => `
                     <div class="record-card">
                       <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
-                      <span class="record-subtitle">${escapeHtml(c.issuer || 'Issuing Body')} • ${escapeHtml(c.issueDate || '')}</span>
+                      <span class="record-subtitle">${escapeHtml(c.issuingOrganization || c.issuer || 'Issuer not provided')} • ${escapeHtml(c.issueDate || '')}</span>
                     </div>
                   `
                     )
@@ -1905,7 +1906,7 @@ export function renderProfilePage({
                       (l) => `
                     <div class="record-card">
                       <h4 class="record-title">${escapeHtml(l.language || l.name || 'Language')}</h4>
-                      <span class="record-subtitle">${escapeHtml(l.proficiency || 'Native / Fluent')}</span>
+                      <span class="record-subtitle">${escapeHtml(l.proficiency || 'Proficiency not provided')}</span>
                     </div>
                   `
                     )

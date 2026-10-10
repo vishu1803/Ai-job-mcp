@@ -8,7 +8,7 @@
  * Strict Invariants:
  * - Multi-tenant isolation: every query scoped to context.tenantId
  * - Idempotent: running twice produces identical state, no duplicates
- * - ARCH-007 compliant: 1 Resource ≠ 1 Project (project identity by slug)
+ * - ARCH-007 compliant: 1 Resource ≠ 1 Project (existing associations precede genesis)
  * - Zero credential leakage in output
  * - Zero code execution against repository contents
  * - Evidence-first: never invents skills, projects, or claims
@@ -78,7 +78,7 @@ export class CandidateRepositoryIngestionService {
    * 1. Discover active GITHUB_APP resources for candidate
    * 2. Decrypt connection credentials
    * 3. Execute deep evidence extraction (manifests, imports, configs, commits, README)
-   * 4. Create/update project from repository metadata (idempotent by slug)
+   * 4. Reuse linked projects before atomic, candidate-scoped project genesis
    * 5. Create/update project_resources link
    * 6. Associate evidence_items with project
    * 7. Recalculate candidate_skills rollups
@@ -188,6 +188,7 @@ export class CandidateRepositoryIngestionService {
           candidateId,
           resource,
           onProgress,
+          signal: options.signal,
         });
 
         summary.repositoriesProcessed++;
@@ -244,6 +245,10 @@ export class CandidateRepositoryIngestionService {
       summary.warnings.push(`Skill rollup error: ${err.message}`);
     }
 
+    summary.status =
+      summary.repositoriesProcessed === activeResources.length && summary.warnings.length === 0
+        ? 'COMPLETE'
+        : 'INCOMPLETE';
     const durationMs = Date.now() - startTime;
 
     logger.info(
@@ -273,7 +278,7 @@ export class CandidateRepositoryIngestionService {
    * @param {object} params.resource
    * @returns {Promise<{ projectCreated: boolean, projectUpdated: boolean, evidenceCreated: number, evidenceLinked: number }>}
    */
-  async _processResource({ context, tenantId, candidateId, resource }) {
+  async _processResource({ context, tenantId, candidateId, resource, signal }) {
     // A. Resolve Connection & Credentials
     if (!resource.connectionId) {
       throw new ValidationError(`Resource ${resource.name} has no associated connection`);
@@ -329,6 +334,7 @@ export class CandidateRepositoryIngestionService {
       resourceId: resource.id,
       connector,
       credentials,
+      signal,
     });
 
     logger.info(
@@ -375,7 +381,7 @@ export class CandidateRepositoryIngestionService {
 
   /**
    * Idempotent project genesis from repository metadata.
-   * Uses a deterministic slug derived from resource name.
+   * Existing resource links survive renames. Candidate locking serializes genesis.
    * Respects ARCH-007: 1 Resource ≠ 1 Project.
    *
    * @private
@@ -386,74 +392,103 @@ export class CandidateRepositoryIngestionService {
    * @returns {Promise<{ projectId: string, created: boolean, updated: boolean }>}
    */
   async _ensureProject({ tenantId, candidateId, resource }) {
-    const slug = this._deriveProjectSlug(resource.name);
-    const projectName = resource.displayName || resource.name;
-
-    // Derive headline and summary from resource metadata
-    const headline = resource.metadata?.description || null;
-    const summary = this._buildProjectSummary(resource);
-
-    // Check for existing project by unique constraint (tenantId, candidateId, slug)
-    const [existing] = await this.db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.tenantId, tenantId),
-          eq(projects.candidateId, candidateId),
-          eq(projects.slug, slug)
+    return this.db.transaction(async (tx) => {
+      // Serialize genesis for this candidate and publish the association atomically.
+      const [owner] = await tx
+        .select()
+        .from(candidates)
+        .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
+        .for('update');
+      if (!owner) throw new NotFoundError('Candidate not found in tenant scope');
+      const [storedResource] = await tx
+        .select()
+        .from(resources)
+        .where(
+          and(
+            eq(resources.id, resource.id),
+            eq(resources.tenantId, tenantId),
+            eq(resources.candidateId, candidateId)
+          )
+        );
+      if (!storedResource) throw new NotFoundError('Repository not found in candidate scope');
+      const linked = await tx
+        .select({ project: projects })
+        .from(projectResources)
+        .innerJoin(projects, eq(projects.id, projectResources.projectId))
+        .where(
+          and(
+            eq(projectResources.tenantId, tenantId),
+            eq(projectResources.resourceId, resource.id),
+            eq(projects.tenantId, tenantId),
+            eq(projects.candidateId, candidateId)
+          )
         )
-      );
+        .orderBy(projectResources.createdAt, projectResources.id);
+      if (linked.length) return { projectId: linked[0].project.id, created: false, updated: false };
 
-    if (existing) {
-      // Update only system-inferred fields; never overwrite user-authored narrative
-      const updates = {};
-      let needsUpdate = false;
-
-      if (!existing.headline && headline) {
-        updates.headline = headline;
-        needsUpdate = true;
+      let slug = this._deriveProjectSlug(resource.name);
+      const [legacy] = await tx
+        .select()
+        .from(projects)
+        .where(
+          and(
+            eq(projects.tenantId, tenantId),
+            eq(projects.candidateId, candidateId),
+            eq(projects.slug, slug)
+          )
+        );
+      if (legacy) {
+        const edges = await tx
+          .select()
+          .from(projectResources)
+          .where(
+            and(eq(projectResources.tenantId, tenantId), eq(projectResources.projectId, legacy.id))
+          );
+        if (
+          edges.length === 0 &&
+          (!legacy.metadata?.sourceResourceId || legacy.metadata.sourceResourceId === resource.id)
+        ) {
+          await tx
+            .insert(projectResources)
+            .values({
+              tenantId,
+              projectId: legacy.id,
+              resourceId: resource.id,
+              roleInProject: 'Primary Repository',
+            })
+            .onConflictDoNothing();
+          return { projectId: legacy.id, created: false, updated: false };
+        }
+        // Same name is not the same repository. Keep both histories distinct.
+        slug = `${slug}-${resource.id}`;
       }
-      if (!existing.summary && summary) {
-        updates.summary = summary;
-        needsUpdate = true;
-      }
-
-      if (needsUpdate) {
-        updates.updatedAt = new Date();
-        await this.db.update(projects).set(updates).where(eq(projects.id, existing.id));
-      }
-
-      return { projectId: existing.id, created: false, updated: needsUpdate };
-    }
-
-    // Create new project
-    const [created] = await this.db
-      .insert(projects)
-      .values({
+      const [created] = await tx
+        .insert(projects)
+        .values({
+          tenantId,
+          candidateId,
+          name: resource.displayName || resource.name,
+          slug,
+          headline: resource.metadata?.description || null,
+          summary: this._buildProjectSummary(resource),
+          isHighlighted: true,
+          metadata: {
+            sourceProvider: resource.provider,
+            sourceResourceId: resource.id,
+            sourceUrl: resource.url || null,
+            isPrivate: resource.isPrivate,
+            autoGenerated: true,
+          },
+        })
+        .returning();
+      await tx.insert(projectResources).values({
         tenantId,
-        candidateId,
-        name: projectName,
-        slug,
-        headline,
-        summary,
-        isHighlighted: true,
-        metadata: {
-          sourceProvider: resource.provider,
-          sourceResourceId: resource.id,
-          sourceUrl: resource.url || null,
-          isPrivate: resource.isPrivate,
-          autoGenerated: true,
-        },
-      })
-      .returning();
-
-    logger.info(
-      { tenantId, candidateId, projectId: created.id, slug },
-      'Project genesis: created new project from repository'
-    );
-
-    return { projectId: created.id, created: true, updated: false };
+        projectId: created.id,
+        resourceId: resource.id,
+        roleInProject: 'Primary Repository',
+      });
+      return { projectId: created.id, created: true, updated: false };
+    });
   }
 
   /**
@@ -512,19 +547,26 @@ export class CandidateRepositoryIngestionService {
       .select()
       .from(projectResources)
       .where(
-        and(eq(projectResources.projectId, projectId), eq(projectResources.resourceId, resourceId))
+        and(
+          eq(projectResources.tenantId, tenantId),
+          eq(projectResources.projectId, projectId),
+          eq(projectResources.resourceId, resourceId)
+        )
       );
 
     if (existing) {
       return; // Already linked
     }
 
-    await this.db.insert(projectResources).values({
-      tenantId,
-      projectId,
-      resourceId,
-      roleInProject: 'Primary Repository',
-    });
+    await this.db
+      .insert(projectResources)
+      .values({
+        tenantId,
+        projectId,
+        resourceId,
+        roleInProject: 'Primary Repository',
+      })
+      .onConflictDoNothing();
 
     logger.info({ tenantId, projectId, resourceId }, 'Created project_resources association');
   }

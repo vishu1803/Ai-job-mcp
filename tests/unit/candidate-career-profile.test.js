@@ -714,7 +714,7 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
     assert.strictEqual(profile.education[0].institution, 'MIT');
     assert.strictEqual(profile.education[0].provenanceStatus, 'CLAIMED');
 
-    assert.ok(profile.certifications.includes('CKA Kubernetes Administrator'));
+    assert.ok(profile.certifications.some((cert) => cert.name === 'CKA Kubernetes Administrator'));
     assert.ok(profile.portfolioLinks.some((p) => p.url === 'https://alexrivera.dev'));
   });
 

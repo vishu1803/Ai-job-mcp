@@ -259,6 +259,7 @@ export class EducationNormalizer {
               : item.startDate || dNorm?.startDate || null;
 
             return {
+              ...item,
               institution: item.institution || 'Institution',
               degree: item.degree || null,
               fieldOfStudy: item.fieldOfStudy || null,
@@ -290,7 +291,7 @@ export class EducationNormalizer {
                       ),
                     ]
                   : [],
-              gradeOrGpa: item.gradeOrGpa || null,
+              gradeOrGpa: item.gradeOrGpa ?? item.grade ?? item.gpa ?? null,
               rawText: item.rawText || `${item.institution} | ${item.degree || ''}`,
               provenanceStatus: item.provenanceStatus || defaultProvenance,
             };
@@ -440,6 +441,17 @@ export class EducationNormalizer {
       // 4. Check for piped line e.g. "Rajkiya Engineering College | Sonbhadra | Graduation: July 2025"
       if (line.includes('|')) {
         const parts = line.split('|').map((p) => p.trim());
+        // Preserve explicit degree + institution headers instead of creating a placeholder.
+        const comma = parts[0]?.indexOf(',') ?? -1;
+        if (comma > 0) {
+          const degreePart = parts[0].slice(0, comma).trim();
+          const institutionPart = parts[0].slice(comma + 1).trim();
+          if (
+            EducationNormalizer.classifyDegreeType(degreePart) !== 'OTHER' &&
+            EducationNormalizer.isInstitutionText(institutionPart)
+          )
+            parts.splice(0, 1, degreePart, institutionPart);
+        }
         let instPart = parts[0] || 'Institution';
         let degPart = null;
         let loc = null;

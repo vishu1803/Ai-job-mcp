@@ -168,6 +168,22 @@ export function buildApp(opts = {}) {
     };
   });
 
+  // Explicit 5xx replies may bypass the exception handler. Keep them visible in terminal logs.
+  app.addHook('onResponse', async (req, reply) => {
+    if (reply.statusCode >= 500) {
+      req.log.error(
+        {
+          requestId: req.id,
+          method: req.method,
+          url: req.url.split('?')[0],
+          statusCode: reply.statusCode,
+          durationMs: Math.round(performance.now() - req.reqStartTime),
+        },
+        'HTTP request failed'
+      );
+    }
+  });
+
   app.addHook('onSend', async (req, reply, payload) => {
     if (req.reqStartTime && !reply.raw.headersSent) {
       const totalDur = Math.round(performance.now() - req.reqStartTime);
@@ -343,6 +359,7 @@ export function buildApp(opts = {}) {
   // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)
   app.register(webRoutes, {
     db: opts.db,
+    installationService: opts.installationService,
     ingestionService: opts.ingestionService,
     connectionService: opts.connectionService,
     resumeService: opts.resumeService,

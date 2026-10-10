@@ -1,0 +1,108 @@
+{
+  "readOnly": true,
+  "at": "2026-10-10T17:06:43.266Z",
+  "repositories": [
+    {
+      "resourceId": "054867e0-9b4b-441d-a760-a13dacf46358",
+      "repositoryId": "957786589",
+      "name": "vishu1803/Ai-job-search-board",
+      "commitSha": "6b2f1df8840c4c015e9cdabd69b84222fa5c0a45",
+      "rootTreeSha": "4b88bdfccdb9f7bd464e74c204b7d277ae211569",
+      "githubTreeEntries": 4179,
+      "githubTruncated": false,
+      "sourceTreeEntries": 47,
+      "excludedPaths": [
+        "ai-job-board-backend/node_modules",
+        "frontend/public/images/home-bg.jpg",
+        "frontend/src/assets/react.svg"
+      ],
+      "complete": true,
+      "requests": 3,
+      "downloadedBytes": 1437064
+    },
+    {
+      "resourceId": "658e5861-246e-4709-9156-3196ad7bc0ab",
+      "repositoryId": "1338724502",
+      "name": "vishu1803/Ai-job-mcp",
+      "commitSha": "a7a98ebb426955494f4e32e41a189d77ee1a2067",
+      "rootTreeSha": "9470c35e95749b0aef178a3be8fcbccbb4b03e07",
+      "githubTreeEntries": 1231,
+      "githubTruncated": false,
+      "sourceTreeEntries": 1225,
+      "excludedPaths": [
+        ".tmp-screens/v-01-detected.png",
+        ".tmp-screens/v-02-analysis.png",
+        ".tmp-screens/v-03-handoff-ready.png",
+        "extension/icons/icon-128.png",
+        "extension/icons/icon-16.png",
+        "extension/icons/icon-48.png"
+      ],
+      "complete": true,
+      "requests": 3,
+      "downloadedBytes": 535509
+    }
+  ],
+  "developmentDatabase": {
+    "before": {
+      "resources": {
+        "count": 10,
+        "fingerprint": "f1d7fe93cfda9d8ec0abcf9f463fd8c6"
+      },
+      "projects": {
+        "count": 11,
+        "fingerprint": "68cac1a09238e6be3cecb6cfc9bcdea5"
+      },
+      "project_resources": {
+        "count": 11,
+        "fingerprint": "7f35293668bb4b93d58f76babd3c1e9e"
+      },
+      "candidate_skills": {
+        "count": 123,
+        "fingerprint": "0da86f7c454643b06f5901a675e242a3"
+      },
+      "evidence_items": {
+        "count": 514,
+        "fingerprint": "8d0fa8620e597a27bc233be9d8c9fbde"
+      },
+      "job_applications": {
+        "count": 14,
+        "fingerprint": "0d782b18cb93ce62d320cc3f86ad0a96"
+      },
+      "application_packages": {
+        "count": 602,
+        "fingerprint": "4b1455377440d61e9d89281fd2e90de8"
+      }
+    },
+    "after": {
+      "resources": {
+        "count": 10,
+        "fingerprint": "f1d7fe93cfda9d8ec0abcf9f463fd8c6"
+      },
+      "projects": {
+        "count": 11,
+        "fingerprint": "68cac1a09238e6be3cecb6cfc9bcdea5"
+      },
+      "project_resources": {
+        "count": 11,
+        "fingerprint": "7f35293668bb4b93d58f76babd3c1e9e"
+      },
+      "candidate_skills": {
+        "count": 123,
+        "fingerprint": "0da86f7c454643b06f5901a675e242a3"
+      },
+      "evidence_items": {
+        "count": 514,
+        "fingerprint": "8d0fa8620e597a27bc233be9d8c9fbde"
+      },
+      "job_applications": {
+        "count": 14,
+        "fingerprint": "0d782b18cb93ce62d320cc3f86ad0a96"
+      },
+      "application_packages": {
+        "count": 602,
+        "fingerprint": "4b1455377440d61e9d89281fd2e90de8"
+      }
+    },
+    "unchanged": true
+  }
+}

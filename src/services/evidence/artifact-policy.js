@@ -116,16 +116,49 @@ export async function assertArtifactReceipt(database, context, receipt, bodyHash
   const age = Date.now() - Date.parse(receipt.issuedAt);
   if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) throw rejected();
   const current = await sourceBindings(database, receipt.tenantId, receipt.candidateId);
-  if (
-    canonicalPackageJson(current) !== canonicalPackageJson(receipt.sources) ||
-    current.some(
-      (row) =>
-        !row.ownerMatches ||
-        row.status !== 'ACTIVE' ||
-        (row.connectionId && row.connectionStatus !== 'ACTIVE')
-    )
-  )
-    throw rejected();
+  const bindingsChanged = canonicalPackageJson(current) !== canonicalPackageJson(receipt.sources);
+  const blocked = current.filter(
+    (row) =>
+      !row.ownerMatches ||
+      row.status !== 'ACTIVE' ||
+      (row.connectionId && row.connectionStatus !== 'ACTIVE')
+  );
+  if (bindingsChanged || blocked.length > 0) {
+    const error = rejected();
+    const previousById = new Map(receipt.sources.map((row) => [row?.id, row]));
+    const currentById = new Map(current.map((row) => [row.id, row]));
+    // Internal diagnostics only. Do not copy source URLs, metadata, external IDs,
+    // owner identities or signing material into errors or alter receipt content.
+    error.evidenceDiagnostics = {
+      bindingsChanged,
+      blockedSources: blocked.map((row) => ({
+        resourceId: row.id,
+        connectionId: row.connectionId,
+        resourceStatus: row.status,
+        connectionStatus: row.connectionStatus,
+        issues: [
+          ...(!row.ownerMatches ? ['CONNECTION_OWNER_MISMATCH'] : []),
+          ...(row.status !== 'ACTIVE' ? ['RESOURCE_INACTIVE'] : []),
+          ...(row.connectionId && row.connectionStatus !== 'ACTIVE' ? ['CONNECTION_INACTIVE'] : []),
+        ],
+      })),
+      changedResourceIds: bindingsChanged
+        ? [...new Set([...previousById.keys(), ...currentById.keys()])]
+            .filter((id) => typeof id === 'string')
+            .filter((id) => {
+              const previous = previousById.get(id),
+                present = currentById.get(id);
+              return (
+                !previous ||
+                !present ||
+                canonicalPackageJson(previous) !== canonicalPackageJson(present)
+              );
+            })
+            .sort()
+        : [],
+    };
+    throw error;
+  }
   return receipt;
 }
 

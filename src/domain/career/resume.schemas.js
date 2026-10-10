@@ -33,6 +33,13 @@ import {
 import { EvidenceRefSchema, EvidenceTrustClassEnum } from './evidence-matching.schemas.js';
 import { ProjectTypeEnum, ProjectRelevanceBandEnum } from './project-relevance.schemas.js';
 import { CareerAssertionStatusEnum, IntegrityStatusEnum } from './integrity-gate.schemas.js';
+import {
+  ResumeDateSchema,
+  ResumeUrlSchema,
+  validateResumeDateRange,
+  ResumeOptionalEntrySchema,
+  OPTIONAL_RESUME_SECTIONS,
+} from './resume-source-fields.js';
 
 // ---------------------------------------------------------------------------
 // 1. Enumerations
@@ -285,7 +292,7 @@ export const ResumeCertificationEntrySchema = z
     issueDate: z.string().trim().max(50).nullable().optional(),
     expirationDate: z.string().trim().max(50).nullable().optional(),
     credentialId: z.string().trim().max(255).nullable().optional(),
-    credentialUrl: z.string().trim().url().nullable().optional(),
+    credentialUrl: ResumeUrlSchema,
     bullets: z.array(ResumeBulletSchema).default([]),
   })
   .strict();
@@ -507,7 +514,7 @@ export const CandidateIdentitySnapshotSchema = z
 
 export const TailoredSummarySchema = z
   .object({
-    text: z.string().trim().min(1).max(5000),
+    text: z.string().trim().max(5000),
     referencedSkillSlugs: z.array(z.string().trim()).default([]),
     referencedProjectIds: z.array(z.string().trim()).default([]),
     evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
@@ -609,14 +616,19 @@ export const SourceExperienceSnapshotSchema = z
     id: z.string().trim().optional().nullable(),
     company: z.string().trim().min(1).max(255).nullable().optional(),
     title: z.string().trim().min(1).max(255).nullable().optional(),
-    startDate: z.string().trim().max(50).nullable().optional(),
-    endDate: z.string().trim().max(50).nullable().optional(),
+    startDate: ResumeDateSchema,
+    endDate: ResumeDateSchema,
     isCurrent: z.boolean().default(false),
     location: z.string().trim().max(255).nullable().optional(),
-    bullets: z.array(z.string().trim().min(1)).default([]),
-    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+    employmentType: z.string().trim().max(100).nullable().optional(),
+    technologies: z.array(z.string().trim().min(1).max(255)).default([]),
+    rawDateRange: z.string().trim().max(255).nullable().optional(),
+    bullets: z.array(z.string().trim().min(1).max(2000)).default([]),
+    legacyFields: z.record(z.unknown()).optional(),
+    provenanceStatus: z.enum(['USER_PROVIDED', 'CLAIMED']).default('USER_PROVIDED'),
   })
-  .strict();
+  .strict()
+  .superRefine(validateResumeDateRange);
 
 export const SourceEducationSnapshotSchema = z
   .object({
@@ -624,26 +636,36 @@ export const SourceEducationSnapshotSchema = z
     institution: z.string().trim().min(1).max(255).nullable().optional(),
     degree: z.string().trim().min(1).max(255).nullable().optional(),
     fieldOfStudy: z.string().trim().max(255).nullable().optional(),
-    startDate: z.string().trim().max(50).nullable().optional(),
-    endDate: z.string().trim().max(50).nullable().optional(),
+    startDate: ResumeDateSchema,
+    endDate: ResumeDateSchema,
+    isCurrent: z.boolean().default(false),
+    location: z.string().trim().max(255).nullable().optional(),
     grade: z.string().trim().max(50).nullable().optional(),
     coursework: z.array(z.string().trim()).default([]),
-    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+    honors: z.array(z.string().trim().min(1).max(1000)).default([]),
+    bullets: z.array(z.string().trim().min(1).max(2000)).default([]),
+    rawDateRange: z.string().trim().max(255).nullable().optional(),
+    legacyFields: z.record(z.unknown()).optional(),
+    provenanceStatus: z.enum(['USER_PROVIDED', 'CLAIMED']).default('USER_PROVIDED'),
   })
-  .strict();
+  .strict()
+  .superRefine(validateResumeDateRange);
 
 export const SourceCertificationSnapshotSchema = z
   .object({
     id: z.string().trim().optional().nullable(),
     name: z.string().trim().min(1).max(255).nullable().optional(),
     issuingOrganization: z.string().trim().max(255).nullable().optional(),
-    issueDate: z.string().trim().max(50).nullable().optional(),
-    expirationDate: z.string().trim().max(50).nullable().optional(),
+    issueDate: ResumeDateSchema,
+    expirationDate: ResumeDateSchema,
     credentialId: z.string().trim().max(255).nullable().optional(),
     credentialUrl: z.string().trim().url().nullable().optional(),
-    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+    notes: z.string().trim().max(2000).nullable().optional(),
+    legacyFields: z.record(z.unknown()).optional(),
+    provenanceStatus: z.enum(['USER_PROVIDED', 'CLAIMED']).default('USER_PROVIDED'),
   })
-  .strict();
+  .strict()
+  .superRefine(validateResumeDateRange);
 
 export const SourceDsaSnapshotSchema = z
   .object({
@@ -657,13 +679,14 @@ export const SourceDsaSnapshotSchema = z
   .strict();
 
 export const SourceOptionalSectionsSnapshotSchema = z
-  .object({
-    coursework: z.array(z.record(z.unknown())).default([]),
-    publications: z.array(z.record(z.unknown())).default([]),
-    achievements: z.array(z.record(z.unknown())).default([]),
-    additionalSkills: z.array(z.record(z.unknown())).default([]),
-    awards: z.array(z.record(z.unknown())).default([]),
-  })
+  .object(
+    Object.fromEntries(
+      Object.keys(OPTIONAL_RESUME_SECTIONS).map((key) => [
+        key,
+        z.array(ResumeOptionalEntrySchema).default([]),
+      ])
+    )
+  )
   .strict();
 
 // ---------------------------------------------------------------------------
@@ -687,6 +710,7 @@ export const StructuredResumeDocumentSchema = z
     certifications: z.array(SourceCertificationSnapshotSchema).default([]),
     dsa: SourceDsaSnapshotSchema.nullable().optional(),
     optionalSections: SourceOptionalSectionsSnapshotSchema.default({}),
+    sourceWarnings: z.array(z.string()).default([]),
     tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
     createdAt: DateOrIsoStringSchema.optional(),
     // P19: Debug trace for forensic analysis of composition decisions

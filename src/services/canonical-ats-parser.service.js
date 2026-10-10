@@ -498,9 +498,9 @@ export class CanonicalAtsParserService {
     const educations = [];
 
     for (const edu of rawEdus) {
-      const institution = edu.institution || 'University';
-      const degree = edu.degree || 'Bachelor of Science';
-      const fieldOfStudy = edu.fieldOfStudy || 'Computer Science';
+      const institution = edu.institution;
+      const degree = edu.degree || null;
+      const fieldOfStudy = edu.fieldOfStudy || null;
       const graduationYear = edu.graduationYear || (edu.endDate ? parseInt(edu.endDate, 10) : null);
 
       educations.push({
@@ -511,8 +511,13 @@ export class CanonicalAtsParserService {
         startDate: edu.startDate || null,
         endDate: edu.endDate || null,
         graduationYear: Number.isInteger(graduationYear) ? graduationYear : null,
-        gpa: edu.gpa || null,
-        honors: [],
+        isCurrent: Boolean(edu.isCurrent),
+        location: edu.location || null,
+        coursework: edu.coursework || [],
+        grade: edu.grade || edu.gradeOrGpa || edu.gpa || null,
+        rawDateRange: edu.rawDateRange || null,
+        gpa: edu.gpa || edu.gradeOrGpa || edu.grade || null,
+        honors: edu.honors || [],
         bullets: edu.bullets || [],
       });
     }
@@ -523,15 +528,20 @@ export class CanonicalAtsParserService {
       for (const e of norm) {
         educations.push({
           id: crypto.randomUUID(),
-          institution: e.institution || 'University',
-          degree: e.degree || 'Bachelor of Science',
-          fieldOfStudy: e.fieldOfStudy || 'Computer Science',
-          startDate: null,
-          endDate: null,
+          institution: e.institution,
+          degree: e.degree || null,
+          fieldOfStudy: e.fieldOfStudy || null,
+          startDate: e.startDate || null,
+          endDate: e.endDate || null,
+          isCurrent: Boolean(e.isCurrent),
+          location: e.location || null,
+          coursework: e.coursework || [],
+          grade: e.grade || e.gradeOrGpa || null,
+          rawDateRange: e.rawDateRange || null,
           graduationYear: null,
-          gpa: null,
-          honors: [],
-          bullets: [],
+          gpa: e.gradeOrGpa || null,
+          honors: e.honors || [],
+          bullets: e.bullets || [],
         });
       }
     }

@@ -46,6 +46,8 @@ import {
 import { MasterResumeStructureService } from './master-resume-structure.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { formatTechnologyStack } from '../utils/technology-normalizer.js';
+import { normalizeResumeSourceSections } from '../utils/resume-source-normalizer.js';
+import { ensureCandidateSectionIntegrity } from './resume-composition-primitives.js';
 import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
@@ -153,7 +155,7 @@ export const FORBIDDEN_UNBACKED_SUMMARY_TERMS = Object.freeze([
  */
 export function hasEvidenceForPhrase(phrase, doc, options = {}) {
   const norm = phrase.toLowerCase().replace(/[-_]/g, ' ');
-  const regex = new RegExp(`\\b${norm.replace(/\\s+/g, '[-_\\s]+')}\\b`, 'i');
+  const regex = new RegExp(`\\b${norm.replace(/\s+/g, '[-_\\s]+')}\\b`, 'i');
 
   const profile = options.candidateProfile;
   if (profile) {
@@ -365,53 +367,18 @@ export function buildStructuredResumeDocument({
   };
 
   // 2. Experience Snapshot (Authoritative source facts; no synthetic dates/titles)
-  const rawExperience = meta.experience || source.experience || source.workExperience || [];
-  const experienceSnapshot = (Array.isArray(rawExperience) ? rawExperience : []).map(
-    (exp, idx) => ({
-      id: exp.id || `exp-${idx + 1}`,
-      company: exp.company || null,
-      title: exp.title || exp.role || null,
-      startDate: exp.startDate || null,
-      endDate: exp.endDate || null,
-      isCurrent: Boolean(exp.isCurrent),
-      location: exp.location || null,
-      bullets: Array.isArray(exp.bullets) ? [...exp.bullets.map(String)] : [],
-      provenanceStatus: 'USER_PROVIDED',
-    })
-  );
+  const sourceSections = normalizeResumeSourceSections(source);
+  const experienceSnapshot = sourceSections.experience;
   const experience = composeExperienceRecords({
     candidateExperiences: experienceSnapshot,
     jobPosting: canonicalJob,
   }).map(({ presentationCandidates: _presentationCandidates, ...record }) => record);
 
   // 3. Education Snapshot (Authoritative source facts; no synthetic degrees/universities)
-  const rawEducation = meta.education || source.education || [];
-  const education = (Array.isArray(rawEducation) ? rawEducation : []).map((edu, idx) => ({
-    id: edu.id || `edu-${idx + 1}`,
-    institution: edu.institution || edu.school || null,
-    degree: edu.degree || null,
-    fieldOfStudy: edu.fieldOfStudy || edu.major || null,
-    startDate: edu.startDate || null,
-    endDate: edu.endDate || null,
-    grade: edu.grade || edu.gpa || null,
-    coursework: Array.isArray(edu.coursework) ? [...edu.coursework.map(String)] : [],
-    provenanceStatus: 'USER_PROVIDED',
-  }));
+  const education = sourceSections.education;
 
   // 4. Certifications Snapshot (Authoritative source facts; no synthetic names/issuers)
-  const rawCertifications = meta.certifications || source.certifications || [];
-  const certifications = (Array.isArray(rawCertifications) ? rawCertifications : []).map(
-    (cert, idx) => ({
-      id: cert.id || `cert-${idx + 1}`,
-      name: cert.name || cert.title || null,
-      issuingOrganization: cert.issuingOrganization || cert.issuer || null,
-      issueDate: cert.issueDate || null,
-      expirationDate: cert.expirationDate || null,
-      credentialId: cert.credentialId || null,
-      credentialUrl: cert.credentialUrl || null,
-      provenanceStatus: 'USER_PROVIDED',
-    })
-  );
+  const certifications = sourceSections.certifications;
 
   // 5. DSA Snapshot (Authoritative source facts; never inject synthetic bullets)
   // P16-009: a valid candidate-owned problem-solving profile URL is sufficient
@@ -876,6 +843,8 @@ export function buildStructuredResumeDocument({
           projects: rawProjects,
           experience,
           education,
+          certifications,
+          ...sourceSections.optionalSections,
           skills: rawSkills,
         });
 
@@ -1476,7 +1445,16 @@ export function buildStructuredResumeDocument({
     projects.flatMap((p) => [p.projectId, p.id, p.name, p.displayName].filter(Boolean))
   );
 
-  if (
+  const authoredSummary =
+    source.summary?.text ?? source.summary ?? meta.userCustom?.summary ?? meta.summary;
+  if (typeof authoredSummary === 'string' && authoredSummary.trim()) {
+    summary = {
+      text: authoredSummary.trim(),
+      provenanceStatus: 'CLAIMED',
+      transformationType: 'VERBATIM',
+      sourceFact: authoredSummary.trim(),
+    };
+  } else if (
     options?.aiContent?.summary &&
     typeof options.aiContent.summary === 'object' &&
     typeof options.aiContent.summary.text === 'string' &&
@@ -1555,6 +1533,14 @@ export function buildStructuredResumeDocument({
   if (summary && typeof summary === 'object' && !Array.isArray(summary.composedFromFactIds)) {
     summary.composedFromFactIds = [];
   }
+  if (
+    !authoredSummary &&
+    experience.length === 0 &&
+    rawProjects.length === 0 &&
+    rawSkills.length === 0
+  ) {
+    summary = { text: '', composedFromFactIds: [], provenanceStatus: 'CLAIMED' };
+  }
 
   const requirementConcepts = getJobRequirementConcepts(canonicalJob);
   const selectedFactSet = selectionScoredFacts.filter(
@@ -1620,13 +1606,21 @@ export function buildStructuredResumeDocument({
     education,
     certifications,
     dsa,
-    optionalSections: {
-      coursework: [],
-      publications: [],
-      achievements: [],
-      additionalSkills: [],
-      awards: [],
-    },
+    optionalSections: sourceSections.optionalSections,
+    sourceWarnings: [
+      ...sourceSections.experience,
+      ...sourceSections.education,
+      ...sourceSections.certifications,
+      ...Object.values(sourceSections.optionalSections).flat(),
+    ]
+      .filter((entry) => entry.legacyFields && Object.keys(entry.legacyFields).length)
+      .map(
+        (entry) =>
+          'Unrendered legacy fields retained for review on ' +
+          entry.id +
+          ': ' +
+          Object.keys(entry.legacyFields).join(', ')
+      ),
     tailoringPlan: parsedPlan,
     createdAt: new Date().toISOString(),
     // P19: Debug trace for forensic analysis of composition decisions
@@ -1695,7 +1689,7 @@ export function buildStructuredResumeDocument({
     );
   }
 
-  const built = StructuredResumeDocumentSchema.parse(doc);
+  const built = StructuredResumeDocumentSchema.parse(ensureCandidateSectionIntegrity(doc));
 
   // P16-009: fact-composition traceability report. The canonical document
   // schema is strict — the report is delivered ONLY via options.reportSink
@@ -2256,7 +2250,20 @@ export function buildStructuredResumeSnapshot({
 
   // Audits the exact FINAL text and structure that will be rendered (Req K & Req 15).
   structuredResume = enforceEvidenceTrust(structuredResume);
-  const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
+  // Preserve the authoritative source context for the existing grounding checks.
+  // An authored summary remains CLAIMED; its text is not independent verification.
+  // Legacy profiles store that same scalar under profileMetadata.userCustom.
+  const validationSource = {
+    ...candidateProfile,
+    summary:
+      candidateProfile.summary?.text ??
+      candidateProfile.summary ??
+      candidateProfile.profileMetadata?.userCustom?.summary ??
+      candidateProfile.profileMetadata?.summary,
+  };
+  const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume, {
+    candidateProfile: validationSource,
+  });
 
   return {
     structuredResume,
@@ -2363,6 +2370,13 @@ export function freezeSemanticResume(structuredResume) {
       (resume.dsa?.bullets || []).map((b) => (typeof b === 'string' ? b : b.text || ''))
     ),
     dsaUrl: resume.dsa?.profileUrl || null,
+    authoritativeSource: JSON.stringify({
+      identity: resume.candidateIdentity,
+      experience: resume.experience,
+      education: resume.education,
+      certifications: resume.certifications,
+      optionalSections: resume.optionalSections,
+    }),
     educationFacts: Object.freeze(
       (resume.education || []).map((e) => `${e.institution || ''}:${e.degree || ''}`)
     ),
@@ -2473,6 +2487,11 @@ export function assertSemanticEquivalence(baseline, current) {
     throw new Error('Optimizer semantic violation: experience records were modified');
   }
 
+  if (base.authoritativeSource !== curr.authoritativeSource) {
+    throw new Error(
+      'Optimizer semantic violation: authoritative resume source fields were modified'
+    );
+  }
   if (JSON.stringify(base.educationFacts) !== JSON.stringify(curr.educationFacts)) {
     throw new Error('Optimizer semantic violation: education records were modified');
   }

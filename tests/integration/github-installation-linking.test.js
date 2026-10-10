@@ -12,7 +12,16 @@ import {
   resourceConnections,
   githubInstallationStates,
   auditLogs,
+  candidates,
+  resources,
+  projects,
+  projectResources,
+  evidenceItems,
+  skills,
+  candidateSkills,
 } from '../../src/db/schema.js';
+import { BaseResourceConnector } from '../../src/connectors/base/resource-connector.js';
+import { connectorRegistry } from '../../src/connectors/registry/connector-registry.js';
 import { createSession, getSessionCookieOptions } from '../../src/security/session.service.js';
 import { decryptSecret } from '../../src/security/encryption.js';
 import { buildApp } from '../../src/app.js';
@@ -163,6 +172,98 @@ describe('ISSUE-01 secure installation claiming (PostgreSQL)', () => {
     assert.equal((await rows()).length, 1);
   });
 
+  it('historical same-account row with no installation ID reproduces HTTP409, then replay fails without ownership writes', async () => {
+    const { service, calls } = githubFixture(db);
+    const first = await service.linkInstallation(await authorizedFlow(service, a));
+    const [legacy] = await db
+      .update(resourceConnections)
+      .set({ installationId: null, status: 'DISCONNECTED' })
+      .where(eq(resourceConnections.id, first.connection.id))
+      .returning();
+    await assert.rejects(service.linkInstallation(await authorizedFlow(service, a)), (error) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, 'CONFLICT');
+      assert.equal(error.details.reason, 'INSTALLATION_ALREADY_LINKED');
+      return true;
+    });
+    const flow = await authorizedFlow(service, a);
+    const app = buildApp({ logger: false, db, installationService: service });
+    try {
+      const base = await app.listen({ port: 0, host: '127.0.0.1' });
+      const sessionName = getSessionCookieOptions().name;
+      const headers = {
+        accept: 'application/json',
+        cookie: `${sessionName}=${rawA}; gh_install_state=${flow.stateToken}`,
+      };
+      const url =
+        base +
+        '/integrations/github/authorize/callback?' +
+        new URLSearchParams({ code: flow.code, state: flow.stateToken });
+      const response = await fetch(url, { headers, redirect: 'manual' });
+      assert.equal(response.status, 409);
+      const body = await response.json();
+      assert.equal(body.error.code, 'CONFLICT');
+      assert.equal(body.error.details, null); // Public error details remain sanitized.
+      assert.ok(calls.some((call) => new URL(call.url).pathname === '/user'));
+      assert.equal(
+        calls.filter((call) => new URL(call.url).pathname === '/app/installations/9001').length,
+        3
+      );
+      const callCount = calls.length;
+      const replay = await fetch(url, { headers, redirect: 'manual' });
+      assert.equal(replay.status, 401);
+      assert.equal((await replay.json()).error.code, 'INVALID_OAUTH_STATE');
+      assert.equal(calls.length, callCount);
+      assert.deepEqual(await rows(), [legacy]);
+      const logs = await db.select().from(auditLogs).where(eq(auditLogs.tenantId, a.tenantId));
+      assert.equal(logs.length, 1);
+      const sources = await fetch(base + '/sources', {
+        headers: { accept: 'text/html', cookie: `${sessionName}=${rawA}` },
+      });
+      assert.equal(sources.status, 200);
+      assert.match(await sources.text(), /Connect GitHub App/);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('same-owner reconnect verifies fresh authority and failed verification preserves the existing connection', async () => {
+    const { service } = githubFixture(db);
+    const first = await service.linkInstallation(await authorizedFlow(service, a));
+    const denied = githubFixture(db, { profile: { id: 999, type: 'User' } });
+    await assert.rejects(denied.service.linkInstallation(await authorizedFlow(denied.service, a)), {
+      code: 'INSTALLATION_ACCESS_DENIED',
+    });
+    assert.deepEqual(await rows(), [first.connection]);
+    const fresh = githubFixture(db);
+    const result = await fresh.service.linkInstallation(await authorizedFlow(fresh.service, a));
+    assert.equal(result.isUpdate, true);
+    assert.equal(result.connection.id, first.connection.id);
+    assert.equal(result.connection.tenantId, first.connection.tenantId);
+    for (const path of [
+      '/login/oauth/access_token',
+      '/user',
+      '/user/installations',
+      '/app/installations/9001',
+    ]) {
+      assert.ok(fresh.calls.some((call) => new URL(call.url).pathname === path));
+    }
+    assert.equal((await rows()).length, 1);
+    const app = buildApp({ logger: false, db, installationService: fresh.service });
+    try {
+      const sources = await app.inject({
+        url: '/sources',
+        headers: { accept: 'text/html' },
+        cookies: { [getSessionCookieOptions().name]: rawA },
+      });
+      assert.equal(sources.statusCode, 200);
+      assert.match(sources.body, /action="\/sources\/disconnect"/);
+      assert.match(sources.body, /Connected Account: <strong[^>]*>owner<\/strong>/);
+    } finally {
+      await app.close();
+    }
+  });
+
   for (const name of [
     'attacker knows victim ID',
     'foreign unclaimed personal installation',
@@ -270,7 +371,10 @@ describe('ISSUE-01 secure installation claiming (PostgreSQL)', () => {
       .update(githubInstallationStates)
       .set({ expiresAt: new Date(Date.now() - 1) })
       .where(eq(githubInstallationStates.sessionId, a.session.id));
-    await assert.rejects(service.linkInstallation(flow), { code: 'INVALID_OAUTH_STATE' });
+    await assert.rejects(service.linkInstallation(flow), {
+      code: 'INVALID_OAUTH_STATE',
+      installationStateFailure: 'DURABLE_STATE_UNAVAILABLE',
+    });
     await assertUnlinked();
     assert.equal(calls.length, 0);
   });
@@ -294,7 +398,10 @@ describe('ISSUE-01 secure installation claiming (PostgreSQL)', () => {
     const flow = await authorizedFlow(service, a);
     await service.linkInstallation(flow);
     const count = calls.length;
-    await assert.rejects(service.linkInstallation(flow), { code: 'INVALID_OAUTH_STATE' });
+    await assert.rejects(service.linkInstallation(flow), {
+      code: 'INVALID_OAUTH_STATE',
+      installationStateFailure: 'DURABLE_STATE_UNAVAILABLE',
+    });
     assert.equal(calls.length, count);
     assert.equal((await rows()).length, 1);
   });
@@ -510,6 +617,234 @@ describe('ISSUE-01 secure installation claiming (PostgreSQL)', () => {
       assert.equal(finish.cookies.find((c) => c.name === 'gh_install_state').value, '');
     } finally {
       await app.close();
+    }
+  });
+  it('restored historical link and fresh OAuth reuse ten repositories without losing cached analysis, projects, skills or evidence', async () => {
+    const { service } = githubFixture(db);
+    const first = await service.linkInstallation(await authorizedFlow(service, a));
+    await db
+      .update(resourceConnections)
+      .set({ installationId: null, status: 'DISCONNECTED' })
+      .where(eq(resourceConnections.id, first.connection.id));
+    let [candidate] = await db.select().from(candidates).where(eq(candidates.userId, a.user.id));
+    if (!candidate) {
+      [candidate] = await db
+        .insert(candidates)
+        .values({
+          tenantId: a.tenantId,
+          userId: a.user.id,
+          displayName: a.user.displayName,
+          canonicalEmail: a.user.email,
+        })
+        .returning();
+    }
+    const repositories = Array.from({ length: 10 }, (_, i) => ({
+      id: 100000 + i,
+      name: `historical-${i}`,
+      fullName: `owner/historical-${i}`,
+      url: `https://github.com/owner/historical-${i}`,
+      isPrivate: false,
+    }));
+    const history = await db
+      .insert(resources)
+      .values(
+        repositories.map((repo, i) => ({
+          tenantId: a.tenantId,
+          candidateId: candidate.id,
+          connectionId: first.connection.id,
+          provider: 'GITHUB_APP',
+          externalResourceId: i % 2 ? repo.fullName : String(repo.id),
+          name: repo.fullName,
+          displayName: repo.fullName,
+          url: repo.url,
+          status: 'DISCONNECTED',
+          lastSyncedAt: new Date('2026-08-30T12:00:00Z'),
+          metadata: {
+            numericId: repo.id,
+            cachedAnalysis: { commitSha: 'a'.repeat(40), notes: 'Historical analysis to preserve' },
+          },
+        }))
+      )
+      .returning();
+    const [project] = await db
+      .insert(projects)
+      .values({
+        tenantId: a.tenantId,
+        candidateId: candidate.id,
+        name: 'Historical project',
+        slug: `preserved-${crypto.randomUUID()}`,
+        summary: 'Candidate-authored historical summary',
+      })
+      .returning();
+    const links = await db
+      .insert(projectResources)
+      .values(
+        history.map((resource) => ({
+          tenantId: a.tenantId,
+          projectId: project.id,
+          resourceId: resource.id,
+        }))
+      )
+      .returning();
+    const evidence = await db
+      .insert(evidenceItems)
+      .values(
+        history.map((resource) => ({
+          tenantId: a.tenantId,
+          candidateId: candidate.id,
+          resourceId: resource.id,
+          projectId: project.id,
+          evidenceType: 'README_SPECIFICATION',
+          sourceProvider: 'GITHUB_APP',
+          sourceLocation: { filePath: 'README.md', commitSha: 'a'.repeat(40) },
+          excerpt: 'Historical fixture evidence',
+        }))
+      )
+      .returning();
+    const [skill] = await db
+      .insert(skills)
+      .values({
+        slug: `historical-${crypto.randomUUID()}`,
+        name: 'Historical fixture skill',
+        category: 'TOOL',
+      })
+      .returning();
+    const [candidateSkill] = await db
+      .insert(candidateSkills)
+      .values({
+        tenantId: a.tenantId,
+        candidateId: candidate.id,
+        skillId: skill.id,
+        category: 'TOOL',
+        notes: 'Candidate-authored skill notes',
+      })
+      .returning();
+    let listCalls = 0;
+    class HistoricalConnector extends BaseResourceConnector {
+      constructor() {
+        super('GITHUB_APP');
+      }
+      getCapabilities() {
+        return new Set();
+      }
+      async listResources() {
+        listCalls++;
+        return { items: repositories, totalCount: 10 };
+      }
+    }
+    const priorConnector = connectorRegistry.has('GITHUB_APP')
+      ? connectorRegistry.get('GITHUB_APP')
+      : null;
+    connectorRegistry.register('GITHUB_APP', new HistoricalConnector(), { allowOverride: true });
+    let analyses = 0;
+    const app = buildApp({
+      logger: false,
+      db,
+      installationService: service,
+      ingestionService: {
+        async syncCandidateRepositories() {
+          analyses++;
+          throw new Error('Reselection must not reanalyze repositories');
+        },
+      },
+    });
+    try {
+      const restored = await db.execute(
+        sql`UPDATE resource_connections SET installation_id='9001' WHERE id=${first.connection.id} AND tenant_id=${a.tenantId} AND user_id=${a.user.id} AND external_account_id='101' AND installation_id IS NULL AND status='DISCONNECTED' RETURNING id,status`
+      );
+      assert.equal(restored.rows.length, 1);
+      assert.equal(restored.rows[0].status, 'DISCONNECTED');
+      assert.deepEqual(
+        await db
+          .select()
+          .from(resources)
+          .where(eq(resources.tenantId, a.tenantId))
+          .orderBy(resources.id),
+        [...history].sort((x, y) => x.id.localeCompare(y.id))
+      );
+      const flow = await authorizedFlow(service, a);
+      const finish = await app.inject({
+        url: '/integrations/github/authorize/callback',
+        query: { code: flow.code, state: flow.stateToken },
+        cookies: { [getSessionCookieOptions().name]: rawA, gh_install_state: flow.stateToken },
+      });
+      assert.equal(finish.statusCode, 302);
+      assert.equal(finish.headers.location, '/dashboard?connection=updated');
+      assert.equal((await rows())[0].id, first.connection.id);
+      const expectedIds = history.map((r) => r.id).sort();
+      for (let pass = 0; pass < 2; pass++) {
+        const selection = await app.inject({
+          method: 'POST',
+          url: '/onboarding/repositories/select',
+          cookies: { [getSessionCookieOptions().name]: rawA },
+          headers: { accept: 'application/json' },
+          payload: { from: 'sources', repositories: repositories.map((repo) => String(repo.id)) },
+        });
+        assert.equal(selection.statusCode, 200);
+        assert.equal(selection.json().count, 10);
+        const reloaded = await db
+          .select()
+          .from(resources)
+          .where(eq(resources.tenantId, a.tenantId));
+        assert.equal(reloaded.length, 10);
+        assert.deepEqual(reloaded.map((r) => r.id).sort(), expectedIds);
+        for (const resource of reloaded) {
+          const original = history.find((r) => r.id === resource.id);
+          assert.equal(resource.status, 'ACTIVE');
+          assert.equal(resource.connectionId, first.connection.id);
+          const { evidenceEpoch: currentEpoch, ...currentMetadata } = resource.metadata;
+          const { evidenceEpoch: _priorEpoch, ...priorMetadata } = original.metadata;
+          assert.ok(currentEpoch, 'Source reactivation must retain evidence invalidation');
+          assert.deepEqual(currentMetadata, priorMetadata);
+          assert.deepEqual(resource.lastSyncedAt, original.lastSyncedAt);
+          assert.deepEqual(resource.createdAt, original.createdAt);
+        }
+      }
+      assert.equal(listCalls, 2);
+      assert.equal(analyses, 0);
+      assert.deepEqual(await db.select().from(projects).where(eq(projects.id, project.id)), [
+        project,
+      ]);
+      assert.deepEqual(
+        await db
+          .select()
+          .from(projectResources)
+          .where(eq(projectResources.projectId, project.id))
+          .orderBy(projectResources.id),
+        [...links].sort((x, y) => x.id.localeCompare(y.id))
+      );
+      const reloadedEvidence = await db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.projectId, project.id))
+        .orderBy(evidenceItems.id);
+      assert.deepEqual(
+        reloadedEvidence,
+        [...evidence]
+          .map((item) => ({
+            ...item,
+            metadata: {
+              ...item.metadata,
+              verification: {
+                ...item.metadata.verification,
+                status: 'INVALID',
+                reason: 'SOURCE_REVALIDATION_REQUIRED',
+              },
+            },
+          }))
+          .sort((x, y) => x.id.localeCompare(y.id))
+      );
+      assert.deepEqual(
+        await db.select().from(candidateSkills).where(eq(candidateSkills.id, candidateSkill.id)),
+        [candidateSkill]
+      );
+    } finally {
+      await app.close();
+      if (priorConnector)
+        connectorRegistry.register('GITHUB_APP', priorConnector, { allowOverride: true });
+      else connectorRegistry.clear();
+      await db.delete(candidateSkills).where(eq(candidateSkills.id, candidateSkill.id));
+      await db.delete(skills).where(eq(skills.id, skill.id));
     }
   });
 });

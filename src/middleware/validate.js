@@ -6,6 +6,7 @@
  */
 
 import { ValidationError, InternalServerError } from '../errors/index.js';
+import { safeLogUrl } from '../utils/log-url.js';
 
 /**
  * Formats Zod validation issues into a clean, safe array of field errors.
@@ -95,7 +96,7 @@ export function validateResponse(schema) {
           {
             err: result.error,
             issues: formatZodIssues(result.error),
-            route: request.url,
+            route: safeLogUrl(request.url),
           },
           'Response payload schema validation failed'
         );

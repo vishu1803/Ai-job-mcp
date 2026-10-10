@@ -58,6 +58,7 @@ function formatDate(dateStr) {
  * @param {object} [params.tenant] Authenticated tenant
  * @param {object} params.application Job application record
  * @param {object} params.handoffKit Immutable handoff kit payload
+ * @param {boolean} [params.requiresRevalidation=false] Artifacts require regeneration and fresh review
  * @param {Array<object>} [params.packageHistory=[]] Version history of packages
  * @param {object} [params.currentPackage=null] Currently active package
  * @param {number} [params.viewingVersion=1] Version currently being viewed
@@ -72,6 +73,7 @@ export function renderHandoffPage({
   tenant: _tenant = null,
   application,
   handoffKit,
+  requiresRevalidation = false,
   packageHistory = [],
   currentPackage = null,
   viewingVersion = 1,
@@ -80,7 +82,7 @@ export function renderHandoffPage({
   flashMessage = '',
   errorMessage = '',
 }) {
-  if (!handoffKit || handoffKit.isPreparing) {
+  if (requiresRevalidation || !handoffKit || handoffKit.isPreparing) {
     const content = `
       <div class="container" style="max-width:800px; margin:0 auto; padding:48px 16px;">
         <div style="margin-bottom:24px;">
@@ -93,18 +95,22 @@ export function renderHandoffPage({
 
         <div class="card" style="text-align:center; padding:48px 24px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
           <div style="font-size:2.5rem; margin-bottom:16px;">📄</div>
-          <h2 style="font-size:1.4rem; font-weight:700; color:var(--text-main); margin-bottom:8px;">Preparing your application documents…</h2>
+          <h2 style="font-size:1.4rem; font-weight:700; color:var(--text-main); margin-bottom:8px;">${requiresRevalidation ? 'Application documents need regeneration' : 'Preparing your application documents…'}</h2>
           <p style="color:var(--text-muted); max-width:540px; margin:0 auto 24px; font-size:0.95rem; line-height:1.5;">
-            Application documents (tailored resume, cover letter, and screening readiness evaluation) for <strong>${escapeHtml(application.jobTitle || 'Role')}</strong> at <strong>${escapeHtml(application.companyName || 'Company')}</strong> are ready to be compiled.
+            ${requiresRevalidation ? 'The previous documents cannot be used under the current evidence policy. Regenerate from your current profile, then complete fresh review and approval before using the new package.' : `Application documents (tailored resume, cover letter, and screening readiness evaluation) for <strong>${escapeHtml(application.jobTitle || 'Role')}</strong> at <strong>${escapeHtml(application.companyName || 'Company')}</strong> are ready to be compiled.`}
           </p>
           <div style="display:inline-flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
-            <form method="POST" action="/applications/${escapeHtml(application.id)}/regenerate" style="margin:0;">
+            ${
+              !requiresRevalidation || canDeletePackages
+                ? `<form method="POST" action="/applications/${escapeHtml(application.id)}/regenerate" style="margin:0;">
               <input type="hidden" name="scope" value="BOTH" />
-              <input type="hidden" name="reason" value="Initial kit preparation" />
+              <input type="hidden" name="reason" value="${requiresRevalidation ? 'Regenerate unavailable documents under current evidence policy' : 'Initial kit preparation'}" />
               <button type="submit" class="btn btn-primary" style="padding:10px 24px; font-weight:600;">
-                Generate Handoff Documents Now
+                ${requiresRevalidation ? 'Regenerate Application Documents' : 'Generate Handoff Documents Now'}
               </button>
-            </form>
+            </form>`
+                : '<p>Applications with submission history cannot be regenerated. Prepare a new application package for a new review.</p>'
+            }
             <a href="/applications" class="btn btn-secondary" style="padding:10px 20px;">Return to Applications</a>
           </div>
         </div>

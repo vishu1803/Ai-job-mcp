@@ -6,6 +6,7 @@
  */
 
 import { AppError } from '../errors/index.js';
+import { safeLogUrl } from '../utils/log-url.js';
 import {
   sanitizeUserFacingError,
   sanitizeErrorMessage,
@@ -45,9 +46,33 @@ export function errorHandler(error, request, reply) {
     );
   } else {
     request.log.warn(
-      { requestId, code: error?.code, statusCode: userFacing.statusCode, details: error?.details },
+      {
+        requestId,
+        code: error?.code,
+        statusCode: userFacing.statusCode,
+        details: error?.details,
+        installationStateFailure: error?.installationStateFailure,
+      },
       error?.message || 'Client error'
     );
+  }
+
+  // Connector state rejection does not invalidate an authenticated login session.
+  // Keep the rejected flow blocked and explain recovery where it was initiated.
+  if (
+    prefersHtml &&
+    error?.code === 'INVALID_OAUTH_STATE' &&
+    request.user?.id &&
+    request.auth?.tenantId &&
+    ['/integrations/github/install/callback', '/integrations/github/authorize/callback'].includes(
+      request.url.split('?')[0]
+    )
+  ) {
+    const message =
+      error.installationStateFailure === 'PHASE_MISMATCH'
+        ? 'GitHub returned to the wrong connection step. In GitHub App settings, turn off Request user authorization (OAuth) during installation, set Setup URL to /integrations/github/install/callback and Callback URL to /integrations/github/authorize/callback on this website, enable Redirect on update and save. Then start a new connection from Sources. Your existing login remains active.'
+        : 'GitHub connection was not completed: its verification state is invalid, expired or already used. Start a new connection from Sources and finish within 10 minutes on the same website. Your existing login remains active.';
+    return reply.code(302).redirect('/sources?error=' + encodeURIComponent(message));
   }
 
   // 1. Handle browser form POST failures (redirect with sanitized error query)
@@ -139,7 +164,10 @@ export function notFoundHandler(request, reply) {
   const accept = request.headers['accept'] || '';
   const prefersHtml = accept.includes('text/html') && !accept.includes('application/json');
 
-  request.log.info({ requestId, method: request.method, url: request.url }, 'Route not found');
+  request.log.info(
+    { requestId, method: request.method, url: safeLogUrl(request.url) },
+    'Route not found'
+  );
 
   if (prefersHtml) {
     const html = renderErrorPage({

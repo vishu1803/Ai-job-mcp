@@ -1,3 +1,4 @@
+import { OPTIONAL_RESUME_SECTIONS } from '../domain/career/resume-source-fields.js';
 /**
  * @file Reusable, Dependency-Neutral Resume Composition Primitives
  *
@@ -1078,6 +1079,7 @@ export const PROTECTED_SECTION_ANCHOR_ORDER = Object.freeze([
   'EXPERIENCE',
   'EDUCATION',
   'CERTIFICATIONS',
+  ...Object.values(OPTIONAL_RESUME_SECTIONS),
 ]);
 
 export function hasRenderableSection(sectionKey, doc) {
@@ -1097,7 +1099,11 @@ export function hasRenderableSection(sectionKey, doc) {
     case 'CERTIFICATIONS':
       return Array.isArray(doc.certifications) && doc.certifications.length > 0;
     default:
-      return false;
+      return Boolean(
+        Object.entries(OPTIONAL_RESUME_SECTIONS).some(
+          ([field, key]) => sectionKey === key && doc.optionalSections?.[field]?.length
+        )
+      );
   }
 }
 
@@ -1106,7 +1112,7 @@ export function hasRenderableSection(sectionKey, doc) {
  */
 export function ensureCandidateSectionIntegrity(doc) {
   const order = Array.isArray(doc.sectionOrder) ? [...doc.sectionOrder] : [];
-  const canonical = order.map((s) => String(s).toUpperCase());
+  const canonical = [...new Set(order.map((s) => String(s).toUpperCase()))];
 
   for (const section of PROTECTED_SECTION_ANCHOR_ORDER) {
     if (!hasRenderableSection(section, doc) || canonical.includes(section)) continue;
@@ -1177,6 +1183,7 @@ export function verifyProtectedSectionsUnchanged(original, composed) {
     ['education', 'Education'],
     ['certifications', 'Certifications'],
     ['dsa', 'DSA'],
+    ['optionalSections', 'Optional source sections'],
   ];
 
   for (const [key, label] of protectedPairs) {
