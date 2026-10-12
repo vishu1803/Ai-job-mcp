@@ -226,6 +226,13 @@ export function normalizeResumeSourceSections(profile) {
       SourceExperienceSnapshotSchema,
       (r) => {
         const range = sourceRange(r.rawDateRange);
+        // Earlier snapshots retained these fields as unknown metadata. Promote
+        // only the now-supported keys, preserve metadata/IDs, and honor clears.
+        const workText = {};
+        for (const key of ['summary', 'description']) {
+          const value = Object.hasOwn(r, key) ? r[key] : r.legacyFields?.[key];
+          if (value !== undefined) workText[key] = value === '' ? null : value;
+        }
         return {
           id: r.id,
           company: r.company || r.employer || r.organization || null,
@@ -241,6 +248,7 @@ export function normalizeResumeSourceSections(profile) {
           bullets: lines(r.bullets ?? r.highlights ?? r.responsibilities),
           technologies: lines(r.technologies),
           employmentType: r.employmentType || null,
+          ...workText,
           rawDateRange: r.rawDateRange || null,
         };
       }

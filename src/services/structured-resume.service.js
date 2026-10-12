@@ -46,7 +46,10 @@ import {
 import { MasterResumeStructureService } from './master-resume-structure.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { formatTechnologyStack } from '../utils/technology-normalizer.js';
-import { normalizeResumeSourceSections } from '../utils/resume-source-normalizer.js';
+import {
+  normalizeResumeSourceSections,
+  resumeSourceValue,
+} from '../utils/resume-source-normalizer.js';
 import { ensureCandidateSectionIntegrity } from './resume-composition-primitives.js';
 import {
   buildCanonicalFactInventory,
@@ -224,7 +227,8 @@ function slugifyProject(text) {
  */
 function extractCandidateLinks(profile) {
   const links = [];
-  const rawLinks = profile.links || profile.portfolioLinks || [];
+  const suppliedLinks = resumeSourceValue(profile, 'links', ['portfolioLinks']);
+  const rawLinks = suppliedLinks || [];
   if (Array.isArray(rawLinks)) {
     for (const link of rawLinks) {
       if (!link) continue;
@@ -252,14 +256,17 @@ function extractCandidateLinks(profile) {
     }
   }
 
+  // An explicit clear must not resurrect stale direct-profile URLs.
+  if (suppliedLinks === null || (Array.isArray(suppliedLinks) && suppliedLinks.length === 0))
+    return links;
   // Profile-level specific URLs if not already in links
-  if (profile.githubUrl && !links.some((l) => l.platform === 'GITHUB')) {
+  if (profile.githubUrl && !links.some((l) => l.url === profile.githubUrl)) {
     links.push({ label: 'GitHub', url: profile.githubUrl, platform: 'GITHUB' });
   }
-  if (profile.linkedinUrl && !links.some((l) => l.platform === 'LINKEDIN')) {
+  if (profile.linkedinUrl && !links.some((l) => l.url === profile.linkedinUrl)) {
     links.push({ label: 'LinkedIn', url: profile.linkedinUrl, platform: 'LINKEDIN' });
   }
-  if (profile.leetcodeUrl && !links.some((l) => l.platform === 'LEETCODE')) {
+  if (profile.leetcodeUrl && !links.some((l) => l.url === profile.leetcodeUrl)) {
     links.push({ label: 'LeetCode', url: profile.leetcodeUrl, platform: 'LEETCODE' });
   }
 
@@ -314,6 +321,15 @@ export function buildStructuredResumeDocument({
 
   // 1. Candidate Identity Snapshot (Immutable Source Data)
   const isTailoredJob = Boolean(jobPosting && (jobPosting.title || jobPosting.rawTitle));
+  const suppliedHeadline = resumeSourceValue(source, 'headline');
+  const authoredHeadline = typeof suppliedHeadline === 'string' ? suppliedHeadline.trim() : '';
+  const suppliedPhone = resumeSourceValue(source, 'phone', ['canonicalPhone', 'phoneNumber']);
+  const suppliedLocation = resumeSourceValue(source, 'location');
+  const emptyHeadline =
+    suppliedHeadline === null || (typeof suppliedHeadline === 'string' && !suppliedHeadline.trim());
+  const neutralHeadline = isTailoredJob
+    ? `Target role: ${jobPosting.title || jobPosting.rawTitle}`
+    : 'Candidate Profile';
   const candidateIdentity = {
     displayName:
       source.displayName ||
@@ -348,21 +364,25 @@ export function buildStructuredResumeDocument({
       source.candidate?.canonicalEmail ||
       source.candidate?.email,
     phone:
-      source.phone ||
-      source.phoneNumber ||
-      source.candidate?.profileMetadata?.userCustom?.phone ||
-      source.candidate?.profileMetadata?.phone ||
-      source.candidate?.phone ||
-      meta.userCustom?.phone ||
-      meta.identity?.phone ||
-      meta.phone ||
-      null,
+      suppliedPhone !== undefined
+        ? suppliedPhone || null
+        : source.phone ||
+          source.phoneNumber ||
+          source.candidate?.profileMetadata?.userCustom?.phone ||
+          source.candidate?.profileMetadata?.phone ||
+          source.candidate?.phone ||
+          meta.userCustom?.phone ||
+          meta.identity?.phone ||
+          meta.phone ||
+          null,
     location:
-      source.location ||
-      source.candidate?.location ||
-      meta.identity?.location ||
-      meta.location ||
-      null,
+      suppliedLocation !== undefined
+        ? suppliedLocation || null
+        : source.location ||
+          source.candidate?.location ||
+          meta.identity?.location ||
+          meta.location ||
+          null,
     links: extractCandidateLinks(source),
   };
 
@@ -1291,6 +1311,9 @@ export function buildStructuredResumeDocument({
         formatProjectDisplayName(proj.title || proj.name) ||
         `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
+      ...(proj.description || proj.metadata?.description
+        ? { description: proj.description || proj.metadata.description }
+        : {}),
       liveUrl: proj.liveUrl || null,
       technologies: rawTechs.length > 0 ? formatTechnologyStack(rawTechs) : [],
       bullets: pBullets,
@@ -1445,14 +1468,17 @@ export function buildStructuredResumeDocument({
     projects.flatMap((p) => [p.projectId, p.id, p.name, p.displayName].filter(Boolean))
   );
 
-  const authoredSummary =
-    source.summary?.text ?? source.summary ?? meta.userCustom?.summary ?? meta.summary;
-  if (typeof authoredSummary === 'string' && authoredSummary.trim()) {
+  const authoredSummary = resumeSourceValue(source, 'summary');
+  const authoredSummaryText =
+    typeof authoredSummary === 'object' && authoredSummary !== null
+      ? authoredSummary.text
+      : authoredSummary;
+  if (typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
     summary = {
-      text: authoredSummary.trim(),
+      text: authoredSummaryText.trim(),
       provenanceStatus: 'CLAIMED',
       transformationType: 'VERBATIM',
-      sourceFact: authoredSummary.trim(),
+      sourceFact: authoredSummaryText.trim(),
     };
   } else if (
     options?.aiContent?.summary &&
@@ -1534,10 +1560,12 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
   if (
-    !authoredSummary &&
-    experience.length === 0 &&
-    rawProjects.length === 0 &&
-    rawSkills.length === 0
+    authoredSummary === null ||
+    (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
+    (!authoredSummary &&
+      experience.length === 0 &&
+      rawProjects.length === 0 &&
+      rawSkills.length === 0)
   ) {
     summary = { text: '', composedFromFactIds: [], provenanceStatus: 'CLAIMED' };
   }
@@ -1579,23 +1607,32 @@ export function buildStructuredResumeDocument({
     sectionOrder: parsedPlan.sectionOrder,
     candidateIdentity: {
       ...candidateIdentity,
-      headline: isTailoredJob
-        ? tailoredHeadingInfo?.tailoredHeadline ||
-          tailoredHeadingInfo?.heading ||
-          candidateIdentity.headline
-        : candidateIdentity.headline ||
+      headline: emptyHeadline
+        ? neutralHeadline
+        : isTailoredJob
+          ? tailoredHeadingInfo?.tailoredHeadline ||
+            tailoredHeadingInfo?.heading ||
+            candidateIdentity.headline
+          : authoredHeadline ||
+            candidateIdentity.headline ||
+            tailoredHeadingInfo?.masterHeadline ||
+            tailoredHeadingInfo?.candidateHeadline,
+      masterHeadline: emptyHeadline
+        ? null
+        : authoredHeadline ||
+          candidateIdentity.masterHeadline ||
           tailoredHeadingInfo?.masterHeadline ||
-          tailoredHeadingInfo?.candidateHeadline,
-      masterHeadline:
-        candidateIdentity.masterHeadline ||
-        tailoredHeadingInfo?.masterHeadline ||
-        tailoredHeadingInfo?.candidateHeadline ||
-        null,
-      tailoredHeadline: isTailoredJob
-        ? tailoredHeadingInfo?.tailoredHeadline ||
-          tailoredHeadingInfo?.heading ||
-          candidateIdentity.headline
-        : null,
+          tailoredHeadingInfo?.candidateHeadline ||
+          null,
+      tailoredHeadline: emptyHeadline
+        ? isTailoredJob
+          ? neutralHeadline
+          : null
+        : isTailoredJob
+          ? tailoredHeadingInfo?.tailoredHeadline ||
+            tailoredHeadingInfo?.heading ||
+            candidateIdentity.headline
+          : null,
     },
     summary,
     skills: {
@@ -2376,6 +2413,16 @@ export function freezeSemanticResume(structuredResume) {
       education: resume.education,
       certifications: resume.certifications,
       optionalSections: resume.optionalSections,
+      // Bind newly supported project descriptions to the same source-preservation
+      // guard. Keep the legacy fingerprint representation when no descriptions exist.
+      ...((resume.projects || []).some((project) => project.description)
+        ? {
+            projectDescriptions: resume.projects.map((project) => ({
+              projectId: project.projectId,
+              description: project.description || null,
+            })),
+          }
+        : {}),
     }),
     educationFacts: Object.freeze(
       (resume.education || []).map((e) => `${e.institution || ''}:${e.degree || ''}`)

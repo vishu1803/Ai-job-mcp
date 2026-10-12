@@ -18,6 +18,13 @@ import { ZeroHallucinationIntegrityService } from './zero-hallucination-integrit
 import { enforceEvidenceTrust } from './evidence/verification-policy.js';
 import { isCurrentNarrativeArtifact } from './evidence/narrative-policy.js';
 import {
+  resumeExportView,
+  resumeDateRange,
+  resumeLocation,
+  educationDetails,
+  extraResumeSections,
+} from '../utils/resume-export-view.js';
+import {
   ExportOptionsSchema,
   JsonResumeSchema,
   ExportedArtifactSchema,
@@ -76,13 +83,28 @@ export class CareerArtifactExportService {
     options = enforceEvidenceTrust(options);
 
     // 2. Parse & Validate Export Options
-    const opts = ExportOptionsSchema.parse(options);
+    let opts = ExportOptionsSchema.parse(options);
 
     // 3. Detect Artifact Type
     const artifactType = this._detectArtifactType(artifact);
 
     // 4. Validate Integrity Boundary
     this._validateArtifactIntegrity(context, artifact, opts);
+    const sourceArtifact = artifact;
+    const view = resumeExportView(artifact);
+    if (view) {
+      artifact = view.resume;
+      opts = { ...opts, candidateProfile: view.candidateProfile };
+    }
+    if (!opts.includeUnverifiedClaims && artifactType === 'RESUME') {
+      artifact = { ...artifact };
+      for (const key of ['experience', 'education', 'certifications'])
+        artifact[key] = (artifact[key] || []).filter(
+          (entry) => entry.provenanceStatus !== 'CLAIMED'
+        );
+      if (sourceArtifact.structuredResume?.summary?.provenanceStatus === 'CLAIMED')
+        artifact.summary = '';
+    }
 
     // 5. Generate Format Content via Canonical Adapters
     let rawContent = '';
@@ -134,7 +156,7 @@ export class CareerArtifactExportService {
       }
 
       case 'CANONICAL_JSON': {
-        const canonicalObj = this._renderCanonicalJson(artifact, artifactType, opts);
+        const canonicalObj = this._renderCanonicalJson(sourceArtifact, artifactType, opts);
         rawContent = JSON.stringify(canonicalObj, null, 2);
         mimeType = 'application/json';
         defaultFileName =
@@ -362,6 +384,7 @@ export class CareerArtifactExportService {
   _detectArtifactType(artifact) {
     if (
       artifact.resumeId ||
+      artifact.structuredResume ||
       (Array.isArray(artifact.skills) && Array.isArray(artifact.experience))
     ) {
       return 'RESUME';
@@ -395,7 +418,7 @@ export class CareerArtifactExportService {
 
     const basics = {
       name,
-      label: resume.headline || cand.headline || 'Software Engineer',
+      label: resume.headline || cand.headline || '',
       email,
       phone,
       url: cand.websiteUrl || cand.portfolioUrl || null,
@@ -404,17 +427,26 @@ export class CareerArtifactExportService {
       location: {
         address,
         postalCode: cand.location?.postalCode || null,
-        city: cand.location?.city || 'San Francisco',
-        countryCode: cand.location?.countryCode || 'US',
-        region: cand.location?.region || 'CA',
+        city: anonymize
+          ? null
+          : (typeof cand.location === 'string' ? cand.location : cand.location?.city) || null,
+        countryCode: anonymize ? null : cand.location?.countryCode || null,
+        region: anonymize ? null : cand.location?.region || null,
       },
-      profiles: Array.isArray(cand.identities)
-        ? cand.identities.map((id) => ({
-            network: id.provider || 'GitHub',
-            username: anonymize ? '[REDACTED_USERNAME]' : id.externalUsername || 'developer',
-            url: anonymize ? null : id.profileUrl || `https://github.com/${id.externalUsername}`,
-          }))
-        : [],
+      profiles: anonymize
+        ? []
+        : Array.isArray(cand.links)
+          ? cand.links.map((link) => ({
+              network: link.label || link.platform || '',
+              url: link.url,
+            }))
+          : Array.isArray(cand.identities)
+            ? cand.identities.map((id) => ({
+                network: id.provider || '',
+                username: anonymize ? '[REDACTED_USERNAME]' : id.externalUsername || '',
+                url: anonymize ? null : id.profileUrl || null,
+              }))
+            : [],
     };
 
     // Work
@@ -422,27 +454,27 @@ export class CareerArtifactExportService {
       .map((exp) => {
         const filteredBullets = this._filterBullets(exp.bullets, includeUnverified);
         return {
-          name: exp.company,
-          position: exp.title,
+          name: exp.company || undefined,
+          position: exp.title || undefined,
           url: exp.url || null,
           startDate: exp.startDate || null,
           endDate: exp.isCurrent ? null : exp.endDate || null,
-          summary: exp.summary || null,
+          summary: [...new Set([exp.summary, exp.description].filter(Boolean))].join('\n') || null,
           highlights: filteredBullets.map((b) => this._formatBulletText(b, options.citationStyle)),
         };
       })
-      .filter((w) => w.highlights.length > 0 || w.name);
+      .filter((w) => w.highlights.length > 0 || w.name || w.position || w.summary);
 
     // Education
     const education = (Array.isArray(resume.education) ? resume.education : []).map((edu) => ({
-      institution: edu.institution,
+      institution: edu.institution || undefined,
       url: edu.url || null,
       area: edu.fieldOfStudy || null,
-      studyType: edu.degree,
+      studyType: edu.degree || undefined,
       startDate: edu.startDate || null,
       endDate: edu.endDate || null,
       score: edu.grade || null,
-      courses: edu.bullets ? edu.bullets.map((b) => b.text) : [],
+      courses: edu.coursework || [],
     }));
 
     // Skills
@@ -452,7 +484,7 @@ export class CareerArtifactExportService {
       );
       return {
         name: cat.name,
-        level: cat.skills?.some((s) => s.status === 'VERIFIED') ? 'VERIFIED' : 'INFERRED',
+        level: 'CANDIDATE_PROVIDED_OR_INFERRED',
         keywords: skillItems.map((s) =>
           s.status === 'CLAIMED' && includeUnverified ? `${s.name} [Unverified User Claim]` : s.name
         ),
@@ -466,22 +498,25 @@ export class CareerArtifactExportService {
         name: proj.displayName || proj.name,
         description: proj.description || null,
         highlights: filteredBullets.map((b) => this._formatBulletText(b, options.citationStyle)),
-        keywords: [...(proj.primaryLanguages || []), ...(proj.primaryFrameworks || [])],
-        startDate: null,
-        endDate: null,
-        url: proj.repositoryUrl || proj.demoUrl || null,
-        roles: ['Author / Lead Developer'],
+        keywords: proj.technologies || [
+          ...(proj.primaryLanguages || []),
+          ...(proj.primaryFrameworks || []),
+        ],
+        startDate: proj.startDate || null,
+        endDate: proj.endDate || null,
+        url: proj.repositoryUrl || proj.liveUrl || proj.demoUrl || null,
+        roles: [],
         entity: null,
-        type: proj.projectType || 'application',
+        type: proj.projectType || null,
       };
     });
 
     // Certificates
     const certificates = (Array.isArray(resume.certifications) ? resume.certifications : []).map(
       (cert) => ({
-        name: cert.name,
+        name: cert.name || undefined,
         date: cert.issueDate || null,
-        issuer: cert.issuingOrganization,
+        issuer: cert.issuingOrganization || undefined,
         url: cert.credentialUrl || null,
       })
     );
@@ -490,10 +525,8 @@ export class CareerArtifactExportService {
     const meta = {
       canonical: 'https://github.com/vishu1803/Ai-job-mcp',
       version: 'v1.0.0',
-      lastModified: new Date().toISOString(),
       antigravity: {
         generator: 'Antigravity Career Artifact Engine',
-        atsMatchScore: resume.atsMatchScore || 0.0,
         integrityStatus: resume.integrityStatus || 'PASS',
         presentationMode: resume.presentationMode || 'GENERATE_NEW',
         evidenceGraphSummary: {
@@ -501,8 +534,22 @@ export class CareerArtifactExportService {
           totalSkills: skills.reduce((acc, s) => acc + s.keywords.length, 0),
           citationStyle: options.citationStyle,
         },
+        // JSON Resume lacks fields for credential IDs/expiry, honors and custom
+        // sections. Preserve them in an explicit, privacy-filtered extension.
+        sourceSections: this._renderCanonicalJson(
+          {
+            experience: resume.experience || [],
+            education: resume.education || [],
+            certifications: resume.certifications || [],
+            projects: resume.projects || [],
+            optionalSections: resume.optionalSections || {},
+          },
+          'RESUME',
+          options
+        ),
       },
     };
+    this._assertNoSecretsInMetadata(meta);
 
     return {
       basics,
@@ -563,14 +610,14 @@ export class CareerArtifactExportService {
     const name = anonymize ? '[REDACTED_NAME]' : cand.displayName || cand.name || 'Candidate Name';
     const email = anonymize ? '[REDACTED_EMAIL]' : cand.canonicalEmail || cand.email || '';
     const phone = anonymize ? '[REDACTED_PHONE]' : cand.canonicalPhone || cand.phone || '';
-    const location = cand.location?.city
-      ? `${cand.location.city}, ${cand.location.region || cand.location.countryCode}`
-      : '';
+    const location = anonymize ? '' : resumeLocation(cand.location);
 
     lines.push(`# ${this._escapeMarkdown(name)}`);
-    lines.push(`**${this._escapeMarkdown(resume.headline || 'Software Engineer')}**`);
+    if (resume.headline) lines.push(`**${this._escapeMarkdown(resume.headline)}**`);
 
     const contactParts = [email, phone, location].filter(Boolean);
+    if (!anonymize)
+      contactParts.push(...(cand.links || []).map((link) => link.url).filter(Boolean));
     if (contactParts.length > 0) {
       lines.push(contactParts.map((c) => this._escapeMarkdown(c)).join(' | '));
     }
@@ -607,10 +654,20 @@ export class CareerArtifactExportService {
     if (Array.isArray(resume.experience) && resume.experience.length > 0) {
       lines.push('## Professional Experience');
       for (const exp of resume.experience) {
-        const dates = `${exp.startDate || '2020'} - ${exp.isCurrent ? 'Present' : exp.endDate || 'Present'}`;
+        const dates = resumeDateRange(exp);
         const loc = exp.location ? ` | ${exp.location}` : '';
         lines.push(`### ${this._escapeMarkdown(exp.title)} — ${this._escapeMarkdown(exp.company)}`);
-        lines.push(`*${this._escapeMarkdown(dates)}${this._escapeMarkdown(loc)}*`);
+        if (dates || loc)
+          lines.push(`*${this._escapeMarkdown(dates)}${this._escapeMarkdown(loc)}*`);
+        for (const detail of new Set(
+          [
+            exp.summary,
+            exp.description,
+            exp.employmentType,
+            exp.technologies?.length ? `Technologies: ${exp.technologies.join(', ')}` : null,
+          ].filter(Boolean)
+        ))
+          lines.push(this._escapeMarkdown(detail));
         const filteredBullets = this._filterBullets(exp.bullets, includeUnverified);
         for (const b of filteredBullets) {
           const cit = getCitation(b.evidenceRefs);
@@ -626,9 +683,22 @@ export class CareerArtifactExportService {
       for (const proj of resume.projects) {
         const projName = proj.displayName || proj.name;
         lines.push(`### ${this._escapeMarkdown(projName)}`);
-        if (proj.description) {
+        if (
+          proj.description &&
+          !this._filterBullets(proj.bullets, includeUnverified).some(
+            (bullet) => bullet.text.trim() === proj.description.trim()
+          )
+        ) {
           lines.push(`*${this._escapeMarkdown(proj.description)}*`);
         }
+        for (const url of new Set([proj.repositoryUrl, proj.liveUrl, proj.demoUrl].filter(Boolean)))
+          lines.push(this._escapeMarkdown(url));
+        const technologies = proj.technologies || [
+          ...(proj.primaryLanguages || []),
+          ...(proj.primaryFrameworks || []),
+        ];
+        if (technologies.length)
+          lines.push(`Technologies: ${this._escapeMarkdown(technologies.join(', '))}`);
         const filteredBullets = this._filterBullets(proj.bullets, includeUnverified);
         for (const b of filteredBullets) {
           const cit = getCitation(b.evidenceRefs);
@@ -645,10 +715,17 @@ export class CareerArtifactExportService {
         lines.push(
           `### ${this._escapeMarkdown(edu.degree)} — ${this._escapeMarkdown(edu.institution)}`
         );
-        if (edu.fieldOfStudy)
-          lines.push(`*Field of Study: ${this._escapeMarkdown(edu.fieldOfStudy)}*`);
+        for (const detail of educationDetails(edu)) lines.push(this._escapeMarkdown(detail));
         lines.push('');
       }
+    }
+
+    for (const section of extraResumeSections(resume, includeUnverified)) {
+      lines.push(
+        `## ${section.title}`,
+        ...section.entries.map((entry) => `- ${this._escapeMarkdown(entry)}`),
+        ''
+      );
     }
 
     // Footnotes Section
@@ -799,13 +876,18 @@ export class CareerArtifactExportService {
     const name = anonymize ? '[REDACTED_NAME]' : cand.displayName || cand.name || 'Candidate Name';
     const email = anonymize ? '[REDACTED_EMAIL]' : cand.canonicalEmail || cand.email || '';
     const phone = anonymize ? '[REDACTED_PHONE]' : cand.canonicalPhone || cand.phone || '';
-    const location = cand.location?.city
-      ? `${cand.location.city}, ${cand.location.region || cand.location.countryCode}`
-      : '';
+    const location = anonymize ? '' : resumeLocation(cand.location);
 
     lines.push(name.toUpperCase());
-    lines.push(resume.headline || 'Software Engineer');
-    const contactLine = [email, phone, location].filter(Boolean).join(' | ');
+    if (resume.headline) lines.push(resume.headline);
+    const contactLine = [
+      email,
+      phone,
+      location,
+      ...(!anonymize ? (cand.links || []).map((link) => link.url) : []),
+    ]
+      .filter(Boolean)
+      .join(' | ');
     if (contactLine) lines.push(contactLine);
     lines.push('');
 
@@ -838,10 +920,19 @@ export class CareerArtifactExportService {
     if (Array.isArray(resume.experience) && resume.experience.length > 0) {
       lines.push('=== EXPERIENCE ===');
       for (const exp of resume.experience) {
-        const dates = `${exp.startDate || '2020'} - ${exp.isCurrent ? 'Present' : exp.endDate || 'Present'}`;
+        const dates = resumeDateRange(exp);
         const loc = exp.location ? ` | ${exp.location}` : '';
         lines.push(`${exp.title} | ${exp.company}`);
-        lines.push(`${dates}${loc}`);
+        if (dates || loc) lines.push(`${dates}${loc}`);
+        for (const detail of new Set(
+          [
+            exp.summary,
+            exp.description,
+            exp.employmentType,
+            exp.technologies?.length ? `Technologies: ${exp.technologies.join(', ')}` : null,
+          ].filter(Boolean)
+        ))
+          lines.push(this._sanitizePlainText(detail));
         const filteredBullets = this._filterBullets(exp.bullets, includeUnverified);
         for (const b of filteredBullets) {
           lines.push(`* ${this._sanitizePlainText(b.text)}`);
@@ -856,7 +947,20 @@ export class CareerArtifactExportService {
       for (const proj of resume.projects) {
         const projName = proj.displayName || proj.name;
         lines.push(`${projName}`);
-        if (proj.description) lines.push(this._sanitizePlainText(proj.description));
+        if (
+          proj.description &&
+          !this._filterBullets(proj.bullets, includeUnverified).some(
+            (bullet) => bullet.text.trim() === proj.description.trim()
+          )
+        )
+          lines.push(this._sanitizePlainText(proj.description));
+        for (const url of new Set([proj.repositoryUrl, proj.liveUrl, proj.demoUrl].filter(Boolean)))
+          lines.push(url);
+        const technologies = proj.technologies || [
+          ...(proj.primaryLanguages || []),
+          ...(proj.primaryFrameworks || []),
+        ];
+        if (technologies.length) lines.push(`Technologies: ${technologies.join(', ')}`);
         const filteredBullets = this._filterBullets(proj.bullets, includeUnverified);
         for (const b of filteredBullets) {
           lines.push(`* ${this._sanitizePlainText(b.text)}`);
@@ -870,11 +974,18 @@ export class CareerArtifactExportService {
       lines.push('=== EDUCATION ===');
       for (const edu of resume.education) {
         lines.push(`${edu.degree} | ${edu.institution}`);
-        if (edu.fieldOfStudy) lines.push(`Field of Study: ${edu.fieldOfStudy}`);
+        for (const detail of educationDetails(edu)) lines.push(this._sanitizePlainText(detail));
         lines.push('');
       }
     }
 
+    for (const section of extraResumeSections(resume, includeUnverified)) {
+      lines.push(
+        `=== ${section.title} ===`,
+        ...section.entries.map((entry) => `* ${this._sanitizePlainText(entry)}`),
+        ''
+      );
+    }
     return lines.join('\n').trim();
   }
 
@@ -951,6 +1062,14 @@ export class CareerArtifactExportService {
     const cloned = JSON.parse(JSON.stringify(artifact));
     cloned.evidenceTrust = 'CANDIDATE_PROVIDED_OR_INFERRED_NOT_VERIFIED_PROFICIENCY';
     if (options.anonymize) {
+      const identity = cloned.structuredResume?.candidateIdentity || cloned.candidateIdentity;
+      if (identity) {
+        identity.displayName = '[REDACTED_NAME]';
+        identity.email = '[REDACTED_EMAIL]';
+        identity.phone = '[REDACTED_PHONE]';
+        identity.location = null;
+        identity.links = [];
+      }
       if (cloned.candidate) {
         cloned.candidate.name = '[REDACTED_NAME]';
         cloned.candidate.displayName = '[REDACTED_NAME]';
@@ -961,6 +1080,36 @@ export class CareerArtifactExportService {
       }
     }
     if (!options.includeUnverifiedClaims) {
+      const document = cloned.structuredResume;
+      if (document) {
+        if (document.summary?.provenanceStatus === 'CLAIMED')
+          document.summary = { ...document.summary, text: '' };
+        document.experience = document.experience.filter(
+          (entry) => entry.provenanceStatus !== 'CLAIMED'
+        );
+        document.education = document.education.filter(
+          (entry) => entry.provenanceStatus !== 'CLAIMED'
+        );
+        document.certifications = document.certifications.filter(
+          (entry) => entry.provenanceStatus !== 'CLAIMED'
+        );
+        for (const category of document.skills.categories)
+          category.skills = category.skills.filter((skill) => skill.provenanceStatus !== 'CLAIMED');
+        for (const project of document.projects)
+          project.bullets = this._filterBullets(project.bullets, false);
+        for (const key of Object.keys(document.optionalSections))
+          document.optionalSections[key] = document.optionalSections[key].filter(
+            (entry) => entry.provenanceStatus !== 'CLAIMED'
+          );
+      }
+      for (const key of ['experience', 'education', 'certifications'])
+        if (Array.isArray(cloned[key]))
+          cloned[key] = cloned[key].filter((entry) => entry.provenanceStatus !== 'CLAIMED');
+      if (cloned.optionalSections)
+        for (const key of Object.keys(cloned.optionalSections))
+          cloned.optionalSections[key] = cloned.optionalSections[key].filter(
+            (entry) => entry.provenanceStatus !== 'CLAIMED'
+          );
       if (Array.isArray(cloned.experience)) {
         for (const exp of cloned.experience) {
           exp.bullets = this._filterBullets(exp.bullets, false);
@@ -981,13 +1130,20 @@ export class CareerArtifactExportService {
 
   _filterBullets(bullets, includeUnverified) {
     if (!Array.isArray(bullets)) return [];
-    return bullets.filter((b) => {
-      if (includeUnverified) return true;
-      if (b.status === 'CLAIMED' || (b.text && b.text.includes('[Unverified User Claim]'))) {
-        return false;
-      }
-      return true;
-    });
+    return bullets
+      .map((b) => (typeof b === 'string' ? { text: b, status: 'USER_PROVIDED' } : b))
+      .filter((b) => {
+        if (!b?.text?.trim()) return false;
+        if (includeUnverified) return true;
+        if (
+          b.status === 'CLAIMED' ||
+          b.provenanceStatus === 'CLAIMED' ||
+          (b.text && b.text.includes('[Unverified User Claim]'))
+        ) {
+          return false;
+        }
+        return true;
+      });
   }
 
   _formatBulletText(bullet, citationStyle) {

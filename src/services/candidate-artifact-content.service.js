@@ -616,8 +616,14 @@ export function reconcileCandidateProjects({
     const key = slugifyProject(rawName) || slugifyProject(rp.url) || slugifyProject(rp.urls?.[0]);
     if (!key) continue;
 
-    let liveUrl = null;
-    let repoUrl = rp.url || rp.urls?.[0] || null;
+    let liveUrl = isRealUrl(rp.liveUrl) ? rp.liveUrl : null;
+    let repoUrl =
+      rp.repositoryUrl ||
+      rp.url ||
+      rp.urls?.find((url) => /github\.com/i.test(url)) ||
+      rp.urls?.[0] ||
+      null;
+    if (!liveUrl) liveUrl = rp.urls?.find((url) => isRealUrl(url) && url !== repoUrl) || null;
     if (!isRealUrl(repoUrl)) repoUrl = null;
     const cleanBullets = [];
     for (const b of rp.bullets || []) {
@@ -643,7 +649,7 @@ export function reconcileCandidateProjects({
       slug: key,
       title: formatProjectDisplayName(rawName),
       summary: rp.summary || rp.headline || null,
-      description: rp.description || null,
+      description: rp.description || rp.summary || null,
       bullets: cleanBullets,
       highlights: Array.isArray(rp.highlights)
         ? rp.highlights
@@ -833,6 +839,15 @@ export function reconcileCandidateProjects({
 
   // 4. Generic evidence-grounded bullet derivation and impact sanitization
   for (const proj of projectMap.values()) {
+    // Uploaded/legacy source projects may lack a database ID. Resolve any real
+    // project association first, then give only ID-less sources a deterministic
+    // document identity. This creates no project row or verification claim.
+    if (!proj.id && !proj.projectId)
+      proj.id = `resume-project-${crypto
+        .createHash('sha256')
+        .update(proj.slug || slugifyProject(proj.name))
+        .digest('hex')
+        .slice(0, 24)}`;
     groundAndSanitizeProject(proj);
   }
 
@@ -3251,6 +3266,10 @@ export class CandidateArtifactContentService {
         const metaParts = [dateRange, exp.location].filter(Boolean).join(' · ');
         lines.push(`### ${headerLine}`);
         if (metaParts) lines.push(`*${metaParts}*`);
+        if (exp.employmentType) lines.push(exp.employmentType);
+        if (exp.technologies?.length) lines.push(`Technologies: ${exp.technologies.join(', ')}`);
+        for (const text of new Set([exp.summary, exp.description].filter(Boolean)))
+          lines.push(text);
         lines.push('');
         const bullets = Array.isArray(exp.bullets)
           ? exp.bullets

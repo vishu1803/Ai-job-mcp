@@ -363,7 +363,11 @@ export class ResumeEntityResolver {
           // 2. Extract any inline technology mentions in project bullets
           if (Array.isArray(rawProj.bullets)) {
             for (const b of rawProj.bullets) {
-              const inlineTechs = ResumeEntityResolver.extractTechnologiesFromText(b, skillsMap);
+              // Hosting URLs identify a source, not a technology used by the candidate.
+              const inlineTechs = ResumeEntityResolver.extractTechnologiesFromText(
+                b.replace(/https?:\/\/[^\s]+/gi, ''),
+                skillsMap
+              );
               for (const it of inlineTechs) {
                 const registered = recordSkillMention(
                   it.name,
@@ -387,9 +391,10 @@ export class ResumeEntityResolver {
           }
 
           projectsList.push({
+            ...(rawProj.id || rawProj.projectId ? { id: rawProj.id || rawProj.projectId } : {}),
             canonicalName: title,
             title,
-            description: (rawProj.bullets || []).join(' ') || title,
+            description: rawProj.description || null,
             bullets: rawProj.bullets || [],
             urls: rawProj.urls || [],
             technologies: resolvedTechs,

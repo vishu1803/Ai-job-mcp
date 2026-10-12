@@ -151,6 +151,18 @@ describe('PRD-003 complete resume source pipeline', () => {
     const authored = {
       ...profile,
       phone: '+91 9000000000',
+      location: 'Pune',
+      portfolioLinks: [
+        { label: 'Research', url: 'https://fixture.github.io/research' },
+        { label: 'Teaching', url: 'https://fixture.github.io/teaching' },
+      ],
+      experience: [
+        {
+          ...profile.experience[0],
+          summary: 'Supported accessible research.',
+          description: 'Maintained participant documentation.',
+        },
+      ],
       education: [
         ...profile.education,
         { id: 'edu-2', institution: 'Second University', degree: 'BSc', endDate: '2022' },
@@ -224,7 +236,7 @@ describe('PRD-003 complete resume source pipeline', () => {
     const text = await res.text();
     assert.equal(res.status, 200, text);
     prepared = JSON.parse(text);
-    assert.equal(prepared.artifactStatus, 'READY');
+    assert.equal(prepared.artifactStatus, 'READY', JSON.stringify(prepared));
     const handoffPage = await request(`/applications/${prepared.applicationId}/handoff`);
     const handoffHtml = await handoffPage.text();
     assert.equal(handoffPage.status, 200, handoffHtml);
@@ -255,6 +267,15 @@ describe('PRD-003 complete resume source pipeline', () => {
     assert.deepEqual(doc.education, sourceModel.education);
     assert.deepEqual(doc.certifications, sourceModel.certifications);
     assert.deepEqual(doc.optionalSections, sourceModel.optionalSections);
+    assert.equal(doc.candidateIdentity.location, 'Pune');
+    assert.ok(
+      doc.candidateIdentity.links.some((link) => link.url === 'https://fixture.github.io/research')
+    );
+    assert.ok(
+      doc.candidateIdentity.links.some((link) => link.url === 'https://fixture.github.io/teaching')
+    );
+    assert.equal(doc.experience[0].summary, 'Supported accessible research.');
+    assert.equal(doc.experience[0].description, 'Maintained participant documentation.');
     for (const expected of [
       'Second University',
       'Fixture Board',
@@ -262,6 +283,8 @@ describe('PRD-003 complete resume source pipeline', () => {
       'Fixture Journal',
       'Workshop Facilitator',
       'Reviewed accessibility guidelines.',
+      'Supported accessible research.',
+      'Maintained participant documentation.',
     ])
       assert.ok(
         firstPackage.tailoredResume.markdownContent.includes(expected),
@@ -342,7 +365,7 @@ describe('PRD-003 complete resume source pipeline', () => {
 
   it('uploads TXT, promotes full parsed records/optional sections, renders and downloads the unchanged original', async () => {
     const uploadText =
-      'SUMMARY\nI study accessible interfaces.\n\nEDUCATION\nMSc in Computing, Fixture University | Sep 2023 - Present\n\nCERTIFICATIONS\nFixture License | Issuer: Fixture Board | Issued: 2024-06 | Expires: 2027-06 | ID: CRED-UPLOAD | URL: https://issuer.example.test/upload\n\nPUBLICATIONS\nAccessible Systems published in Fixture Journal, 2024\n\nLANGUAGES\nHindi\n\n## Professional Activities\nReviewed accessibility guidelines.';
+      'SUMMARY\nI study accessible interfaces.\n\nPROJECTS\nAccessible Interface | JavaScript\n- Implemented keyboard navigation for the interface.\n- Documented accessible user interaction requirements.\n- Reviewed interface tests for input validation.\nSource Code: https://github.com/fixture/interface\nProject Link: https://fixture.github.io/interface\n\nEDUCATION\nMSc in Computing, Fixture University | Sep 2023 - Present\n\nCERTIFICATIONS\nFixture License | Issuer: Fixture Board | Issued: 2024-06 | Expires: 2027-06 | ID: CRED-UPLOAD | URL: https://issuer.example.test/upload\n\nPUBLICATIONS\nAccessible Systems published in Fixture Journal, 2024\n\nLANGUAGES\nHindi\n\n## Professional Activities\nReviewed accessibility guidelines.';
     const upload = await request(
       '/resumes/upload',
       {
@@ -376,7 +399,27 @@ describe('PRD-003 complete resume source pipeline', () => {
     assert.equal(candidate.publications.length, 1);
     assert.equal(candidate.languages[0].language, 'Hindi');
     assert.equal(candidate.customSections[0].items[0], 'Reviewed accessibility guidelines.');
-    const doc = buildStructuredResumeDocument({ candidateProfile: candidate, jobPosting: job });
+    assert.equal(candidate.projects.length, 1);
+    assert.equal(candidate.projects[0].repositoryUrl, 'https://github.com/fixture/interface');
+    assert.equal(candidate.projects[0].liveUrl, 'https://fixture.github.io/interface');
+    assert.deepEqual(candidate.projects[0].technologies, ['JavaScript']);
+    assert.equal(candidate.projects[0].description, null);
+    // Generate the master resume here; tailored selection requires an authoritative
+    // job ranking and must not be fabricated by a persistence test.
+    const doc = buildStructuredResumeDocument({ candidateProfile: candidate });
+    assert.equal(doc.projects.length, 1);
+    assert.ok(doc.projects[0].projectId);
+    const reloadedCandidate = await contentService.buildCandidateData({
+      tenantId,
+      userId: otherUserId,
+      candidateId: otherCandidateId,
+      jobPosting: job,
+    });
+    assert.deepEqual(reloadedCandidate.projects, candidate.projects);
+    assert.equal(
+      buildStructuredResumeDocument({ candidateProfile: reloadedCandidate }).projects[0].projectId,
+      doc.projects[0].projectId
+    );
     const tex = new LatexDocumentGenerator().generateTailoredResumeLatex({
       applicationPackage: { structuredResume: doc },
     }).texContent;
@@ -385,6 +428,8 @@ describe('PRD-003 complete resume source pipeline', () => {
       jobName: 'uploaded-resume',
     });
     await fs.writeFile(path.join(output, 'uploaded-resume.pdf'), rendered.pdfBuffer);
+    await fs.writeFile(path.join(output, 'uploaded-resume.json'), JSON.stringify(doc, null, 2));
+    await fs.writeFile(path.join(output, 'uploaded-resume.tex'), tex);
     const download = await request(`/resumes/${id}/download`, undefined, otherSession.rawToken);
     assert.equal(download.status, 200);
     assert.equal(Buffer.from(await download.arrayBuffer()).toString(), uploadText);

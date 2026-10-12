@@ -15,6 +15,57 @@ const compiler = new LatexCompilerService({
 compiler.tectonicPath = null;
 const fixtures = {
   student: { ...profile, experience: [] },
+  'multiple-degrees-credentials': {
+    ...profile,
+    education: [
+      ...profile.education,
+      {
+        id: 'second-degree',
+        institution: 'Second University',
+        degree: 'BSc',
+        startDate: '2018',
+        endDate: '2022',
+      },
+    ],
+    certifications: [
+      ...profile.certifications,
+      {
+        id: 'second-credential',
+        name: 'Second Credential',
+        issuer: 'Second Board',
+        issueDate: '2023',
+      },
+    ],
+  },
+  'incomplete-profile': {
+    displayName: 'Incomplete Fixture',
+    canonicalEmail: 'incomplete@example.test',
+    headline: '',
+    summary: '',
+    skills: [],
+    projects: [],
+    experience: [
+      { title: 'Assistant', summary: 'Candidate-provided documentation work.', bullets: [] },
+    ],
+    education: [{ institution: 'Named University' }],
+  },
+  'many-projects': {
+    ...profile,
+    experience: [],
+    projects: Array.from({ length: 8 }, (_, index) => ({
+      id: 'source-project-' + index,
+      name: 'Accessible Interface ' + index,
+      description: 'Candidate-described navigation prototype ' + index + '.',
+      repositoryUrl: `https://github.com/fixture/interface-${index}`,
+      liveUrl: `https://fixture.github.io/interface-${index}`,
+      technologies: ['JavaScript'],
+      bullets: [
+        'Implemented keyboard navigation for the interface.',
+        'Documented accessible user interaction requirements.',
+        'Reviewed interface tests for input validation.',
+      ],
+    })),
+  },
   'experienced-multipage': {
     ...profile,
     headline: 'Research Engineer',
@@ -56,6 +107,8 @@ for (const [name, candidateProfile] of Object.entries(fixtures)) {
     candidateProfile,
     jobPosting: { title: 'Research Assistant' },
   });
+  if (name === 'many-projects' && !document.projects.length)
+    throw new Error('Project corpus rendered no eligible projects');
   const tex = new LatexDocumentGenerator().generateTailoredResumeLatex({
     applicationPackage: { structuredResume: document },
   }).texContent;

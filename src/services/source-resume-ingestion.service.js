@@ -364,6 +364,7 @@ export class SourceResumeIngestionService {
     const resumeEducation = sourceSections.education;
 
     const resumeProjects = canonicalGraph.canonicalProjects.map((proj) => ({
+      ...(proj.id ? { id: proj.id } : {}),
       name: proj.canonicalName,
       title: proj.canonicalName,
       headline: proj.bullets[0] || null,

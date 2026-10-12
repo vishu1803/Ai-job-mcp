@@ -1,10 +1,12 @@
 # GitHub repository reconnection without rebuilding the candidate
 
-Date: 2026-10-10. Phase: P0 product acceptance. Production: **NO-GO**.
+Updated: 2026-10-11. Phase: P0 product acceptance. Production: **NO-GO**.
 Implementation and controlled integration verification complete; development
 resource reconciliation was explicitly authorized and the ten activations were
-committed as recorded below. Two live synchronization passes preserved history
-and identity counts; full extraction remains blocked for two oversized trees.
+committed as recorded below. The previously blocked two large repositories have
+now completed an explicitly authorized, targeted development synchronization
+and an idempotency repeat. The latest results and preservation limitations are
+recorded in the final section; the earlier dated results remain historical.
 No new PRD identifier.
 
 ## Cause and affected boundaries
@@ -313,7 +315,8 @@ duplicate identity groups remain zero; the six historical complete-fact duplicat
 groups remain unchanged, with no new duplicates. The service's `evidenceCreated`
 counter counts processed facts; actual additions above come from database counts.
 
-Two repositories remain ACTIVE/accessible but extraction fails closed:
+At the 2026-10-10 reconciliation checkpoint, two repositories remained
+ACTIVE/accessible but extraction failed closed:
 
 | Repository | Complete GitHub tree entries | Connector entry cap | Result |
 | --- | --- | --- | --- |
@@ -368,3 +371,189 @@ Scoped three-file ESLint0errors/0warnings and Prettier pass. Applications were
 not generated or submitted in the development account. Existing controlled tests
 use disposable PostgreSQL and synthetic provider content; live repository
 access/synchronization is evidenced separately.
+
+## Authorized large-repository synchronization and repeat (2026-10-11)
+
+**Status: COMPLETE for the two authorized live development synchronizations and
+repeat identity/idempotency checks.** Only the existing Ai-job-mcp and
+Ai-job-search-board resource IDs were passed to
+`CandidateRepositoryIngestionService.syncCandidateRepositories`. No other
+repository was synchronized or imported. No application or resume generation,
+approval consumption, submission, production operation, or deployment occurred.
+The earlier 1,000-entry blockers are resolved for these live sources using the
+published bounded traversal repair. This does not claim exhaustive code analysis
+or production readiness.
+
+### Ownership, access and stable identities
+
+Fresh preflights at `2026-10-11T04:16:48.219Z`,
+`2026-10-11T04:27:42.797Z` and `2026-10-11T04:29:06.543Z` verified the same
+tenant, ACTIVE user/candidate and ACTIVE historical connection listed above.
+Live GitHub verified installation `155430459` belongs to the configured App and
+personal account `97516061`, with contents/metadata access and no suspension.
+The existing OAuth identity/authority metadata agrees. Both ownership indexes
+remain valid, ready and unique; this connection remains the sole global
+installation claimant. Fresh complete listing returned 41 accessible
+repositories, including both approved numeric IDs; the other 39 were excluded.
+Database configuration was checked for the public development URL and a
+nonproduction environment. Tokens and credentials were not printed.
+
+| Repository | Stable GitHub ID | Preserved resource ID | Preserved linked project IDs |
+| --- | --- | --- | --- |
+| Ai-job-mcp | 1338724502 | 658e5861-246e-4709-9156-3196ad7bc0ab | 57e17373-ea29-48ae-94fc-0758ce284969; f68e4520-52bd-4355-822f-2bc0a02d8c5f |
+| Ai-job-search-board | 957786589 | 054867e0-9b4b-441d-a760-a13dacf46358 | d0c5640b-7f1d-4a94-ac45-319727c139ed |
+
+All eleven original project-resource links remain unchanged, including both
+historical MCP project links. All ten resources remain ACTIVE, independently
+confirmed after completion. Installation ownership and connection rows are
+unchanged.
+
+### Live bounded traversal results
+
+Both passes pinned the same immutable commit and tree for each repository.
+Git tree/blob checks, current installation selection, transactional ownership,
+candidate/tenant bindings, ingestion epochs and conservative verification
+checks remained enabled. No operational limits were raised or integrity checks
+bypassed.
+
+| Repository | Pinned commit SHA | Verified root tree SHA | First pass completed (UTC) | Repeat completed (UTC) |
+| --- | --- | --- | --- | --- |
+| Ai-job-mcp | f6060ec44bab9c265417374c95f848bcfe9788c4 | cc3ba3c4d9f10cb85f6194b48183aa44c39e50c9 | 04:17:27.059 | 04:28:15.760 |
+| Ai-job-search-board | 6b2f1df8840c4c015e9cdabd69b84222fa5c0a45 | 4b88bdfccdb9f7bd464e74c204b7d277ae211569 | 04:17:59.040 | 04:28:45.118 |
+
+All four durable resource attempts ended COMPLETE. Both repeat service results
+also reported COMPLETE, one repository processed each, zero warnings, zero
+projects created and zero projects updated. Each attempt used 25 budgeted
+requests. MCP downloaded 843,552 bytes; Board downloaded 1,533,763 bytes. The
+scope is explicitly `SOURCE_TREE_WITH_EXPLICIT_EXCLUSIONS`: binary images/icons
+were excluded, and Board's `ai-job-board-backend/node_modules` was excluded.
+Existing analysis limits remain ten manifests/fifteen source files: MCP analyzed
+one manifest and fifteen sources; Board analyzed two manifests and fourteen
+sources. Complete discovery within this declared scope does not mean every
+source file was analyzed. Truncated upstream fallback remains fixture-tested;
+this live operation did not demonstrate GitHub returning a truncated tree.
+
+### Counts, additions and verification changes
+
+| Record type | Before | After first pass | After repeat |
+| --- | ---: | ---: | ---: |
+| Candidates / candidate identities | 1 / 1 | 1 / 1 | 1 / 1 |
+| Resources / ACTIVE resources | 10 / 10 | 10 / 10 | 10 / 10 |
+| Projects / project-resource links | 11 / 11 | 11 / 11 | 11 / 11 |
+| Candidate skills | 123 | 135 | 135 |
+| Evidence records | 514 | 571 | 571 |
+| Candidate claims | 52 | 52 | 52 |
+| Resumes / sections | 1 / 7 | 1 / 7 | 1 / 7 |
+| Job applications | 14 | 14 | 14 |
+| Application packages | 602 | 602 | 602 |
+| Tailored documents | 2,143 | 2,143 | 2,143 |
+| Analysis snapshots | 90 | 90 | 90 |
+| Application approval tickets / executions | 0 / 0 | 0 / 0 | 0 / 0 |
+| Action approval tickets | 1 | 1 | 1 |
+
+The first pass added **12 distinct candidate skills and 57 evidence records**.
+MCP added 25 evidence records (23 OBSERVED, two VERIFIED); Board added 32
+(16 OBSERVED, sixteen VERIFIED). New VERIFIED evidence represents checked
+repository static references, not verified authorship, proficiency or career
+accomplishments. No candidate skill was promoted to VERIFIED. The service's
+`evidenceCreated` count is processed evidence, not the insertion count; additions
+were measured by preserved/new database IDs.
+
+Seven original evidence rows moved from INVALID/stale to OBSERVED/current:
+four MCP and three Board. No original row moved to VERIFIED. Total current
+OBSERVED changed 273 -> 319, current VERIFIED 14 -> 32, and stale INVALID
+227 -> 220. Three original candidate skills moved MISSING -> INFERRED; with the
+twelve additions, total INFERRED changed 82 -> 97. CLAIMED remained 21 and
+SELF_DECLARED remained seven; MISSING changed 13 -> 10. The repeat added
+**zero evidence and zero skills**, changed **zero verification/provenance
+statuses**, and retained the same commits, trees and IDs. Normal observation
+timestamps and proof epochs were refreshed; those are lifecycle fields, not
+immutable source facts or approved package content.
+
+Resource/project/candidate-skill duplicate identity groups remained zero.
+The same six pre-existing exact evidence-fact duplicate groups, each containing
+two rows, were retained unchanged. There were zero new duplicate groups and
+zero cleanup/deletion operations.
+
+### Preservation checks, guard failure and limits of proof
+
+Read-only REPEATABLE READ checkpoints covered eighteen tenant tables,
+connection ownership, other-tenant records and the eight unapproved resources
+and their evidence. All original IDs remain, all historical project associations
+match, all other resources/evidence and connection rows are unchanged, and
+application/package/document/snapshot/approval data match their original row
+fingerprints. Original projects, candidate/profile records and skill identities
+also match; skill rollups are expected mutable derived values.
+
+The initial operational preservation assertion failed after both first-pass
+ingestions had completed. Three existing MCP evidence rows had different
+fingerprints including their nonverification metadata:
+
+- `2fdfeeb5-eae9-4847-bb84-a6ca7e65aa92` (drizzle.config.js pattern evidence).
+- `3dd071ab-b733-45a2-9be6-11e73e75364f` (README React keyword evidence).
+- `54133b1b-8519-4e9d-b15d-9a3d066c77f2` (GitHub workflow evidence).
+
+The repeat was held for inspection. Source review confirms the production
+upsert matches complete immutable source facts (skill, type, provider, full
+location and excerpt) and updates metadata, confidence and detection time;
+it does not replace those source facts. These three rows received current
+extraction metadata and OBSERVED proofs. All 511 other original evidence
+fingerprints match after excluding normal verification/confidence/time fields,
+and all original evidence-project associations match. The original checkpoint
+stored digests, not full metadata values, so **the exact old metadata values and
+a byte-for-byte independent pre-sync metadata comparison for these three rows
+cannot be recovered from that checkpoint**. Do not describe all original
+metadata as unchanged. No historical restoration or metadata rewrite was
+performed to hide the assertion.
+
+A new checkpoint was taken after this inspection. The authorized repeat passed
+the full checkpoint comparison, including all nonverification evidence metadata,
+without allowing these three IDs as exceptions. Original digests, the failed
+assertion and the inspection are retained. Canonical package hashing and
+ISSUE-06 validation were never changed; these operational comparison digests
+are not approval bindings.
+
+The historical candidate identity still stores installation ID `155430459`
+rather than personal account ID `97516061`. It was preserved, not repaired as
+part of this sync. Installation authority was independently verified through
+the OAuth-bound connection and live App/account checks. The extractor grants no
+GitHub commit authorship from that historical identity. The 220 remaining stale
+evidence rows were preserved and not forced to VERIFIED/current. Repository
+recovery does not repair missing historical application package versions or
+make old approved packages current; fresh application generation/review remains
+separate and was not attempted.
+
+### Verification evidence and next action
+
+Operational verification: **four COMPLETE repository attempts, zero ingestion
+failures/warnings**, original identity/history checks as qualified above, repeat
+idempotency PASS, ownership/access/tenant isolation PASS, no new duplicate facts,
+and all ten resources ACTIVE. One initial preservation assertion failed and is
+disclosed above. Read-only diagnostic mistakes (an unsupported initial log level,
+an overstrict historical identity expectation and a guessed audit table name)
+were corrected without data repairs; they are not GitHub synchronization
+failures.
+
+The runtime was unchanged from published `f6060ec`. The matching earlier
+668 PASS / 0 FAIL / 0 CANCELLED / 0 SKIPPED publication gate was not rerun or
+counted as live verification. No new runtime tests or migrations were added for
+this authorized operational execution. Real live GitHub/development PostgreSQL
+checks above are separate from the earlier controlled provider fixtures.
+
+Evidence is retained under OS Temp `career-large-tree-20261010`:
+`two-repository-sync-baseline.json`, `two-repository-sync-first-attempt-result.json`,
+`two-repository-sync-first-pass-inspection.json`,
+`two-repository-sync-first-pass-snapshot.json`, `two-repository-sync-result.json`,
+`two-repository-sync-final-snapshot.json`, and live/repeat logs. The successful
+scoped synchronization audit is
+`8a7de006-84f7-40a9-8238-c97fef25a0d8`, event
+`github.repositories_synchronized`, created `2026-10-11T04:29:15.660692Z`.
+Ownership/access final recheck completed at `04:29:06.543Z`.
+Changed-documentation Prettier and `git diff --check` passed; strict scanning
+of added documentation found zero secret patterns. The repeat helper passed
+Node 22 syntax checking. Only this report and project.md were changed in the
+tracked workspace; no commit/push was performed in this operational task.
+
+No further repository activation is required. Next product repair remains
+resume structure and quality; any fresh resume/application generation or
+approval is a separate action. Production remains **NO-GO**.

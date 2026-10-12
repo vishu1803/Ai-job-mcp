@@ -33,8 +33,49 @@ for filename in sorted(root.glob("*.pdf")):
         "student": ["Fixture University", "CRED-1", "Accessible Systems", "Hindi"],
         "experienced-multipage": ["Fixture Employer 1", "Fixture Employer 20", "Fixture Board", "CRED-1"],
         "long-fields": ["José 林", "A&B", "50%", "C++", "CRED-1", "Accessible Systems"],
+        "multiple-degrees-credentials": ["Second University", "BSc", "Second Credential", "Second Board"],
+        "incomplete-profile": ["Incomplete Fixture", "Named University", "Candidate-provided documentation work."],
+        "many-projects": ["Accessible Interface", "Candidate-described navigation prototype", "JavaScript"],
     }.get(filename.stem, [])
     missing = [value for value in expected if value not in " ".join(text.split())]
+    source_path = filename.with_suffix(".json")
+    if source_path.exists():
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+        normalized_text = " ".join(text.split())
+        required = []
+        for entry in source.get("experience", []):
+            required.extend(entry.get(key) for key in ["title", "company", "summary", "description", "employmentType"])
+            required.extend(entry.get("technologies", []))
+            required.extend(bullet if isinstance(bullet, str) else bullet.get("text") for bullet in entry.get("bullets", []))
+        for entry in source.get("projects", []):
+            required.extend([entry.get("displayName"), entry.get("description")])
+            required.extend(bullet if isinstance(bullet, str) else bullet.get("text") for bullet in entry.get("bullets", []))
+        for entry in source.get("education", []):
+            required.extend(entry.get(key) for key in ["institution", "degree", "grade", "location"])
+            required.extend(entry.get("honors", []))
+        for entry in source.get("certifications", []):
+            required.extend(entry.get(key) for key in ["name", "issuingOrganization", "credentialId", "notes"])
+        for entries in source.get("optionalSections", {}).values():
+            for entry in entries:
+                required.extend(entry.get(key) for key in ["title", "name", "organization", "publisher", "language", "proficiency", "description", "summary"])
+                required.extend(entry.get("items", []))
+                required.extend(entry.get("bullets", []))
+        missing.extend(value for value in required if value and " ".join(value.split()) not in normalized_text)
+        links = [link.get("uri", "") for page in document for link in page.get_links()]
+        for link in source.get("candidateIdentity", {}).get("links", []):
+            # The existing Chrome header intentionally prints selectable URL text
+            # without protocol instead of link annotations. Compare that exact
+            # presentation contract; do not claim it is a clickable hyperlink.
+            visible = link["url"].removeprefix("https://").removeprefix("http://").removeprefix("www.").rstrip("/")
+            assert link["url"] in links or visible in normalized_text, (filename.name, "Lost contact URL", link["url"])
+        for entry in source.get("projects", []):
+            for key in ["repositoryUrl", "liveUrl"]:
+                url = entry.get(key)
+                if url:
+                    assert url in links or url in normalized_text, (filename.name, "Lost project URL", url)
+        if filename.stem == "incomplete-profile":
+            assert not source.get("summary", {}).get("text"), "Empty summary was fabricated"
+            assert "Software Engineer" not in text and "2020" not in text and "Present" not in text
     if filename.stem == "long-fields":
         assert "{ }" in text and "\\" in text, "Literal braces/backslash lost during export"
     report[filename.name] = {"pages": len(document), "minimum_font_pt": min(spans) if spans else None, "missing_required_text": missing, "outside_page_spans": outside, "replacement_glyphs": "\ufffd" in text}

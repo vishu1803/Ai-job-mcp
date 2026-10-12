@@ -506,7 +506,10 @@ export class LatexDocumentGenerator {
 
     // 4. Projects: exact stored ranking and authentic bullets (P16-006 high-density formatting)
     const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
-    const maxBulletsPerProject = Math.max(layoutProfile.maxBulletsPerProject ?? 3, 3);
+    const maxBulletsPerProject = Math.max(
+      0,
+      ...projects.map((project) => project.bullets?.length || 0)
+    );
     let projectsLatexSection = '';
     if (projects.length > 0) {
       const projectEntries = projects.map((p, index) => {
@@ -531,12 +534,13 @@ export class LatexDocumentGenerator {
         const cleanBullets = rawBullets
           .map((b) => (typeof b === 'string' ? b : b?.text || ''))
           .map((b) => String(b).trim())
-          .filter(Boolean)
-          .slice(0, maxBulletsPerProject);
+          .filter(Boolean);
 
         const pBullets = formatLatexBullets(cleanBullets);
 
         const entryLines = [`${headerLine}\\par`];
+        if (p.description && !cleanBullets.some((bullet) => bullet === p.description.trim()))
+          entryLines.push(`${escapeLatex(p.description)}\\par`);
         if (techs) {
           entryLines.push('\\vspace{\\atsProjectTitleToTech}');
           entryLines.push(`{\\textit{${techs}}}\\par`);
@@ -611,6 +615,8 @@ ${bulletTex}`;
         if (exp.employmentType) entryLines.push(`${escapeLatex(exp.employmentType)}\\par`);
         if (exp.technologies?.length)
           entryLines.push(`Technologies: ${escapeLatex(exp.technologies.join(', '))}\\par`);
+        for (const text of new Set([exp.summary, exp.description].filter(Boolean)))
+          entryLines.push(`${escapeLatex(text)}\\par`);
         entryLines.push('\\vspace{\\atsMetadataToBullets}');
         if (bullets) entryLines.push(bullets);
 
