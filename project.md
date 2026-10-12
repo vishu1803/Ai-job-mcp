@@ -5,10 +5,11 @@
 
 ## Reviewed resume fixes publication (2026-10-12)
 
-**Status: IN_PROGRESS — reviewed changes verified; commit/push and remote SHA verification pending.** User explicitly requested publication of current fixes. Current phase remains P0 product acceptance; production **NO-GO**. The requested publication uses the current main branch as in prior authorized publications; this scoped instruction does not change the default branch protection strategy in goal.md.
+**Status: COMPLETE — reviewed fixes committed, pushed and remote SHA verified.** User explicitly requested publication of current fixes. Current phase remains P0 product acceptance; production **NO-GO**. The requested publication uses the current main branch as in prior authorized publications; this scoped instruction does not change the default branch protection strategy in goal.md.
 
 - Scope: PRD-003 source/schema/render/export fixes, boundary/HTTP/document tests, product audit/roadmap/ledger updates and the completed authorized GitHub synchronization report. Unrelated .claude/ settings and scripts/execute-staging-quarantine-and-migrate.mjs remain uncommitted. No deployment or database operation.
 - Fresh origin/main fetch succeeded with HEAD...origin/main divergence 0/0. Reviewed source/report diffs and retained verification logs: 445 unit +198 integration PASS, zero failures/cancellations/skips. Fresh publication boundary rerun:26 PASS/0 FAIL/0 CANCELLED/0 SKIPPED. Strict scan of all18 publication files:zero findings; git diff --check PASS. Remaining writing/layout/live release limitations are unchanged.
+- Published e3f75564cebfae9ff74051547ce476268bb843fa, fix(resume): preserve structured source fields, to GitHub origin/main. git ls-remote --heads origin main returned the exact same SHA. Staged strict secret scan PASS. This follow-up ledger record is published separately; no force push, GitLab publication, production deployment or database operation.
 
 ## PRD-003 structured resume completeness foundation (2026-10-12)
 
