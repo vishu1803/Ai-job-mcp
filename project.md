@@ -3,6 +3,41 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-10-14*
 
+## STUDIO-FE-001 — Resume Studio Frontend Slice 1: Baseline Analysis UI & Integration (2026-10-14)
+
+**Status: COMPLETE — first frontend slice verified locally across 1440px, 1280px, 1024px, and 375px viewports with 12 automated Playwright browser screenshots and 5 unit tests passing. Overall Resume Studio frontend: IN_PROGRESS.** Authorized implementation of BLUEPRINT-2026-001 frontend slice 1 alongside Codex's `STUDIO-BE-001` backend work. Isolated branch `frontend/resume-studio-20261014`, worktree `C:\Users\VISHW\AppData\Local\Temp\career-resume-studio-frontend`, baseline `890bcf0`. Zero production database changes, zero PRD repair modifications, zero Codex worktree edits, no commit/push/merge/deploy.
+
+- **Backend Contract Adherence**: Conforms strictly to Codex's canonical `POST /api/v1/resume-studio/analyze` contract (`docs/api/resume-studio-v1.md`, `docs/api/resume-studio-v1.schema.json`, `tests/fixtures/resume-studio-analysis-response.json`). Uses existing session authentication (`credentials: 'include'`), session-bound `x-csrf-token`, and same-origin validation. Unknown/forbidden caller-controlled identity or score fields are not sent. Dependent draft/proposal/export/preview endpoints remain explicitly marked not yet implemented.
+- **Architectural Editorial System**: Built on the approved restrained palette: Canvas (`#101114`), Surface (`#1B1D22`), Elevated Surface (`#24272D`), Borders (`#30343B`), Accent (`#8798BD`), Primary Text (`#ECEEF1`), Secondary Text (`#A2A8B3`). Restrained status dots/tags: Verified emerald (`#34D399`), Claimed amber (`#FBBF24`), Inferred slate (`#94A3B8`), Missing coral (`#F87171`), Not Verified zinc (`#71717A`). Zero decorative emoji, zero neon colors, zero gradients, zero saturated candy chips, zero debug state switchers in production UI.
+- **Components Implemented**:
+  - `src/views/resume-studio.page.js`: Server-rendered HTML view wrapping page in standard Career Hub `layout.js`, embedding session CSRF token, studio command bar with status badge (`Slice 1 · Analysis Engine`), target indicator, and contextual drawer toggles (`[Diagnostics]`, `[Evidence]`, `[Selection]`).
+  - `public/css/resume-studio.css`: Dedicated editorial design system with resizable split view, 4-tier scoreboard, tabbed intelligence panels, contextual slide-in drawers, custom styled form controls, and responsive media queries.
+  - `public/js/resume-studio.client.js`: Client-side controller interfacing with `POST /api/v1/resume-studio/analyze`. Features: client-side input guard (min 100 chars, truncation warning at 50,000 chars), button spinner and loading state, session expiration (401), CSRF/access failure (403), validation rejection (400), and network error handling. Renders candidateFit overallScore (27.6 / 100, WEAK band), keyword coverage (33%), writing diagnostics (83 / 100), and honest uninspected parseability (`NOT_VERIFIED`). Renders 4 intelligence tabs and 3 slide-in drawers.
+  - `src/routes/web.routes.js`: Registered authenticated `GET /resume-studio` route with session verification, candidate retrieval, profile baseline fetching, and CSRF token generation.
+  - `src/views/layout.js`: Added Studio navigation link to desktop navbar, mobile drawer, and user profile dropdown.
+- **Evidence & Zero-Hallucination Integrity**:
+  - Distinct truth states clearly visualized: `VERIFIED` (source-grounded repo evidence), `CLAIMED` (self-declared, non-verified), `INFERRED` (repository pattern/structure), `MISSING` (zero verified evidence or claims).
+  - Parseability honestly displays `NOT_VERIFIED` with reason "No compiled artifact was inspected", avoiding false 100% parseability assumptions.
+  - Slice 1 notice explicitly clarifies that draft persistence (BE-002), AI rewrites (BE-004), and PDF synchronization (BE-005) arrive in subsequent backend slices.
+- **Verification Evidence**:
+  - Unit tests: `tests/unit/resume-studio-frontend.test.js` => **5 PASS / 0 FAIL** (canonical fixture validation, HTML layout & CSRF binding, layout navigation, palette tokens, emoji/synthetic rejection).
+  - Playwright browser suite: `tests/integration/verify-resume-studio-browser.mjs` driving Google Chrome headlessly across 4 viewports => **12 screenshots captured**:
+    - `desktop-1440-initial.png`: 1440px desktop default layout with pending fit score and honest `NOT_VERIFIED` parseability.
+    - `desktop-1440-validation-error.png`: Short input (<100 chars) validation alert.
+    - `desktop-1440-analyzed.png`: Full split view with analyzed fit score (27.6, WEAK), keyword coverage (33%), writing quality (83), and requirement cards.
+    - `desktop-1440-tab-projects.png`: Project relevance tab displaying evaluated projects and selection statuses.
+    - `desktop-1440-tab-writing.png`: 17-dimension heuristic writing table and quantified metric breakdown.
+    - `desktop-1440-tab-parseability.png`: Parseability panel displaying honest `NOT_VERIFIED` status with contract explanation.
+    - `desktop-1440-drawer-diagnostics.png`: Slide-in diagnostics drawer with 7-component denominator audit.
+    - `desktop-1440-drawer-evidence.png`: Slide-in source evidence inspector with commit hashes and file paths.
+    - `desktop-1440-drawer-modular.png`: Slide-in modular content selector with Slice 2 activation notice.
+    - `laptop-1280-split.png`: 1280px laptop split view.
+    - `tablet-1024-stacked.png`: 1024px tablet stacked view.
+    - `mobile-375-stacked.png`: 375px mobile responsive view.
+  - ESLint: zero errors, zero warnings across all created/modified frontend files.
+  - Secrets scan: `scripts/scan-secrets.js` PASSED with zero findings.
+- **Next Slice**: Await Codex's `STUDIO-BE-002` (independent owned draft cloning, storage, and transactional CAS revisions) to enable interactive draft persistence in the editor pane.
+
 ## PRD-002 ? Source-grounded writing and strict one-page export (2026-10-14)
 
 **Status: COMPLETE ? FIX VERIFIED LOCALLY for source-grounded writing and strict Chrome ONE_PAGE export; live AI writing and user development regeneration remain unverified.** P0 product acceptance. User authorized PRD-002 plus minimum strict Chrome one-page layout work. Production **NO-GO**; no development-data changes, user application generation/approval/submission, GitHub import/reconnection or production deployment.
@@ -18,18 +53,20 @@
 
 ## Competitive UI/UX Research, Design Blueprint & Interactive Prototype: Resume Studio (2026-10-14)
 
-**Status: COMPLETE — comprehensive UI/UX design blueprint (UIUX-BLUEPRINT-2026-001) & interactive client-side prototype delivered; verified across viewports with 11 Playwright browser screenshots. Zero production application code, schema, or dependency changes.** Research/prototype workspace scope (`C:\Users\VISHW\.gemini\antigravity-ide\brain\e52fdb3e-8870-44b9-9cef-260453998284\prototype\`). Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.
+**Status: COMPLETE — comprehensive UI/UX design blueprint (UIUX-BLUEPRINT-2026-001) & editorial client-side prototype delivered; verified across viewports with 11 Playwright browser screenshots. Zero production application code, schema, or dependency changes.** Research/prototype workspace scope (`C:\Users\VISHW\.gemini\antigravity-ide\brain\e52fdb3e-8870-44b9-9cef-260453998284\prototype\`). Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.
 
-- **Interactive Prototype Implementation Delivered (`prototype/`)**:
-  - `synthetic-data.js`: Coherent, realistic candidate data (Elena Rostova, Staff Distributed Systems Engineer targeting CloudScale Systems) with real Go/Rust/eBPF accomplishments, commit-level provenance (`avance-infra/edge-proxy#e3f7556`, `avance-infra/titan-raft#48895fd`), 4-tier keyword classification, and deterministic diagnostics.
-  - `style.css`: Career Hub design system token implementation (`#070B12` canvas, `#0F172A` surface, `#6366F1` indigo), resizable split-pane flex engine, and vector A4/Letter serif document layout.
-  - `index.html`: Semantic HTML5 markup featuring dual-pane workbench, resizer gutter, mode switcher (`Editor`, `Split View`, `Preview`), diagnostics drawer, modular content selector drawer, evidence inspector modal, and reviewer toolbar.
-  - `app.js`: Draggable pane resizing (30%–70% clamped), PageMap click-to-edit navigation, Google XYZ proposal cards, `canApplyProposal` string guard, Teal modular selection, commit diff modal, and 1-page geometry solver.
+- **Editorial Visual System Redesign Delivered (`prototype/`)**:
+  - Eliminated AI-generic / dashboard feel: Removed playful emoji icons and loud boxy borders; replaced with a calm, editorial document experience reminiscent of high-end tools (Linear, Notion, Craft).
+  - Restrained architectural palette: Warm, deep obsidian canvas (`#090A0E`), soft charcoal surfaces (`#101217`, `#161922`), hairline borders (`rgba(255,255,255,0.06)`), and muted functional accents.
+  - Noise-reduced keyword inspection: Replaced 11 loud candy-colored chips with an architectural keyword bar featuring summary coverage (`11 Grounded · 3 Gaps`), filter tabs (`All`, `Matched`, `Gaps`), and monochrome slate tags with 5px status dots.
+  - Editorial document editor: Airy workspace (`padding: 36px 44px`), uppercase tracked section indices (`01 / PROFESSIONAL SUMMARY`, `02 / WORK EXPERIENCE`), borderless text inputs with subtle focus frames, quiet monospace commit provenance footnotes (`commit e3f7556 · ebpf_router.rs`), and an understated `✦ Polish with Evidence` ghost action.
+  - Editorial diff review card: Clean Google XYZ proposal card with muted strikethrough for original bullets, soft emerald highlight on verified metrics, formula rationale, and clean button hierarchy.
+  - Authentic production appearance: Replaced the heavy full-width test footer with a discreet, translucent floating reviewer pill dock at bottom center, leaving the entire studio feeling like a finished production SaaS application.
 - **Automated Browser Verification & Screenshots Delivered (`screenshots/`)**:
-  - Executed automated Playwright test suite (`scratch/test-prototype-playwright.mjs`) driving headless Chromium (`C:\Program Files\Google\Chrome\Application\chrome.exe`):
-    - `desktop-1440-default.png`: 1440px desktop default split view (50/50 ratio, keyword chips, crisp 10pt canvas).
-    - `desktop-1440-proposal-active.png`: Google XYZ proposal card with diff view and evidence link.
-    - `desktop-1440-proposal-stale.png`: Stale proposal guard state with disabled Accept button upon text modification.
+  - Re-executed automated Playwright test suite (`scratch/test-prototype-playwright.mjs`) driving headless Chromium (`C:\Program Files\Google\Chrome\Application\chrome.exe`):
+    - `desktop-1440-default.png`: 1440px desktop default split view (editorial document layout, architectural keyword bar, crisp 10pt serif canvas).
+    - `desktop-1440-proposal-active.png`: Editorial Google XYZ diff card with strikethrough original and emerald rewrite.
+    - `desktop-1440-proposal-stale.png`: Stale proposal guard state with amber notice and paused Accept action upon text edits.
     - `desktop-1440-overflow-state.png`: 2-page overflow warning state with budget badge.
     - `desktop-1440-fitted-1page.png`: 1-page adaptive micro-spacing solver result (margins 0.52in, itemsep 0.5pt).
     - `desktop-1440-evidence-inspector.png`: Source evidence modal with syntax-highlighted git diff snippet.
