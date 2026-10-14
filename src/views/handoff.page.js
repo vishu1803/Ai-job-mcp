@@ -15,6 +15,37 @@
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
 
+function selectionLabel(path) {
+  const parts = String(path).split('.');
+  const sections = {
+    projects: 'Project',
+    experience: 'Work experience',
+    certifications: 'Certification',
+    summary: 'Professional summary',
+    skills: 'Skill',
+    dsa: 'Problem-solving bullet',
+    publications: 'Publication',
+    awards: 'Award',
+    achievements: 'Achievement',
+    volunteerExperience: 'Volunteer experience',
+    leadership: 'Leadership',
+    languages: 'Language',
+    coursework: 'Coursework',
+    additionalSkills: 'Additional skill',
+    customSections: 'Custom section',
+  };
+  const section = parts[0] === 'optionalSections' ? parts[1] : parts[0];
+  const indices = parts.filter((part) => /^\d+$/.test(part));
+  const suffix = parts.includes('bullets')
+    ? ' bullet'
+    : parts.includes('technologies')
+      ? ' technology'
+      : parts.includes('description')
+        ? ' description'
+        : '';
+  return `${sections[section] || 'Resume item'}${indices.length ? ` ${Number(indices[indices.length - 1]) + 1}` : ''}${suffix}`;
+}
+
 /**
  * Formats bytes into a human-readable file size string.
  *
@@ -308,7 +339,7 @@ export function renderHandoffPage({
             </div>
             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
               Compiled PDF artifacts verified through ATS pre-exposure QA and encrypted storage.
-              ${resume.presentation?.mode === 'ONE_PAGE' ? `<p>One-page A4 resume with 10pt minimum text. Full saved resume information is retained. Writing method: factual server composition.</p><details><summary>Content selection: ${escapeHtml(String(resume.presentation.decisions?.length || 0))} omissions, ${escapeHtml(String(resume.presentation.condensations?.length || 0))} condensations</summary><ul>${(resume.presentation.decisions || []).map((decision) => `<li>${escapeHtml(decision.path)}: ${escapeHtml(decision.reason)}</li>`).join('')}${(resume.presentation.condensations || []).map((decision) => `<li>${escapeHtml(decision.path)}: ${escapeHtml(decision.reason)}</li>`).join('')}</ul></details>` : ''}
+              ${resume.presentation?.mode === 'ONE_PAGE' ? `<p>One-page A4 resume with 10pt minimum text. Full saved resume information is retained. Writing method: factual server composition.</p><details><summary>Content selection: ${escapeHtml(String(resume.presentation.decisions?.length || 0))} omissions, ${escapeHtml(String(resume.presentation.condensations?.length || 0))} condensations</summary><ul>${(resume.presentation.decisions || []).map((decision) => `<li>${escapeHtml(selectionLabel(decision.path))}: ${escapeHtml(decision.reason)}</li>`).join('')}${(resume.presentation.condensations || []).map((decision) => `<li>${escapeHtml(selectionLabel(decision.path))}: ${escapeHtml(decision.reason)}</li>`).join('')}</ul></details>` : ''}
             </div>
           </div>
           ${

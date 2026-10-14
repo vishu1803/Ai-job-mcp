@@ -1,0 +1,37 @@
+Synthetic Candidate 6
+Software Engineer
++1 202 555 0100 · Remote · candidate-6@example.test portfolio.example.test/candidate-6
+Professional Experience
+Software Engineer — Synthetic Software Company 1
+Jan 2023 – Jan 2024
+Remote
+Implemented API validation and documented error responses.
+Added regression tests for authentication and database transactions.
+Reviewed deployment checklists and investigated reported application errors.
+Software Engineer — Synthetic Software Company 2
+Jan 2022 – Jan 2023
+Remote
+Implemented API validation and documented error responses.
+Added regression tests for authentication and database transactions.
+Reviewed deployment checklists and investigated reported application errors.
+Software Engineer — Synthetic Software Company 3
+Jan 2021 – Jan 2022
+Remote
+Implemented API validation and documented error responses.
+Added regression tests for authentication and database transactions.
+Reviewed deployment checklists and investigated reported application errors.
+Technical Projects
+Library API
+GitHub
+An API for a student library lending workflow.
+JavaScript, PostgreSQL, Node.js
+Implemented book search and lending endpoints in Node.js.
+Added PostgreSQL migrations for books and lending records.
+Wrote integration tests for checkout validation and error responses.
+Technical Skills
+Databases & ORMs: PostgreSQL
+Languages: JavaScript
+Education
+BSc in Computer Science
+Sep 2018 – Jun 2022
+Synthetic University 1

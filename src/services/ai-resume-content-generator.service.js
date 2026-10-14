@@ -28,6 +28,10 @@ import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
 import { enforceEvidenceTrust } from './evidence/verification-policy.js';
 import { buildResumeAiContext } from './ai-context-sanitizer.service.js';
 
+// Diagnostics never change the authoritative narrative contract, and cannot
+// leak between concurrent tenant requests on the shared generator singleton.
+const summaryProviderStatuses = new WeakMap();
+
 export class AiResumeContentGeneratorService {
   /**
    * @param {object} [options={}]
@@ -185,7 +189,9 @@ export class AiResumeContentGeneratorService {
       writing: {
         method: 'SOURCE_GROUNDED_DETERMINISTIC',
         providerUsed: false,
-        providerStatus: summary.providerStatus || (activeProvider ? 'ADVISORY_ONLY' : 'UNAVAILABLE'),
+        providerStatus:
+          summaryProviderStatuses.get(summary) ||
+          (activeProvider ? 'ADVISORY_ONLY' : 'UNAVAILABLE'),
         missingDataGuidance: summary.text
           ? []
           : ['Add documented responsibilities, education or a factual authored summary.'],
@@ -261,7 +267,8 @@ export class AiResumeContentGeneratorService {
         factInventory: availableFacts,
       })
     );
-    return { ...summary, providerStatus };
+    summaryProviderStatuses.set(summary, providerStatus);
+    return summary;
   }
 
   /**

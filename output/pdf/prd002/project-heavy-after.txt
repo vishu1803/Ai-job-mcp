@@ -1,0 +1,30 @@
+Zoë 林
+Software Developer
++1 202 555 0100 · Remote · candidate-9@example.test portfolio.example.test/candidate-9
+Education
+BSc in Computer Science
+Sep 2018 – Jun 2022
+Synthetic University 1
+Technical Projects
+Synthetic Workflow 1
+GitHub
+A documented workflow application with searchable records, form validation, transaction handling and accessible
+text-based interfaces.
+JavaScript, PostgreSQL
+Created database migrations and integration tests for record creation, editing and transaction rollback.
+Implemented searchable workflow records with validated form inputs and accessible error messages.
+Synthetic Workflow 2
+GitHub
+A documented workflow application with searchable records, form validation, transaction handling and accessible
+text-based interfaces.
+JavaScript, PostgreSQL
+Implemented searchable workflow records with validated form inputs and accessible error messages.
+Created database migrations and integration tests for record creation, editing and transaction rollback.
+Documented installation steps, API usage and the boundaries of the supported local workflow.
+Technical Skills
+Databases & ORMs: PostgreSQL
+Backend & APIs: Node.js
+Languages: JavaScript
+Languages
+English | PROFESSIONAL
+Hindi | NATIVE

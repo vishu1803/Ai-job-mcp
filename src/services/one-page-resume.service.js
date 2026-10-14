@@ -260,7 +260,11 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
   const seenSkills = new Set();
   const selectedSkills = new Set(
     skills
-      .filter((item) => ['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED'].includes(item.skill.provenanceStatus))
+      .filter((item) =>
+        ['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED'].includes(
+          item.skill.provenanceStatus
+        )
+      )
       .map((item, index) => ({
         ...item,
         index,
@@ -277,9 +281,14 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     if (
       seenSkills.has(key) ||
       !selectedSkills.has(item.path) ||
-      !['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED'].includes(item.skill.provenanceStatus)
+      !['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED'].includes(
+        item.skill.provenanceStatus
+      )
     )
-      omit(item.path, 'Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency.');
+      omit(
+        item.path,
+        'Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency.'
+      );
     seenSkills.add(key);
   }
   for (const [section, items] of Object.entries(source.optionalSections || {})) {
@@ -340,15 +349,30 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     )
   );
   const summarySentences = sentences(summary);
+  const sourceBullets = ['projects', 'experience'].flatMap((field) =>
+    (source[field] || []).flatMap((item) =>
+      (item.bullets || []).map((bullet) => textOf(bullet).trim())
+    )
+  );
+  const generatedAccomplishmentSummary =
+    source.summary?.composedFromFactIds?.length > 0 &&
+    summarySentences.length > 0 &&
+    summarySentences.some((sentence) => sourceBullets.includes(sentence));
   const nonRepeated = summarySentences
     .map((text, index) => ({ text, index }))
     .filter((item) => !displayedBullets.includes(item.text))
     .map((item) => item.index);
-  if (summary && summarySentences.length && !nonRepeated.length) {
+  if (
+    summary &&
+    summarySentences.length &&
+    (!nonRepeated.length || generatedAccomplishmentSummary)
+  ) {
     condensations.length = 0;
     omit(
       'summary.text',
-      'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
+      generatedAccomplishmentSummary
+        ? 'Generated summary repeats source accomplishments; relevant project and experience details take priority. Full source facts are retained.'
+        : 'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
     );
   } else if (
     summarySentences.length > 1 &&
@@ -364,8 +388,8 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     });
   }
   const preferred = fresher
-    ? ['SUMMARY', 'EDUCATION', 'PROJECTS', 'SKILLS', 'EXPERIENCE', 'CERTIFICATIONS']
-    : ['SUMMARY', 'EXPERIENCE', 'PROJECTS', 'SKILLS', 'EDUCATION', 'CERTIFICATIONS'];
+    ? ['HEADER', 'SUMMARY', 'EDUCATION', 'PROJECTS', 'SKILLS', 'EXPERIENCE', 'CERTIFICATIONS']
+    : ['HEADER', 'SUMMARY', 'EXPERIENCE', 'PROJECTS', 'SKILLS', 'EDUCATION', 'CERTIFICATIONS'];
   const order = source.sectionOrder || [];
   const sectionOrder = [
     ...preferred.filter((key) => order.includes(key)),

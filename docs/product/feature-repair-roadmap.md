@@ -84,7 +84,9 @@ flowchart TD
 
 **PRD-003: COMPLETE locally (2026-10-10), explicitly selected by the user next.** Canonical source normalization and compatible JSONB schemas preserve education, credentials, optional sections and IDs through save/read/edit/package/preview/TeX/PDF. Real PostgreSQL, authenticated HTTP and Chrome output acceptance is recorded in [the repair record](prd-003-structured-resume-completeness.md) and project.md. No database migration or approval-security change. Directly necessary fixes also remove blank bullets/literal-symbol loss and Unicode download HTTP500; remaining PRD-005 layout/template work is open.
 
-**Next recommended task: PRD-002 — source-grounded missing-data writing.** The empty-profile summary guard is a narrow PRD-003 prerequisite; the broader writing repair is NOT_STARTED. PRD-004 parser formats, PRD-005 readability/pagination, PRD-007 DOCX, PRD-010 editor and legacy export adapter acceptance remain open. Local repairs do not establish installed-browser, live-provider or release acceptance; no production deployment.
+**PRD-002: COMPLETE locally (2026-10-14) for source-grounded writing and the requested strict ONE_PAGE Chrome boundary.** Shared factual summaries preserve authored facts/clears and remove generic biography; normal preparation and BOTH regeneration select and verify an explicit A4/10pt presentation before sealing. Real PDFs and disposable PostgreSQL/HTTP acceptance are recorded in [the repair report](prd-002-source-grounded-writing.md). Live AI writing remains NOT VERIFIED after provider failure. This closes only the minimum PRD-005 one-page dependency; broader template/native-export work remains open.
+
+**Next recommended task: PRD-004 ? resume intake/parser correctness.** Remaining PRD-005 layouts/native TeX, PRD-007 DOCX, PRD-010 editor and legacy adapter acceptance stay open. Local repairs do not establish installed-browser, live-provider or release acceptance; no production deployment.
 
 ## Stop conditions and release distinction
 

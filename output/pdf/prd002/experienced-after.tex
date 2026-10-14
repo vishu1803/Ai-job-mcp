@@ -1,0 +1,140 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage{iftex}
+\ifxetex
+  \usepackage{fontspec}
+  % File-based loading: Latin Modern Roman classic serif typeface matching visual authority
+  \setmainfont[
+    Ligatures = NoCommon,
+    BoldFont=lmroman10-bold.otf,
+    ItalicFont=lmroman10-italic.otf,
+    BoldItalicFont=lmroman10-bolditalic.otf
+  ]{lmroman10-regular.otf}
+  \newfontfamily\atsboldfont{lmroman10-bold.otf}
+  \newfontfamily\atsitalicfont{lmroman10-italic.otf}
+\else
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+  \input{glyphtounicode.tex}
+  \pdfgentounicode=1
+\fi
+\usepackage[margin=0.52in]{geometry}
+\usepackage{hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\itemsep}{0pt}
+\setlength{\parsep}{0pt}
+\setlength{\topsep}{0pt}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=black,
+  citecolor=black
+}
+
+% --- Adaptive vertical spacing system (computed by ResumeLayoutEngine P14-026) ---
+% Hierarchy: SECTION_TO_SECTION > ENTRY_TO_ENTRY > HEADING_TO_CONTENT > BULLET_TO_BULLET
+\newcommand{\atsHeaderToSection}{10pt}
+\newcommand{\atsSectionToSection}{9pt}
+\newcommand{\atsHeadingToContent}{3pt}
+\newcommand{\atsEntryToEntry}{5pt}
+\newcommand{\atsProjectTitleToTech}{1.5pt}
+\newcommand{\atsProjectTechToBullets}{2.5pt}
+\newcommand{\atsRoleToMetadata}{1.5pt}
+\newcommand{\atsMetadataToBullets}{2.5pt}
+\newcommand{\atsBulletToBullet}{1.2pt}
+
+% Backward-compatibility aliases
+\newcommand{\atsSectionGap}{\atsSectionToSection}
+\newcommand{\atsHeadingGap}{\atsHeadingToContent}
+\newcommand{\atsProjectGap}{\atsEntryToEntry}
+\newcommand{\atsProjectHeadGap}{\atsProjectTechToBullets}
+\newcommand{\atsBulletSep}{\atsBulletToBullet}
+\newcommand{\atsentrygap}{\vspace{\atsEntryToEntry}}
+\newcommand{\atsentryheadgap}{\vspace{\atsProjectTechToBullets}}
+
+% Clean, ATS-Compliant Section Dividers with subtle rule matching reference resume
+\newcommand{\atssection}[1]{%
+  \vspace{\atsSectionToSection}%
+  {\noindent\large\bfseries\uppercase{#1}}\par
+  \vspace{1.5pt}\hrule height 0.4pt\vspace{\atsHeadingToContent}%
+}
+\newcommand{\atsfirstsection}[1]{%
+  \vspace{\atsHeaderToSection}%
+  {\noindent\large\bfseries\uppercase{#1}}\par
+  \vspace{1.5pt}\hrule height 0.4pt\vspace{\atsHeadingToContent}%
+}
+
+\begin{document}
+
+% ---------------- HEADER (4-tier) ----------------
+{\centering
+  {\Huge \textbf{Synthetic Candidate 6}}\par
+  \vspace{3pt}
+  {\large \textbf{Software Engineer}}\par
+  \vspace{3pt}
+  {\small +1 202 555 0100 $\cdot$ Remote $\cdot$ \href{mailto:candidate-6@example.test}{candidate-6@example.test}}\par
+  \vspace{2pt}
+  {\small \href{https://portfolio.example.test/candidate-6}{portfolio.example.test/candidate-6}}\par
+}
+
+% ---------------- BODY SECTIONS ----------------
+\atsfirstsection{Professional Experience}
+\textbf{Software Engineer — Synthetic Software Company 1} \hfill Jan 2023 -- Jan 2024\par
+\vspace{\atsRoleToMetadata}
+{\small\textit{Remote}}\par
+\vspace{\atsMetadataToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Implemented API validation and documented error responses.
+  \item Added regression tests for authentication and database transactions.
+  \item Reviewed deployment checklists and investigated reported application errors.
+\end{itemize}
+\vspace{\atsEntryToEntry}
+\textbf{Software Engineer — Synthetic Software Company 2} \hfill Jan 2022 -- Jan 2023\par
+\vspace{\atsRoleToMetadata}
+{\small\textit{Remote}}\par
+\vspace{\atsMetadataToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Implemented API validation and documented error responses.
+  \item Added regression tests for authentication and database transactions.
+  \item Reviewed deployment checklists and investigated reported application errors.
+\end{itemize}
+\vspace{\atsEntryToEntry}
+\textbf{Software Engineer — Synthetic Software Company 3} \hfill Jan 2021 -- Jan 2022\par
+\vspace{\atsRoleToMetadata}
+{\small\textit{Remote}}\par
+\vspace{\atsMetadataToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Implemented API validation and documented error responses.
+  \item Added regression tests for authentication and database transactions.
+  \item Reviewed deployment checklists and investigated reported application errors.
+\end{itemize}
+
+\atssection{Technical Projects}
+\textbf{Library API} \hfill {\small \href{https://github.com/synthetic-fixture/project-1}{\textbf{GitHub}}}\par
+An API for a student library lending workflow.\par
+\vspace{\atsProjectTitleToTech}
+{\textit{JavaScript, PostgreSQL, Node.js}}\par
+\vspace{\atsProjectTechToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Implemented book search and lending endpoints in Node.js.
+  \item Added PostgreSQL migrations for books and lending records.
+  \item Wrote integration tests for checkout validation and error responses.
+\end{itemize}
+
+\atssection{Technical Skills}
+\textbf{Databases \& ORMs:} PostgreSQL\\
+\textbf{Languages:} JavaScript\par
+
+\atssection{Education}
+\textbf{BSc in Computer Science} \hfill Sep 2018 -- Jun 2022\par
+\vspace{\atsRoleToMetadata}
+{\small\textit{Synthetic University 1}}\par
+
+\end{document}

@@ -1,0 +1,31 @@
+Synthetic Candidate 5
+Full-stack Engineer
++1 202 555 0100 · Remote · candidate-5@example.test portfolio.example.test/candidate-5
+Professional Experience
+Full-stack Engineer — Synthetic Software Company 1
+Jan 2023 – Jan 2024
+Remote
+Implemented API validation and documented error responses.
+Added regression tests for authentication and database transactions.
+Reviewed deployment checklists and investigated reported application errors.
+Technical Projects
+Library API
+GitHub
+An API for a student library lending workflow.
+JavaScript, PostgreSQL, Node.js
+Implemented book search and lending endpoints in Node.js, and added PostgreSQL migrations for books and
+lending records.
+Community Events
+GitHub
+A community event registration interface.
+TypeScript, React
+Implemented TypeScript validation for event dates and participant details.
+Created React forms for event registration and accessibility preferences.
+Technical Skills
+Frontend & Web: React
+Languages: TypeScript
+Backend & APIs: Node.js
+Education
+BSc in Computer Science
+Sep 2018 – Jun 2022
+Synthetic University 1

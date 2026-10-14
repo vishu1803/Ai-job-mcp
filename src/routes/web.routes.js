@@ -4365,6 +4365,7 @@ export default async function webRoutes(app, opts = {}) {
           'ONE_PAGE_UNVERIFIABLE',
           'ONE_PAGE_LAYOUT_INVALID',
           'ONE_PAGE_CONTRACT_INVALID',
+          'INVALID_RESUME_URL',
         ].includes(err.code)
       ) {
         return reply.redirect(

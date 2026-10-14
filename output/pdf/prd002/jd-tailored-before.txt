@@ -1,0 +1,27 @@
+Synthetic Candidate 5
+Frontend Developer
++1 202 555 0100 · Remote · candidate-5@example.test
+Professional Summary
+Profile targeting Frontend Developer lists React, TypeScript. Linked repositories include Library API and Community Events; repository
+access does not establish candidate authorship. Candidate-provided claims (not independently verified): Added PostgreSQL migrations
+for books and lending records. Wrote integration tests for checkout validation and error responses.
+Technical Skills
+Frontend & Web: React
+Languages: TypeScript
+Backend & APIs: Node.js
+Technical Projects
+Community Events GitHub
+A community event registration interface.
+TypeScript, React
+Implemented TypeScript validation for event dates and participant details.
+Created React forms for event registration and accessibility preferences.
+Documented keyboard navigation and tested form error messages.
+Professional Experience
+Full-stack Engineer — Synthetic Software Company 1 Jan 2023 – Jan 2024
+Remote
+Implemented API validation and documented error responses.
+Added regression tests for authentication and database transactions.
+Reviewed deployment checklists and investigated reported application errors.
+Education
+BSc in Computer Science Sep 2018 – Jun 2022
+Synthetic University 1

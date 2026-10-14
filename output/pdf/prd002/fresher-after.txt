@@ -1,0 +1,21 @@
+Synthetic Candidate 2
+Computer Science Graduate
++1 202 555 0100 · Remote · candidate-2@example.test portfolio.example.test/candidate-2
+Professional Summary
+Computer science graduate with academic work in API development and testing.
+Education
+BSc in Computer Science
+Sep 2018 – Jun 2022
+Synthetic University 1
+Technical Projects
+Library API
+GitHub
+An API for a student library lending workflow.
+JavaScript, PostgreSQL, Node.js
+Implemented book search and lending endpoints in Node.js.
+Added PostgreSQL migrations for books and lending records.
+Wrote integration tests for checkout validation and error responses.
+Technical Skills
+Backend & APIs: Node.js
+Databases & ORMs: PostgreSQL
+Languages: JavaScript

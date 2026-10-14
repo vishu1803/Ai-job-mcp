@@ -151,13 +151,29 @@ test('legacy snapshots without strict presentation render unchanged', () => {
   assert.equal(onePageResumeView(full), full);
 });
 test('repository-inferred associations stay in source but do not become proficiency claims', () => {
-  const full=source();
-  full.skills={categories:[{categoryName:'Languages',skills:[{slug:'react',displayName:'React',provenanceStatus:'INFERRED'},{slug:'python',displayName:'Python',provenanceStatus:'CLAIMED'}]}]};
-  const selected={...full,presentation:planOnePagePresentation(full,{description:'React'},0)};
-  const view=onePageResumeView(selected);
-  assert.equal(full.skills.categories[0].skills.length,2);
-  assert.deepEqual(view.skills.categories[0].skills.map((s)=>s.displayName),['Python']);
-  assert.ok(selected.presentation.decisions.some((d)=>d.path==='skills.categories.0.skills.0'));
+  const full = source();
+  full.skills = {
+    categories: [
+      {
+        categoryName: 'Languages',
+        skills: [
+          { slug: 'react', displayName: 'React', provenanceStatus: 'INFERRED' },
+          { slug: 'python', displayName: 'Python', provenanceStatus: 'CLAIMED' },
+        ],
+      },
+    ],
+  };
+  const selected = {
+    ...full,
+    presentation: planOnePagePresentation(full, { description: 'React' }, 0),
+  };
+  const view = onePageResumeView(selected);
+  assert.equal(full.skills.categories[0].skills.length, 2);
+  assert.deepEqual(
+    view.skills.categories[0].skills.map((s) => s.displayName),
+    ['Python']
+  );
+  assert.ok(selected.presentation.decisions.some((d) => d.path === 'skills.categories.0.skills.0'));
 });
 test('verbose authored summaries condense only complete original sentences', () => {
   const full = source();
@@ -240,4 +256,32 @@ test('selected volunteering and custom sections survive Markdown preview aliases
   const selected = { ...full, presentation: planOnePagePresentation(full, {}, 0) };
   assert.match(onePageResumeMarkdown(selected), /Workshop mentor/);
   assert.match(onePageResumeMarkdown(selected), /Reviewed original source documentation/);
+});
+
+test('generated summary does not leave an isolated lower priority accomplishment as biography', () => {
+  const full = source();
+  const originalBullet = 'Documented candidate-provided integration test behavior.';
+  full.projects = [
+    {
+      projectId: 'existing-source-project',
+      displayName: 'Source project',
+      description: 'Documented candidate-provided functionality.',
+      technologies: [],
+      bullets: [{ text: 'Implemented frontend form validation.' }, { text: originalBullet }],
+    },
+  ];
+  const summary =
+    'Implemented frontend form validation. Documented additional source test behavior.';
+  full.summary = { ...full.summary, text: summary, composedFromFactIds: ['source-fact-id'] };
+  const before = structuredClone(full);
+  const presentation = planOnePagePresentation(full, { title: 'Frontend Developer' }, 3);
+  const view = onePageResumeView({ ...full, presentation });
+  assert.equal(view.summary.text, '');
+  assert.ok(
+    presentation.decisions.some(
+      (d) => d.path === 'summary.text' && /source accomplishments/.test(d.reason)
+    )
+  );
+  assert.deepEqual(full, before);
+  assert.equal(full.summary.text, summary);
 });

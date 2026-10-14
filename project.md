@@ -3,6 +3,58 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-10-14*
 
+## PRD-002 ? Source-grounded writing and strict one-page export (2026-10-14)
+
+**Status: COMPLETE ? FIX VERIFIED LOCALLY for source-grounded writing and strict Chrome ONE_PAGE export; live AI writing and user development regeneration remain unverified.** P0 product acceptance. User authorized PRD-002 plus minimum strict Chrome one-page layout work. Production **NO-GO**; no development-data changes, user application generation/approval/submission, GitHub import/reconnection or production deployment.
+
+- Root causes: competing generic/audit-style summaries, unavailable/advisory-only provider output, mandatory three-bullet capacity, target-role-as-qualification headings, broad dependency inventories, Letter/8.5pt Chrome output and no hard page-count contract. Shared source-grounded summary composition now retains authored facts/clears, rejects invented authority, preserves genuine thin projects and exposes truthful deterministic writing/provider status. Missing-evidence gaps remain separate; inferred repository technologies do not become affirmative proficiency.
+- Normal preparation and BOTH fit a validated ONE_PAGE/A4/10pt presentation before hashing/sealing. At most four renders; exact omissions and source-sentence condensations are recorded. Full accepted source fields remain persisted; the existing upstream project selector still limits snapshot projects, with remaining profile projects saved. Education/identity cannot be silently omitted; 35 essential education entries return controlled actionable overflow without persisting a partial package. Preview and PDF apply the same sealed decisions; old snapshots/consumed approvals stay immutable.
+- Real documents: ten synthetic persona PDFs plus four same-source after-comparison PDFs each have one A4 physical page, extracted minimum 9.9975pt (configured10pt), no detected missing selected text/outside spans/overlaps/replacement glyphs/broken links. Representative final rasters were inspected. Before examples use earlier source through an isolated loader: Letter/8.4975pt, audit-style text and one rejected tailored receipt. Synthetic examples are in output/pdf/prd002; full proof/logs in OS Temp career-prd002-20261014. Native TeX compilation and employer ATS rankings are not verified.
+- Final nonoverlapping selected acceptance: **1059 PASS/0 remaining FAIL/0 CANCELLED/0 SKIPPED**: 733 unit tests/30 files, three handoff UI tests/one file, 323 integration tests/14 files. **45 added tests**. Integration main271 PASS/52FAIL is corrected by exact fixture guards49/49 and full handoff file17/17, replacing its earlier14PASS/3FAIL; reruns are not double counted. Two new HTTP journeys pass after final source-authority changes. PRD-001/003, ISSUE-02/03/06, skillGaps, historical quarantine, GitHub ownership/reconnection/large trees and application handoff selected regressions pass. Real PostgreSQL/TCP HTTP/Chrome/encrypted storage, controlled remote fixtures; no real employer action.
+- Live synthetic Vertex probe configured/attempted but AI_PROVIDER_ERROR/no model response. Accepted source remained exact, output declares factual server composition; live AI writing quality NOT VERIFIED. No private candidate information uploaded. No existing user data inspected or modified.
+- Final writing selection refinement: generated summaries that merely repeat source accomplishments no longer leave an isolated low-priority project bullet as biography. A new preservation test brings added tests to45; final unit gate733/733 and14 actual after PDFs pass. One unit rerun after disposable teardown hit ECONNREFUSED in the SQL privacy test; restarting only that fixture cluster restored733/733.
+- Final quality: 33 modified JavaScript files pass syntax and formatting; ESLint zero errors/29 warnings. Whitespace PASS. Strict scoped secret scan40 JavaScript/documentation files/zero findings. Existing broad scan68 potential pattern matches remain outside this scoped result and are not declared resolved. Fresh22 migrations and repeat migration PASS; lifecycle117 files/102 DB users/zero violations. Before stopping only verified Temp cluster/port55445, PostgreSQL returned zero tenants,22 migration rows and zero other connections; pg_ctl stop succeeded and postmaster.pid was removed. Disposable evidence retained; no development or production database touched. Markdown is excluded by the existing formatter ignore file; the new report is explicitly formatted with an empty ignore file, while existing ledgers are kept narrowly edited.
+- Documentation: docs/product/prd-002-source-grounded-writing.md, feature-repair-roadmap.md, resume-quality-audit.md, full-feature-functional-audit.md, PRD-003 and regeneration recovery follow-up. Broader PRD-005 templates/native export, DOCX, editor, parser and legacy score UX remain open. Next dependency-ready repair: **PRD-004**. No completion percentage changed. No commit/push performed by this repair session; external shared-checkout commit e909fd1 appeared during work and was preserved.
+
+## Competitive UI/UX Research, Design Blueprint & Interactive Prototype: Resume Studio (2026-10-14)
+
+**Status: COMPLETE — comprehensive UI/UX design blueprint (UIUX-BLUEPRINT-2026-001) & interactive client-side prototype delivered; verified across viewports with 11 Playwright browser screenshots. Zero production application code, schema, or dependency changes.** Research/prototype workspace scope (`C:\Users\VISHW\.gemini\antigravity-ide\brain\e52fdb3e-8870-44b9-9cef-260453998284\prototype\`). Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.
+
+- **Interactive Prototype Implementation Delivered (`prototype/`)**:
+  - `synthetic-data.js`: Coherent, realistic candidate data (Elena Rostova, Staff Distributed Systems Engineer targeting CloudScale Systems) with real Go/Rust/eBPF accomplishments, commit-level provenance (`avance-infra/edge-proxy#e3f7556`, `avance-infra/titan-raft#48895fd`), 4-tier keyword classification, and deterministic diagnostics.
+  - `style.css`: Career Hub design system token implementation (`#070B12` canvas, `#0F172A` surface, `#6366F1` indigo), resizable split-pane flex engine, and vector A4/Letter serif document layout.
+  - `index.html`: Semantic HTML5 markup featuring dual-pane workbench, resizer gutter, mode switcher (`Editor`, `Split View`, `Preview`), diagnostics drawer, modular content selector drawer, evidence inspector modal, and reviewer toolbar.
+  - `app.js`: Draggable pane resizing (30%–70% clamped), PageMap click-to-edit navigation, Google XYZ proposal cards, `canApplyProposal` string guard, Teal modular selection, commit diff modal, and 1-page geometry solver.
+- **Automated Browser Verification & Screenshots Delivered (`screenshots/`)**:
+  - Executed automated Playwright test suite (`scratch/test-prototype-playwright.mjs`) driving headless Chromium (`C:\Program Files\Google\Chrome\Application\chrome.exe`):
+    - `desktop-1440-default.png`: 1440px desktop default split view (50/50 ratio, keyword chips, crisp 10pt canvas).
+    - `desktop-1440-proposal-active.png`: Google XYZ proposal card with diff view and evidence link.
+    - `desktop-1440-proposal-stale.png`: Stale proposal guard state with disabled Accept button upon text modification.
+    - `desktop-1440-overflow-state.png`: 2-page overflow warning state with budget badge.
+    - `desktop-1440-fitted-1page.png`: 1-page adaptive micro-spacing solver result (margins 0.52in, itemsep 0.5pt).
+    - `desktop-1440-evidence-inspector.png`: Source evidence modal with syntax-highlighted git diff snippet.
+    - `desktop-1440-diagnostics-drawer.png`: 4-tier diagnostics drawer (ATS Fit 88, Writing Quality, Parseability, Evidence).
+    - `desktop-1440-modular-selector.png`: Teal-style modular content selection drawer with role/project checkboxes.
+    - `laptop-1280-split.png`: 1280px laptop viewport with crisp vector typography.
+    - `tablet-1024-split.png`: 1024px tablet stacked dual-pane view.
+    - `mobile-375-stacked.png`: 375px mobile stacked view with responsive controls.
+- **Consolidated UI/UX Deliverables Persisted**:
+  - Persisted [`career_hub_resume_studio_ui_ux_blueprint.md`](file:///C:/Users/VISHW/.gemini/antigravity-ide/brain/e52fdb3e-8870-44b9-9cef-260453998284/career_hub_resume_studio_ui_ux_blueprint.md) updated with complete Section 11 embedding all real browser screenshots, test results, and requirements matrix.
+  - Zero modifications to production database, schemas, routes, or checkout branch. Ready for user design review.
+
+## Final Competitive Product Blueprint: Resume Tailoring Experience (2026-10-14)
+
+**Status: COMPLETE — implementation-ready product blueprint delivered (BLUEPRINT-2026-001); zero application code, schema, or dependency changes.** Planning and specification scope. Synthesizes Rezi keyword targeting, Teal experience selection, Reactive Resume proposal patching/sync/export, Resume Worded writing feedback, Jobscan transparent coverage, and Career Hub's evidence/approval core. Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.
+
+- **Consolidated Blueprint Artifact Delivered**:
+  - Persisted [`career_hub_resume_product_blueprint.md`](file:///C:/Users/VISHW/.gemini/antigravity-ide/brain/e52fdb3e-8870-44b9-9cef-260453998284/career_hub_resume_product_blueprint.md) containing the complete 10-area feature specifications, end-to-end user journey, UI interaction states, API contracts, reusable service mapping, acceptance-test matrix, and future implementation backlog (FEAT-01 to FEAT-10).
+- **Core Architecture Decisions**:
+  - Adopt Reactive Resume's `ProposalPatchService` with `canApplyProposal(currentText, proposal)` string-equality guard to prevent stale suggestion overwrites.
+  - Implement `PageMap` coordinate translation between vector PDF text streams and editable form inputs for click-to-edit navigation.
+  - Adopt native OpenXML DOCX builder (`packages/docx/src/builder.ts`) for ATS-safe Word document exports without SaaS converters.
+  - Establish Adaptive Geometry Solver executing multi-step typographic micro-spacing (margins 0.50in–0.60in, itemsep, baselineskip) to preserve valid experience on a single page before pruning content.
+  - Enforce strict 10.0pt body font class (`\documentclass[10pt,a4paper]{article}`) and zero fabrication guarantees.
+
 ## Final Research Gate: Resume Product Feature Forensics (2026-10-14)
 
 **Status: COMPLETE — empirical resume benchmark, Reactive Resume architecture trace, Rezi specification & 66-feature catalog completed; zero application code, schema, or dependency changes.** Purely analytical and reverse-engineering research scope. Production **NO-GO**. Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.

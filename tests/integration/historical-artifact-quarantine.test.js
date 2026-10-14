@@ -46,6 +46,7 @@ beforeEach(async () => {
       'C:/Users/VISHW/AppData/Local/Temp/career-prd003-20261010/pgdata',
       'C:/Users/VISHW/AppData/Local/Temp/career-large-tree-20261010/pgdata',
       'C:/Users/VISHW/AppData/Local/Temp/career-regeneration-20261014/pgdata',
+      'C:/Users/VISHW/AppData/Local/Temp/career-prd002-20261014/pgdata',
     ].includes(directory)
   ) {
     const target = new URL(process.env.DATABASE_URL);

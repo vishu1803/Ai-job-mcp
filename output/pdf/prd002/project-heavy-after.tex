@@ -1,0 +1,124 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage{iftex}
+\ifxetex
+  \usepackage{fontspec}
+  % File-based loading: Latin Modern Roman classic serif typeface matching visual authority
+  \setmainfont[
+    Ligatures = NoCommon,
+    BoldFont=lmroman10-bold.otf,
+    ItalicFont=lmroman10-italic.otf,
+    BoldItalicFont=lmroman10-bolditalic.otf
+  ]{lmroman10-regular.otf}
+  \newfontfamily\atsboldfont{lmroman10-bold.otf}
+  \newfontfamily\atsitalicfont{lmroman10-italic.otf}
+\else
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+  \input{glyphtounicode.tex}
+  \pdfgentounicode=1
+\fi
+\usepackage[margin=0.52in]{geometry}
+\usepackage{hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\itemsep}{0pt}
+\setlength{\parsep}{0pt}
+\setlength{\topsep}{0pt}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=black,
+  citecolor=black
+}
+
+% --- Adaptive vertical spacing system (computed by ResumeLayoutEngine P14-026) ---
+% Hierarchy: SECTION_TO_SECTION > ENTRY_TO_ENTRY > HEADING_TO_CONTENT > BULLET_TO_BULLET
+\newcommand{\atsHeaderToSection}{6.5pt}
+\newcommand{\atsSectionToSection}{6.1pt}
+\newcommand{\atsHeadingToContent}{2pt}
+\newcommand{\atsEntryToEntry}{3.4pt}
+\newcommand{\atsProjectTitleToTech}{1pt}
+\newcommand{\atsProjectTechToBullets}{1.5pt}
+\newcommand{\atsRoleToMetadata}{1pt}
+\newcommand{\atsMetadataToBullets}{1.5pt}
+\newcommand{\atsBulletToBullet}{0.6pt}
+
+% Backward-compatibility aliases
+\newcommand{\atsSectionGap}{\atsSectionToSection}
+\newcommand{\atsHeadingGap}{\atsHeadingToContent}
+\newcommand{\atsProjectGap}{\atsEntryToEntry}
+\newcommand{\atsProjectHeadGap}{\atsProjectTechToBullets}
+\newcommand{\atsBulletSep}{\atsBulletToBullet}
+\newcommand{\atsentrygap}{\vspace{\atsEntryToEntry}}
+\newcommand{\atsentryheadgap}{\vspace{\atsProjectTechToBullets}}
+
+% Clean, ATS-Compliant Section Dividers with subtle rule matching reference resume
+\newcommand{\atssection}[1]{%
+  \vspace{\atsSectionToSection}%
+  {\noindent\large\bfseries\uppercase{#1}}\par
+  \vspace{1.5pt}\hrule height 0.4pt\vspace{\atsHeadingToContent}%
+}
+\newcommand{\atsfirstsection}[1]{%
+  \vspace{\atsHeaderToSection}%
+  {\noindent\large\bfseries\uppercase{#1}}\par
+  \vspace{1.5pt}\hrule height 0.4pt\vspace{\atsHeadingToContent}%
+}
+
+\begin{document}
+
+% ---------------- HEADER (4-tier) ----------------
+{\centering
+  {\Huge \textbf{Zoë 林}}\par
+  \vspace{3pt}
+  {\large \textbf{Software Developer}}\par
+  \vspace{3pt}
+  {\small +1 202 555 0100 $\cdot$ Remote $\cdot$ \href{mailto:candidate-9@example.test}{candidate-9@example.test}}\par
+  \vspace{2pt}
+  {\small \href{https://portfolio.example.test/candidate-9}{portfolio.example.test/candidate-9}}\par
+}
+
+% ---------------- BODY SECTIONS ----------------
+\atsfirstsection{Education}
+\textbf{BSc in Computer Science} \hfill Sep 2018 -- Jun 2022\par
+\vspace{\atsRoleToMetadata}
+{\small\textit{Synthetic University 1}}\par
+
+\atssection{Technical Projects}
+\textbf{Synthetic Workflow 1} \hfill {\small \href{https://github.com/synthetic-fixture/project-3}{\textbf{GitHub}}}\par
+A documented workflow application with searchable records, form validation, transaction handling and accessible text-based interfaces.\par
+\vspace{\atsProjectTitleToTech}
+{\textit{JavaScript, PostgreSQL}}\par
+\vspace{\atsProjectTechToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Created database migrations and integration tests for record creation, editing and transaction rollback.
+  \item Implemented searchable workflow records with validated form inputs and accessible error messages.
+\end{itemize}
+\vspace{\atsEntryToEntry}
+\textbf{Synthetic Workflow 2} \hfill {\small \href{https://github.com/synthetic-fixture/project-4}{\textbf{GitHub}}}\par
+A documented workflow application with searchable records, form validation, transaction handling and accessible text-based interfaces.\par
+\vspace{\atsProjectTitleToTech}
+{\textit{JavaScript, PostgreSQL}}\par
+\vspace{\atsProjectTechToBullets}
+\begin{itemize}
+\setlength{\itemsep}{\atsBulletToBullet}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}
+  \item Implemented searchable workflow records with validated form inputs and accessible error messages.
+  \item Created database migrations and integration tests for record creation, editing and transaction rollback.
+  \item Documented installation steps, API usage and the boundaries of the supported local workflow.
+\end{itemize}
+
+\atssection{Technical Skills}
+\textbf{Databases \& ORMs:} PostgreSQL\\
+\textbf{Backend \& APIs:} Node.js\\
+\textbf{Languages:} JavaScript\par
+
+\atssection{Languages}
+\begin{itemize}
+\item English | PROFESSIONAL
+\item Hindi | NATIVE
+\end{itemize}
+
+\end{document}

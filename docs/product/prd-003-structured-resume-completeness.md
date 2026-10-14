@@ -162,3 +162,8 @@ Files changed in this follow-up:
 - Documentation: this report, `feature-repair-roadmap.md`, `resume-quality-audit.md`, and `project.md`. Earlier unrelated reconnection report/settings/staging script changes are preserved.
 
 Acceptance: education, certifications, supported optional sections, selected project data, authoritative-source/model guard, actual PDF content, persistence round trip, PRD-001 serialization and selected ISSUE-02/06 integrity regressions **PASS**. These are supported local boundaries; outstanding writing/layout/parser/editor/DOCX/live gates remain explicit above. Next recommended repair: **PRD-002**. Production decision: **NO-GO**. No production deployment, existing user application generation/submission, GitHub import or approval consumption occurs.
+
+
+## Subsequent writing/presentation repair (2026-10-14)
+
+[PRD-002](prd-002-source-grounded-writing.md) now preserves the complete accepted structured source while binding explicit one-page omissions/whole-sentence condensation before package sealing. This is a selected presentation, not a destructive profile rewrite; the existing upstream project selector still bounds the snapshot independently. PRD-003 field, persistence, preview/export and ownership regressions pass in the selected final gate. Earlier results above remain historical evidence; next recommended repair is PRD-004. Native TeX, DOCX, editor and live-provider acceptance remain open; production NO-GO.

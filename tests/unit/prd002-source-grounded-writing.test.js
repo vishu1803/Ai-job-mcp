@@ -204,4 +204,19 @@ describe('PRD-002 source-grounded writing authority', () => {
     assert.equal(result.writing.providerUsed, false);
     assert.equal(result.writing.method, 'SOURCE_GROUNDED_DETERMINISTIC');
   });
+  it('provider failure is labelled explicitly while accepted source wording remains factual', async () => {
+    const result = await new AiResumeContentGeneratorService({
+      aiProvider: {
+        generateStructured: async () => {
+          throw new Error('provider unavailable');
+        },
+      },
+    }).generateResumeAiContent({
+      candidateProfile: candidate,
+      factInventory: [fact('a', 'Implemented API authentication validation.')],
+    });
+    assert.equal(result.writing.providerStatus, 'FAILED');
+    assert.equal(result.writing.providerUsed, false);
+    assert.equal(result.summary.text, 'Implemented API authentication validation.');
+  });
 });

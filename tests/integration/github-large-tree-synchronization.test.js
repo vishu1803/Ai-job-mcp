@@ -139,9 +139,14 @@ beforeEach(async () => {
   const identity = await pool.query('SHOW data_directory');
   assert.match(
     identity.rows[0].data_directory.replaceAll('\\', '/'),
-    /\/Temp\/(?:career-large-tree-20261010|career-regeneration-20261014)\/pgdata$/
+    /\/Temp\/(?:career-large-tree-20261010|career-regeneration-20261014|career-prd002-20261014)\/pgdata$/
   );
   if (
+    identity.rows[0].data_directory.replaceAll('\\', '/').endsWith('/career-prd002-20261014/pgdata')
+  ) {
+    assert.equal(target.port, '55445');
+    assert.equal(target.pathname, '/product_audit_prd002');
+  } else if (
     identity.rows[0].data_directory
       .replaceAll('\\', '/')
       .endsWith('/career-regeneration-20261014/pgdata')

@@ -93,3 +93,8 @@ PRODUCTION DECISION: NO-GO
 No configured development database or GitHub resources are modified. The repair still needs the user's explicit live regeneration of application219553ba-0e89-4a4d-babb-eff4fcc4490e. Use the updated development server, open Handoff, select BOTH and Regenerate, inspect the newly persisted package/documents, then separately review and approve the new version. If source eligibility is blocked, reconnect/select/synchronize the specific source through the existing supported lifecycle before retrying. No historical package bytes are reconstructed or approved automatically.
 
 Production remains **NO-GO**.
+
+
+## Subsequent strict one-page writing repair (2026-10-14)
+
+The user reported live development regeneration success after the repair above. The subsequent [PRD-002 repair](prd-002-source-grounded-writing.md) makes normal preparation and BOTH use the same factual writer and pre-seal A4/10pt one-page selection. New actual HTTP/PostgreSQL tests verify full-source save/reload/edit/BOTH, selected preview/export and controlled overflow without partial package persistence. Historical quarantine, current artifact receipts, source eligibility, immutable snapshots and fresh approval remain required. This session did not regenerate any existing user application. Updated live PDF inspection requires the user's next explicit BOTH regeneration and separate review/approval; production NO-GO.
