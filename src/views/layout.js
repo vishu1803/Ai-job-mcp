@@ -61,6 +61,7 @@ export function renderLayout({
             userLoggedIn
               ? `
           <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
+          <li><a href="/resume-studio" class="nav-link ${activeNav === 'studio' ? 'active' : ''}">Studio</a></li>
           <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
           <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
           <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
@@ -175,6 +176,7 @@ export function renderLayout({
         ${renderIcon('sparkles', { size: 16 })} <span>Open Career Copilot</span>
       </button>
       <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
+      <a href="/resume-studio" class="${activeNav === 'studio' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resume Studio</span></a>
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
       <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>

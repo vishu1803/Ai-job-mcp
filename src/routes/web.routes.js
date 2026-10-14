@@ -70,6 +70,7 @@ import { renderApplyPage } from '../views/apply.page.js';
 import { renderHandoffPage } from '../views/handoff.page.js';
 import { renderSourcesPage } from '../views/sources.page.js';
 import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page.js';
+import { renderResumeStudioPage } from '../views/resume-studio.page.js';
 import { renderConnectPage } from '../views/connect.page.js';
 import { renderSettingsPage } from '../views/settings.page.js';
 import { renderMcpDocsPage } from '../views/mcp-docs.page.js';
@@ -2111,6 +2112,59 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext.user,
       tenant: sessionContext.tenant,
     });
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 15b. GET /resume-studio — AI Tailored Resume Studio (Slice 2: Persistent Editor)
+  // -------------------------------------------------------------------------
+  app.get('/resume-studio', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/resume-studio');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    let candidateProfile = null;
+    try {
+      candidateProfile = await candidateProfileService.getCareerProfile(
+        { tenantId: tenant.id, role: user.role || 'MEMBER', userId: user.id },
+        candidate.id
+      );
+    } catch {
+      candidateProfile = null;
+    }
+
+    let baseResumes = [];
+    try {
+      const list = await resumeService.listResumes({
+        context: {
+          tenantId: tenant.id,
+          userId: user.id,
+          role: user.role,
+        },
+        candidateId: candidate.id,
+      });
+      baseResumes = Array.isArray(list) ? list : (list?.resumes || []);
+    } catch {
+      baseResumes = [];
+    }
+
+    const csrfToken = generateCsrfToken(sessionContext.sessionId);
+    const initialDraftId = req.query?.draftId ? String(req.query.draftId) : null;
+
+    const html = renderResumeStudioPage({
+      user,
+      tenant,
+      candidate,
+      candidateProfile,
+      baseResumes,
+      draftId: initialDraftId,
+      csrfToken,
+    });
+
     return reply.type('text/html; charset=utf-8').send(html);
   });
 
