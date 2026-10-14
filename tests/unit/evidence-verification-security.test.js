@@ -247,7 +247,7 @@ test('direct AI resume summary cannot self-verify supplied facts', async () => {
     ],
   });
   assert.ok(!['VERIFIED', 'CORROBORATED'].includes(result.provenanceStatus));
-  assert.match(result.text, /Candidate-provided claims \(not independently verified\)/);
+  assert.equal(result.text, 'Candidate reports developing a React dashboard.');
   assert.doesNotMatch(
     result.text,
     /Architected production|Demonstrated delivery|daily practice|expertise in/

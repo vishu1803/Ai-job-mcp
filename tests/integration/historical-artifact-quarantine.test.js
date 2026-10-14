@@ -45,11 +45,19 @@ beforeEach(async () => {
     [
       'C:/Users/VISHW/AppData/Local/Temp/career-prd003-20261010/pgdata',
       'C:/Users/VISHW/AppData/Local/Temp/career-large-tree-20261010/pgdata',
+      'C:/Users/VISHW/AppData/Local/Temp/career-regeneration-20261014/pgdata',
     ].includes(directory)
   ) {
     const target = new URL(process.env.DATABASE_URL);
     assert.ok(['localhost', '127.0.0.1'].includes(target.hostname));
     assert.match(target.pathname, /^\/product_audit_/);
+    if (directory.endsWith('/career-prd002-20261014/pgdata')) {
+      assert.equal(target.port, '55445');
+      assert.equal(target.pathname, '/product_audit_prd002');
+    } else if (directory.endsWith('/career-regeneration-20261014/pgdata')) {
+      assert.equal(target.port, '55444');
+      assert.equal(target.pathname, '/product_audit_regeneration');
+    }
   } else {
     assert.match(directory, /ai-job-issue01-pg-20261007/);
   }

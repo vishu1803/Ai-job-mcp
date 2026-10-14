@@ -139,8 +139,16 @@ beforeEach(async () => {
   const identity = await pool.query('SHOW data_directory');
   assert.match(
     identity.rows[0].data_directory.replaceAll('\\', '/'),
-    /\/Temp\/career-large-tree-20261010\/pgdata$/
+    /\/Temp\/(?:career-large-tree-20261010|career-regeneration-20261014)\/pgdata$/
   );
+  if (
+    identity.rows[0].data_directory
+      .replaceAll('\\', '/')
+      .endsWith('/career-regeneration-20261014/pgdata')
+  ) {
+    assert.equal(target.port, '55444');
+    assert.equal(target.pathname, '/product_audit_regeneration');
+  }
   [tenant] = await db
     .insert(tenants)
     .values({ name: 'Large tree fixture', slug: randomUUID() })

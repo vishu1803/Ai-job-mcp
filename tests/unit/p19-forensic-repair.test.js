@@ -317,7 +317,8 @@ describe('P19 Bug #3: Summary Domain Contradictions', () => {
       projects: [],
     });
 
-    assert.ok(result.text, 'Summary should be generated with neutral domain');
+    assert.equal(result.text, '', 'An explicit clear must not become invented neutral biography');
+    assert.deepEqual(result.composedFromFactIds, []);
   });
 });
 
@@ -535,8 +536,12 @@ describe('P19 Bug #8: Generic Tailoring Templates', () => {
     });
 
     assert.ok(result, 'Summary result must not be null');
-    assert.ok(result.text, 'Summary text must not be empty');
-    assert.ok(result.text.length >= 50, 'Summary must be substantive (50+ chars)');
+    assert.equal(
+      result.text,
+      '',
+      'An explicit summary clear must not be replaced by generated biography'
+    );
+    assert.deepEqual(result.composedFromFactIds, []);
   });
 });
 

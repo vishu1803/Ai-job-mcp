@@ -706,11 +706,49 @@ describe('P18 Dynamic Evidence-Weighted Summary Composition', () => {
       selectedProjects: candidate.projects,
     });
 
-    assert.ok(summary.text.length > 50);
-    assert.match(summary.text, /Systems/i);
-    assert.match(summary.text, /Rust/i);
-    assert.equal(summary.topRelevantTechnicalDomains[0], 'Distributed Systems');
-    assert.ok(summary.topRelevantTechnologies.some((t) => t.toLowerCase() === 'rust'));
+    assert.equal(
+      summary.text,
+      '',
+      'Technology associations cannot supply personal accomplishments'
+    );
+    assert.deepEqual(summary.composedFromFactIds, []);
+    const sourceBullets = [
+      'Implemented Raft consensus and fault-tolerance in Rust.',
+      'Built a React dashboard for reviewing service status.',
+      'Documented the local installation procedure for developers.',
+    ];
+    const documentedCandidate = {
+      ...candidate,
+      projects: [{ ...candidate.projects[0], bullets: sourceBullets }],
+    };
+    const groundedSystems = composeProfessionalSummary({
+      candidateProfile: documentedCandidate,
+      jobPosting: systemsJob,
+      selectedProjects: documentedCandidate.projects,
+    });
+    const groundedFrontend = composeProfessionalSummary({
+      candidateProfile: documentedCandidate,
+      jobPosting: { title: 'Frontend Engineer', requirements: ['React dashboard'] },
+      selectedProjects: documentedCandidate.projects,
+    });
+    assert.equal(groundedSystems.sentences[0].text, sourceBullets[0]);
+    assert.equal(groundedFrontend.sentences[0].text, sourceBullets[1]);
+    assert.notEqual(
+      groundedSystems.text,
+      groundedFrontend.text,
+      'Job requirements prioritize actual facts'
+    );
+    for (const grounded of [groundedSystems, groundedFrontend]) {
+      assert.equal(grounded.provenanceStatus, 'CLAIMED');
+      assert.ok(
+        grounded.sentences.every((sentence) => sourceBullets.includes(sentence.sourceFact))
+      );
+      assert.doesNotMatch(
+        grounded.text,
+        /verified proficiency|specializing|expert|Software Engineer/i
+      );
+      assert.equal(grounded.sentences.length, 2);
+    }
   });
 });
 

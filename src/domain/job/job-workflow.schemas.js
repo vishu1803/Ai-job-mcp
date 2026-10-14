@@ -173,6 +173,17 @@ export const ApplicationPackageSchema = z
     }),
     verifiedSkills: z.array(ApplicationSkillItemSchema),
     claimedSkills: z.array(ApplicationSkillItemSchema),
+    // Availability gaps are not affirmative qualifications. Optional keeps
+    // existing persisted package representations and approval hashes unchanged.
+    skillGaps: z
+      .array(
+        z.object({
+          name: z.string(),
+          availability: z.enum(['MISSING_EVIDENCE', 'UNKNOWN']),
+          candidateSkillId: z.string().uuid().optional(),
+        })
+      )
+      .optional(),
     portfolioLinks: z.array(
       z.object({
         projectName: z.string(),

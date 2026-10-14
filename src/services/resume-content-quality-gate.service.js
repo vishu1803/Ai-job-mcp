@@ -54,7 +54,8 @@ const MIN_BULLET_LENGTH = 25;
 const MIN_OPTIONAL_BULLET_LENGTH = 30;
 
 /** A selected project must carry at least this many bullets (P46 hard minimum). */
-const MIN_BULLETS_PER_PROJECT = 3;
+// Factual support outranks arbitrary padding: one genuine bullet is sufficient.
+const MIN_BULLETS_PER_PROJECT = 1;
 
 /** Page-budget utilization below which the document is considered sparse. */
 const SPARSE_UTILIZATION_THRESHOLD = 0.55;

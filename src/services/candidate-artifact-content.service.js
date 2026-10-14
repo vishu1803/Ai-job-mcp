@@ -2242,6 +2242,14 @@ export class CandidateArtifactContentService {
       ...(Array.isArray(candidateData.additionalSkills) ? candidateData.additionalSkills : []),
     ];
     for (const s of allCandidateSkillsList) {
+      // An inventory/gap entry is not an affirmative qualification, even when
+      // the job requests it or a project's stack mentions the same name.
+      if (
+        typeof s === 'object' &&
+        s !== null &&
+        ['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(s)))
+      )
+        continue;
       const rawName = typeof s === 'string' ? s : s?.name || s?.skillName;
       if (!rawName) continue;
       const lower = rawName.toLowerCase().trim();

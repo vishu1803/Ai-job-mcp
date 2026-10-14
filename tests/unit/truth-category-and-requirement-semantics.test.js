@@ -175,7 +175,7 @@ describe('Production Bug Fix Suite: Truth Categories & Requirement Semantics', (
   // ---------------------------------------------------------------------------
   // 3. Exact Production Test Fixture: Parsing, Matching, & Scoring
   // ---------------------------------------------------------------------------
-  describe('3. Production Fixture End-to-End Extraction, Matching & Scoring', () => {
+  describe('3. Controlled Fixture Extraction, Matching & Scoring', () => {
     const fixtureJobDescription = `
 Junior Full Stack Engineer
 
@@ -232,7 +232,7 @@ FastAPI
       }
     });
 
-    it('matches candidate evidence correctly: verified matches, unverified claims, and missing', async () => {
+    it('matches controlled observations conservatively alongside explicit claims and missing skills', async () => {
       const tenantId = randomUUID();
       const parsedJob = await JobDescriptionParser.parse(
         { rawText: fixtureJobDescription, source: 'PASTE' },
@@ -242,7 +242,7 @@ FastAPI
       const mockResourceId = randomUUID();
 
       // Candidate setup:
-      // Verified evidence: JavaScript, React, PostgreSQL, Git, Next.js, FastAPI
+      // Untrusted CODE_USAGE observations: JavaScript, React, PostgreSQL, Git, Next.js, FastAPI
       // Unverified claim / self-declared: Node.js, Docker
       // Missing (no evidence or claim): TypeScript
       const candidateProfile = {
@@ -403,24 +403,25 @@ FastAPI
         matchesBySlug.set(m.skillSlug, m);
       }
 
-      // 1. JavaScript: MATCHED
-      assert.equal(matchesBySlug.get('javascript')?.matchStatus, 'MATCHED');
+      // ISSUE-06: these fixtures have no authenticated database origin or current Git proof.
+      // 1. JavaScript: PARTIAL observation
+      assert.equal(matchesBySlug.get('javascript')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('javascript')?.required, true);
 
-      // 2. React: MATCHED
-      assert.equal(matchesBySlug.get('react')?.matchStatus, 'MATCHED');
+      // 2. React: PARTIAL observation
+      assert.equal(matchesBySlug.get('react')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('react')?.required, true);
 
-      // 3. PostgreSQL: MATCHED
-      assert.equal(matchesBySlug.get('postgresql')?.matchStatus, 'MATCHED');
+      // 3. PostgreSQL: PARTIAL observation
+      assert.equal(matchesBySlug.get('postgresql')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('postgresql')?.required, true);
 
-      // 4. Git: MATCHED
-      assert.equal(matchesBySlug.get('git')?.matchStatus, 'MATCHED');
+      // 4. Git: PARTIAL observation
+      assert.equal(matchesBySlug.get('git')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('git')?.required, true);
 
-      // 5. REST APIs: MATCHED via taxonomy (FastAPI implements rest-api)
-      assert.equal(matchesBySlug.get('rest-api')?.matchStatus, 'MATCHED');
+      // 5. REST APIs: PARTIAL via inferred taxonomy (no verified proficiency)
+      assert.equal(matchesBySlug.get('rest-api')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('rest-api')?.required, true);
 
       // 6. Node.js (REQUIRED): UNVERIFIED_CLAIM / self-declared
@@ -436,12 +437,12 @@ FastAPI
         'Self-declared Node.js must not be MATCHED'
       );
 
-      // 7. Next.js (PREFERRED): MATCHED
-      assert.equal(matchesBySlug.get('next-js')?.matchStatus, 'MATCHED');
+      // 7. Next.js (PREFERRED): PARTIAL observation
+      assert.equal(matchesBySlug.get('next-js')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('next-js')?.required, false);
 
-      // 8. FastAPI (PREFERRED): MATCHED
-      assert.equal(matchesBySlug.get('fastapi')?.matchStatus, 'MATCHED');
+      // 8. FastAPI (PREFERRED): PARTIAL observation
+      assert.equal(matchesBySlug.get('fastapi')?.matchStatus, 'PARTIAL');
       assert.equal(matchesBySlug.get('fastapi')?.required, false);
 
       // 9. Docker (PREFERRED): UNVERIFIED_CLAIM / self-declared
@@ -461,12 +462,16 @@ FastAPI
 
       // Verify Aggregation Invariants
       const summary = matchAnalysis.summary;
-      assert.equal(summary.matchedCount, 7); // JS, React, PostgreSQL, Git, REST APIs, Next.js, FastAPI
-      assert.equal(summary.partialCount, 0);
+      assert.equal(summary.matchedCount, 0); // Unauthenticated fixture assertions are not verified matches.
+      assert.equal(summary.partialCount, 7); // JS, React, PostgreSQL, Git, REST APIs, Next.js, FastAPI
       assert.equal(summary.missingCount, 1); // TypeScript
       assert.equal(summary.unverifiedClaimCount, 2); // Node.js and Docker
       assert.equal(
-        summary.matchedCount + summary.partialCount + summary.unverifiedClaimCount + summary.missingCount + summary.unknownCount,
+        summary.matchedCount +
+          summary.partialCount +
+          summary.unverifiedClaimCount +
+          summary.missingCount +
+          summary.unknownCount,
         10
       );
 
@@ -487,25 +492,24 @@ FastAPI
       const breakdown = fitScoreResult.scoreBreakdown;
 
       // Required skills score MUST be non-zero and populated accurately
-      // 5 required matched (JS, React, Postgres, Git, REST APIs) @ weight 1.0 = 5.0
-      // 1 required partial (Node.js self-declared) @ 0.25 = 0.25
-      // Total required = 5.25 / 6.0 * 40 = 35.0
+      // Five inferred observations @0.5 plus one self-declaration @0.25.
+      // Internal heuristic component: 2.75 / 6 *40 =18.33, not an ATS probability.
       assert.ok(
         breakdown.requiredSkillsScore > 0,
         `Expected requiredSkillsScore > 0, got ${breakdown.requiredSkillsScore}`
       );
-      assert.equal(breakdown.requiredSkillsScore, 35.0);
+      assert.equal(breakdown.requiredSkillsScore, 18.33);
 
       // Preferred skills score MUST be non-zero and populated accurately
-      // 2 preferred matched (Next.js, FastAPI) @ 1.0 = 2.0
-      // 1 preferred partial (Docker self-declared) @ 0.25 = 0.25
+      // Two preferred observations (Next.js, FastAPI) @0.5 =1.0.
+      // One self-declaration (Docker) @0.25 =0.25.
       // 1 preferred missing (TypeScript) = 0.0
-      // Total preferred = 2.25 / 4.0 * 15 = 8.44
+      // Internal heuristic component: 1.25 /4 *15 =4.69.
       assert.ok(
         breakdown.preferredSkillsScore > 0,
         `Expected preferredSkillsScore > 0, got ${breakdown.preferredSkillsScore}`
       );
-      assert.equal(breakdown.preferredSkillsScore, 8.44);
+      assert.equal(breakdown.preferredSkillsScore, 4.69);
 
       // Scores are deterministic and bounded
       assert.ok(fitScoreResult.overallScore >= 0 && fitScoreResult.overallScore <= 100);

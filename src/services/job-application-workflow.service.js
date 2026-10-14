@@ -55,10 +55,11 @@ import { ProjectRelevanceService } from './project-relevance.service.js';
 import { normalizeJobInput } from './job-normalization.service.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
-import { normalizeTruthCategory } from '../domain/career/truth-category.js';
+import { projectApplicationSkills } from './application-skill-projection.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
+  NormalizedJobPostingSchema,
   ApplicationValidationResultSchema,
   ApplicationApprovalTicketSchema,
   SubmissionResultSchema,
@@ -72,6 +73,7 @@ import {
   JobApplicationWorkflowStateMachine,
 } from '../domain/job/job-workflow.schemas.js';
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
+import { fitOnePageResume, onePageResumeMarkdown } from './one-page-resume.service.js';
 import { defaultAiResumeContentGenerator } from './ai-resume-content-generator.service.js';
 import {
   StructuredResumeDocumentSchema,
@@ -901,6 +903,8 @@ export class JobApplicationWorkflowService {
     const candidateSkillsList = await this.db
       .select({
         skillName: skills.name,
+        candidateSkillId: candidateSkills.id,
+        metadata: candidateSkills.metadata,
         provenanceStatus: candidateSkills.provenanceStatus,
         evidenceId: candidateSkills.primaryEvidenceId,
       })
@@ -910,25 +914,8 @@ export class JobApplicationWorkflowService {
         and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
       );
 
-    const verifiedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
-      .map((s) => ({
-        name: s.skillName,
-        truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
-        evidenceId: s.evidenceId || undefined,
-        notes:
-          s.provenanceStatus === 'CORROBORATED'
-            ? 'Corroborated by authenticated repository code inspection and resume claim'
-            : 'Supported by authenticated repository code inspection',
-      }));
-
-    const claimedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
-      .map((s) => ({
-        name: s.skillName,
-        truthCategory: normalizeTruthCategory(s.provenanceStatus),
-        notes: 'Self-reported in candidate resume / profile',
-      }));
+    const { verifiedSkills, claimedSkills, skillGaps } =
+      projectApplicationSkills(candidateSkillsList);
 
     // 2b. Fetch candidate profile view for canonical ranking and document generation
     let candidateProfileInput = null;
@@ -1181,7 +1168,7 @@ export class JobApplicationWorkflowService {
     const effectiveFitScore =
       jobFitAnalysis && typeof jobFitAnalysis.overallFit?.atsScore === 'number'
         ? jobFitAnalysis.overallFit.atsScore
-        : tailoredResumeResult.fitScore || 85;
+        : (tailoredResumeResult.fitScore ?? 0);
 
     // 5b. Build and Validate Structured Resume Snapshot (P16-001F-1)
     if (documentContent.candidateData) {
@@ -1262,7 +1249,14 @@ export class JobApplicationWorkflowService {
       );
     }
 
-    const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
+    const safeStructuredResume = await fitOnePageResume(
+      JSON.parse(JSON.stringify(structuredSnapshot.structuredResume)),
+      targetJobPosting,
+      {
+        generator: this.applicationHandoffService.latexGenerator,
+        compiler: this.applicationHandoffService.latexCompiler,
+      }
+    );
     const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
     const safeEvidenceReceipt = JSON.parse(
       JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
@@ -1286,9 +1280,11 @@ export class JobApplicationWorkflowService {
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
         title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
-        markdownContent:
-          tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
-        contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
+        markdownContent: onePageResumeMarkdown(safeStructuredResume),
+        contentHash: crypto
+          .createHash('sha256')
+          .update(onePageResumeMarkdown(safeStructuredResume))
+          .digest('hex'),
         fitScore: effectiveFitScore,
         selectedProjects: selectedProjectsList,
         selectedSections:
@@ -1310,6 +1306,7 @@ export class JobApplicationWorkflowService {
       },
       verifiedSkills,
       claimedSkills,
+      skillGaps,
       portfolioLinks,
       candidate: {
         id: candidateId,
@@ -1349,7 +1346,7 @@ export class JobApplicationWorkflowService {
       artifacts: {
         resume: {
           filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text: tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          text: onePageResumeMarkdown(safeStructuredResume),
           ready: false,
         },
         coverLetter: {
@@ -1566,7 +1563,8 @@ export class JobApplicationWorkflowService {
    * Regenerates tailored documents and creates a new application package version (Issue 3 / P14-005BA).
    *
    * Capabilities:
-   * - Supports scope: 'BOTH' (default), 'RESUME', or 'COVER_LETTER'.
+   * - Supports 'BOTH'; selective requests fail actionably until the renderer
+   *   can preserve the exact authoritative counterpart instead of rebuilding it.
    * - Optional user reason tag stored in package answers for audit and history tracking.
    * - Monotonically increments version (v_n -> v_{n+1}), archiving the previous version.
    * - Runs full end-to-end PDF compilation, QA audit, and encrypted storage.
@@ -1597,6 +1595,17 @@ export class JobApplicationWorkflowService {
         'INVALID_PARAMETERS'
       );
     }
+    if (!['BOTH', 'RESUME', 'COVER_LETTER'].includes(scope)) {
+      throw new ValidationError(
+        'Choose BOTH, RESUME or COVER_LETTER for regeneration.',
+        'INVALID_REGENERATION_SCOPE'
+      );
+    }
+    if (role === 'READONLY')
+      throw new AuthorizationError(
+        'READONLY role cannot regenerate application packages.',
+        'FORBIDDEN'
+      );
 
     const context = {
       tenantId,
@@ -1612,6 +1621,22 @@ export class JobApplicationWorkflowService {
       { includeStages: false, includeDocuments: scope !== 'BOTH' }
     );
     const application = appDetails.application;
+    const currentPkg = appDetails.currentPackage?.packagePayload || null;
+    if (scope !== 'BOTH' && !currentPkg) {
+      throw new ValidationError(
+        'The historical package is missing or quarantined. Regenerate BOTH documents from your current profile and job data.',
+        'HISTORICAL_PACKAGE_UNAVAILABLE'
+      );
+    }
+    if (scope !== 'BOTH') {
+      // The current renderer rebuilds the canonical resume even when an old
+      // Markdown counterpart is reused. Do not silently replace that document
+      // under a selective request. Exact counterpart reuse needs its own repair.
+      throw new ValidationError(
+        'Selective regeneration cannot preserve the exact counterpart with the current renderer. Choose BOTH to generate and review a fresh complete package.',
+        'PARTIAL_REGENERATION_UNAVAILABLE'
+      );
+    }
 
     if (application.candidateId !== candidateId) {
       throw new AuthorizationError(
@@ -1662,6 +1687,8 @@ export class JobApplicationWorkflowService {
     const candidateSkillsList = await this.db
       .select({
         skillName: skills.name,
+        candidateSkillId: candidateSkills.id,
+        metadata: candidateSkills.metadata,
         provenanceStatus: candidateSkills.provenanceStatus,
         evidenceId: candidateSkills.primaryEvidenceId,
       })
@@ -1671,25 +1698,8 @@ export class JobApplicationWorkflowService {
         and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
       );
 
-    const verifiedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
-      .map((s) => ({
-        name: s.skillName,
-        truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
-        evidenceId: s.evidenceId || undefined,
-        notes:
-          s.provenanceStatus === 'CORROBORATED'
-            ? 'Corroborated by authenticated repository code inspection and resume claim'
-            : 'Supported by authenticated repository code inspection',
-      }));
-
-    const claimedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
-      .map((s) => ({
-        name: s.skillName,
-        truthCategory: normalizeTruthCategory(s.provenanceStatus),
-        notes: 'Self-reported in candidate resume / profile',
-      }));
+    const { verifiedSkills, claimedSkills, skillGaps } =
+      projectApplicationSkills(candidateSkillsList);
 
     // 4. Construct normalized job posting
     // P16-001F-5: accept provider sources detected by the extension's
@@ -1724,12 +1734,17 @@ export class JobApplicationWorkflowService {
       responsibilities: application.parsedJobDescription?.responsibilities || [],
       requirements: application.parsedJobDescription?.requirements || [],
       skills: application.parsedJobDescription?.skills || [],
-      applicationUrl:
-        application.jobUrl ||
-        application.metadata?.destinationUrl ||
-        'https://boards.greenhouse.io',
+      applicationUrl: application.jobUrl || application.metadata?.destinationUrl,
       retrievedAt: new Date().toISOString(),
     };
+
+    const jobValidation = NormalizedJobPostingSchema.safeParse(jobPosting);
+    if (!jobValidation.success) {
+      throw new ValidationError(
+        'Saved job data is invalid. Correct the job title, company, description and application URL before regenerating.',
+        'INVALID_REGENERATION_JOB'
+      );
+    }
 
     // 4b. Authoritative project rankings from ProjectRelevanceService for current job
     try {
@@ -1779,7 +1794,6 @@ export class JobApplicationWorkflowService {
     );
 
     // 6. Handle scope: allow selective reuse if scope is RESUME or COVER_LETTER
-    const currentPkg = appDetails.currentPackage;
     const currentSnapshots = appDetails.tailoredDocuments || [];
 
     let tailoredResumeResult = documentContent.resume;
@@ -1951,10 +1965,7 @@ export class JobApplicationWorkflowService {
       throw new NotFoundError('Canonical candidate profile could not be resolved');
     }
 
-    const authoritativeDraftRankings =
-      currentPkg?.jobFitAnalysis?.projectRankings ||
-      currentPkg?.jobFitAnalysis?.topRelevantProjects ||
-      [];
+    const authoritativeDraftRankings = jobPosting.projectRankings || [];
 
     const candidateProjectsForRegen = candidateProfileInput.projects || cand.projects || [];
     const topDraftIdentifiers = (
@@ -1994,7 +2005,6 @@ export class JobApplicationWorkflowService {
       jobPosting,
       options: {
         projectRankings: authoritativeDraftRankings,
-        matchAnalysis: currentPkg?.jobFitAnalysis?.matchAnalysis,
         aiContent,
       },
     });
@@ -2013,7 +2023,14 @@ export class JobApplicationWorkflowService {
       );
     }
 
-    const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
+    const safeStructuredResume = await fitOnePageResume(
+      JSON.parse(JSON.stringify(structuredSnapshot.structuredResume)),
+      jobPosting,
+      {
+        generator: this.applicationHandoffService.latexGenerator,
+        compiler: this.applicationHandoffService.latexCompiler,
+      }
+    );
     const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
     const safeEvidenceReceipt = JSON.parse(
       JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
@@ -2028,10 +2045,12 @@ export class JobApplicationWorkflowService {
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
         title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
-        markdownContent:
-          tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
-        contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
-        fitScore: tailoredResumeResult.fitScore || 85,
+        markdownContent: onePageResumeMarkdown(safeStructuredResume),
+        contentHash: crypto
+          .createHash('sha256')
+          .update(onePageResumeMarkdown(safeStructuredResume))
+          .digest('hex'),
+        fitScore: tailoredResumeResult.fitScore ?? 0,
         selectedProjects: selectedProjectsList,
         selectedSections:
           tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
@@ -2052,6 +2071,7 @@ export class JobApplicationWorkflowService {
       },
       verifiedSkills,
       claimedSkills,
+      skillGaps,
       portfolioLinks,
       candidate: {
         id: candidateId,
@@ -2074,7 +2094,7 @@ export class JobApplicationWorkflowService {
       artifacts: {
         resume: {
           filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text: tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+          text: onePageResumeMarkdown(safeStructuredResume),
           ready: false,
         },
         coverLetter: {
@@ -2112,6 +2132,7 @@ export class JobApplicationWorkflowService {
       applicationPackage: validatedPackage,
       applicationId: application.id,
       destinationUrl: jobPosting.applicationUrl,
+      persist: false,
     });
 
     const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);
@@ -2140,24 +2161,32 @@ export class JobApplicationWorkflowService {
     }
 
     // 9. Attach snapshots and commit the new package version as CURRENT
-    await this.applicationTrackingService.attachPackageDocumentSnapshots(
-      context,
-      application.id,
-      validatedPackage
-    );
-
-    const current = await this.applicationTrackingService.recordApplicationPackage(
-      context,
-      application.id,
-      validatedPackage,
-      { source: 'REGENERATE_PACKAGE' }
-    );
-
-    await this.applicationTrackingService.setApplicationHandoffKit(
-      context,
-      application.id,
-      handoffKit
-    );
+    const current = await this.db.transaction(async (tx) => {
+      // Serialize the entire promotion, including encrypted-artifact snapshots
+      // and kit metadata. A failed write cannot leave a partially exposed kit.
+      await tx
+        .select({ id: jobApplications.id })
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, application.id), eq(jobApplications.tenantId, tenantId)))
+        .for('update');
+      const tracking = new ApplicationTrackingService({ database: tx });
+      const packageRow = await tracking.recordApplicationPackage(
+        context,
+        application.id,
+        validatedPackage,
+        { source: 'REGENERATE_PACKAGE' }
+      );
+      await this.applicationHandoffService._attachTailoredDocumentSnapshots({
+        tenantId,
+        userId: cand.userId,
+        applicationId: application.id,
+        applicationPackage: validatedPackage,
+        handoffKit,
+        trackingService: tracking,
+      });
+      await tracking.setApplicationHandoffKit(context, application.id, handoffKit);
+      return packageRow;
+    });
 
     this.logger.info(
       {
@@ -2508,6 +2537,15 @@ ${pkg.verifiedSkills.map((s) => `- ✅ **${s.name}** *(${s.truthCategory || 'VER
 
 ## 2. Claimed Profile Skills
 ${pkg.claimedSkills.map((s) => `- 📋 **${s.name}** *(${s.truthCategory || 'CLAIMED'})* — ${s.notes || ''}`).join('\n') || '- None'}
+${
+  pkg.skillGaps?.length
+    ? `
+### Inventory skills without affirmative support
+These are availability gaps, not asserted qualifications or inferred job requirements.
+${pkg.skillGaps.map((s) => `- **${s.name}** (${s.availability})`).join('\n')}
+`
+    : ''
+}
 
 ---
 

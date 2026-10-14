@@ -21,6 +21,7 @@
  */
 
 import { ValidationError } from '../errors/index.js';
+import { onePageResumeView } from './one-page-resume.service.js';
 import {
   curateProfessionalSummary,
   curateCandidateHeadline,
@@ -241,16 +242,30 @@ function optionalEntryLatex(entry) {
  * @param {string|null} liveUrl Authentic candidate live demo URL (if present)
  * @returns {string} LaTeX-formatted compact link string (or empty)
  */
-export function formatProjectLinksLatex(repoUrl, liveUrl) {
+function sourceResumeUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported');
+    return true;
+  } catch {
+    throw new ValidationError(
+      'Selected resume link must be a valid HTTP or HTTPS URL.',
+      'INVALID_RESUME_URL'
+    );
+  }
+}
+
+export function formatProjectLinksLatex(repoUrl, liveUrl, canonicalSource = false) {
   const linkParts = [];
-  if (repoUrl && isRealUrl(repoUrl)) {
+  if (repoUrl && (canonicalSource ? sourceResumeUrl(repoUrl) : isRealUrl(repoUrl))) {
     let repoLabel = 'GitHub';
     if (/gitlab/i.test(repoUrl)) repoLabel = 'GitLab';
     else if (/bitbucket/i.test(repoUrl)) repoLabel = 'Bitbucket';
     else if (!/github/i.test(repoUrl)) repoLabel = 'Repository';
     linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\textbf{${repoLabel}}}`);
   }
-  if (liveUrl && isRealUrl(liveUrl)) {
+  if (liveUrl && (canonicalSource ? sourceResumeUrl(liveUrl) : isRealUrl(liveUrl))) {
     linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\textbf{Live Demo}}`);
   }
   return linkParts.join(' $\\cdot$ ');
@@ -380,7 +395,7 @@ export class LatexDocumentGenerator {
     if (structuredResume) {
       return this._generateFromStructuredResume({
         applicationPackage,
-        structuredResume,
+        structuredResume: onePageResumeView(structuredResume),
         layoutProfile,
       });
     }
@@ -439,7 +454,7 @@ export class LatexDocumentGenerator {
     const candidatePhone = identity.phone || structuredResume.candidateIdentity?.phone || '';
     const candidateLocation = structuredResume.candidateIdentity?.location || '';
     const candidateHeadline =
-      identity.headline || structuredResume.candidateIdentity?.headline || targetRole || '';
+      structuredResume.candidateIdentity?.headline || identity.headline || targetRole || '';
 
     // Contact line
     const contactElements = [];
@@ -460,7 +475,7 @@ export class LatexDocumentGenerator {
         structuredResume.candidateIdentity.links) ||
       [];
     for (const link of links) {
-      if (link && link.url && isRealUrl(link.url)) {
+      if (link && link.url && sourceResumeUrl(link.url)) {
         let label = link.label || link.platform || 'Link';
         if (/^linkedin$/i.test(label)) label = 'LinkedIn';
         else if (/^github$/i.test(label)) label = 'GitHub';
@@ -523,7 +538,7 @@ export class LatexDocumentGenerator {
         const cleanTechs = cleanResumeFacingTechnologies(rawTechs);
         const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
-        const linksStr = formatProjectLinksLatex(repoUrl, liveUrl);
+        const linksStr = formatProjectLinksLatex(repoUrl, liveUrl, true);
 
         let headerLine = `\\textbf{${pName}}`;
         if (linksStr) {
@@ -969,7 +984,7 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
     //   ligatures DISABLED so "fi"/"fl" extract as real letters (Cloudflare,
     //   workflows), and fontspec writes correct ToUnicode CMaps for full extraction fidelity.
     // - pdfLaTeX fallback keeps T1 + lmodern + glyphtounicode.
-    return `\\documentclass[10pt,letterpaper]{article}
+    return `\\documentclass[10pt,a4paper]{article}
 \\usepackage{iftex}
 \\ifxetex
   \\usepackage{fontspec}

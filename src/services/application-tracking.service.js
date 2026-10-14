@@ -1495,8 +1495,12 @@ export class ApplicationTrackingService {
     const tenantId = context.tenantId;
     const candidateId = context.candidateId || null;
 
+    // A SHA-256 hash can contain digits only. Its fixed-width hash contract
+    // takes precedence over numeric version parsing.
+    const isPackageHash =
+      typeof versionOrHash === 'string' && /^[a-f0-9]{64}$/i.test(versionOrHash);
     const isVersionNumber =
-      !isNaN(Number(versionOrHash)) && Number.isInteger(Number(versionOrHash));
+      !isPackageHash && !isNaN(Number(versionOrHash)) && Number.isInteger(Number(versionOrHash));
 
     const condition = isVersionNumber
       ? eq(applicationPackages.version, Number(versionOrHash))

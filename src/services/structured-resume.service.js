@@ -19,7 +19,8 @@
  */
 
 import crypto from 'node:crypto';
-import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import { enforceEvidenceTrust, skillTrustStatus } from './evidence/verification-policy.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
 import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
@@ -325,11 +326,6 @@ export function buildStructuredResumeDocument({
   const authoredHeadline = typeof suppliedHeadline === 'string' ? suppliedHeadline.trim() : '';
   const suppliedPhone = resumeSourceValue(source, 'phone', ['canonicalPhone', 'phoneNumber']);
   const suppliedLocation = resumeSourceValue(source, 'location');
-  const emptyHeadline =
-    suppliedHeadline === null || (typeof suppliedHeadline === 'string' && !suppliedHeadline.trim());
-  const neutralHeadline = isTailoredJob
-    ? `Target role: ${jobPosting.title || jobPosting.rawTitle}`
-    : 'Candidate Profile';
   const candidateIdentity = {
     displayName:
       source.displayName ||
@@ -727,7 +723,13 @@ export function buildStructuredResumeDocument({
         : []),
     ...(Array.isArray(source.additionalSkills) ? source.additionalSkills : []),
     ...(Array.isArray(meta.additionalSkills) ? meta.additionalSkills : []),
-  ];
+  ].filter(
+    (skill) =>
+      typeof skill !== 'object' ||
+      skill === null ||
+      !skill.provenanceStatus ||
+      !['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(skill)))
+  );
 
   const skillSelectionResult = candidateContentService.selectAndCategorizeSkillsForJob(
     { skills: rawSkills, projects: rawProjects },
@@ -1229,7 +1231,7 @@ export function buildStructuredResumeDocument({
         );
       });
 
-    const MIN_BULLETS_PER_RENDERED_PROJECT = 3;
+    const MIN_BULLETS_PER_RENDERED_PROJECT = 1;
     const minRequiredBullets =
       typeof projectOptions.maxBullets === 'number'
         ? Math.min(MIN_BULLETS_PER_RENDERED_PROJECT, projectOptions.maxBullets)
@@ -1262,9 +1264,7 @@ export function buildStructuredResumeDocument({
       }
     }
 
-    // P46 Contract: Minimum 3 candidate-supported bullets per rendered project.
-    // Projects with fewer than 3 candidate-supported bullets are dropped rather than rendered with thin content.
-    // No synthetic bullets are fabricated to reach the minimum.
+    // PRD-002: preserve genuine thin projects; no fabricated three-bullet padding.
     const candidateAvailableBullets = Math.max(
       Array.isArray(proj.bullets) ? proj.bullets.length : 0,
       Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets.length : 0,
@@ -1495,7 +1495,7 @@ export function buildStructuredResumeDocument({
       evidenceRefs: options.aiContent.summary.evidenceRefs || [],
       matchedRequirementIds: options.aiContent.summary.matchedRequirementIds || [],
       composedFromFactIds: options.aiContent.summary.composedFromFactIds || [],
-      provenanceStatus: 'VERIFIED',
+      provenanceStatus: options.aiContent.summary.provenanceStatus || 'CLAIMED',
       provenance: options.aiContent.summary.provenance || null,
       ...(options.aiContent.summary.sourceFact
         ? { sourceFact: options.aiContent.summary.sourceFact }
@@ -1547,8 +1547,10 @@ export function buildStructuredResumeDocument({
       evidenceRefs: compSummary.evidenceRefs || [],
       matchedRequirementIds: compSummary.matchedRequirementIds || [],
       composedFromFactIds: compSummary.composedFromFactIds || [],
-      provenanceStatus: 'VERIFIED',
+      provenanceStatus: compSummary.provenanceStatus || 'CLAIMED',
       provenance: null,
+      sourceFact: compSummary.sourceFact,
+      transformationType: compSummary.transformationType,
       sentences: (compSummary.sentences || []).map((s) => ({
         ...s,
         projectIds: (s.projectIds || []).filter((id) => renderedPIdSet.has(id)),
@@ -1607,34 +1609,22 @@ export function buildStructuredResumeDocument({
     sectionOrder: parsedPlan.sectionOrder,
     candidateIdentity: {
       ...candidateIdentity,
-      headline: emptyHeadline
-        ? neutralHeadline
-        : isTailoredJob
-          ? tailoredHeadingInfo?.tailoredHeadline ||
-            tailoredHeadingInfo?.heading ||
-            candidateIdentity.headline
-          : authoredHeadline ||
-            candidateIdentity.headline ||
-            tailoredHeadingInfo?.masterHeadline ||
-            tailoredHeadingInfo?.candidateHeadline,
-      masterHeadline: emptyHeadline
-        ? null
-        : authoredHeadline ||
-          candidateIdentity.masterHeadline ||
-          tailoredHeadingInfo?.masterHeadline ||
-          tailoredHeadingInfo?.candidateHeadline ||
-          null,
-      tailoredHeadline: emptyHeadline
-        ? isTailoredJob
-          ? neutralHeadline
-          : null
-        : isTailoredJob
-          ? tailoredHeadingInfo?.tailoredHeadline ||
-            tailoredHeadingInfo?.heading ||
-            candidateIdentity.headline
-          : null,
+      // A target job is an objective, never authority for a held role or proficiency.
+      headline:
+        authoredHeadline ||
+        (isTailoredJob ? `Target role: ${parsedPlan.targetRoleTitle}` : 'Candidate Profile'),
+      masterHeadline: authoredHeadline || null,
+      tailoredHeadline: isTailoredJob ? `Target role: ${parsedPlan.targetRoleTitle}` : null,
     },
     summary,
+    writing: options.aiContent?.writing || {
+      method: 'SOURCE_GROUNDED_DETERMINISTIC',
+      providerUsed: false,
+      providerStatus: 'UNAVAILABLE',
+      missingDataGuidance: summary.text
+        ? []
+        : ['Add a factual summary or documented career information.'],
+    },
     skills: {
       categories: categorizedSkills,
     },
@@ -1899,13 +1889,13 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
   }
 
   for (const proj of renderedProjects) {
-    if (!Array.isArray(proj.bullets) || proj.bullets.length < 3) {
+    if (!Array.isArray(proj.bullets) || proj.bullets.length < 1) {
       violations.push({
         section: 'PROJECTS',
         field: 'bullets',
         claimText: proj.displayName || proj.name || 'unnamed',
         violationType: 'SCHEMA_VALIDATION_ERROR',
-        message: `Selected project '${proj.displayName || proj.name || 'unnamed'}' renders with ${proj.bullets?.length || 0} bullet(s); minimum required is 3.`,
+        message: `Selected project '${proj.displayName || proj.name || 'unnamed'}' requires at least one genuine source-grounded bullet; do not fabricate padding.`,
       });
     }
     for (const bullet of proj.bullets || []) {

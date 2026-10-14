@@ -12,10 +12,11 @@
  *    without reverting to mechanical fill-in-the-blank templates.
  * 3. AUTHORITATIVE RANKING PRESERVATION: Project selection comes exclusively
  *    from authoritative ranking (top-N).
- * 4. 3-BULLET MINIMUM: Every rendered project preserves >= 3 candidate-supported bullets.
+ * 4. SOURCE CAPACITY: Thin factual projects never receive invented padding.
  * 5. DUAL-SURFACE PARITY: MCP and Extension invoke the identical generation workflow.
  */
 
+import { composeSourceGroundedSummary } from './source-grounded-summary.service.js';
 import { validateClaimEvidenceGrounding } from './resume-claim-validation.service.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import {
@@ -25,7 +26,7 @@ import {
 import { buildCanonicalFactInventory } from './candidate-fact-inventory.service.js';
 import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
 import { enforceEvidenceTrust } from './evidence/verification-policy.js';
-import { buildResumeAiContext, sanitizeProjectName } from './ai-context-sanitizer.service.js';
+import { buildResumeAiContext } from './ai-context-sanitizer.service.js';
 
 export class AiResumeContentGeneratorService {
   /**
@@ -181,6 +182,14 @@ export class AiResumeContentGeneratorService {
     return enforceEvidenceTrust({
       summary,
       projectBullets,
+      writing: {
+        method: 'SOURCE_GROUNDED_DETERMINISTIC',
+        providerUsed: false,
+        providerStatus: summary.providerStatus || (activeProvider ? 'ADVISORY_ONLY' : 'UNAVAILABLE'),
+        missingDataGuidance: summary.text
+          ? []
+          : ['Add documented responsibilities, education or a factual authored summary.'],
+      },
     });
   }
 
@@ -215,16 +224,11 @@ export class AiResumeContentGeneratorService {
           ? buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []
           : [];
 
-    // Extract relevant skills and verified technologies
-    const verifiedSkillsList = (
-      Array.isArray(selectedSkills) && selectedSkills.length > 0
-        ? selectedSkills
-        : candidate.skills || []
-    ).map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.slug || ''));
-
     // AI output is advisory only. Fact IDs/overlap cannot authorize arbitrary prose.
     // Preserve the privacy-safe provider contract, but render the server synthesizer.
+    let providerStatus = 'UNAVAILABLE';
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
+      providerStatus = 'ADVISORY_ONLY';
       try {
         const policy = getPromptPolicy('RESUME_SUMMARY_SYNTHESIS');
         const { context: sanitizedContext } = buildResumeAiContext({
@@ -243,310 +247,21 @@ export class AiResumeContentGeneratorService {
           responseSchema: policy.responseSchema,
         });
       } catch {
+        providerStatus = 'FAILED';
         // Malformed output, provider failures and instructions cannot bypass rendering.
       }
     }
 
-    // High-Fidelity Job-Adaptive Evidence Synthesizer
-    return enforceEvidenceTrust(
-      this._synthesizeJobConditionedSummary({
-        candidate,
-        job,
+    const summary = enforceEvidenceTrust(
+      composeSourceGroundedSummary({
+        candidateProfile: candidate,
+        jobPosting: job,
         selectedProjects,
-        verifiedSkillsList,
-        availableFacts,
+        selectedSkills,
+        factInventory: availableFacts,
       })
     );
-  }
-
-  /**
-   * Deterministic, non-templated, job-adaptive evidence synthesizer.
-   *
-   * @private
-   */
-  _synthesizeJobConditionedSummary({
-    candidate,
-    job,
-    selectedProjects,
-    verifiedSkillsList,
-    availableFacts,
-  }) {
-    const title = String(job.title || job.targetRole || '').toLowerCase();
-    const desc = String(job.description || '').toLowerCase();
-    const jobText = `${title} ${desc}`;
-
-    const isFullStack = /\bfull[- ]?stack\b/i.test(jobText);
-    const isFrontend = /\bfront[- ]?end\b/i.test(jobText) && !isFullStack;
-    const isPython = /\bpython\b/i.test(jobText);
-    const isBackend = (/\bback[- ]?end\b/i.test(jobText) || isPython) && !isFullStack;
-    const isDevOps = /\b(?:devops|platform|infrastructure|sre|cloud|ci\/cd|docker)\b/i.test(
-      jobText
-    );
-    const isDistributed = /\b(?:distributed|concurrency|systems|telemetry|microservices)\b/i.test(
-      jobText
-    );
-
-    // Pick top verified matching skills
-    const candidateTech = verifiedSkillsList.slice();
-    const relevantSkills = [];
-
-    if (isFrontend) {
-      const fePriorities = [
-        'React',
-        'Next.js',
-        'TypeScript',
-        'JavaScript',
-        'Tailwind CSS',
-        'CSS',
-        'HTML',
-      ];
-      for (const p of fePriorities) {
-        if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
-      }
-    } else if (isBackend || isPython) {
-      const bePriorities = [
-        'Python',
-        'FastAPI',
-        'PostgreSQL',
-        'Docker',
-        'Node.js',
-        'Express.js',
-        'REST APIs',
-      ];
-      for (const p of bePriorities) {
-        if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
-      }
-    } else if (isDevOps) {
-      const doPriorities = ['Docker', 'PostgreSQL', 'Python', 'FastAPI', 'Git', 'Node.js', 'React'];
-      for (const p of doPriorities) {
-        if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
-      }
-    } else if (isDistributed) {
-      const distPriorities = ['Python', 'FastAPI', 'Docker', 'PostgreSQL', 'Node.js', 'TypeScript'];
-      for (const p of distPriorities) {
-        if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
-      }
-    } else {
-      // Full-Stack
-      const fsPriorities = [
-        'TypeScript',
-        'React',
-        'Next.js',
-        'Node.js',
-        'Python',
-        'PostgreSQL',
-        'FastAPI',
-      ];
-      for (const p of fsPriorities) {
-        if (candidateTech.some((t) => t.toLowerCase() === p.toLowerCase())) relevantSkills.push(p);
-      }
-    }
-
-    const techString = (
-      relevantSkills.length > 0 ? relevantSkills.slice(0, 4) : candidateTech.slice(0, 4)
-    ).join(', ');
-
-    // Match top selected project
-    const topProj = selectedProjects[0] || null;
-    const topProjName = topProj
-      ? sanitizeProjectName(topProj.displayName || topProj.name || topProj.title || '')
-      : '';
-    const secondProj = selectedProjects[1] || null;
-    const secondProjName = secondProj
-      ? sanitizeProjectName(secondProj.displayName || secondProj.name || secondProj.title || '')
-      : '';
-
-    let s1 = '';
-    let s2 = '';
-    let s3 = '';
-    const usedFactIds = [];
-
-    // Collect matching facts for the selected projects
-    const topProjFacts = this._getProjectFacts(topProj, availableFacts);
-    if (topProjFacts.length > 0) {
-      usedFactIds.push(topProjFacts[0].factId || topProjFacts[0].id);
-    }
-    const secondProjFacts = this._getProjectFacts(secondProj, availableFacts);
-    if (secondProjFacts.length > 0) {
-      usedFactIds.push(secondProjFacts[0].factId || secondProjFacts[0].id);
-    }
-
-    // Job relevance chooses associations, never invents candidate accomplishments.
-    s1 = `Profile targeting ${job.title || job.targetRole || 'Software Engineer'} lists ${techString || 'no technology associations'}.`;
-    s2 = topProjName
-      ? `Linked repositories include ${topProjName}${secondProjName ? ` and ${secondProjName}` : ''}; repository access does not establish candidate authorship.`
-      : 'No linked repository is available to support a project-specific statement.';
-    const reportedFacts = availableFacts
-      .filter((fact) => fact.candidateAuthored === true && fact.renderable !== false && fact.text)
-      .slice(0, 2);
-    s3 = reportedFacts.length
-      ? `Candidate-provided claims (not independently verified): ${reportedFacts.map((fact) => fact.text).join(' ')}`
-      : 'Technology associations do not independently establish practical experience or proficiency.';
-
-    const summaryText = `${s1} ${s2} ${s3}`;
-
-    // Score project facts for role-appropriate grounding
-    const scoreFactForRole = (fact) => {
-      const factText = String(fact.text || '').toLowerCase();
-      let score = 0;
-      if (isFrontend) {
-        if (
-          /\b(?:ui|react|next(?:\.js)?|client|frontend|front-end|component|rendering|tailwind|interface|responsive|interaction)\b/i.test(
-            factText
-          )
-        )
-          score += 50;
-        if (/\b(?:api|database|query|sql|prisma)\b/i.test(factText)) score += 5;
-      } else if (isPython || isBackend) {
-        if (
-          /\b(?:api|fastapi|flask|node(?:\.js)?|express(?:\.js)?|backend|back-end|crud|rest(?:ful)?)\b/i.test(
-            factText
-          )
-        )
-          score += 50;
-        if (/\b(?:postgres(?:ql)?|database|prisma|typeorm|sql|redis|query)\b/i.test(factText))
-          score += 40;
-        if (/\b(?:concurrency|async|webhook)\b/i.test(factText)) score += 30;
-      } else if (isDevOps) {
-        if (
-          /\b(?:docker|compose|ci\/cd|github actions|pipeline|container(?:ized)?)\b/i.test(factText)
-        )
-          score += 50;
-        if (/\b(?:webhook|automation|deployment)\b/i.test(factText)) score += 35;
-        if (/\b(?:backend|api|persistence)\b/i.test(factText)) score += 10;
-      } else if (isDistributed) {
-        if (/\b(?:concurrency|async|webhook|real-time|websocket)\b/i.test(factText)) score += 50;
-        if (/\b(?:redis|caching|scale|latency|event)\b/i.test(factText)) score += 30;
-      } else {
-        // Full-Stack
-        if (/\b(?:full-stack|full stack|platform|end-to-end|crud|collaboration)\b/i.test(factText))
-          score += 40;
-        if (/\b(?:react|next(?:\.js)?|ui|interface)\b/i.test(factText)) score += 30;
-        if (/\b(?:api|node(?:\.js)?|prisma|postgres(?:ql)?|nestjs)\b/i.test(factText)) score += 30;
-      }
-      return score;
-    };
-
-    // Trace source facts for each sentence from substantive accomplishment facts
-    const isSubstantiveFact = (f) => {
-      if (!f || !f.text) return false;
-      if (f.factType === 'technology' || f.canonicalFactType === 'TECHNOLOGY') return false;
-      if (/^uses\s+[a-z0-9]/i.test(f.text.trim())) return false;
-      return f.text.trim().length >= 25;
-    };
-
-    const topProjSubstantive = topProjFacts
-      .filter(isSubstantiveFact)
-      .sort((a, b) => scoreFactForRole(b) - scoreFactForRole(a));
-
-    const secondProjSubstantive = secondProjFacts
-      .filter(isSubstantiveFact)
-      .sort((a, b) => scoreFactForRole(b) - scoreFactForRole(a));
-
-    const s1Fact =
-      topProjSubstantive[0] || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
-    const s1FactId = s1Fact ? s1Fact.factId || s1Fact.id : null;
-    const s1Source = s1Fact ? s1Fact.text : '';
-
-    const s2Fact =
-      secondProjSubstantive[0] ||
-      topProjSubstantive[1] ||
-      secondProjFacts[0] ||
-      topProjFacts[0] ||
-      availableFacts.find(isSubstantiveFact) ||
-      availableFacts[0] ||
-      null;
-    const s2FactId = s2Fact ? s2Fact.factId || s2Fact.id : null;
-    const s2Source = s2Fact ? s2Fact.text : '';
-
-    const dsaFact = availableFacts.find(
-      (f) =>
-        f.surface === 'dsa' ||
-        f.sectionOwnerType === 'DSA' ||
-        (f.text && /data structures|algorithms|problem[- ]solving|leetcode/i.test(f.text))
-    );
-    const s3Fact = dsaFact || availableFacts.find(isSubstantiveFact) || availableFacts[0] || null;
-    const s3FactId = s3Fact ? s3Fact.factId || s3Fact.id : null;
-    const s3Source = s3Fact ? s3Fact.text : '';
-
-    const referencedProjectIds = [];
-    if (topProj && topProjName && (summaryText.includes(topProjName) || s2.includes(topProjName))) {
-      const pId = topProj.id || topProj.projectId || topProj.name;
-      if (pId) referencedProjectIds.push(pId);
-    }
-    if (secondProj && secondProjName && summaryText.includes(secondProjName)) {
-      const pId = secondProj.id || secondProj.projectId || secondProj.name;
-      if (pId && !referencedProjectIds.includes(pId)) referencedProjectIds.push(pId);
-    }
-
-    const sentences = [
-      {
-        text: s1,
-        composedFromFactIds: [s1FactId].filter(Boolean),
-        sourceFact: s1Source || undefined,
-        transformationType: 'EMPHASIZE',
-        factIds: [s1FactId].filter(Boolean),
-        projectIds: [],
-        skillSlugs: relevantSkills.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '-')),
-        evidenceRefs: [s1FactId]
-          .filter(Boolean)
-          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
-        matchedRequirementIds: [],
-        provenanceStatus: 'VERIFIED',
-        jobRelevance: 50,
-      },
-      {
-        text: s2,
-        composedFromFactIds: [s2FactId].filter(Boolean),
-        sourceFact: s2Source || undefined,
-        transformationType: 'REWRITE',
-        factIds: [s2FactId].filter(Boolean),
-        projectIds: referencedProjectIds.slice(0, 1),
-        skillSlugs: [],
-        evidenceRefs: [s2FactId]
-          .filter(Boolean)
-          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
-        matchedRequirementIds: [],
-        provenanceStatus: 'VERIFIED',
-        jobRelevance: 40,
-      },
-      {
-        text: s3,
-        composedFromFactIds: [s3FactId].filter(Boolean),
-        sourceFact: s3Source || undefined,
-        transformationType: 'CONDENSE',
-        factIds: [s3FactId].filter(Boolean),
-        projectIds: [],
-        skillSlugs: [],
-        evidenceRefs: [s3FactId]
-          .filter(Boolean)
-          .map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
-        matchedRequirementIds: [],
-        provenanceStatus: 'VERIFIED',
-        jobRelevance: 30,
-      },
-    ];
-
-    const allFactIds = [...new Set([s1FactId, s2FactId, s3FactId, ...usedFactIds].filter(Boolean))];
-    if (allFactIds.length === 0 && availableFacts.length > 0) {
-      allFactIds.push(availableFacts[0].factId || availableFacts[0].id);
-    }
-
-    const allSourceTexts = [...new Set([s1Source, s2Source, s3Source].filter(Boolean))];
-
-    return {
-      text: summaryText,
-      referencedSkillSlugs: relevantSkills.map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, '-')),
-      referencedProjectIds,
-      composedFromFactIds: allFactIds,
-      evidenceRefs: allFactIds.map((id) =>
-        toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })
-      ),
-      provenanceStatus: 'VERIFIED',
-      sourceFact: allSourceTexts,
-      transformationType: 'COMBINE',
-      sentences,
-    };
+    return { ...summary, providerStatus };
   }
 
   /**
@@ -586,7 +301,7 @@ export class AiResumeContentGeneratorService {
       return false;
     };
 
-    let rawFacts = (
+    const rawFacts = (
       Array.isArray(projectFacts) && projectFacts.length > 0
         ? projectFacts
         : proj.bullets || proj.metadata?.bullets || []
@@ -668,13 +383,9 @@ export class AiResumeContentGeneratorService {
       })
       .filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
 
-    // Fail closed if project lacks minimum 3 grounded accomplishment facts
-    if (availableFacts.length < 3) {
-      const err = new Error(
-        'INSUFFICIENT_SOURCE_EVIDENCE: Project lacks minimum 3 grounded accomplishment facts'
-      );
-      err.code = 'INSUFFICIENT_SOURCE_EVIDENCE';
-      throw err;
+    // No model or filler may compensate for absent grounded facts.
+    if (availableFacts.length === 0) {
+      return [];
     }
 
     // Target job context
@@ -810,7 +521,7 @@ export class AiResumeContentGeneratorService {
     for (const item of scoredFacts) {
       const f = item.fact;
       const factId = f.factId || f.id || `f-${bullets.length + 1}`;
-      let rawText = String(f.text || '').trim();
+      const rawText = String(f.text || '').trim();
       if (!rawText) continue;
 
       let text = sanitizeGroundedAccomplishment(rawText);
@@ -819,11 +530,11 @@ export class AiResumeContentGeneratorService {
 
       const bulletPayload = {
         text,
-        evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'VERIFIED' })],
+        evidenceRefs: [toEvidenceReference({ factId }, f.provenanceStatus || 'CLAIMED')],
         matchedRequirementIds: [],
         composedFromFactIds: [factId],
-        provenanceStatus: 'VERIFIED',
-        sourceFact: text,
+        provenanceStatus: f.provenanceStatus || 'CLAIMED',
+        sourceFact: rawText,
         transformationType: 'EMPHASIZE',
       };
 
@@ -855,7 +566,7 @@ export class AiResumeContentGeneratorService {
         if (bullets.length >= 3) break;
         const factId = f.factId || f.id;
         if (!bullets.some((b) => b.composedFromFactIds.includes(factId))) {
-          let rawText = String(f.text || '').trim();
+          const rawText = String(f.text || '').trim();
           if (!rawText) continue;
           let text = sanitizeGroundedAccomplishment(rawText);
           text = text.charAt(0).toUpperCase() + text.slice(1);
@@ -880,11 +591,11 @@ export class AiResumeContentGeneratorService {
           if (val.valid) {
             bullets.push({
               text,
-              evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'VERIFIED' })],
+              evidenceRefs: [toEvidenceReference({ factId }, f.provenanceStatus || 'CLAIMED')],
               matchedRequirementIds: [],
               composedFromFactIds: [factId],
-              provenanceStatus: 'VERIFIED',
-              sourceFact: text,
+              provenanceStatus: f.provenanceStatus || 'CLAIMED',
+              sourceFact: rawText,
               transformationType: 'VERBATIM',
             });
           }

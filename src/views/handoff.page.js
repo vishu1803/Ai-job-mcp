@@ -308,6 +308,7 @@ export function renderHandoffPage({
             </div>
             <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
               Compiled PDF artifacts verified through ATS pre-exposure QA and encrypted storage.
+              ${resume.presentation?.mode === 'ONE_PAGE' ? `<p>One-page A4 resume with 10pt minimum text. Full saved resume information is retained. Writing method: factual server composition.</p><details><summary>Content selection: ${escapeHtml(String(resume.presentation.decisions?.length || 0))} omissions, ${escapeHtml(String(resume.presentation.condensations?.length || 0))} condensations</summary><ul>${(resume.presentation.decisions || []).map((decision) => `<li>${escapeHtml(decision.path)}: ${escapeHtml(decision.reason)}</li>`).join('')}${(resume.presentation.condensations || []).map((decision) => `<li>${escapeHtml(decision.path)}: ${escapeHtml(decision.reason)}</li>`).join('')}</ul></details>` : ''}
             </div>
           </div>
           ${

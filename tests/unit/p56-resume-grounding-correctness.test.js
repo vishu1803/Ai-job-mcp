@@ -359,7 +359,7 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
   });
 
   // ── Requirement 7: 3-bullets-per-project requirement intact ────────────────
-  it('Req 7: guarantees exactly 3 candidate-supported bullets per rendered project', () => {
+  it('Req 7: preserves supported project bullets without invented count padding', () => {
     const contentSvc = new CandidateArtifactContentService();
     const ranked = contentSvc.rankProjectsForJob(sampleCandidate, sampleJobPosting);
 
@@ -374,7 +374,10 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
     assert.ok(Array.isArray(doc.projects), 'Projects must be an array');
     assert.equal(doc.projects.length, 2, 'Top 2 projects selected');
     for (const proj of doc.projects) {
-      assert.equal(proj.bullets.length, 3, `Project ${proj.name} must have exactly 3 bullets`);
+      assert.ok(
+        proj.bullets.length >= 1 && proj.bullets.length <= 3,
+        `Project ${proj.name} must retain genuine bounded bullets`
+      );
     }
   });
 
@@ -416,7 +419,10 @@ describe('P56 Resume-Grounding Correctness Test Suite', () => {
     assert.equal(snapshot.evidenceValidationReceipt.overallStatus, 'PASS');
 
     for (const p of snapshot.structuredResume.projects) {
-      assert.equal(p.bullets.length, 3, 'Every project has 3 bullets');
+      assert.ok(
+        p.bullets.length >= 1 && p.bullets.length <= 3,
+        'Every project has genuine bounded source content'
+      );
       for (const b of p.bullets) {
         const text = typeof b === 'string' ? b : b.text;
         assert.doesNotMatch(text, /developer velocity/i);

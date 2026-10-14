@@ -26,6 +26,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import { logger } from '../utils/logger.js';
+import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 
 /**
  * Locates an executable on the system PATH without shelling out.
@@ -196,9 +197,10 @@ export class LatexCompilerService {
    * @param {object} params
    * @param {string} params.texContent LaTeX source document
    * @param {string} [params.jobName='document'] Output file prefix
+   * @param {boolean} [params.strictOnePage=false] Use the A4 Chrome renderer and fail closed on overflow
    * @returns {Promise<{ pdfBuffer: Buffer, texContent: string, compilerUsed: string, success: boolean }>}
    */
-  async compileLatexToPdf({ texContent, jobName = 'document' }) {
+  async compileLatexToPdf({ texContent, jobName = 'document', strictOnePage = false }) {
     if (!texContent || typeof texContent !== 'string') {
       throw new Error('LaTeX content must be a non-empty string');
     }
@@ -215,7 +217,9 @@ export class LatexCompilerService {
     try {
       // 1. Attempt Primary: Tectonic Compiler
       const tectonicAvailable =
-        Boolean(this.tectonicPath) && (await this._binaryExists(this.tectonicPath));
+        !strictOnePage &&
+        Boolean(this.tectonicPath) &&
+        (await this._binaryExists(this.tectonicPath));
       if (tectonicAvailable) {
         try {
           const result = await this._runCommand(
@@ -246,28 +250,30 @@ export class LatexCompilerService {
       }
 
       // 2. Attempt Secondary: System pdflatex
-      try {
-        const pdflatexResult = await this._runCommand(
-          this.pdflatexPath,
-          ['-interaction=nonstopmode', '-output-directory', workDir, texFilePath],
-          { cwd: workDir, timeoutMs: this.timeouts.pdflatex }
-        );
-
-        if (pdflatexResult.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
-          const pdfBuffer = this._normalizePdfMetadata(await fs.readFile(pdfFilePath));
-          this.logger.info(
-            { runId, compiler: 'pdflatex' },
-            'LaTeX compilation succeeded via pdflatex'
+      if (!strictOnePage) {
+        try {
+          const pdflatexResult = await this._runCommand(
+            this.pdflatexPath,
+            ['-interaction=nonstopmode', '-output-directory', workDir, texFilePath],
+            { cwd: workDir, timeoutMs: this.timeouts.pdflatex }
           );
-          return {
-            pdfBuffer,
-            texContent,
-            compilerUsed: 'pdflatex',
-            success: true,
-          };
+
+          if (pdflatexResult.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
+            const pdfBuffer = this._normalizePdfMetadata(await fs.readFile(pdfFilePath));
+            this.logger.info(
+              { runId, compiler: 'pdflatex' },
+              'LaTeX compilation succeeded via pdflatex'
+            );
+            return {
+              pdfBuffer,
+              texContent,
+              compilerUsed: 'pdflatex',
+              success: true,
+            };
+          }
+        } catch {
+          // Fall through to Headless Chrome
         }
-      } catch {
-        // Fall through to Headless Chrome
       }
 
       // 3. Resilient Fallback: Headless Chrome Vector PDF
@@ -284,6 +290,7 @@ export class LatexCompilerService {
           '--disable-gpu',
           '--no-sandbox',
           '--no-pdf-header-footer',
+          `--user-data-dir=${path.join(workDir, 'chrome-profile')}`,
           `--print-to-pdf=${pdfFilePath}`,
           htmlPath,
         ],
@@ -292,10 +299,13 @@ export class LatexCompilerService {
 
       if (chromeResult.exitCode === 0 && (await this._binaryExists(pdfFilePath))) {
         const pdfBuffer = this._normalizePdfMetadata(await fs.readFile(pdfFilePath));
+        const pageCount = new PdfGeometryAnalyzer()._detectPageCount(pdfBuffer);
+        if (strictOnePage) this._assertStrictOnePage(pdfBuffer, pageCount);
         return {
           pdfBuffer,
           texContent,
           compilerUsed: 'chrome_headless',
+          pageCount,
           success: true,
         };
       }
@@ -315,6 +325,62 @@ export class LatexCompilerService {
       } catch {
         // Ignore cleanup errors
       }
+    }
+  }
+
+  /** The bounded Chrome printer emits ordinary page objects and MediaBox entries.
+   * Require agreement between its leaf pages and the existing page-tree detector;
+   * unknown or inconsistent output is never accepted as one physical page.
+   */
+  _assertStrictOnePage(pdfBuffer, pageCount) {
+    const pdfText = pdfBuffer.toString('latin1');
+    const leafCount = (pdfText.match(/\/Type\s*\/Page\b/g) || []).length;
+    if (!Number.isInteger(pageCount) || pageCount < 1 || leafCount !== pageCount) {
+      throw Object.assign(
+        new Error(
+          'Cannot verify the physical PDF page count. Retry strict export with the supported Chrome renderer.'
+        ),
+        {
+          code: 'ONE_PAGE_UNVERIFIABLE',
+          statusCode: 422,
+        }
+      );
+    }
+    if (pageCount !== 1) {
+      throw Object.assign(
+        new Error(
+          `Strict one-page resume produced ${pageCount} pages. Select fewer relevant bullets or optional entries, or shorten verbose descriptions; saved candidate information is preserved.`
+        ),
+        {
+          code: 'ONE_PAGE_OVERFLOW',
+          statusCode: 422,
+          details: { pageCount, targetPageCount: 1 },
+        }
+      );
+    }
+    const boxes = [
+      ...pdfText.matchAll(/\/MediaBox\s*\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]/g),
+    ];
+    if (
+      !boxes.length ||
+      boxes.some((box) => {
+        const coordinates = box.slice(1).map(Number);
+        return (
+          !coordinates.every(Number.isFinite) ||
+          Math.abs(coordinates[2] - coordinates[0] - 595.276) > 1 ||
+          Math.abs(coordinates[3] - coordinates[1] - 841.89) > 1
+        );
+      })
+    ) {
+      throw Object.assign(
+        new Error(
+          'Strict one-page export requires a verifiable A4 page. Retry with the supported A4 renderer.'
+        ),
+        {
+          code: 'ONE_PAGE_LAYOUT_INVALID',
+          statusCode: 422,
+        }
+      );
     }
   }
 
@@ -414,6 +480,14 @@ export class LatexCompilerService {
       if (!text) return '';
       return (
         text
+          // Escape source text before introducing the renderer's own HTML tags.
+          // A legitimate C++ <T> description must not become an HTML element.
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          // The canonical TeX generator emits literal angles through math mode.
+          .replace(/\$&lt;\$/g, '&lt;')
+          .replace(/\$&gt;\$/g, '&gt;')
           // Keep literal source braces/backslashes distinct from TeX grouping syntax.
           .replace(/\\\{/g, '&#123;')
           .replace(/\\\}/g, '&#125;')
@@ -478,10 +552,13 @@ export class LatexCompilerService {
 
     // Extract candidate name
     let candidateName = '';
+    // Source literals such as \{, \} and \textbackslash{} are content,
+    // not the closing delimiter of the surrounding TeX command.
+    const fieldPattern = String.raw`((?:\\[a-zA-Z]+\{\}|\\[{}]|[^{}])+)`;
     const nameMatch =
-      body.match(/\\(?:Huge|LARGE|large)\s*\\textbf\{([^}]+)\}/) ||
-      body.match(/\\textbf\{\\Huge\s+([^}]+)\}/) ||
-      body.match(/\\textbf\{([^}]+)\}/);
+      body.match(new RegExp(String.raw`\\(?:Huge|LARGE|large)\s*\\textbf\{${fieldPattern}\}`)) ||
+      body.match(new RegExp(String.raw`\\textbf\{\\Huge\s+${fieldPattern}\}`)) ||
+      body.match(new RegExp(String.raw`\\textbf\{${fieldPattern}\}`));
     if (nameMatch) {
       candidateName = cleanLatexText(nameMatch[1]);
     } else {
@@ -495,13 +572,18 @@ export class LatexCompilerService {
 
     // Extract headline if present
     let headline = '';
-    const headlineMatch = body.match(/\\(?:large|normalsize)\s*\\textbf\{([^}]+)\}/);
+    const headlineMatch = body.match(
+      new RegExp(String.raw`\\(?:large|normalsize)\s*\\textbf\{${fieldPattern}\}`)
+    );
     if (headlineMatch && cleanLatexText(headlineMatch[1]) !== candidateName) {
       headline = cleanLatexText(headlineMatch[1]);
     }
 
     // Split into sections
-    const sectionSplitter = /\\(?:atsfirstsection|atssection|section\*?)\{([^}]+)\}/g;
+    const sectionSplitter = new RegExp(
+      String.raw`\\(?:atsfirstsection|atssection|section\*?)\{${fieldPattern}\}`,
+      'g'
+    );
     const sections = [];
     let preHeader = '';
 
@@ -518,14 +600,16 @@ export class LatexCompilerService {
     const contactLines = preHeader
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l && !l.includes(candidateName) && (!headline || !l.includes(headline)));
+      .filter(
+        (l) =>
+          l &&
+          (nameMatch ? !l.includes(nameMatch[0]) : !l.includes(candidateName)) &&
+          (!headlineMatch || !l.includes(headlineMatch[0]))
+      );
     if (contactLines.length > 0) {
       const rawContact = contactLines.join(' ');
-      // Strip HTML tags (especially <a> from \href) so the email and phone render as
-      // plain selectable text in Chrome's PDF content stream. Chrome sometimes encodes
-      // <a> tag text as link annotation text rather than content-stream text, making it
-      // invisible to PDF stream text extractors.
-      contactHtml = cleanLatexText(rawContact).replace(/<[^>]+>/g, '');
+      // Preserve selectable link text and actual URL annotations in the PDF.
+      contactHtml = cleanLatexText(rawContact);
     }
 
     let match;
@@ -550,7 +634,7 @@ export class LatexCompilerService {
       const cleaned = cleanLatexText(body);
       htmlBody += `<div class="content">${cleaned
         .split('\n\n')
-        .map((p) => `<p>${cleanLatexText(p)}</p>`)
+        .map((p) => `<p>${p}</p>`)
         .join('')}</div>`;
     } else {
       for (const sec of sections) {
@@ -566,7 +650,7 @@ export class LatexCompilerService {
               .map((it) => cleanLatexText(it.trim()))
               .filter(Boolean);
             if (items.length > 0) {
-              htmlBody += `<ul>${items.map((it) => `<li>${cleanLatexText(it)}</li>`).join('')}</ul>`;
+              htmlBody += `<ul>${items.map((it) => `<li>${it}</li>`).join('')}</ul>`;
             }
           } else {
             const textChunk = chunks[i].trim();
@@ -576,6 +660,17 @@ export class LatexCompilerService {
                 .map((p) => p.trim())
                 .filter(Boolean);
               for (const p of paragraphs) {
+                const alignedParts = p.split(/\\hfill\b/);
+                if (alignedParts.length > 1) {
+                  const left = cleanLatexText(alignedParts.shift());
+                  const right = cleanLatexText(alignedParts.join(' '));
+                  if (left && right) {
+                    // Logical order remains entry title, then dates/links.
+                    // Flex wrapping preserves long text without a layout table.
+                    htmlBody += `<p class="entry-heading"><span class="entry-label">${left}</span> <span class="entry-meta">${right}</span></p>`;
+                    continue;
+                  }
+                }
                 const cleanedP = cleanLatexText(p);
                 if (cleanedP) {
                   htmlBody += `<p>${cleanedP}</p>`;
@@ -595,8 +690,8 @@ export class LatexCompilerService {
   <title>${candidateName} - Resume</title>
   <style>
     @page {
-      size: letter;
-      margin: 0.38in 0.48in;
+      size: A4;
+      margin: 12mm 14mm;
     }
     * {
       box-sizing: border-box;
@@ -607,53 +702,78 @@ export class LatexCompilerService {
       background: #ffffff;
       color: #000000;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 9pt;
-      line-height: 1.22;
+      font-size: 10pt;
+      line-height: 1.24;
+      overflow-wrap: anywhere;
       -webkit-font-smoothing: antialiased;
     }
     .header {
       text-align: center;
-      margin-bottom: 3pt;
+      margin-bottom: 5pt;
+      break-inside: avoid;
     }
     .candidate-name {
-      font-size: 16pt;
+      font-size: 18pt;
       font-weight: 700;
       margin: 0 0 1pt;
       line-height: 1.1;
       text-align: center;
     }
     .candidate-headline {
-      font-size: 9.5pt;
+      font-size: 10.5pt;
       font-weight: 600;
       margin: 0 0 1pt;
       text-align: center;
     }
     .contact-line {
-      font-size: 8.5pt;
+      font-size: 10pt;
       color: #222222;
       margin: 0 0 3pt;
       text-align: center;
     }
     .section {
-      margin-top: 3pt;
+      margin-top: 5pt;
     }
     .section-title {
-      font-size: 9.5pt;
+      font-size: 10.5pt;
       font-weight: 700;
       border-bottom: 0.5pt solid #000000;
       padding-bottom: 1pt;
-      margin: 3.5pt 0 1.5pt;
+      margin: 5pt 0 3pt;
+      break-after: avoid;
     }
     p {
-      margin: 0 0 1.5pt;
+      margin: 0 0 2pt;
+      orphans: 2;
+      widows: 2;
+    }
+    .entry-heading {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 2pt 8pt;
+      break-after: avoid;
+    }
+    .entry-label {
+      flex: 1 1 60%;
+      min-width: 0;
+    }
+    .entry-meta {
+      flex: 0 1 auto;
+      max-width: 100%;
+      margin-left: auto;
+      text-align: right;
     }
     ul {
-      margin: 1pt 0 2pt 14pt;
+      margin: 2pt 0 3pt 14pt;
       padding: 0;
+      list-style-type: disc;
     }
     li {
-      margin-bottom: 0.5pt;
-      line-height: 1.2;
+      margin-bottom: 1.5pt;
+      line-height: 1.24;
+      break-inside: avoid;
     }
     a {
       color: inherit;
@@ -661,7 +781,7 @@ export class LatexCompilerService {
     }
   </style>
 </head>
-<body>
+<body data-renderer-version="chrome-ats-a4-v2">
   ${htmlBody}
 </body>
 </html>`;

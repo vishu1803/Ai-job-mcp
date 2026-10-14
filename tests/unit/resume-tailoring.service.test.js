@@ -732,7 +732,7 @@ describe('Resume Tailoring Service Unit Tests (P6-001)', () => {
   // -------------------------------------------------------------------------
   // 14. Executive Summary Grounding
   // -------------------------------------------------------------------------
-  it('14. grounds executive summary in verified required skills and top projects', async () => {
+  it('14. preserves the authored summary without adding repository achievements', async () => {
     const context = { tenantId, userId };
     const resume = await service.tailorResume(
       context,
@@ -745,7 +745,90 @@ describe('Resume Tailoring Service Unit Tests (P6-001)', () => {
 
     assert.ok(resume.summary.includes('Go'));
     assert.ok(resume.summary.includes('PostgreSQL'));
-    assert.ok(resume.summary.includes('Distributed Key-Value Store'));
+    assert.equal(resume.summary, candidateProfile.summary);
+    assert.equal(resume.summaryBullets[0].status, 'CLAIMED');
+    assert.doesNotMatch(
+      resume.summary,
+      /verified proficiency|Linked repository|Profile skill associations/i
+    );
+  });
+
+  it('PRD-002 empty legacy writer never invents a target-role biography', () => {
+    const result = service._synthesizeSummarySection(
+      {},
+      [],
+      null,
+      { title: 'Senior Principal Engineer' },
+      []
+    );
+    assert.equal(result.headline, 'Candidate Profile');
+    assert.equal(result.summary, '');
+    assert.deepEqual(result.summaryBullets, []);
+  });
+
+  it('PRD-002 explicit summary and headline clears override older source fields', () => {
+    const result = service._synthesizeSummarySection(
+      {
+        headline: 'Old Engineer',
+        summary: 'Old professional biography.',
+        profileMetadata: { userCustom: { headline: '', summary: null } },
+      },
+      [],
+      null,
+      { title: 'Staff Engineer' },
+      []
+    );
+    assert.equal(result.headline, 'Candidate Profile');
+    assert.equal(result.summary, '');
+    assert.deepEqual(result.summaryBullets, []);
+  });
+
+  it('PRD-002 structured authored summary stays a candidate claim', () => {
+    const text = 'Developed a scheduling dashboard for volunteer assignments.';
+    const result = service._synthesizeSummarySection(
+      {
+        profileMetadata: { userCustom: { summary: { text, provenanceStatus: 'VERIFIED' } } },
+      },
+      [],
+      null,
+      { title: 'Frontend Engineer' },
+      []
+    );
+    assert.equal(result.summary, text);
+    assert.equal(result.summaryBullets[0].status, 'CLAIMED');
+    assert.deepEqual(result.summaryBullets[0].evidenceRefs, []);
+  });
+
+  it('PRD-002 legacy summary uses documented work and excludes job-only qualifications', () => {
+    const result = service._synthesizeSummarySection(
+      {
+        experience: [
+          {
+            id: 'work-1',
+            title: 'Developer',
+            company: 'Example Co',
+            bullets: ['Implemented PostgreSQL migrations for the reporting service.'],
+          },
+        ],
+      },
+      [],
+      null,
+      { title: 'Certified Kubernetes Principal Engineer' },
+      []
+    );
+    assert.match(result.summary, /Implemented PostgreSQL migrations/);
+    assert.doesNotMatch(
+      result.summary,
+      /Certified|Kubernetes|Principal|verified proficiency|Candidate-provided/i
+    );
+    assert.equal(result.summaryBullets[0].status, 'CLAIMED');
+  });
+
+  it('PRD-002 malformed structured authored summary fails explicitly', () => {
+    assert.throws(
+      () => service._synthesizeSummarySection({ summary: { text: 123 } }, [], null, {}, []),
+      (error) => error instanceof ValidationError && error.code === 'INVALID_RESUME_SOURCE'
+    );
   });
 
   // -------------------------------------------------------------------------

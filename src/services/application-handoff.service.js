@@ -16,6 +16,7 @@
 
 import { LatexDocumentGenerator } from './latex-document-generator.service.js';
 import { LatexCompilerService } from './latex-compiler.service.js';
+import { onePageResumeView } from './one-page-resume.service.js';
 import { PdfQaValidatorService } from './pdf-qa-validator.service.js';
 import { ResumeQualityAssessmentService } from './resume-quality-assessment.service.js';
 import { DocumentStorageService } from './document-storage.service.js';
@@ -161,15 +162,15 @@ export class ApplicationHandoffService {
     applicationId,
     applicationPackage,
     handoffKit,
+    trackingService = this.applicationTrackingService,
   }) {
     if (!applicationId) return;
 
     const context = { tenantId, userId, role: 'MEMBER' };
-    const existingDetails = await this.applicationTrackingService.getApplicationDetails(
-      context,
-      applicationId,
-      { includeStages: false, documentPackageHash: applicationPackage.packageHash }
-    );
+    const existingDetails = await trackingService.getApplicationDetails(context, applicationId, {
+      includeStages: false,
+      documentPackageHash: applicationPackage.packageHash,
+    });
     const packageHash = applicationPackage.packageHash;
 
     // Rows already carrying THIS package's encrypted PDF artifacts
@@ -195,7 +196,7 @@ export class ApplicationHandoffService {
 
     for (const [documentType, source, artifact] of documents) {
       if (existingForPackage.has(documentType)) continue;
-      await this.applicationTrackingService.attachTailoredDocument(context, applicationId, {
+      await trackingService.attachTailoredDocument(context, applicationId, {
         candidateId: applicationPackage.candidateId,
         documentType,
         title: source.title,
@@ -265,6 +266,7 @@ export class ApplicationHandoffService {
     applicationPackage,
     applicationId = null,
     destinationUrl = null,
+    persist = true,
   }) {
     if (!applicationPackage || !applicationPackage.packageHash) {
       throw new ValidationError('Valid applicationPackage with packageHash is required');
@@ -312,14 +314,15 @@ export class ApplicationHandoffService {
     const packageHash = applicationPackage.packageHash;
     const directPortalUrl = destinationUrl || applicationPackage.targetJob?.applicationUrl || '';
 
-    const structuredResume =
+    const canonicalResume =
       applicationPackage.tailoredResume?.structuredResume ||
       applicationPackage.structuredResume ||
       null;
+    const structuredResume = onePageResumeView(canonicalResume);
 
     // 1. Idempotency Check FIRST: Look up existing application metadata to reuse valid artifacts immediately
     let existingApp = null;
-    if (applicationId) {
+    if (applicationId && persist) {
       try {
         existingApp = await this.applicationTrackingService.getApplication(
           { tenantId, userId, role: 'MEMBER' },
@@ -459,6 +462,7 @@ export class ApplicationHandoffService {
     const resumePdfResult = await this.latexCompiler.compileLatexToPdf({
       texContent: resumeLatexResult.texContent,
       jobName: 'tailored-resume',
+      strictOnePage: canonicalResume?.presentation?.mode === 'ONE_PAGE',
     });
 
     // 3b. Content Audit: real candidate data present, generic placeholders absent
@@ -948,6 +952,13 @@ export class ApplicationHandoffService {
         },
         resumeQuality,
         layoutDiagnostics,
+        ...(canonicalResume?.presentation
+          ? {
+              presentation: canonicalResume.presentation,
+              writing: canonicalResume.writing,
+              pageCount: resumePdfResult.pageCount,
+            }
+          : {}),
       },
       coverLetter: {
         filename: clFilename,
@@ -980,7 +991,7 @@ export class ApplicationHandoffService {
       readinessItems,
     });
 
-    if (applicationId) {
+    if (applicationId && persist) {
       await this._attachTailoredDocumentSnapshots({
         tenantId,
         userId,
@@ -995,7 +1006,7 @@ export class ApplicationHandoffService {
     // setApplicationHandoffKit atomically writes the kit and syncs
     // metadata.currentPackageHash so inspection tools resolve the same package.
     const targetAppId = existingApp?.id || applicationId;
-    if (targetAppId) {
+    if (targetAppId && persist) {
       try {
         await this.applicationTrackingService.setApplicationHandoffKit(
           { tenantId, userId, role: 'MEMBER' },

@@ -21,6 +21,8 @@ import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { ZeroHallucinationIntegrityService } from './zero-hallucination-integrity.service.js';
 import { ResumePresentationService } from './resume-presentation.service.js';
 import { enforceEvidenceTrust } from './evidence/verification-policy.js';
+import { composeSourceGroundedSummary } from './source-grounded-summary.service.js';
+import { resumeSourceValue } from '../utils/resume-source-normalizer.js';
 import {
   retainAuthoritativeNarrative,
   registerCurrentNarrativeArtifact,
@@ -773,44 +775,58 @@ export class ResumeTailoringService {
     topVerifiedRequiredSkills,
     topProject,
     jobDescription,
-    _assertionList
+    assertionList
   ) {
-    const rawHeadline = candidateProfile.headline || jobDescription?.title || null;
-
-    const skillHighlights = topVerifiedRequiredSkills
-      .slice(0, 3)
-      .map((s) => s.name)
-      .join(', ');
-
-    const projectHighlight = topProject ? ` Linked repository: ${topProject.displayName}.` : '';
-
-    let summaryText = '';
-    const roleTitle = candidateProfile.headline || jobDescription?.title;
-    if (skillHighlights) {
-      summaryText = `${roleTitle || 'Candidate profile'}. Profile skill associations: ${skillHighlights} (self-reported or repository-inferred, not independently verified proficiency).${projectHighlight}`;
-    } else if (roleTitle) {
-      summaryText = `${roleTitle}. Candidate-provided career information; no independent proficiency verification.${projectHighlight}`;
-    } else {
-      summaryText = `Candidate has not provided a professional summary.${projectHighlight}`;
+    const suppliedHeadline = resumeSourceValue(candidateProfile, 'headline');
+    const headline =
+      typeof suppliedHeadline === 'string' && suppliedHeadline.trim()
+        ? suppliedHeadline.trim()
+        : 'Candidate Profile';
+    const suppliedSummary = resumeSourceValue(candidateProfile, 'summary');
+    const authoredText =
+      suppliedSummary && typeof suppliedSummary === 'object'
+        ? suppliedSummary.text
+        : suppliedSummary;
+    if (authoredText !== undefined && authoredText !== null && typeof authoredText !== 'string') {
+      throw new ValidationError(
+        'Professional summary must be text or an explicit empty value',
+        'INVALID_RESUME_SOURCE'
+      );
     }
-
-    const summaryBullet = {
-      id: crypto.randomUUID(),
-      section: 'SUMMARY',
-      text: summaryText,
-      assertionIds: topVerifiedRequiredSkills.flatMap((s) => s.assertionIds),
-      evidenceRefs: topVerifiedRequiredSkills.flatMap((s) => s.evidenceRefs).slice(0, 5),
-      status: topVerifiedRequiredSkills.length > 0 ? 'VERIFIED' : 'CLAIMED',
-      confidenceScore: 1.0,
-      relevanceScore: 100.0,
-      matchedKeywords: topVerifiedRequiredSkills.map((s) => s.name),
-      claimLabel: null,
-    };
-
+    const grounded =
+      suppliedSummary !== undefined
+        ? {
+            text: typeof authoredText === 'string' ? authoredText.trim() : '',
+            provenanceStatus: 'CLAIMED',
+          }
+        : composeSourceGroundedSummary({
+            candidateProfile,
+            jobPosting: jobDescription,
+            selectedProjects: topProject ? [topProject] : [],
+            selectedSkills: topVerifiedRequiredSkills,
+          });
+    const summary = grounded.text;
+    if (!summary) return { headline, summary: '', summaryBullets: [] };
+    // Only an existing exact statement can supply assertion bindings. Genuine
+    // source IDs or repository access do not confer candidate proficiency.
+    const exactAssertions = (assertionList || []).filter((a) => a.statement === summary);
     return {
-      headline: rawHeadline,
-      summary: summaryText,
-      summaryBullets: [summaryBullet],
+      headline,
+      summary,
+      summaryBullets: [
+        {
+          id: crypto.randomUUID(),
+          section: 'SUMMARY',
+          text: summary,
+          assertionIds: exactAssertions.map((a) => a.assertionId).filter(Boolean),
+          evidenceRefs: [],
+          status: grounded.provenanceStatus === 'INFERRED' ? 'INFERRED' : 'CLAIMED',
+          confidenceScore: grounded.provenanceStatus === 'INFERRED' ? 0.3 : 0.5,
+          relevanceScore: 0,
+          matchedKeywords: [],
+          claimLabel: null,
+        },
+      ],
     };
   }
 

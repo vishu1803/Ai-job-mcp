@@ -353,7 +353,7 @@ export const TailoredResumeSchema = z
     candidateId: z.string().uuid({ message: 'Candidate ID must be a valid UUID' }),
     targetJobId: z.string().uuid({ message: 'Target Job ID must be a valid UUID' }),
     headline: z.string().trim().min(1).max(500),
-    summary: z.string().trim().min(1).max(5000),
+    summary: z.string().trim().max(5000),
     summaryBullets: z.array(ResumeBulletSchema).default([]),
     skills: z.array(ResumeSkillCategorySchema).default([]),
     experience: z.array(ResumeExperienceEntrySchema).default([]),
@@ -715,6 +715,50 @@ export const StructuredResumeDocumentSchema = z
     optionalSections: SourceOptionalSectionsSnapshotSchema.default({}),
     sourceWarnings: z.array(z.string()).default([]),
     tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
+    // Canonical fields remain complete; explicit presentation omissions are hash-bound.
+    presentation: z
+      .object({
+        mode: z.literal('ONE_PAGE'),
+        paperSize: z.literal('A4'),
+        minimumFontPt: z.literal(10),
+        rendererVersion: z.literal('chrome-ats-a4-v2'),
+        pass: z.number().int().min(0).max(3),
+        sectionOrder: z.array(z.string().min(1)).min(1),
+        condensations: z
+          .array(
+            z
+              .object({
+                path: z.literal('summary.text'),
+                sentenceIndices: z.array(z.number().int().nonnegative()).min(1).max(2),
+                reason: z.string().min(1),
+              })
+              .strict()
+          )
+          .max(1)
+          .default([]),
+        decisions: z
+          .array(
+            z
+              .object({
+                path: z.string().min(1),
+                action: z.literal('OMITTED'),
+                reason: z.string().min(1),
+              })
+              .strict()
+          )
+          .max(10000),
+      })
+      .strict()
+      .optional(),
+    writing: z
+      .object({
+        method: z.literal('SOURCE_GROUNDED_DETERMINISTIC'),
+        providerUsed: z.literal(false),
+        providerStatus: z.enum(['UNAVAILABLE', 'ADVISORY_ONLY', 'FAILED']),
+        missingDataGuidance: z.array(z.string()),
+      })
+      .strict()
+      .optional(),
     createdAt: DateOrIsoStringSchema.optional(),
     // P19: Debug trace for forensic analysis of composition decisions
     debugTrace: z

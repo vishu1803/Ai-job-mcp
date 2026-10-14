@@ -32,6 +32,7 @@ import {
   validateStructuredResumeIntegrity,
 } from '../../src/services/structured-resume.service.js';
 import { ValidationError } from '../../src/errors/index.js';
+import { buildCanonicalFactInventory } from '../../src/services/candidate-fact-inventory.service.js';
 
 describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
   const backendJob = {
@@ -267,65 +268,98 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
     ],
   };
 
+  // No authored summary: exercise generated factual tailoring independently of preservation.
+  const generatedCandidate = { ...sampleCandidate };
+  delete generatedCandidate.summary;
+
+  function assertSourceGroundedSummary(summary) {
+    const facts = buildCanonicalFactInventory(sampleCandidate).facts;
+    const referencedFacts = summary.composedFromFactIds.map((id) =>
+      facts.find((fact) => fact.factId === id)
+    );
+    assert.ok(referencedFacts.length >= 1 && referencedFacts.length <= 2);
+    assert.equal(summary.provenanceStatus, 'CLAIMED');
+    for (const fact of referencedFacts) {
+      assert.ok(fact, 'Every summary fact ID must resolve in the authoritative inventory');
+      assert.equal(fact.candidateAuthored, true);
+      assert.equal(fact.provenanceStatus, 'CLAIMED');
+    }
+    assert.equal(
+      summary.text,
+      referencedFacts
+        .map((fact) => (/[.!?]$/.test(fact.text) ? fact.text : `${fact.text}.`))
+        .join(' ')
+    );
+    assert.doesNotMatch(
+      summary.text,
+      /expert|verified proficiency|Senior Backend Engineer|Senior Frontend/i
+    );
+  }
+
   it('Test A: Backend job produces backend-focused summary', () => {
     const summary = generateGroundedSummary({
-      candidateProfile: sampleCandidate,
+      candidateProfile: generatedCandidate,
       jobPosting: backendJob,
     });
 
     assert.ok(summary.text, 'Summary text must be generated');
-    assert.match(summary.text, /backend/i, 'Must emphasize backend focus');
+    assert.match(summary.text, /backend|API|PostgreSQL/i, 'Must select documented backend work');
     assert.match(
       summary.text,
       /python|fastapi|postgres/i,
-      'Must mention verified backend technologies'
+      'Must mention technologies present in the selected source facts'
     );
     assert.doesNotMatch(
       summary.text,
       /react|next\.js|frontend/i,
       'Must NOT emphasize frontend skills for backend job'
     );
-    assert.ok(
-      summary.referencedSkillSlugs.some(
-        (s) => s.includes('python') || s.includes('fastapi') || s.includes('postgres')
-      )
-    );
+    assertSourceGroundedSummary(summary);
     assert.ok(summary.text.length < 350, 'Must remain concise');
   });
 
   it('Test B: Frontend job produces frontend/full-stack-focused summary', () => {
     const summary = generateGroundedSummary({
-      candidateProfile: sampleCandidate,
+      candidateProfile: generatedCandidate,
       jobPosting: frontendJob,
     });
 
     assert.ok(summary.text, 'Summary text must be generated');
-    assert.match(summary.text, /frontend|web/i, 'Must emphasize frontend focus');
+    assert.match(
+      summary.text,
+      /react|responsive UI|Next\.js/i,
+      'Must select documented frontend work'
+    );
     assert.match(
       summary.text,
       /react|typescript|next/i,
-      'Must mention verified frontend technologies'
+      'Must mention technologies present in the selected source facts'
     );
     assert.doesNotMatch(
       summary.text,
       /fastapi|python/i,
       'Must NOT emphasize backend Python/FastAPI for frontend job'
     );
-    assert.ok(
-      summary.referencedSkillSlugs.some(
-        (s) => s.includes('react') || s.includes('typescript') || s.includes('next')
-      )
-    );
+    assertSourceGroundedSummary(summary);
     assert.ok(summary.text.length < 350, 'Must remain concise');
   });
 
   it('Test C: Same candidate can receive different summaries for different jobs', () => {
+    for (const jobPosting of [backendJob, frontendJob]) {
+      const authored = generateGroundedSummary({ candidateProfile: sampleCandidate, jobPosting });
+      assert.equal(
+        authored.text,
+        sampleCandidate.summary,
+        'Authored summary remains authoritative across jobs'
+      );
+      assert.equal(authored.provenanceStatus, 'CLAIMED');
+    }
     const backendSummary = generateGroundedSummary({
-      candidateProfile: sampleCandidate,
+      candidateProfile: generatedCandidate,
       jobPosting: backendJob,
     });
     const frontendSummary = generateGroundedSummary({
-      candidateProfile: sampleCandidate,
+      candidateProfile: generatedCandidate,
       jobPosting: frontendJob,
     });
 
@@ -334,8 +368,10 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
       frontendSummary.text,
       'Summaries for distinct jobs must be distinct'
     );
-    assert.match(backendSummary.text, /backend/i);
-    assert.match(frontendSummary.text, /frontend/i);
+    assert.match(backendSummary.text, /API|PostgreSQL|FastAPI/i);
+    assert.match(frontendSummary.text, /React|responsive UI|Next\.js/i);
+    assertSourceGroundedSummary(backendSummary);
+    assertSourceGroundedSummary(frontendSummary);
   });
 
   it('Test D: Summary only references candidate-owned skills/projects', () => {
@@ -534,7 +570,8 @@ describe('P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets', () => {
       jobPosting: backendJob,
     });
 
-    assert.ok(summary.text);
+    assert.equal(summary.text, '', 'Missing facts cannot supply a professional biography');
+    assert.deepEqual(summary.composedFromFactIds, []);
     // Must NOT fabricate Python or FastAPI or any other technology
     assert.doesNotMatch(summary.text, /Python|FastAPI|PostgreSQL|React|AWS/i);
     assert.equal(summary.referencedSkillSlugs.length, 0);

@@ -4040,6 +4040,7 @@ export default async function webRoutes(app, opts = {}) {
 
     requiresRevalidation ||= Boolean(
       targetPackage?.quarantineStatus === 'REVALIDATION_REQUIRED' ||
+      (!targetPackage && Boolean(application.metadata?.currentPackageHash)) ||
       (!targetPackage && application.metadata?.artifactStatus === 'REVALIDATION_REQUIRED')
     );
     let handoffKit = requiresRevalidation ? null : application.metadata?.handoffKit;
@@ -4354,6 +4355,22 @@ export default async function webRoutes(app, opts = {}) {
         return reply.code(403).send('Forbidden: You do not have access to this application');
       }
       req.log.error({ err, appId }, 'Package regeneration failed');
+      if (
+        [
+          'HISTORICAL_PACKAGE_UNAVAILABLE',
+          'PARTIAL_REGENERATION_UNAVAILABLE',
+          'INVALID_REGENERATION_JOB',
+          'INVALID_REGENERATION_SCOPE',
+          'ONE_PAGE_OVERFLOW',
+          'ONE_PAGE_UNVERIFIABLE',
+          'ONE_PAGE_LAYOUT_INVALID',
+          'ONE_PAGE_CONTRACT_INVALID',
+        ].includes(err.code)
+      ) {
+        return reply.redirect(
+          `/applications/${appId}/handoff?error=${encodeURIComponent(err.message)}`
+        );
+      }
       if (err.code === 'ARTIFACT_REVALIDATION_REQUIRED') {
         const blockers = err.evidenceDiagnostics?.blockedSources || [];
         let recovery =

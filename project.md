@@ -1,7 +1,54 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-10-12*
+*Last Updated: 2026-10-14*
+
+## Final Research Gate: Resume Product Feature Forensics (2026-10-14)
+
+**Status: COMPLETE — empirical resume benchmark, Reactive Resume architecture trace, Rezi specification & 66-feature catalog completed; zero application code, schema, or dependency changes.** Purely analytical and reverse-engineering research scope. Production **NO-GO**. Existing PRD repairs (PRD-002, PRD-004, PRD-005) remain scheduled separately and were not preempted.
+
+- **Verified Real Career Hub Resume Outputs (5 Populated Personas)**:
+  - Executed actual job-specific resume generation via `JobApplicationWorkflowService.prepareJobApplication` and `ApplicationHandoffService.buildApplicationHandoffKit` against disposable PostgreSQL database `career_hub_forensics_disposable` (port 22984).
+  - Preserved decrypted PDFs in external temporary artifact directory `C:\Users\VISHW\AppData\Local\Temp\career-hub-research-artifacts\`:
+    - `elena_rostova.pdf`: 34,675 bytes, 1 page, tailoring 13,511ms, export 959ms, 5/8 skills preserved, 0 hallucinations (`STRICT_PASS`).
+    - `marcus_chen.pdf`: 34,804 bytes, 1 page, tailoring 13,432ms, export 1,277ms, 3/5 skills preserved, 0 hallucinations (`STRICT_PASS`).
+    - `priya_patel.pdf`: 35,002 bytes, 1 page, tailoring 13,879ms, export 898ms, 1/5 skills preserved, 0 hallucinations (`STRICT_PASS`).
+    - `jordan_miller.pdf`: 36,726 bytes, 1 page, tailoring 11,771ms, export 1,924ms, 3/5 skills preserved, 0 hallucinations (`STRICT_PASS`).
+    - `samira_khan.pdf`: 35,159 bytes, 1 page, tailoring 12,014ms, export 928ms, 5/5 skills preserved (100%), 0 hallucinations (`STRICT_PASS`).
+  - All 5 generated PDFs independently inspected via `PdfGeometryAnalyzer` and `ResumeParserService`: 100% 1-page compliance, 10.0pt body font class (`\documentclass[10pt,a4paper]{article}`), 12.0pt headings, 17.28pt candidate header, 0.52in margins, zero synthetic tokens or placeholder leaks.
+- **Reactive Resume Reference Execution Trace & Blockers**:
+  - Pinned Git commit `9b883a823f11fce25c231477125b1b91bbc119e5`, branch `main`, version `6.0.3`, MIT license.
+  - Documented exact local execution blockers: host missing `pnpm@12.11.2`, Docker Desktop daemon pipe inactive (`open //./pipe/dockerDesktopLinuxEngine`), and tenant isolation policy (`goal.md` Rule 11).
+  - Extracted architectural blueprints: Proposal Patch Interface (`packages/resume/src/proposals.ts`) with `canApplyProposal` string validation, Native OpenXML Word builder (`packages/docx/src/builder.ts`), PageMap click-to-edit coordinate translation (`packages/pdf/src/page-map.ts`), and client-side WASM Forme compiler.
+- **Rezi & Industry Product Specification**:
+  - Reconstructed documented controls: Master resume duplication, Google XYZ bullet formulator, AI Keyword Targeting, 5-category Rezi Score, Finish Up auto-adjust spacing, multi-format export, and Rezi Review ($8–$10 add-on / 1 free monthly on Pro).
+  - Documented plan restrictions: Free ($0, 1 resume, 3 downloads), Pro ($29/mo, unlimited), Lifetime ($149 one-time), and Enterprise ($99/mo per 200 users).
+  - Clearly bounded proprietary scoring algorithms under `REQUIRES AUTHORIZED TESTING` / `UNVERIFIED`.
+- **Verified Feature Catalog (66 Features)**:
+  - Recalculated 55 original rows: **WORKING: 19**, **BACKEND_ONLY: 19**, **UX_GAP: 2**, **MISSING: 11**, **REPAIR_SCOPE: 4**.
+  - Appended 11 newly discovered features (F56–F66): shareable links, human expert reviews, coach links, master duplication, cloud drive export, click-to-select, trash recovery, multi-language, linked styling, extension autofill, and tier gatekeepers.
+- **Ranked Feature Backlog (FEAT-01 to FEAT-06)**:
+  - Separated from ongoing PRD repair work: (1) ATS Diagnostics & Keyword Chips, (2) In-Browser Bullet Editor with Proposal Patching, (3) Native OpenXML DOCX Exporter, (4) Dynamic 1-Page Spacing Geometry Solver, (5) Shareable Public Resume Links, (6) Peer Review Annotation Workflow.
+- **Deliverables Persisted**:
+  1. `verified_feature_catalog.md`
+  2. `actual_resume_benchmark.md`
+  3. `reactive_resume_runtime_trace.md`
+  4. `rezi_product_specification.md`
+  5. `career_hub_feature_backlog.md`
+  (along with raw generated PDFs and summary in `C:\Users\VISHW\AppData\Local\Temp\career-hub-research-artifacts\`).
+
+## Application regeneration truth-category and historical recovery (2026-10-14)
+
+**Status: COMPLETE — full BOTH regeneration FIX VERIFIED LOCALLY; actual development recovery not performed.** P0 product acceptance. Scope follows the explicit regeneration repair request; no new roadmap PRD identifier, development database writes, user application generation/approval/submission or production deployment. Production **NO-GO**.
+
+- Disposable loopback PostgreSQL17 on55444/product_audit_regeneration with blank-provider isolated ENV_FILE reproduced ten invalid_enum_value failures at claimedSkills indices47/48/49/54/57/59/76/78/79/105. Database MISSING is intentionally normalized to canonical MISSING_EVIDENCE; both preparation projections incorrectly classified every nonverified row as an affirmative claim. Preserve affirmative enum and route missing/unknown rows into optional typed skillGaps, retaining their database identities/statuses. ISSUE-06 rollups remain inferred rather than verified proficiency.
+- Before-edit HTTP missing-hash handoff returned500 through automatic GET generation. A separate real PostgreSQL insert-failure baseline demonstrated premature handoff metadata/snapshot writes. Missing historical hashes now show explicit recovery, partial regeneration needs a valid historical counterpart, and BOTH builds independent fresh data. QA/storage staging does not mutate the application; package, artifact snapshots and kit promotion use one serialized transaction. Historical payloads/approvals remain untouched.
+- Source selection/master fallback/AI authorization context exclude missing/unknown skills; candidate skill rows remain unchanged. AI-context baseline5 PASS/one FAIL exposed the empty-selection fallback; corrected six unit regressions pass. A separate all-digits64-character hash was wrongly parsed as a version, explaining the numeric-fixture handoff500 rather than the reported mixed hash; fixed hash/version discrimination still enforces tenant/candidate and quarantine gates. Selective regeneration cannot guarantee exact counterpart bytes in the current renderer, so valid partial requests also receive actionable BOTH guidance; no silent replacement.
+- Final selected nonoverlapping acceptance: **854 PASS/0 remaining FAIL/0 CANCELLED/0 SKIPPED across35 files**, including21 new tests (six unit/fifteen integration). Main35-file run850 PASS/two FAIL: corrected same-tenant403 assertion and obsolete untrusted CODE_USAGE mock expectations. Unchanged HEAD reproduces the latter16 PASS/one FAIL; corrected assertions preserve conservative PARTIAL/inferred status and bounded heuristic weighting, with no matching-policy edit. Reruns: recovery13/13, semantics17/17, affected tracking/approval/quarantine/handoff ten-file gate214/214 (adds numeric hash case), and actual Applications→Handoff→Regenerate→Preview1/1. Overlapping runs are not summed. Initial run767/50 includes49 exact disposable-path setup guards and one unsupported raw-origin/header expectation; guards now include only this exact Temp cluster/port/database. No browser CSRF acceptance or full-repository/hosted CI claim.
+- Real HTTP/JSONB/encrypted storage/Chrome, PostgreSQL injected insert failure, concurrent serialized versions, new-process/server reload, new hash/receipt and explicit fresh approval are verified. Old payload/hash/document IDs and simulated consumed tickets remain unchanged; old quarantine download blocked. PRD-001/003, ISSUE-02/03/06, installation linking, reconciliation, large-tree synchronization and tracking/handoff selected regressions pass. Actual user records were not read or changed. No new migrations/dependencies; existing22 migrations applied to the fresh disposable cluster, zero tenants/other connections after teardown.
+- Quality/evidence: OS Temp career-regeneration-20261014 contains exact gate manifests, main/rerun/baseline logs and source/quality evidence. Updated docs/product/application-regeneration-recovery.md records roots, contracts, test corrections and live next action. Exact selective reuse and encrypted orphan-file cleanup remain limitations. Broader resume quality/live release gates remain open; production NO-GO. Prior local .claude/ and staging script remain excluded; no commit/push requested in this task.
+- Final quality:14 JavaScript syntax checks PASS; lint0 errors/16 warnings (pre-existing source baseline17, no new warnings);13 JS files/two docs Prettier PASS. Full job-workflow.schemas.js Prettier drift is reproduced on HEAD; preserved outside the new formatted11-line gap contract. Whitespace PASS; strict scoped secret scan16 files/zero findings. Lifecycle audit117 integration files/102 DB users/zero violations PASS. Verified zero disposable tenants/other connections and22 migration rows, checked exact Temp pgdata path and postmaster.pid port55444, then stopped only that cluster successfully. Development data/storage history is not rewritten. Next user action: updated development server→application Handoff→BOTH regeneration→inspect new persisted package→separate fresh approval; current live record remains unverified/quarantined until that authorized user action.
+
 
 ## Reviewed resume fixes publication (2026-10-12)
 

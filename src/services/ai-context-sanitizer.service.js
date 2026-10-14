@@ -15,6 +15,8 @@
  */
 
 import { sanitizeGroundedAccomplishment } from './resume-composition-primitives.js';
+import { normalizeTruthCategory } from '../domain/career/truth-category.js';
+import { skillTrustStatus } from './evidence/verification-policy.js';
 
 const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
@@ -474,6 +476,12 @@ export function buildResumeAiContext({
       ? selectedSkills
       : candidateProfile.skills || []
   )
+    .filter(
+      (skill) =>
+        typeof skill !== 'object' ||
+        skill === null ||
+        !['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(skill)))
+    )
     .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.slug || ''))
     .filter(Boolean)
     .map((s) => scrubTextPii(s, additionalScrubTokens));
