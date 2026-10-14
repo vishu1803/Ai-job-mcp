@@ -1,0 +1,22 @@
+{
+  "expectedRevision": 1,
+  "edits": [
+    {
+      "nodeId": "aa1af0a9-5490-44e9-b10a-7f948dacee53",
+      "text": "Candidate-authored revised React interface wording."
+    }
+  ],
+  "selection": {
+    "experienceIds": [],
+    "projectIds": [],
+    "bulletIds": [
+      "bdca15dc-7a53-4e04-933a-7379d8b8e095",
+      "bb1b6f61-4b35-41af-8493-f9ff60b513ab",
+      "48122e37-ee0a-4213-8564-d3f8a85cb35c",
+      "12169b14-3a63-4c02-b99b-814bd94c5f6c",
+      "3907a87e-daca-46a0-9da9-eb6afaba480d",
+      "acbfa5f2-afda-4745-8e18-494c4f86d958"
+    ],
+    "skillIds": []
+  }
+}

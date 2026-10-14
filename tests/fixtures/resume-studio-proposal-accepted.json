@@ -1,0 +1,1092 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.2.0",
+    "proposal": {
+      "contractVersion": "1.2.0",
+      "id": "f961101a-8609-42c2-bc5f-474739a6eb27",
+      "draftId": "b8a3991e-bf6f-47d2-a442-1933d489def9",
+      "candidateId": "234d8643-7304-4a32-8169-a369109c46c0",
+      "nodeId": "18f5904c-ca10-4fa7-9692-9ce107e83bee",
+      "baseRevision": 1,
+      "baseContentHash": "683e3aafe8b83552b3814553e0666e357fc305cb25c3004b1a7a4b24b926833e",
+      "sourceSnapshotHash": "8a5bf355ff01e60305996e312f0d6ade77c2af981c969ba7fd1592dce2e69b92",
+      "originalText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+      "proposedText": "Implemented React views using component interfaces to support internal workflows.",
+      "rationale": "Condenses filler or normalizes presentation while preserving the source statement. Job requirements do not authorize additional facts.",
+      "truthState": "CLAIMED",
+      "claimLabel": "[Unverified User Claim]",
+      "validationPolicyVersion": "source-preserving-wording/v1",
+      "jobRequirement": {
+        "id": "11918d7d-3077-4192-bb01-819de4266611",
+        "text": "React",
+        "category": "SKILL",
+        "importance": "REQUIRED",
+        "sourceCovered": true
+      },
+      "evidenceLinks": [
+        {
+          "type": "CANDIDATE_CLAIM",
+          "identifier": "6a1b27a9762869ac3e5e937b",
+          "sourceText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+          "sourceResumeId": "90e62dc0-991e-416f-99ac-8a58cef1a87d",
+          "sourceVersion": 1,
+          "draftRevision": 1,
+          "sourceKind": "MASTER_SNAPSHOT",
+          "truthState": "CLAIMED"
+        }
+      ],
+      "status": "ACCEPTED",
+      "createdAt": "2026-10-14T14:04:59.242Z",
+      "decidedAt": "2026-10-14T14:04:59.376Z",
+      "decisionRevision": 2
+    },
+    "draft": {
+      "contractVersion": "1.1.0",
+      "id": "b8a3991e-bf6f-47d2-a442-1933d489def9",
+      "candidateId": "234d8643-7304-4a32-8169-a369109c46c0",
+      "revision": 2,
+      "status": "DRAFT",
+      "sourceResumeId": "90e62dc0-991e-416f-99ac-8a58cef1a87d",
+      "sourceVersion": 1,
+      "sourceContentHash": "4becdccb249affc7e6e036f9d956d31ef194497d3f95ab463c61430d86f73bb1",
+      "sourceSnapshotHash": "8a5bf355ff01e60305996e312f0d6ade77c2af981c969ba7fd1592dce2e69b92",
+      "contentHash": "f3490c795b78fe9ebb072bcc0b2487cfb487f1674a39d8bb971834ea4ef91b48",
+      "createdAt": "2026-10-14T14:04:59.068Z",
+      "updatedAt": "2026-10-14T14:04:59.362Z",
+      "jobTarget": {
+        "title": "Frontend Engineer",
+        "rawDescription": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions."
+      },
+      "jobDescription": {
+        "id": "8f7a9655-a635-414f-9b10-3c5ed1f57013",
+        "tenantId": "a617197f-72cd-4ac4-9732-0f81ce392d5c",
+        "source": "PASTE",
+        "title": "Frontend Engineer",
+        "company": null,
+        "rawText": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+        "normalizedSummary": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+        "location": null,
+        "employmentType": "FULL_TIME",
+        "workplaceType": "UNSPECIFIED",
+        "seniorityLevel": "UNSPECIFIED",
+        "compensation": null,
+        "status": "ACTIVE",
+        "metadata": {},
+        "createdAt": "2026-10-14T14:04:59.064Z",
+        "updatedAt": "2026-10-14T14:04:59.064Z",
+        "requirements": [
+          {
+            "id": "11918d7d-3077-4192-bb01-819de4266611",
+            "tenantId": "a617197f-72cd-4ac4-9732-0f81ce392d5c",
+            "jobDescriptionId": "8f7a9655-a635-414f-9b10-3c5ed1f57013",
+            "category": "SKILL",
+            "importance": "REQUIRED",
+            "weight": 1,
+            "skillSlug": "react",
+            "rawSnippet": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+            "originalText": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+            "extractedValue": "React",
+            "normalizedCriteria": {
+              "skillSlug": "react",
+              "skillName": "React",
+              "skillCategory": "FRAMEWORK"
+            },
+            "confidenceScore": 0.95,
+            "sourceSpan": {
+              "section": "OVERVIEW",
+              "startOffset": 0,
+              "endOffset": 168,
+              "snippet": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions."
+            },
+            "createdAt": "2026-10-14T14:04:59.062Z"
+          },
+          {
+            "id": "4ec48940-a0d0-413c-a3cd-6ff5ccb6b435",
+            "tenantId": "a617197f-72cd-4ac4-9732-0f81ce392d5c",
+            "jobDescriptionId": "8f7a9655-a635-414f-9b10-3c5ed1f57013",
+            "category": "SKILL",
+            "importance": "REQUIRED",
+            "weight": 1,
+            "skillSlug": "kubernetes",
+            "rawSnippet": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+            "originalText": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions.",
+            "extractedValue": "Kubernetes",
+            "normalizedCriteria": {
+              "skillSlug": "kubernetes",
+              "skillName": "Kubernetes",
+              "skillCategory": "CLOUD_DEVOPS"
+            },
+            "confidenceScore": 0.95,
+            "sourceSpan": {
+              "section": "OVERVIEW",
+              "startOffset": 0,
+              "endOffset": 168,
+              "snippet": "Requirements: React experience building accessible frontend systems. Kubernetes experience is required. Maintain readable interfaces and document engineering decisions."
+            },
+            "createdAt": "2026-10-14T14:04:59.062Z"
+          }
+        ]
+      },
+      "warnings": [],
+      "masterSnapshot": {
+        "documentId": "90e62dc0-991e-416f-99ac-8a58cef1a87d",
+        "schemaVersion": "studio-draft/1.0.0",
+        "candidateIdentity": {
+          "displayName": "Asha 林",
+          "headline": null,
+          "email": "asha@example.test",
+          "phone": "+91 9876543210",
+          "location": "Delhi",
+          "links": [
+            {
+              "label": "GITHUB",
+              "url": "https://github.com/source-fixture"
+            },
+            {
+              "label": "PORTFOLIO",
+              "url": "https://portfolio.example.test"
+            }
+          ]
+        },
+        "summary": {
+          "text": "I build accessible interfaces and document backend systems.",
+          "provenanceStatus": "CLAIMED"
+        },
+        "experience": [
+          {
+            "id": "source-exp-1",
+            "company": "Source Company",
+            "title": "Developer",
+            "startDate": "2023-01",
+            "endDate": "2024-06",
+            "isCurrent": false,
+            "location": "Remote",
+            "employmentType": null,
+            "summary": "Developed candidate-authored interfaces.",
+            "description": "Maintained source application documentation.",
+            "technologies": [],
+            "rawDateRange": null,
+            "bullets": [
+              "Implemented React views with the use of component interfaces in order to support internal workflows.",
+              "Documented PostgreSQL query behavior."
+            ],
+            "legacyFields": {
+              "originalEvidenceNote": "Candidate-reported; not independently verified."
+            },
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "education": [
+          {
+            "id": "source-edu-1",
+            "institution": "Source University",
+            "degree": "BSc",
+            "fieldOfStudy": "Computing",
+            "startDate": "2019",
+            "endDate": "2022",
+            "isCurrent": false,
+            "location": null,
+            "grade": "3.8/4",
+            "coursework": ["Databases"],
+            "honors": [],
+            "bullets": [],
+            "rawDateRange": null,
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "certifications": [
+          {
+            "id": "source-cert-1",
+            "name": "Source Credential",
+            "issuingOrganization": "Source Board",
+            "issueDate": "2023-01",
+            "expirationDate": "2027-01",
+            "credentialId": "SOURCE-CRED",
+            "credentialUrl": "https://credential.example.test/source",
+            "notes": null,
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "optionalSections": {
+          "coursework": [],
+          "publications": [
+            {
+              "id": "source-pub-1",
+              "title": "Accessible Systems",
+              "summary": "Candidate-authored article.",
+              "date": "2024",
+              "isCurrent": false,
+              "url": "https://paper.example.test/source",
+              "authors": ["Asha 林"],
+              "bullets": [],
+              "items": [],
+              "provenanceStatus": "USER_PROVIDED"
+            }
+          ],
+          "achievements": [],
+          "additionalSkills": [],
+          "awards": [],
+          "languages": [],
+          "volunteerExperience": [],
+          "leadership": [],
+          "customSections": []
+        },
+        "projects": [
+          {
+            "id": "source-project-0",
+            "name": "Source project 0",
+            "description": "Candidate-authored project description 0",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 0."],
+            "urls": ["https://github.com/source-fixture/project-0"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 0."],
+              "description": "Candidate-authored project description 0",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-0",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-0",
+              "name": "Source project 0",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-0"]
+            }
+          },
+          {
+            "id": "source-project-1",
+            "name": "Source project 1",
+            "description": "Candidate-authored project description 1",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 1."],
+            "urls": ["https://github.com/source-fixture/project-1"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 1."],
+              "description": "Candidate-authored project description 1",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-1",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-1",
+              "name": "Source project 1",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-1"]
+            }
+          },
+          {
+            "id": "source-project-2",
+            "name": "Source project 2",
+            "description": "Candidate-authored project description 2",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 2."],
+            "urls": ["https://github.com/source-fixture/project-2"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 2."],
+              "description": "Candidate-authored project description 2",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-2",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-2",
+              "name": "Source project 2",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-2"]
+            }
+          },
+          {
+            "id": "source-project-3",
+            "name": "Source project 3",
+            "description": "Candidate-authored project description 3",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 3."],
+            "urls": ["https://github.com/source-fixture/project-3"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 3."],
+              "description": "Candidate-authored project description 3",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-3",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-3",
+              "name": "Source project 3",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-3"]
+            }
+          },
+          {
+            "id": "source-project-4",
+            "name": "Source project 4",
+            "description": "Candidate-authored project description 4",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 4."],
+            "urls": ["https://github.com/source-fixture/project-4"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 4."],
+              "description": "Candidate-authored project description 4",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-4",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-4",
+              "name": "Source project 4",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-4"]
+            }
+          }
+        ],
+        "skills": [
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:0",
+            "name": "React",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "React"
+            }
+          },
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:1",
+            "name": "PostgreSQL",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "PostgreSQL"
+            }
+          },
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:2",
+            "name": "Writing",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "Writing"
+            }
+          }
+        ]
+      },
+      "structuredResume": {
+        "documentId": "b8a3991e-bf6f-47d2-a442-1933d489def9",
+        "schemaVersion": "studio-draft/1.0.0",
+        "candidateIdentity": {
+          "displayName": "Asha 林",
+          "headline": null,
+          "email": "asha@example.test",
+          "phone": "+91 9876543210",
+          "location": "Delhi",
+          "links": [
+            {
+              "label": "GITHUB",
+              "url": "https://github.com/source-fixture"
+            },
+            {
+              "label": "PORTFOLIO",
+              "url": "https://portfolio.example.test"
+            }
+          ]
+        },
+        "summary": {
+          "text": "I build accessible interfaces and document backend systems.",
+          "provenanceStatus": "CLAIMED"
+        },
+        "experience": [
+          {
+            "id": "source-exp-1",
+            "company": "Source Company",
+            "title": "Developer",
+            "startDate": "2023-01",
+            "endDate": "2024-06",
+            "isCurrent": false,
+            "location": "Remote",
+            "employmentType": null,
+            "summary": "Developed candidate-authored interfaces.",
+            "description": "Maintained source application documentation.",
+            "technologies": [],
+            "rawDateRange": null,
+            "bullets": [
+              "Implemented React views using component interfaces to support internal workflows.",
+              "Documented PostgreSQL query behavior."
+            ],
+            "legacyFields": {
+              "originalEvidenceNote": "Candidate-reported; not independently verified."
+            },
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "education": [
+          {
+            "id": "source-edu-1",
+            "institution": "Source University",
+            "degree": "BSc",
+            "fieldOfStudy": "Computing",
+            "startDate": "2019",
+            "endDate": "2022",
+            "isCurrent": false,
+            "location": null,
+            "grade": "3.8/4",
+            "coursework": ["Databases"],
+            "honors": [],
+            "bullets": [],
+            "rawDateRange": null,
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "certifications": [
+          {
+            "id": "source-cert-1",
+            "name": "Source Credential",
+            "issuingOrganization": "Source Board",
+            "issueDate": "2023-01",
+            "expirationDate": "2027-01",
+            "credentialId": "SOURCE-CRED",
+            "credentialUrl": "https://credential.example.test/source",
+            "notes": null,
+            "provenanceStatus": "CLAIMED"
+          }
+        ],
+        "optionalSections": {
+          "coursework": [],
+          "publications": [
+            {
+              "id": "source-pub-1",
+              "title": "Accessible Systems",
+              "summary": "Candidate-authored article.",
+              "date": "2024",
+              "isCurrent": false,
+              "url": "https://paper.example.test/source",
+              "authors": ["Asha 林"],
+              "bullets": [],
+              "items": [],
+              "provenanceStatus": "USER_PROVIDED"
+            }
+          ],
+          "achievements": [],
+          "additionalSkills": [],
+          "awards": [],
+          "languages": [],
+          "volunteerExperience": [],
+          "leadership": [],
+          "customSections": []
+        },
+        "projects": [
+          {
+            "id": "source-project-0",
+            "name": "Source project 0",
+            "description": "Candidate-authored project description 0",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 0."],
+            "urls": ["https://github.com/source-fixture/project-0"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 0."],
+              "description": "Candidate-authored project description 0",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-0",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-0",
+              "name": "Source project 0",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-0"]
+            }
+          },
+          {
+            "id": "source-project-1",
+            "name": "Source project 1",
+            "description": "Candidate-authored project description 1",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 1."],
+            "urls": ["https://github.com/source-fixture/project-1"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 1."],
+              "description": "Candidate-authored project description 1",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-1",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-1",
+              "name": "Source project 1",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-1"]
+            }
+          },
+          {
+            "id": "source-project-2",
+            "name": "Source project 2",
+            "description": "Candidate-authored project description 2",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 2."],
+            "urls": ["https://github.com/source-fixture/project-2"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 2."],
+              "description": "Candidate-authored project description 2",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-2",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-2",
+              "name": "Source project 2",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-2"]
+            }
+          },
+          {
+            "id": "source-project-3",
+            "name": "Source project 3",
+            "description": "Candidate-authored project description 3",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 3."],
+            "urls": ["https://github.com/source-fixture/project-3"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 3."],
+              "description": "Candidate-authored project description 3",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-3",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-3",
+              "name": "Source project 3",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-3"]
+            }
+          },
+          {
+            "id": "source-project-4",
+            "name": "Source project 4",
+            "description": "Candidate-authored project description 4",
+            "technologies": ["React"],
+            "bullets": ["Implemented source feature 4."],
+            "urls": ["https://github.com/source-fixture/project-4"],
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "bullets": ["Implemented source feature 4."],
+              "description": "Candidate-authored project description 4",
+              "evidenceLinks": [
+                {
+                  "identifier": "source-claim-project-4",
+                  "type": "CANDIDATE_CLAIM"
+                }
+              ],
+              "id": "source-project-4",
+              "name": "Source project 4",
+              "provenanceStatus": "CLAIMED",
+              "technologies": ["React"],
+              "urls": ["https://github.com/source-fixture/project-4"]
+            }
+          }
+        ],
+        "skills": [
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:0",
+            "name": "React",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "React"
+            }
+          },
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:1",
+            "name": "PostgreSQL",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "PostgreSQL"
+            }
+          },
+          {
+            "id": "90e62dc0-991e-416f-99ac-8a58cef1a87d:skill:2",
+            "name": "Writing",
+            "provenanceStatus": "CLAIMED",
+            "sourceFields": {
+              "name": "Writing"
+            }
+          }
+        ]
+      },
+      "nodes": [
+        {
+          "nodeId": "1026cf4f-6782-4265-984a-b6ff83490a60",
+          "kind": "IDENTITY",
+          "path": ["candidateIdentity", "displayName"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "e5fd7bcc-5ab9-49f0-8483-7ff0f7832f8b",
+          "kind": "IDENTITY",
+          "path": ["candidateIdentity", "headline"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "b1d4b18c-e862-4765-904d-54887d81a91b",
+          "kind": "IDENTITY",
+          "path": ["candidateIdentity", "email"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "978604d5-7793-4cae-9235-ba41e6a8163e",
+          "kind": "IDENTITY",
+          "path": ["candidateIdentity", "phone"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "8abd42f5-51c6-43fb-8dbf-158446f91e30",
+          "kind": "IDENTITY",
+          "path": ["candidateIdentity", "location"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "fdf9e6c6-a4c3-4f79-9c66-61ec6418dab4",
+          "kind": "SUMMARY",
+          "path": ["summary", "text"],
+          "parentId": null,
+          "editable": true
+        },
+        {
+          "nodeId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "kind": "EXPERIENCE",
+          "path": ["experience", 0],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "bf8444ea-2c01-4783-8622-93263c65fb90",
+          "kind": "TEXT",
+          "path": ["experience", 0, "title"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "172926e1-8b86-4a8d-92f3-c7b5b6a010b0",
+          "kind": "TEXT",
+          "path": ["experience", 0, "company"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "f4ab9ec6-acc6-4957-8eda-c451ed01b593",
+          "kind": "TEXT",
+          "path": ["experience", 0, "startDate"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "7ec1b32d-3213-4958-a5d5-83af57f841c4",
+          "kind": "TEXT",
+          "path": ["experience", 0, "endDate"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "712c0258-e3c5-42d2-b330-c486a995014c",
+          "kind": "TEXT",
+          "path": ["experience", 0, "location"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "0d6146b4-6ef5-4db5-8506-363638c11e12",
+          "kind": "TEXT",
+          "path": ["experience", 0, "summary"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "20fc34f8-191d-4379-b09a-04a1dc6003aa",
+          "kind": "TEXT",
+          "path": ["experience", 0, "description"],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "18f5904c-ca10-4fa7-9692-9ce107e83bee",
+          "kind": "BULLET",
+          "path": ["experience", 0, "bullets", 0],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "16a85eb0-65f2-4d5a-9962-05a0436eaed8",
+          "kind": "BULLET",
+          "path": ["experience", 0, "bullets", 1],
+          "parentId": "98844887-8afc-4634-98fe-b87515c6b9e2",
+          "editable": true
+        },
+        {
+          "nodeId": "34f05183-b32d-45fd-ad12-f8e9e950cd40",
+          "kind": "PROJECT",
+          "path": ["projects", 0],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "77113c7c-77ef-4650-a86e-025e3e6f5354",
+          "kind": "TEXT",
+          "path": ["projects", 0, "name"],
+          "parentId": "34f05183-b32d-45fd-ad12-f8e9e950cd40",
+          "editable": true
+        },
+        {
+          "nodeId": "51f2858f-7c92-447b-96eb-fd448cf544cb",
+          "kind": "TEXT",
+          "path": ["projects", 0, "description"],
+          "parentId": "34f05183-b32d-45fd-ad12-f8e9e950cd40",
+          "editable": true
+        },
+        {
+          "nodeId": "904d1467-750a-4296-8fa7-ca6d16b4f570",
+          "kind": "BULLET",
+          "path": ["projects", 0, "bullets", 0],
+          "parentId": "34f05183-b32d-45fd-ad12-f8e9e950cd40",
+          "editable": true
+        },
+        {
+          "nodeId": "5c977adf-5410-46c5-ad68-0d0fd241fae1",
+          "kind": "PROJECT",
+          "path": ["projects", 1],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "cc42db64-cbaa-46d8-bb40-698a34197c5b",
+          "kind": "TEXT",
+          "path": ["projects", 1, "name"],
+          "parentId": "5c977adf-5410-46c5-ad68-0d0fd241fae1",
+          "editable": true
+        },
+        {
+          "nodeId": "156aff8c-cb22-45a8-a655-1802b685eebd",
+          "kind": "TEXT",
+          "path": ["projects", 1, "description"],
+          "parentId": "5c977adf-5410-46c5-ad68-0d0fd241fae1",
+          "editable": true
+        },
+        {
+          "nodeId": "6b352b37-9ba4-4367-a755-e4dd2c645642",
+          "kind": "BULLET",
+          "path": ["projects", 1, "bullets", 0],
+          "parentId": "5c977adf-5410-46c5-ad68-0d0fd241fae1",
+          "editable": true
+        },
+        {
+          "nodeId": "85fd069a-55b4-40a1-aa46-57b60181b360",
+          "kind": "PROJECT",
+          "path": ["projects", 2],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "a952601b-19ef-4884-ac11-11b071e23257",
+          "kind": "TEXT",
+          "path": ["projects", 2, "name"],
+          "parentId": "85fd069a-55b4-40a1-aa46-57b60181b360",
+          "editable": true
+        },
+        {
+          "nodeId": "c72683d8-9c76-4152-95b8-0d286a3584e5",
+          "kind": "TEXT",
+          "path": ["projects", 2, "description"],
+          "parentId": "85fd069a-55b4-40a1-aa46-57b60181b360",
+          "editable": true
+        },
+        {
+          "nodeId": "3628e274-aa15-4a70-8318-f43da2078e19",
+          "kind": "BULLET",
+          "path": ["projects", 2, "bullets", 0],
+          "parentId": "85fd069a-55b4-40a1-aa46-57b60181b360",
+          "editable": true
+        },
+        {
+          "nodeId": "f73ad969-f4af-495c-9353-24d5204cf71e",
+          "kind": "PROJECT",
+          "path": ["projects", 3],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "33102b92-28e0-4f33-bd96-8f5ade18d424",
+          "kind": "TEXT",
+          "path": ["projects", 3, "name"],
+          "parentId": "f73ad969-f4af-495c-9353-24d5204cf71e",
+          "editable": true
+        },
+        {
+          "nodeId": "310f1643-3fb9-43d3-8a74-54279feaf6e9",
+          "kind": "TEXT",
+          "path": ["projects", 3, "description"],
+          "parentId": "f73ad969-f4af-495c-9353-24d5204cf71e",
+          "editable": true
+        },
+        {
+          "nodeId": "3295f0af-f383-46a5-88ef-099f2da3690f",
+          "kind": "BULLET",
+          "path": ["projects", 3, "bullets", 0],
+          "parentId": "f73ad969-f4af-495c-9353-24d5204cf71e",
+          "editable": true
+        },
+        {
+          "nodeId": "a6807846-9fd4-4b9a-a2d5-85ee417de94f",
+          "kind": "PROJECT",
+          "path": ["projects", 4],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "7608a4bb-2b59-4e54-8ab3-af48042e2923",
+          "kind": "TEXT",
+          "path": ["projects", 4, "name"],
+          "parentId": "a6807846-9fd4-4b9a-a2d5-85ee417de94f",
+          "editable": true
+        },
+        {
+          "nodeId": "52a75f43-1111-43a7-b98a-19535e09a095",
+          "kind": "TEXT",
+          "path": ["projects", 4, "description"],
+          "parentId": "a6807846-9fd4-4b9a-a2d5-85ee417de94f",
+          "editable": true
+        },
+        {
+          "nodeId": "c9255863-f6fc-4e06-b0cf-7d6393e0aa34",
+          "kind": "BULLET",
+          "path": ["projects", 4, "bullets", 0],
+          "parentId": "a6807846-9fd4-4b9a-a2d5-85ee417de94f",
+          "editable": true
+        },
+        {
+          "nodeId": "594441a8-b1f3-4386-bf21-25fe9bc67204",
+          "kind": "SKILL",
+          "path": ["skills", 0],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "0d9fc48a-5399-4a11-bbd5-1a024036cf17",
+          "kind": "SKILL",
+          "path": ["skills", 1],
+          "parentId": null,
+          "editable": false
+        },
+        {
+          "nodeId": "af18b4ef-4baa-451f-bf86-de85675806ed",
+          "kind": "SKILL",
+          "path": ["skills", 2],
+          "parentId": null,
+          "editable": false
+        }
+      ],
+      "nodeProvenance": {
+        "0d6146b4-6ef5-4db5-8506-363638c11e12": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "0d9fc48a-5399-4a11-bbd5-1a024036cf17": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "1026cf4f-6782-4265-984a-b6ff83490a60": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "156aff8c-cb22-45a8-a655-1802b685eebd": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "16a85eb0-65f2-4d5a-9962-05a0436eaed8": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "172926e1-8b86-4a8d-92f3-c7b5b6a010b0": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "18f5904c-ca10-4fa7-9692-9ce107e83bee": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": 2
+        },
+        "20fc34f8-191d-4379-b09a-04a1dc6003aa": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "310f1643-3fb9-43d3-8a74-54279feaf6e9": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "3295f0af-f383-46a5-88ef-099f2da3690f": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "33102b92-28e0-4f33-bd96-8f5ade18d424": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "34f05183-b32d-45fd-ad12-f8e9e950cd40": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "3628e274-aa15-4a70-8318-f43da2078e19": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "51f2858f-7c92-447b-96eb-fd448cf544cb": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "52a75f43-1111-43a7-b98a-19535e09a095": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "594441a8-b1f3-4386-bf21-25fe9bc67204": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "5c977adf-5410-46c5-ad68-0d0fd241fae1": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "6b352b37-9ba4-4367-a755-e4dd2c645642": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "712c0258-e3c5-42d2-b330-c486a995014c": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "7608a4bb-2b59-4e54-8ab3-af48042e2923": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "77113c7c-77ef-4650-a86e-025e3e6f5354": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "7ec1b32d-3213-4958-a5d5-83af57f841c4": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "85fd069a-55b4-40a1-aa46-57b60181b360": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "8abd42f5-51c6-43fb-8dbf-158446f91e30": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "904d1467-750a-4296-8fa7-ca6d16b4f570": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "978604d5-7793-4cae-9235-ba41e6a8163e": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "98844887-8afc-4634-98fe-b87515c6b9e2": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "a6807846-9fd4-4b9a-a2d5-85ee417de94f": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "a952601b-19ef-4884-ac11-11b071e23257": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "af18b4ef-4baa-451f-bf86-de85675806ed": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "b1d4b18c-e862-4765-904d-54887d81a91b": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "bf8444ea-2c01-4783-8622-93263c65fb90": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "c72683d8-9c76-4152-95b8-0d286a3584e5": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "c9255863-f6fc-4e06-b0cf-7d6393e0aa34": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "cc42db64-cbaa-46d8-bb40-698a34197c5b": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "e5fd7bcc-5ab9-49f0-8483-7ff0f7832f8b": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "f4ab9ec6-acc6-4957-8eda-c451ed01b593": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "f73ad969-f4af-495c-9353-24d5204cf71e": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        },
+        "fdf9e6c6-a4c3-4f79-9c66-61ec6418dab4": {
+          "truthState": "CLAIMED",
+          "editedAtRevision": null
+        }
+      },
+      "selection": {
+        "experienceIds": ["98844887-8afc-4634-98fe-b87515c6b9e2"],
+        "projectIds": [
+          "34f05183-b32d-45fd-ad12-f8e9e950cd40",
+          "5c977adf-5410-46c5-ad68-0d0fd241fae1"
+        ],
+        "bulletIds": [
+          "18f5904c-ca10-4fa7-9692-9ce107e83bee",
+          "16a85eb0-65f2-4d5a-9962-05a0436eaed8",
+          "904d1467-750a-4296-8fa7-ca6d16b4f570",
+          "6b352b37-9ba4-4367-a755-e4dd2c645642",
+          "3628e274-aa15-4a70-8318-f43da2078e19",
+          "3295f0af-f383-46a5-88ef-099f2da3690f",
+          "c9255863-f6fc-4e06-b0cf-7d6393e0aa34"
+        ],
+        "skillIds": [
+          "594441a8-b1f3-4386-bf21-25fe9bc67204",
+          "0d9fc48a-5399-4a11-bbd5-1a024036cf17",
+          "af18b4ef-4baa-451f-bf86-de85675806ed"
+        ]
+      }
+    }
+  }
+}

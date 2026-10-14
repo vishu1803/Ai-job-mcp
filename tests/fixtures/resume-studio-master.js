@@ -1,0 +1,77 @@
+/** Synthetic candidate-reviewed master snapshot; no live candidate/provider data. */
+export const studioMasterFacts = {
+  identity: {
+    name: 'Asha 林',
+    email: 'asha@example.test',
+    phone: '+91 9876543210',
+    headline: '',
+    location: 'Delhi',
+    github: 'https://github.com/source-fixture',
+    portfolioUrls: ['https://portfolio.example.test'],
+  },
+  summary: 'I build accessible interfaces and document backend systems.',
+  experience: [
+    {
+      id: 'source-exp-1',
+      title: 'Developer',
+      company: 'Source Company',
+      startDate: '2023-01',
+      endDate: '2024-06',
+      location: 'Remote',
+      summary: 'Developed candidate-authored interfaces.',
+      description: 'Maintained source application documentation.',
+      bullets: [
+        'Implemented React views for an internal dashboard.',
+        'Documented PostgreSQL query behavior.',
+      ],
+      provenanceStatus: 'CLAIMED',
+      originalEvidenceNote: 'Candidate-reported; not independently verified.',
+    },
+  ],
+  projects: Array.from({ length: 5 }, (_, index) => ({
+    id: 'source-project-' + index,
+    name: 'Source project ' + index,
+    description: 'Candidate-authored project description ' + index,
+    bullets: ['Implemented source feature ' + index + '.'],
+    technologies: ['React'],
+    urls: ['https://github.com/source-fixture/project-' + index],
+    provenanceStatus: 'CLAIMED',
+    evidenceLinks: [{ type: 'CANDIDATE_CLAIM', identifier: 'source-claim-project-' + index }],
+  })),
+  skills: ['React', 'PostgreSQL', 'Writing'],
+  education: [
+    {
+      id: 'source-edu-1',
+      institution: 'Source University',
+      degree: 'BSc',
+      fieldOfStudy: 'Computing',
+      startDate: '2019',
+      endDate: '2022',
+      grade: '3.8/4',
+      coursework: ['Databases'],
+      provenanceStatus: 'CLAIMED',
+    },
+  ],
+  certifications: [
+    {
+      id: 'source-cert-1',
+      name: 'Source Credential',
+      issuingOrganization: 'Source Board',
+      issueDate: '2023-01',
+      expirationDate: '2027-01',
+      credentialId: 'SOURCE-CRED',
+      credentialUrl: 'https://credential.example.test/source',
+      provenanceStatus: 'CLAIMED',
+    },
+  ],
+  publications: [
+    {
+      id: 'source-pub-1',
+      title: 'Accessible Systems',
+      date: '2024',
+      authors: ['Asha 林'],
+      url: 'https://paper.example.test/source',
+      summary: 'Candidate-authored article.',
+    },
+  ],
+};

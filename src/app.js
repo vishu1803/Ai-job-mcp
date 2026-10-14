@@ -16,6 +16,7 @@ import accountRoutes from './routes/account.routes.js';
 import webRoutes from './routes/web.routes.js';
 import skillRoutes from './routes/skill.routes.js';
 import extensionRoutes from './routes/extension.routes.js';
+import resumeStudioRoutes from './routes/resume-studio.routes.js';
 import { config } from './config/env.js';
 import { assertApprovalSecrets } from './config/approval-secrets.js';
 import { createProxyPolicy, installProxyPolicy } from './security/proxy-policy.js';
@@ -77,6 +78,8 @@ export function buildApp(opts = {}) {
     careerArtifactToolsOverride: _careerArtifactToolsOverride,
     extensionAllowedOriginsOverride: _extensionAllowedOriginsOverride,
     resumeService: _resumeService,
+    resumeStudioAnalysisService: _resumeStudioAnalysisService,
+    resumeStudioAiProvider: _resumeStudioAiProvider,
     trustProxy: proxyOverride,
     ...fastifyOpts
   } = opts;
@@ -357,6 +360,12 @@ export function buildApp(opts = {}) {
   });
 
   // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)
+  app.register(resumeStudioRoutes, {
+    prefix: '/api/v1/resume-studio',
+    analysisService: opts.resumeStudioAnalysisService,
+    aiProvider: opts.resumeStudioAiProvider,
+  });
+
   app.register(webRoutes, {
     db: opts.db,
     installationService: opts.installationService,

@@ -1,0 +1,12 @@
+{
+  "source": {
+    "kind": "RESUME",
+    "resumeId": "2e5d9ef0-58ba-4c27-af13-40e8660909a8"
+  },
+  "jobTarget": {
+    "title": "Backend Engineer",
+    "company": "Fixture employer",
+    "sourceUrl": "http://127.0.0.1:1/never-fetch",
+    "rawDescription": "Requirements: React and PostgreSQL experience building reliable backend systems. Document engineering decisions and maintain accessible application interfaces."
+  }
+}

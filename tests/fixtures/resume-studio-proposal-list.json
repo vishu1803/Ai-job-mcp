@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.2.0",
+    "draftId": "41792ef6-cf83-4323-9d80-9ab92fc7c304",
+    "revision": 3,
+    "proposals": [
+      {
+        "contractVersion": "1.2.0",
+        "id": "96de4981-a546-4219-8df9-6f131d626875",
+        "draftId": "41792ef6-cf83-4323-9d80-9ab92fc7c304",
+        "candidateId": "0e5c886a-9d67-4d5c-98f4-e3cb4e2a7959",
+        "nodeId": "0e81f9d9-8d49-4b90-8eb2-92c5bf46b084",
+        "baseRevision": 3,
+        "baseContentHash": "c50ad5b41759895b6c81e39ee05fc736defdca2093847f1ffc6f8e3059f806e0",
+        "sourceSnapshotHash": "6f9d36823bad5f4e93fe7c66b492318f73fd948a1109eb0e18324e809c24b9d1",
+        "originalText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+        "proposedText": "Implemented React views using component interfaces to support internal workflows.",
+        "rationale": "Condenses filler or normalizes presentation while preserving the source statement. Job requirements do not authorize additional facts.",
+        "truthState": "CLAIMED",
+        "claimLabel": "[Unverified User Claim]",
+        "validationPolicyVersion": "source-preserving-wording/v1",
+        "jobRequirement": {
+          "id": "37f09163-b444-40f1-b90f-398253bcdf39",
+          "text": "React",
+          "category": "SKILL",
+          "importance": "REQUIRED",
+          "sourceCovered": true
+        },
+        "evidenceLinks": [
+          {
+            "type": "CANDIDATE_CLAIM",
+            "identifier": "6a1b27a9762869ac3e5e937b",
+            "sourceText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+            "sourceResumeId": "3ceb4925-85bf-4e2a-9700-92619192f3cf",
+            "sourceVersion": 1,
+            "draftRevision": 3,
+            "sourceKind": "MASTER_SNAPSHOT",
+            "truthState": "CLAIMED"
+          }
+        ],
+        "status": "PENDING",
+        "createdAt": "2026-10-14T18:10:10.640Z",
+        "decidedAt": null,
+        "decisionRevision": null
+      }
+    ]
+  }
+}

@@ -70,6 +70,7 @@ import { renderApplyPage } from '../views/apply.page.js';
 import { renderHandoffPage } from '../views/handoff.page.js';
 import { renderSourcesPage } from '../views/sources.page.js';
 import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page.js';
+import { renderResumeStudioPage } from '../views/resume-studio.page.js';
 import { renderConnectPage } from '../views/connect.page.js';
 import { renderSettingsPage } from '../views/settings.page.js';
 import { renderMcpDocsPage } from '../views/mcp-docs.page.js';
@@ -2111,6 +2112,56 @@ export default async function webRoutes(app, opts = {}) {
       user: sessionContext.user,
       tenant: sessionContext.tenant,
     });
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 15b. GET /resume-studio — AI Tailored Resume Studio (Slice 2: Persistent Editor)
+  // -------------------------------------------------------------------------
+  app.get('/resume-studio', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/resume-studio');
+    }
+
+    const { user, tenant } = sessionContext;
+    const [candidate] = await database
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.tenantId, tenant.id), eq(candidates.userId, user.id)))
+      .limit(1);
+
+    let baseResumes = [];
+    try {
+      if (!candidate) throw new Error('Candidate master not available');
+      const list = await resumeService.listResumes({
+        context: {
+          tenantId: tenant.id,
+          userId: user.id,
+          role: user.role,
+        },
+        candidateId: candidate.id,
+      });
+      baseResumes = Array.isArray(list) ? list : list?.resumes || [];
+      baseResumes = baseResumes.filter(
+        (resume) => resume.isBaseResume && resume.lifecycleState === 'BASE_RESUME'
+      );
+    } catch {
+      baseResumes = [];
+    }
+
+    const csrfToken = generateCsrfToken(sessionContext.session.id);
+    const initialDraftId = req.query?.draftId ? String(req.query.draftId) : null;
+
+    const html = renderResumeStudioPage({
+      user,
+      tenant,
+      candidate,
+      baseResumes,
+      draftId: initialDraftId,
+      csrfToken,
+    });
+
     return reply.type('text/html; charset=utf-8').send(html);
   });
 
