@@ -61,6 +61,7 @@ export function renderLayout({
             userLoggedIn
               ? `
           <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
+          <li><a href="/resume-studio" class="nav-link ${activeNav === 'studio' ? 'active' : ''}">Studio</a></li>
           <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
           <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
           <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
@@ -82,10 +83,14 @@ export function renderLayout({
         ${
           userLoggedIn
             ? `
-          <button type="button" class="copilot-nav-btn" id="copilotOpenBtn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" aria-label="Open Career Copilot" title="Open Career Copilot">
+          ${
+            activeNav === 'studio'
+              ? ''
+              : `<button type="button" class="copilot-nav-btn" id="copilotOpenBtn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" aria-label="Open Career Copilot" title="Open Career Copilot">
             ${renderIcon('sparkles', { size: 15 })}
             <span>Copilot</span>
-          </button>
+          </button>`
+          }
           <div class="user-dropdown" id="userDropdown">
             <button class="user-dropdown-btn" aria-haspopup="true" aria-expanded="false" title="Account Menu">
               <div class="user-avatar-badge">${escapeHtml((user.displayName || user.email || 'U').charAt(0).toUpperCase())}</div>
@@ -171,10 +176,15 @@ export function renderLayout({
       userLoggedIn
         ? `
       <div class="mobile-section-label">Workspace</div>
-      <button type="button" class="copilot-nav-btn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this); document.getElementById('mobileNavToggle')?.click();" style="width: calc(100% - 28px); margin: 6px 14px 10px; justify-content: center; padding: 10px 14px;">
+      ${
+        activeNav === 'studio'
+          ? ''
+          : `<button type="button" class="copilot-nav-btn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this); document.getElementById('mobileNavToggle')?.click();" style="width: calc(100% - 28px); margin: 6px 14px 10px; justify-content: center; padding: 10px 14px;">
         ${renderIcon('sparkles', { size: 16 })} <span>Open Career Copilot</span>
-      </button>
+      </button>`
+      }
       <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
+      <a href="/resume-studio" class="${activeNav === 'studio' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resume Studio</span></a>
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
       <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
@@ -251,7 +261,7 @@ export function renderLayout({
   <div class="portal-toast-container" id="portalToastContainer" role="status" aria-live="polite"></div>
 
   <script src="/public/js/app.js" defer></script>
-  ${userLoggedIn ? renderCopilotDrawer({ pageContext: activeNav }) : ''}
+  ${userLoggedIn && activeNav !== 'studio' ? renderCopilotDrawer({ pageContext: activeNav }) : ''}
 </body>
 </html>`;
 }

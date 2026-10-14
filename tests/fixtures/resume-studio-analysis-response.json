@@ -1,0 +1,898 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.0.0",
+    "candidateId": "f5146d78-ff1b-4b41-8fc9-e51a9341414b",
+    "analyzedAt": "2026-10-14T12:13:05.753Z",
+    "target": {
+      "title": "Backend Engineer",
+      "company": "Example",
+      "requirementsCount": 3,
+      "extractionMode": "DETERMINISTIC"
+    },
+    "warnings": [],
+    "candidateFit": {
+      "jobDescriptionId": "2f538501-0ec7-4244-801f-934e9c6be268",
+      "candidateId": "f5146d78-ff1b-4b41-8fc9-e51a9341414b",
+      "tenantId": "57d56f0f-1a20-4a1e-91eb-01fd7fcfa75a",
+      "analysisStatus": "COMPLETE",
+      "isFallbackScore": false,
+      "zeroRequirementWarning": null,
+      "overallScore": 27.6,
+      "jobMatchScore": 27.6,
+      "atsFitScore": 27.6,
+      "fitBand": "WEAK",
+      "scoreBreakdown": {
+        "requiredSkillsScore": 10,
+        "preferredSkillsScore": 0,
+        "projectRelevanceScore": 4.33,
+        "experienceFitScore": 0,
+        "educationFitScore": 0,
+        "locationFitScore": 0,
+        "evidenceConfidenceScore": 3.61,
+        "rawScore": 27.6,
+        "scoreCap": 74.9,
+        "overallScore": 27.6,
+        "jobMatchScore": 27.6,
+        "atsFitScore": 27.6,
+        "denominatorAudit": {
+          "requiredSkills": {
+            "earnedPoints": 10,
+            "possiblePoints": 40,
+            "status": "EVALUATED"
+          },
+          "preferredSkills": {
+            "earnedPoints": 0,
+            "possiblePoints": 0,
+            "status": "NOT_APPLICABLE"
+          },
+          "projectRelevance": {
+            "earnedPoints": 4.33,
+            "possiblePoints": 20,
+            "status": "EVALUATED"
+          },
+          "experience": {
+            "earnedPoints": 0,
+            "possiblePoints": 0,
+            "status": "NOT_APPLICABLE"
+          },
+          "education": {
+            "earnedPoints": 0,
+            "possiblePoints": 0,
+            "status": "NOT_APPLICABLE"
+          },
+          "location": {
+            "earnedPoints": 0,
+            "possiblePoints": 0,
+            "status": "NOT_APPLICABLE"
+          },
+          "evidenceConfidence": {
+            "earnedPoints": 3.61,
+            "possiblePoints": 5,
+            "status": "EVALUATED"
+          },
+          "totalEarnedPoints": 17.94,
+          "totalPossiblePoints": 65
+        }
+      },
+      "criticalGapCount": 1,
+      "highGapCount": 2,
+      "isCapped": false,
+      "keyStrengths": [],
+      "skillGaps": [
+        {
+          "requirementId": "1c622152-3871-49a1-b563-c490eb9d8665",
+          "skillSlug": "postgresql",
+          "skillName": "PostgreSQL",
+          "category": "SKILL",
+          "priority": "CRITICAL",
+          "severity": "EXPLICITLY_MISSING",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "MISSING",
+          "reason": "Candidate possesses zero verified evidence or claims for technical skill 'PostgreSQL'.",
+          "recommendation": "Connect a repository containing PostgreSQL code, manifests, or deployment configurations."
+        },
+        {
+          "requirementId": "41b063fa-445a-4887-b4d0-8f775622acd6",
+          "skillSlug": "kubernetes",
+          "skillName": "Kubernetes",
+          "category": "SKILL",
+          "priority": "HIGH",
+          "severity": "INSUFFICIENT_EVIDENCE",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "PARTIAL",
+          "reason": "Kubernetes is inferred from repository structure or documentation, but lacks direct manifest or import verification.",
+          "recommendation": "Add explicit package dependencies or import statements for Kubernetes in active project code."
+        },
+        {
+          "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+          "skillSlug": "react",
+          "skillName": "React",
+          "category": "SKILL",
+          "priority": "HIGH",
+          "severity": "UNVERIFIED_CLAIM",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "PARTIAL",
+          "reason": "UNVERIFIED_CLAIM: Candidate declares React (Self-Declared, proficiency: WORKING_KNOWLEDGE), but no independent evidence exists in connected repositories or resume.",
+          "recommendation": "Connect a repository or resume demonstrating React usage to upgrade from self-declared to verified."
+        }
+      ],
+      "topRelevantProjects": [
+        {
+          "projectId": "0b57d724-1fe0-4d2a-baa4-c838df5cd9e8",
+          "projectName": "Dashboard source project",
+          "projectSlug": "studio-project-1",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Dashboard source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 1,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        },
+        {
+          "projectId": "70b9cc65-6ea5-44f2-8147-903a0c53cbcf",
+          "projectName": "Documentation source project",
+          "projectSlug": "studio-project-2",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "31c0270a-ddbb-46e3-90de-ae3de38273d6",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "31c0270a-ddbb-46e3-90de-ae3de38273d6",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Documentation source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 2,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        },
+        {
+          "projectId": "9b104d00-e3c8-4b5f-9e6c-750eda49c3b8",
+          "projectName": "API source project",
+          "projectSlug": "studio-project-0",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "5be41576-8194-43b9-839e-19620f988330",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "5be41576-8194-43b9-839e-19620f988330",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'API source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 3,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        }
+      ],
+      "explanations": {
+        "overallReason": "WEAK fit (27.6/100): Demonstrates baseline capability across evaluated criteria.. Gaps: 1 critical missing required requirement and 2 preferred skill gaps.",
+        "strengthsSummary": "Demonstrates baseline capability across evaluated criteria.",
+        "gapsSummary": "1 critical missing required requirement and 2 preferred skill gaps.",
+        "cappingReason": null
+      },
+      "explanation": "WEAK fit (27.6/100): Demonstrates baseline capability across evaluated criteria.. Gaps: 1 critical missing required requirement and 2 preferred skill gaps.",
+      "confidence": 0.302,
+      "analyzedAt": "2026-10-14T12:13:05.716Z"
+    },
+    "fitStatus": "AVAILABLE",
+    "requirementAnalysis": {
+      "jobDescriptionId": "2f538501-0ec7-4244-801f-934e9c6be268",
+      "candidateId": "f5146d78-ff1b-4b41-8fc9-e51a9341414b",
+      "tenantId": "57d56f0f-1a20-4a1e-91eb-01fd7fcfa75a",
+      "summary": {
+        "totalRequirements": 3,
+        "matchedCount": 0,
+        "partialCount": 1,
+        "missingCount": 1,
+        "unknownCount": 0,
+        "unverifiedClaimCount": 1,
+        "unsupportedCandidateCount": 0,
+        "criticalGapsCount": 1,
+        "highGapsCount": 2,
+        "mediumGapsCount": 0,
+        "lowGapsCount": 0
+      },
+      "requirementMatches": [
+        {
+          "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+          "category": "SKILL",
+          "importance": "REQUIRED",
+          "required": true,
+          "originalRequirement": "Practical React and PostgreSQL experience required. Kubernetes skills required. Build reliable backend APIs and document technical decisions with the engineering team.",
+          "normalizedRequirement": "React",
+          "weight": 1,
+          "skillSlug": "react",
+          "extractedValue": "React",
+          "matchStatus": "UNVERIFIED_CLAIM",
+          "matchConfidence": 0.43,
+          "isUserClaim": true,
+          "claimLabel": "[Self-Declared Skill]",
+          "candidateSkills": ["React.js"],
+          "candidateProvenance": "SELF_DECLARED",
+          "truthCategory": "CLAIMED",
+          "provenanceTrustClass": "LOW_TRUST",
+          "matchedSkillSlug": "react",
+          "relationshipType": "EXACT",
+          "primaryEvidence": null,
+          "supportingEvidence": [],
+          "explanation": "UNVERIFIED_CLAIM: Candidate declares React (Self-Declared, proficiency: WORKING_KNOWLEDGE), but no independent evidence exists in connected repositories or resume."
+        },
+        {
+          "requirementId": "1c622152-3871-49a1-b563-c490eb9d8665",
+          "category": "SKILL",
+          "importance": "REQUIRED",
+          "required": true,
+          "originalRequirement": "Practical React and PostgreSQL experience required. Kubernetes skills required. Build reliable backend APIs and document technical decisions with the engineering team.",
+          "normalizedRequirement": "PostgreSQL",
+          "weight": 1,
+          "skillSlug": "postgresql",
+          "extractedValue": "PostgreSQL",
+          "matchStatus": "MISSING",
+          "matchConfidence": 0,
+          "isUserClaim": false,
+          "claimLabel": null,
+          "candidateSkills": [],
+          "candidateProvenance": "NONE",
+          "truthCategory": "MISSING_EVIDENCE",
+          "provenanceTrustClass": "NO_EVIDENCE",
+          "matchedSkillSlug": null,
+          "relationshipType": "NONE",
+          "primaryEvidence": null,
+          "supportingEvidence": [],
+          "explanation": "MISSING: Candidate possesses zero verified evidence or claims for technical skill 'PostgreSQL'."
+        },
+        {
+          "requirementId": "41b063fa-445a-4887-b4d0-8f775622acd6",
+          "category": "SKILL",
+          "importance": "REQUIRED",
+          "required": true,
+          "originalRequirement": "Practical React and PostgreSQL experience required. Kubernetes skills required. Build reliable backend APIs and document technical decisions with the engineering team.",
+          "normalizedRequirement": "Kubernetes",
+          "weight": 1,
+          "skillSlug": "kubernetes",
+          "extractedValue": "Kubernetes",
+          "matchStatus": "PARTIAL",
+          "matchConfidence": 0,
+          "isUserClaim": false,
+          "claimLabel": null,
+          "candidateSkills": ["Kubernetes"],
+          "candidateProvenance": "INFERRED",
+          "truthCategory": "INFERRED",
+          "matchedSkillSlug": "kubernetes",
+          "relationshipType": "EXACT",
+          "primaryEvidence": null,
+          "supportingEvidence": [],
+          "explanation": "PARTIAL: Kubernetes is inferred from repository structure or documentation, but lacks direct manifest or import verification."
+        }
+      ],
+      "skillGaps": [
+        {
+          "requirementId": "1c622152-3871-49a1-b563-c490eb9d8665",
+          "skillSlug": "postgresql",
+          "skillName": "PostgreSQL",
+          "category": "SKILL",
+          "priority": "CRITICAL",
+          "severity": "EXPLICITLY_MISSING",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "MISSING",
+          "reason": "Candidate possesses zero verified evidence or claims for technical skill 'PostgreSQL'.",
+          "recommendation": "Connect a repository containing PostgreSQL code, manifests, or deployment configurations."
+        },
+        {
+          "requirementId": "41b063fa-445a-4887-b4d0-8f775622acd6",
+          "skillSlug": "kubernetes",
+          "skillName": "Kubernetes",
+          "category": "SKILL",
+          "priority": "HIGH",
+          "severity": "INSUFFICIENT_EVIDENCE",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "PARTIAL",
+          "reason": "Kubernetes is inferred from repository structure or documentation, but lacks direct manifest or import verification.",
+          "recommendation": "Add explicit package dependencies or import statements for Kubernetes in active project code."
+        },
+        {
+          "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+          "skillSlug": "react",
+          "skillName": "React",
+          "category": "SKILL",
+          "priority": "HIGH",
+          "severity": "UNVERIFIED_CLAIM",
+          "evidenceTrust": "NO_EVIDENCE",
+          "status": "PARTIAL",
+          "reason": "UNVERIFIED_CLAIM: Candidate declares React (Self-Declared, proficiency: WORKING_KNOWLEDGE), but no independent evidence exists in connected repositories or resume.",
+          "recommendation": "Connect a repository or resume demonstrating React usage to upgrade from self-declared to verified."
+        }
+      ],
+      "explanations": [
+        {
+          "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+          "status": "UNVERIFIED_CLAIM",
+          "reason": "UNVERIFIED_CLAIM: Candidate declares React (Self-Declared, proficiency: WORKING_KNOWLEDGE), but no independent evidence exists in connected repositories or resume.",
+          "evidenceRefs": [],
+          "matchConfidence": 0.43
+        },
+        {
+          "requirementId": "1c622152-3871-49a1-b563-c490eb9d8665",
+          "status": "MISSING",
+          "reason": "MISSING: Candidate possesses zero verified evidence or claims for technical skill 'PostgreSQL'.",
+          "evidenceRefs": [],
+          "matchConfidence": 0
+        },
+        {
+          "requirementId": "41b063fa-445a-4887-b4d0-8f775622acd6",
+          "status": "PARTIAL",
+          "reason": "PARTIAL: Kubernetes is inferred from repository structure or documentation, but lacks direct manifest or import verification.",
+          "evidenceRefs": [],
+          "matchConfidence": 0
+        }
+      ],
+      "analyzedAt": "2026-10-14T12:13:05.701Z"
+    },
+    "projectRelevance": {
+      "jobDescriptionId": "2f538501-0ec7-4244-801f-934e9c6be268",
+      "candidateId": "f5146d78-ff1b-4b41-8fc9-e51a9341414b",
+      "tenantId": "57d56f0f-1a20-4a1e-91eb-01fd7fcfa75a",
+      "projectRankings": [
+        {
+          "projectId": "0b57d724-1fe0-4d2a-baa4-c838df5cd9e8",
+          "projectName": "Dashboard source project",
+          "projectSlug": "studio-project-1",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Dashboard source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 1,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        },
+        {
+          "projectId": "70b9cc65-6ea5-44f2-8147-903a0c53cbcf",
+          "projectName": "Documentation source project",
+          "projectSlug": "studio-project-2",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "31c0270a-ddbb-46e3-90de-ae3de38273d6",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "31c0270a-ddbb-46e3-90de-ae3de38273d6",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Documentation source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 2,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        },
+        {
+          "projectId": "9b104d00-e3c8-4b5f-9e6c-750eda49c3b8",
+          "projectName": "API source project",
+          "projectSlug": "studio-project-0",
+          "projectType": "APPLICATION",
+          "relevanceScore": 21.67,
+          "relevanceBand": "MINIMAL",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 16.67,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 5,
+            "totalScore": 21.67
+          },
+          "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "5be41576-8194-43b9-839e-19620f988330",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "5be41576-8194-43b9-839e-19620f988330",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'API source project'.",
+          "confidence": 0.54,
+          "resourcesCount": 1,
+          "rank": 3,
+          "selectionStatus": "REJECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": null,
+          "rejectionReason": "Low relevance score (21.67)"
+        }
+      ],
+      "topProject": {
+        "projectId": "0b57d724-1fe0-4d2a-baa4-c838df5cd9e8",
+        "projectName": "Dashboard source project",
+        "projectSlug": "studio-project-1",
+        "projectType": "APPLICATION",
+        "relevanceScore": 21.67,
+        "relevanceBand": "MINIMAL",
+        "scoreBreakdown": {
+          "requirementCoverageScore": 16.67,
+          "architecturalDensityScore": 0,
+          "evidenceQualityScore": 0,
+          "projectCompletenessScore": 0,
+          "recencyScore": 5,
+          "totalScore": 21.67
+        },
+        "matchedRequirementIds": ["58933366-ec30-4146-b6bd-fa6497dc74ab"],
+        "contributingSkills": ["react"],
+        "architecturalSignals": [],
+        "supportingEvidence": [
+          {
+            "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+            "resourceId": "00000000-0000-0000-0000-000000000000",
+            "resourceName": "Repository",
+            "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+            "filePath": "project.technologies",
+            "commitSha": null,
+            "lineRange": null,
+            "excerpt": null,
+            "confidenceScore": 0.85
+          }
+        ],
+        "explanations": [
+          {
+            "requirementId": "58933366-ec30-4146-b6bd-fa6497dc74ab",
+            "skillSlug": "react",
+            "contribution": 10,
+            "relationshipType": "EXACT",
+            "evidenceRefs": [
+              {
+                "id": "c657db55-59dc-474e-9ce1-5f5aa13123f9",
+                "resourceId": "00000000-0000-0000-0000-000000000000",
+                "resourceName": "Repository",
+                "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                "filePath": "project.technologies",
+                "commitSha": null,
+                "lineRange": null,
+                "excerpt": null,
+                "confidenceScore": 0.85
+              }
+            ],
+            "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+          }
+        ],
+        "explanation": "MINIMAL relevance (21.67/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Dashboard source project'.",
+        "confidence": 0.54,
+        "resourcesCount": 1,
+        "rank": 1,
+        "selectionStatus": "REJECTED",
+        "matchedTechnologies": ["react"],
+        "selectionReason": null,
+        "rejectionReason": "Low relevance score (21.67)"
+      },
+      "summary": {
+        "totalProjectsEvaluated": 3,
+        "highRelevanceCount": 0,
+        "mediumRelevanceCount": 0,
+        "lowRelevanceCount": 0,
+        "minimalRelevanceCount": 3,
+        "averageProjectScore": 21.67
+      },
+      "analyzedAt": "2026-10-14T12:13:05.712Z"
+    },
+    "keywordCoverage": {
+      "overallCoveragePercent": 33,
+      "intendedCoveragePercent": 33,
+      "renderedCoveragePercent": 33,
+      "totalJobTerms": 3,
+      "requiredTerms": 3,
+      "preferredTerms": 0,
+      "exactMatches": 1,
+      "taxonomyMatches": 0,
+      "semanticMatches": 0,
+      "missingTerms": 2,
+      "criticalMissingTerms": 2,
+      "unrenderedTerms": [],
+      "termBreakdown": [
+        {
+          "term": "React",
+          "canonicalSlug": "react",
+          "canonicalName": "React",
+          "importance": "REQUIRED",
+          "matchType": "EXACT",
+          "satisfiesRequirement": true,
+          "polarity": "POSITIVE",
+          "candidateAuthorization": "AUTHORIZED",
+          "matchedResumeTerm": "React",
+          "placements": ["skills", "experience"],
+          "occurrences": 2,
+          "relationshipType": null,
+          "explanation": "Exact match for 'React' found in skills, experience.",
+          "intendedPresence": true,
+          "artifactPresence": true,
+          "isRendered": true
+        },
+        {
+          "term": "PostgreSQL",
+          "canonicalSlug": "postgresql",
+          "canonicalName": "PostgreSQL",
+          "importance": "REQUIRED",
+          "matchType": "MISSING",
+          "satisfiesRequirement": false,
+          "polarity": "POSITIVE",
+          "candidateAuthorization": "EVIDENCE_MISSING",
+          "matchedResumeTerm": null,
+          "placements": [],
+          "occurrences": 0,
+          "relationshipType": null,
+          "explanation": "Requirement 'PostgreSQL' is missing from the resume.",
+          "intendedPresence": false,
+          "artifactPresence": false,
+          "isRendered": true
+        },
+        {
+          "term": "Kubernetes",
+          "canonicalSlug": "kubernetes",
+          "canonicalName": "Kubernetes",
+          "importance": "REQUIRED",
+          "matchType": "MISSING",
+          "satisfiesRequirement": false,
+          "polarity": "POSITIVE",
+          "candidateAuthorization": "AUTHORIZED",
+          "matchedResumeTerm": null,
+          "placements": [],
+          "occurrences": 0,
+          "relationshipType": null,
+          "explanation": "Requirement 'Kubernetes' is missing from the resume.",
+          "intendedPresence": false,
+          "artifactPresence": false,
+          "isRendered": true
+        }
+      ],
+      "keywordPlacements": [
+        {
+          "keyword": "React",
+          "canonicalSkill": "React",
+          "category": "FRAMEWORK",
+          "occurrences": 2,
+          "sections": ["skills", "experience"],
+          "contextualBreadthScore": 0.6666666666666666,
+          "isNaturalUsage": true,
+          "stuffingWarning": null
+        }
+      ],
+      "stuffingWarnings": [],
+      "confidence": 0.83,
+      "confidenceFactors": {
+        "pdfExtractionQuality": 0.75,
+        "requirementExtractionQuality": 1,
+        "taxonomyResolution": 0.6,
+        "evidenceCoverage": 1
+      },
+      "analyzedAt": "2026-10-14T12:13:05.729Z"
+    },
+    "keywords": [
+      {
+        "term": "React",
+        "category": "EXACT_CLAIMED",
+        "truthState": "CLAIMED",
+        "lexicalMatchType": "EXACT",
+        "satisfiesRequirement": false,
+        "explanation": "UNVERIFIED_CLAIM: Candidate declares React (Self-Declared, proficiency: WORKING_KNOWLEDGE), but no independent evidence exists in connected repositories or resume."
+      },
+      {
+        "term": "PostgreSQL",
+        "category": "MISSING_IN_PROFILE",
+        "truthState": "MISSING_EVIDENCE",
+        "lexicalMatchType": "MISSING",
+        "satisfiesRequirement": false,
+        "explanation": "MISSING: Candidate possesses zero verified evidence or claims for technical skill 'PostgreSQL'."
+      },
+      {
+        "term": "Kubernetes",
+        "category": "UNSUPPORTED_ON_RESUME",
+        "truthState": "INFERRED",
+        "lexicalMatchType": "MISSING",
+        "satisfiesRequirement": false,
+        "explanation": "PARTIAL: Kubernetes is inferred from repository structure or documentation, but lacks direct manifest or import verification."
+      }
+    ],
+    "writingQuality": {
+      "status": "AVAILABLE",
+      "report": {
+        "writingQualityScore": 83,
+        "dimensions": {
+          "actionVerbStrength": 100,
+          "accomplishmentRatio": 0,
+          "technicalSpecificity": 100,
+          "resultCoverage": 100,
+          "semanticDiversity": 100,
+          "redundancy": 100,
+          "genericLanguage": 100,
+          "passiveVoice": 100,
+          "verbosity": 100,
+          "jobRelevance": 0,
+          "summaryQuality": 0,
+          "sectionCoherence": 100,
+          "descriptionOnlyRatio": 0,
+          "candidateContributionRatio": 100,
+          "narrativeCompleteness": 75,
+          "fragmentCount": 0,
+          "excessiveLengthCount": 0,
+          "sourceSupportedMetricUsage": 100,
+          "sourceTraceability": 100
+        },
+        "findings": [],
+        "strengths": [
+          "Strong action verb usage across bullet openers",
+          "High candidate contribution ratio with active engineering accomplishments",
+          "High technical specificity naming concrete tools and architectures"
+        ],
+        "recommendations": [],
+        "quantification": {
+          "totalBullets": 1,
+          "quantifiedBulletCount": 0,
+          "sourceSupportedMetricCount": 0,
+          "quantificationRate": 0
+        }
+      }
+    },
+    "parseability": {
+      "status": "NOT_VERIFIED",
+      "reason": "No compiled artifact was inspected."
+    }
+  }
+}

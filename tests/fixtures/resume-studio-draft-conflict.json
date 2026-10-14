@@ -1,0 +1,23 @@
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "CONFLICT",
+    "state": "CONFLICT",
+    "title": "Update conflict detected",
+    "message": "Draft revision no longer current",
+    "details": [
+      {
+        "reason": "DRAFT_REVISION_CONFLICT",
+        "expectedRevision": 1,
+        "actualRevision": 4
+      }
+    ],
+    "supportId": "bb9e191e-9f5c-4432-8559-d287890ecd0c",
+    "recoveryAction": {
+      "type": "retry",
+      "label": "Review conflicts"
+    },
+    "requestId": "bb9e191e-9f5c-4432-8559-d287890ecd0c"
+  }
+}

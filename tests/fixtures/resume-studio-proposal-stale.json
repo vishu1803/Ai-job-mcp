@@ -1,0 +1,21 @@
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "CONFLICT",
+    "state": "CONFLICT",
+    "title": "Update conflict detected",
+    "message": "Proposal is no longer applicable; refresh the current draft.",
+    "details": [
+      {
+        "reason": "STALE_PROPOSAL"
+      }
+    ],
+    "supportId": "e3adf869-7e6a-4c8a-9460-cfbbcbfd74ec",
+    "recoveryAction": {
+      "type": "retry",
+      "label": "Review conflicts"
+    },
+    "requestId": "e3adf869-7e6a-4c8a-9460-cfbbcbfd74ec"
+  }
+}

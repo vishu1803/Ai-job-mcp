@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.2.0",
+    "id": "f961101a-8609-42c2-bc5f-474739a6eb27",
+    "draftId": "b8a3991e-bf6f-47d2-a442-1933d489def9",
+    "candidateId": "234d8643-7304-4a32-8169-a369109c46c0",
+    "nodeId": "18f5904c-ca10-4fa7-9692-9ce107e83bee",
+    "baseRevision": 1,
+    "baseContentHash": "683e3aafe8b83552b3814553e0666e357fc305cb25c3004b1a7a4b24b926833e",
+    "sourceSnapshotHash": "8a5bf355ff01e60305996e312f0d6ade77c2af981c969ba7fd1592dce2e69b92",
+    "originalText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+    "proposedText": "Implemented React views using component interfaces to support internal workflows.",
+    "rationale": "Condenses filler or normalizes presentation while preserving the source statement. Job requirements do not authorize additional facts.",
+    "truthState": "CLAIMED",
+    "claimLabel": "[Unverified User Claim]",
+    "validationPolicyVersion": "source-preserving-wording/v1",
+    "jobRequirement": {
+      "id": "11918d7d-3077-4192-bb01-819de4266611",
+      "text": "React",
+      "category": "SKILL",
+      "importance": "REQUIRED",
+      "sourceCovered": true
+    },
+    "evidenceLinks": [
+      {
+        "type": "CANDIDATE_CLAIM",
+        "identifier": "6a1b27a9762869ac3e5e937b",
+        "sourceText": "Implemented React views with the use of component interfaces in order to support internal workflows.",
+        "sourceResumeId": "90e62dc0-991e-416f-99ac-8a58cef1a87d",
+        "sourceVersion": 1,
+        "draftRevision": 1,
+        "sourceKind": "MASTER_SNAPSHOT",
+        "truthState": "CLAIMED"
+      }
+    ],
+    "status": "PENDING",
+    "createdAt": "2026-10-14T14:04:59.242Z",
+    "decidedAt": null,
+    "decisionRevision": null
+  }
+}
