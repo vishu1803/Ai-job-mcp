@@ -242,6 +242,11 @@ export default async function webRoutes(app, opts = {}) {
       candidateProfileService,
       readinessService: applicationReadinessService,
     });
+  const jobDiscoveryService =
+    opts.jobDiscoveryService ||
+    new JobDiscoveryService({
+      includeSynthetic: false,
+    });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
   // Safe user-facing error message sanitizer (prevents leaking SQL, internal schemas, or stack traces)
@@ -402,9 +407,14 @@ export default async function webRoutes(app, opts = {}) {
       candidateProfile,
     });
 
-    const candidateSkillsList = candidateProfile?.skills || [];
-    const projectList = candidateProfile?.projects || [];
-    const connectedSourcesCount = candidateProfile?.resources?.length || 0;
+    const candidateSkillsList =
+      candidateProfile?.skills ||
+      candidateProfile?.primarySkills ||
+      candidateProfile?.topSkills ||
+      [];
+    const projectList = candidateProfile?.projects || candidateProfile?.highlightedProjects || [];
+    const connectedSourcesCount =
+      candidateProfile?.resources?.length || candidateProfile?.portfolioLinks?.length || 0;
     const topSkills = candidateSkillsList.slice(0, 5).map((s) => s.name || s.skillName || '');
 
     const recommendedJobs = (applicationList || [])
@@ -5300,9 +5310,7 @@ export default async function webRoutes(app, opts = {}) {
 
     if (tab === 'discover') {
       try {
-        const discoveryService = new JobDiscoveryService({
-          includeSynthetic: false, // Strictly zero synthetic jobs in production
-        });
+        const discoveryService = jobDiscoveryService;
         const result = await discoveryService.searchJobs({
           query:
             query || candidateProfile?.targetRoles?.[0] || candidate?.headline || 'Engineering',

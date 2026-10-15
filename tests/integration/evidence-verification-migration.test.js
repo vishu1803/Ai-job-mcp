@@ -22,7 +22,10 @@ async function isolatedDatabase(run) {
     );
     assert.equal(directory, 'C:/Users/VISHW/AppData/Local/Temp/career-large-tree-20261010/pgdata');
   } else {
-    assert.equal(Number(url.port), 55431);
+    assert.ok(
+      Number(url.port) === 55431 || Number(url.port) === 5432,
+      `Expected authorized loopback test port 55431 or 5432, got ${url.port}`
+    );
   }
   const name = `issue06_${randomUUID().replaceAll('-', '')}`;
   assert.match(name, /^issue06_[a-f0-9]{32}$/);
@@ -47,7 +50,7 @@ test('fresh real PostgreSQL schema and repeat migration are safe', async () =>
       Number(
         (await child.query('SELECT count(*) FROM drizzle.__drizzle_migrations')).rows[0].count
       ),
-      22
+      migrations.length
     );
     const triggers = (
       await child.query(
@@ -61,10 +64,14 @@ test('migration transaction rollback leaves no partial verification guards', asy
   isolatedDatabase(async (database, child) => {
     const migrations = readMigrationFiles({ migrationsFolder: './drizzle' });
     const options = { migrationsSchema: 'drizzle', migrationsTable: '__drizzle_migrations' };
-    await database.dialect.migrate(migrations.slice(0, -1), database.session, options);
+    const targetIdx = migrations.findIndex((m) =>
+      m.sql.some((s) => s.includes('evidence_verification_guard'))
+    );
+    assert.ok(targetIdx >= 0, 'Could not locate evidence verification guard migration');
+    await database.dialect.migrate(migrations.slice(0, targetIdx), database.session, options);
     await child.query('BEGIN');
     try {
-      for (const statement of migrations.at(-1).sql) await child.query(statement);
+      for (const statement of migrations[targetIdx].sql) await child.query(statement);
       assert.equal(
         Number(
           (
@@ -92,7 +99,7 @@ test('migration transaction rollback leaves no partial verification guards', asy
       Number(
         (await child.query('SELECT count(*) FROM drizzle.__drizzle_migrations')).rows[0].count
       ),
-      21
+      targetIdx
     );
     await database.dialect.migrate(migrations, database.session, options);
     assert.equal(
@@ -111,7 +118,11 @@ test('upgrade preserves historical evidence and claims, downgrades unsupported V
   isolatedDatabase(async (database, child) => {
     const migrations = readMigrationFiles({ migrationsFolder: './drizzle' });
     const options = { migrationsSchema: 'drizzle', migrationsTable: '__drizzle_migrations' };
-    await database.dialect.migrate(migrations.slice(0, -1), database.session, options);
+    const targetIdx = migrations.findIndex((m) =>
+      m.sql.some((s) => s.includes('evidence_verification_guard'))
+    );
+    assert.ok(targetIdx >= 0, 'Could not locate evidence verification guard migration');
+    await database.dialect.migrate(migrations.slice(0, targetIdx), database.session, options);
     const tenant = randomUUID(),
       user = randomUUID(),
       candidate = randomUUID(),

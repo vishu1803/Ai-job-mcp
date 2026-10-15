@@ -16,12 +16,13 @@ assert.equal(target.pathname, '/product_audit_resume_studio');
 const runtime = path.resolve(process.env.STUDIO_VISUAL_RUNTIME || '');
 assert.ok(runtime.startsWith(path.resolve(process.env.TEMP) + path.sep));
 assert.ok(path.basename(runtime).startsWith('career-studio-visual-'));
+const journal = JSON.parse(await fs.readFile(path.resolve('drizzle/meta/_journal.json'), 'utf8'));
 const migrations = await db.execute(
   sql`SELECT count(*)::int AS total FROM drizzle.__drizzle_migrations`
 );
 assert.equal(
   migrations.rows[0].total,
-  25,
+  journal.entries.length,
   'Use the previously verified migrations; this script never migrates'
 );
 
@@ -94,7 +95,7 @@ try {
         baseUrl: h.baseUrl,
         studioUrl,
         loginUrl,
-        migrations: 25,
+        migrations: journal.entries.length,
         database: 'product_audit_resume_studio',
         databasePort: 55447,
         tenantIds: h.people.filter((p, i) => i < 2).map((p) => p.tenantId),

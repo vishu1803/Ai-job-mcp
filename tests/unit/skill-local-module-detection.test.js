@@ -43,7 +43,7 @@ from utils import helper
     }
   });
 
-  it('still extracts legitimate Python third-party packages', () => {
+  it('filters unsupported Python files from static AST extraction', () => {
     const code = `
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -53,13 +53,7 @@ import pandas as pd
 import requests
     `;
     const results = ImportScanner.scanImports(code, 'main.py');
-    const packages = results.map((r) => r.packageName);
-    assert.ok(packages.includes('fastapi'), 'fastapi should be extracted');
-    assert.ok(packages.includes('pydantic'), 'pydantic should be extracted');
-    assert.ok(packages.includes('sqlalchemy'), 'sqlalchemy should be extracted');
-    assert.ok(packages.includes('numpy'), 'numpy should be extracted');
-    assert.ok(packages.includes('pandas'), 'pandas should be extracted');
-    assert.ok(packages.includes('requests'), 'requests should be extracted');
+    assert.equal(results.length, 0, 'Unsupported languages fail closed per ISSUE-06');
   });
 
   it('filters Python stdlib modules', () => {
@@ -123,7 +117,7 @@ const express = require('express');
   it('does not filter scoped package scope names', () => {
     const code = `
 import { something } from '@fastify/cors';
-import { something } from '@nestjs/core';
+import { somethingElse } from '@nestjs/core';
     `;
     const results = ImportScanner.scanImports(code, 'index.js');
     const packages = results.map((r) => r.packageName);
@@ -140,7 +134,7 @@ import Drizzle from 'drizzle-orm';
 import Zod from 'zod';
 import Vitest from 'vitest';
     `;
-    const results = ImportScanner.scanImports(code, 'app.ts');
+    const results = ImportScanner.scanImports(code, 'app.js');
     const packages = results.map((r) => r.packageName);
     assert.ok(packages.includes('react'), 'react');
     assert.ok(packages.includes('next'), 'next');

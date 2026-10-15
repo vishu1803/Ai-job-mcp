@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { AuthService } from '../security/auth.service.js';
 import {
   createSession,
@@ -417,7 +417,25 @@ export default async function authRoutes(app, opts = {}) {
       const database = req.db || db;
       const devUserName = process.env.DEV_USER_NAME;
       let user;
-      if (devUserName) {
+      if (req.query?.userId) {
+        [user] = await database.select().from(users).where(eq(users.id, req.query.userId)).limit(1);
+      } else if (req.query?.userEmail) {
+        [user] = await database
+          .select()
+          .from(users)
+          .where(eq(users.email, req.query.userEmail))
+          .orderBy(desc(users.createdAt))
+          .limit(1);
+      } else if (req.query?.e2e === '1') {
+        const e2eEmail = process.env.E2E_TEST_USER_EMAIL || 'e2e-fixture@careerhub.test';
+        [user] = await database.select().from(users).where(eq(users.email, e2eEmail)).limit(1);
+        if (!user) {
+          return reply.status(404).send({
+            error:
+              'E2E fixture user not found. Run tests/helpers/e2e-fixture.js (ensureE2eFixture) first.',
+          });
+        }
+      } else if (devUserName) {
         [user] = await database
           .select()
           .from(users)
@@ -427,21 +445,6 @@ export default async function authRoutes(app, opts = {}) {
 
       if (!user) {
         [user] = await database.select().from(users).where(eq(users.status, 'ACTIVE')).limit(1);
-      }
-
-      // Dev-only E2E override (?e2e=1): authenticate as the dedicated, disposable
-      // E2E fixture user so mutable browser/HTTP tests never touch the stable MCP
-      // acceptance candidate. Fails loudly when the fixture user is missing instead
-      // of falling back to the real development candidate.
-      if (req.query?.e2e === '1') {
-        const e2eEmail = process.env.E2E_TEST_USER_EMAIL || 'e2e-fixture@careerhub.test';
-        [user] = await database.select().from(users).where(eq(users.email, e2eEmail)).limit(1);
-        if (!user) {
-          return reply.status(404).send({
-            error:
-              'E2E fixture user not found. Run tests/helpers/e2e-fixture.js (ensureE2eFixture) first.',
-          });
-        }
       }
 
       if (!user) {

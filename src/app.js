@@ -375,6 +375,7 @@ export function buildApp(opts = {}) {
     tokenService: opts.tokenService,
     jobApplicationWorkflowService: opts.jobApplicationWorkflowService,
     applicationTrackingService: opts.applicationTrackingService,
+    jobDiscoveryService: opts.jobDiscoveryService,
     // Optional override so tests can exercise profile-load failure paths. When
     // absent, the web routes construct their own CandidateProfileService exactly
     // as before (no runtime behavior change).

@@ -1,0 +1,439 @@
+{
+  "startedAt": "2026-10-15T12:26:57.074Z",
+  "checks": [
+    {
+      "title": "Landing page renders HTTP 200 with hero heading and brand navigation",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:07.146Z"
+    },
+    {
+      "title": "Unauthenticated requests to protected views fail-safe to /login redirect",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:07.246Z"
+    },
+    {
+      "title": "Login portal renders GitHub OAuth CTA and dev-login helper cleanly",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:07.882Z"
+    },
+    {
+      "title": "Public MCP specification documentation view renders HTTP 200",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:08.858Z"
+    },
+    {
+      "title": "Static trust & compliance pages (/privacy, /terms, /security, /data-deletion) return 200",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:09.003Z"
+    },
+    {
+      "title": "Persona A (New Candidate) authenticated via dev-login into /dashboard",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:12.610Z"
+    },
+    {
+      "title": "Empty dashboard renders gracefully without NaN% or unhandled exceptions",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:12.837Z"
+    },
+    {
+      "title": "Onboarding setup wizard displays Step 1 profile form",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:13.864Z"
+    },
+    {
+      "title": "Resumes hub displays clean upload prompt for candidate with 0 resumes",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:14.452Z"
+    },
+    {
+      "title": "Applications hub displays calm empty workspace with CTA to Radar",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:15.349Z"
+    },
+    {
+      "title": "Dashboard flags missing phone number readiness prompt for Jordan Lee",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:19.965Z"
+    },
+    {
+      "title": "Skills taxonomy explorer displays claimed skills with CLAIMED provenance badge",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:22.328Z"
+    },
+    {
+      "title": "Profile contact tab loads cleanly without errors",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:23.126Z"
+    },
+    {
+      "title": "Dashboard showcases verified project and top verified skills chips",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:26.788Z"
+    },
+    {
+      "title": "Projects portfolio renders verified Library Lending API card",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:27.990Z"
+    },
+    {
+      "title": "Skills taxonomy explorer displays verified skills with evidence links",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:29.089Z"
+    },
+    {
+      "title": "Resumes hub displays master resume with BASE_RESUME badge",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:29.681Z"
+    },
+    {
+      "title": "Radar Job Fit page renders discovery view and saved job matches",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:30.476Z"
+    },
+    {
+      "title": "Dashboard displays 4 active application pipeline stages for Morgan Vance",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:35.714Z"
+    },
+    {
+      "title": "Radar discovery renders curated job cards from JobDiscoveryService",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:36.573Z"
+    },
+    {
+      "title": "Resume Studio loads target job context bar",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:38.168Z"
+    },
+    {
+      "title": "Resume Studio diagnostics & ATS fit score (37.84) evaluated over CSRF API",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:41.430Z"
+    },
+    {
+      "title": "Synthetic AI bullet proposal generated with source provenance and modal controls",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:43.666Z"
+    },
+    {
+      "title": "Accepted AI proposal cleanly integrates text into candidate bullet",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:44.398Z"
+    },
+    {
+      "title": "Structured bullet editing autosaves revision to backend ledger",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:46.423Z"
+    },
+    {
+      "title": "Edited bullet content persists across full browser reload",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:27:46.980Z"
+    },
+    {
+      "title": "Single-page A4 document preview compiles with PDF & DOCX export enabled",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:02.753Z"
+    },
+    {
+      "title": "Applications kanban board displays all 4 lifecycle states (Saved, Prepared, Handoff Ready, Applied)",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:03.448Z"
+    },
+    {
+      "title": "Handoff Kit workspace displays package integrity hash, QA badge and export button",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:04.473Z"
+    },
+    {
+      "title": "AI Connection Center renders MCP client instructions & token generation shell",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:05.230Z"
+    },
+    {
+      "title": "Account & privacy settings page renders theme preferences and data controls",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:05.663Z"
+    },
+    {
+      "title": "Tenant 2 dashboard displays strict tenant isolation without Tenant 1 data leaks",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:08.799Z"
+    },
+    {
+      "title": "Cross-tenant IDOR attempt on application handoff blocked with 404 Not Found",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:09.091Z"
+    },
+    {
+      "title": "Cross-tenant IDOR attempt on Resume Studio draft blocked with 404 Not Found",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:09.144Z"
+    },
+    {
+      "title": "READONLY role mutation attempt on Resume Studio draft blocked with 403 Forbidden",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:09.185Z"
+    },
+    {
+      "title": "Viewport Tablet-Landscape (1024x768): Zero horizontal overflow, clean responsive layout",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:12.659Z"
+    },
+    {
+      "title": "Viewport Tablet-Portrait (768x1024): Zero horizontal overflow, clean responsive layout",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:14.580Z"
+    },
+    {
+      "title": "Mobile drawer navigation opens smoothly on Tablet-Portrait",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:15.085Z"
+    },
+    {
+      "title": "Viewport Mobile-iPhone-14 (390x844): Zero horizontal overflow, clean responsive layout",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:17.339Z"
+    },
+    {
+      "title": "Mobile drawer navigation opens smoothly on Mobile-iPhone-14",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:17.846Z"
+    },
+    {
+      "title": "Viewport Mobile-iPhone-SE (375x667): Zero horizontal overflow, clean responsive layout",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:19.772Z"
+    },
+    {
+      "title": "Mobile drawer navigation opens smoothly on Mobile-iPhone-SE",
+      "status": "PASS",
+      "details": {},
+      "timestamp": "2026-10-15T12:28:20.233Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-landing-desktop-1440.png",
+      "page": "/"
+    },
+    {
+      "name": "02-login-desktop-1440.png",
+      "page": "/login"
+    },
+    {
+      "name": "03-mcp-docs-desktop-1440.png",
+      "page": "/docs/mcp"
+    },
+    {
+      "name": "04-archetype-a-dashboard-1440.png",
+      "page": "/dashboard"
+    },
+    {
+      "name": "05-archetype-a-onboarding-1440.png",
+      "page": "/onboarding"
+    },
+    {
+      "name": "06-archetype-a-resumes-empty-1440.png",
+      "page": "/resumes"
+    },
+    {
+      "name": "07-archetype-a-applications-empty-1440.png",
+      "page": "/applications"
+    },
+    {
+      "name": "08-archetype-b-dashboard-1440.png",
+      "page": "/dashboard"
+    },
+    {
+      "name": "09-archetype-b-profile-before-1440.png",
+      "page": "/profile"
+    },
+    {
+      "name": "10-archetype-c-dashboard-1440.png",
+      "page": "/dashboard"
+    },
+    {
+      "name": "11-archetype-c-projects-1440.png",
+      "page": "/projects"
+    },
+    {
+      "name": "12-archetype-c-skills-1440.png",
+      "page": "/skills"
+    },
+    {
+      "name": "13-archetype-c-resumes-1440.png",
+      "page": "/resumes"
+    },
+    {
+      "name": "14-archetype-c-radar-1440.png",
+      "page": "/apps/radar"
+    },
+    {
+      "name": "15-archetype-d-dashboard-1440.png",
+      "page": "/dashboard"
+    },
+    {
+      "name": "16-archetype-d-studio-proposal-1440.png",
+      "page": "/resume-studio"
+    },
+    {
+      "name": "17-archetype-d-studio-preview-1440.png",
+      "page": "/resume-studio"
+    },
+    {
+      "name": "18-archetype-d-applications-1440.png",
+      "page": "/applications"
+    },
+    {
+      "name": "19-archetype-d-handoff-kit-1440.png",
+      "page": "/applications/:id/handoff"
+    },
+    {
+      "name": "20-archetype-d-connect-1440.png",
+      "page": "/connect"
+    },
+    {
+      "name": "21-archetype-d-settings-1440.png",
+      "page": "/settings"
+    },
+    {
+      "name": "22-archetype-e-isolation-1440.png",
+      "page": "/dashboard (Tenant 2)"
+    },
+    {
+      "name": "23-responsive-dashboard-Tablet-Landscape-1024.png",
+      "viewport": {
+        "name": "Tablet-Landscape",
+        "width": 1024,
+        "height": 768
+      }
+    },
+    {
+      "name": "23-responsive-dashboard-Tablet-Portrait-768.png",
+      "viewport": {
+        "name": "Tablet-Portrait",
+        "width": 768,
+        "height": 1024
+      }
+    },
+    {
+      "name": "24-mobile-drawer-Tablet-Portrait-768.png",
+      "viewport": {
+        "name": "Tablet-Portrait",
+        "width": 768,
+        "height": 1024
+      }
+    },
+    {
+      "name": "23-responsive-dashboard-Mobile-iPhone-14-390.png",
+      "viewport": {
+        "name": "Mobile-iPhone-14",
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "24-mobile-drawer-Mobile-iPhone-14-390.png",
+      "viewport": {
+        "name": "Mobile-iPhone-14",
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "23-responsive-dashboard-Mobile-iPhone-SE-375.png",
+      "viewport": {
+        "name": "Mobile-iPhone-SE",
+        "width": 375,
+        "height": 667
+      }
+    },
+    {
+      "name": "24-mobile-drawer-Mobile-iPhone-SE-375.png",
+      "viewport": {
+        "name": "Mobile-iPhone-SE",
+        "width": 375,
+        "height": 667
+      }
+    }
+  ],
+  "defects": [],
+  "viewportsTested": [
+    {
+      "name": "Tablet-Landscape",
+      "width": 1024,
+      "height": 768,
+      "overflowTested": true,
+      "passed": true
+    },
+    {
+      "name": "Tablet-Portrait",
+      "width": 768,
+      "height": 1024,
+      "overflowTested": true,
+      "passed": true
+    },
+    {
+      "name": "Mobile-iPhone-14",
+      "width": 390,
+      "height": 844,
+      "overflowTested": true,
+      "passed": true
+    },
+    {
+      "name": "Mobile-iPhone-SE",
+      "width": 375,
+      "height": 667,
+      "overflowTested": true,
+      "passed": true
+    }
+  ],
+  "completedAt": "2026-10-15T12:28:20.258Z",
+  "totalChecks": 42,
+  "passedChecks": 42,
+  "totalScreenshots": 29,
+  "totalDefects": 0
+}

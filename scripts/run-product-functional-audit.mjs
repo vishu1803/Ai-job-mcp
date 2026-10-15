@@ -84,9 +84,14 @@ if (integration) {
     } = await client.query(
       'SELECT (SELECT count(*) FROM tenants)::int AS tenants, (SELECT count(*) FROM drizzle.__drizzle_migrations)::int AS migrations'
     );
-    if (state.tenants !== 0 || state.migrations !== 22) {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const journal = JSON.parse(
+      await fs.readFile(path.resolve('drizzle/meta/_journal.json'), 'utf8')
+    );
+    if (state.tenants !== 0 || state.migrations !== journal.entries.length) {
       throw new Error(
-        'Audit requires zero tenants and exactly 22 applied migrations; no tests executed.'
+        `Audit requires zero tenants and exactly ${journal.entries.length} applied migrations; no tests executed.`
       );
     }
   } finally {

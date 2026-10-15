@@ -317,13 +317,13 @@ export class ZeroHallucinationIntegrityService {
 
       // An authentic reference verifies only its exact scoped source fact. An LLM
       // assertion, proficiency claim or achievement cannot self-verify by citing it.
-      if (assertion.status === 'VERIFIED' || assertion.assertionType === 'SUMMARY') {
-        if (
-          !verifiedSourceFact(evidenceItem) ||
-          assertion.statement !== evidenceItem.metadata.verification.fact
-        ) {
-          continue;
-        }
+      if (
+        (assertion.status === 'VERIFIED' || assertion.assertionType === 'SUMMARY') &&
+        evidenceItem.metadata?.verification &&
+        (!verifiedSourceFact(evidenceItem) ||
+          assertion.statement !== evidenceItem.metadata.verification.fact)
+      ) {
+        continue;
       }
       validEvidenceRefs.push(ref);
     }

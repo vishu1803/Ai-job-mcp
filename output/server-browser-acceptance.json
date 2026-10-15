@@ -1,0 +1,140 @@
+{
+  "baseUrl": "http://127.0.0.1:4330",
+  "port": 4330,
+  "database": "product_audit_resume_studio",
+  "databasePort": 55447,
+  "startedAt": "2026-10-15T12:27:00.361Z",
+  "personas": [
+    {
+      "key": "A",
+      "label": "New Candidate (Empty Slate)",
+      "email": "alex.rivers@careerhub.test",
+      "displayName": "Alex Rivers",
+      "role": "MEMBER",
+      "tenantId": "aa01e045-4f8c-4c2f-bfac-f9050e7ac203",
+      "candidateId": "dfaaeb23-a301-472d-ad8d-2542b60f9a6b",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=bf7014f3-d1d6-4933-adc4-c09804bfc23a&returnTo=/dashboard",
+      "draftId": null,
+      "appD3Id": null,
+      "studioUrl": null
+    },
+    {
+      "key": "B",
+      "label": "Partial Candidate (Missing Phone, Claimed Skills)",
+      "email": "jordan.lee@careerhub.test",
+      "displayName": "Jordan Lee",
+      "role": "MEMBER",
+      "tenantId": "aa01e045-4f8c-4c2f-bfac-f9050e7ac203",
+      "candidateId": "6307e5a7-d4a6-400a-9191-6d57e2ff67a0",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=8dce6f2b-523b-44bd-a789-e061f7ae5e91&returnTo=/dashboard",
+      "draftId": null,
+      "appD3Id": null,
+      "studioUrl": null
+    },
+    {
+      "key": "C",
+      "label": "Junior Backend Engineer",
+      "email": "taylor.coder@careerhub.test",
+      "displayName": "Taylor Coder",
+      "role": "MEMBER",
+      "tenantId": "aa01e045-4f8c-4c2f-bfac-f9050e7ac203",
+      "candidateId": "82c06901-cc08-4655-bc5a-09d799e2b1bb",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=e9a9d9ea-ee7a-4134-ae11-0580479ee7ce&returnTo=/dashboard",
+      "draftId": "578b3fbe-aebb-4d54-833c-1a83da6aa002",
+      "appD3Id": null,
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=578b3fbe-aebb-4d54-833c-1a83da6aa002"
+    },
+    {
+      "key": "D",
+      "label": "Experienced Lead Engineer (Rich Data, 4 Apps, Studio Draft)",
+      "email": "morgan.vance@careerhub.test",
+      "displayName": "Morgan Vance",
+      "role": "OWNER",
+      "tenantId": "aa01e045-4f8c-4c2f-bfac-f9050e7ac203",
+      "candidateId": "59d7f4c6-a2a6-40ab-8f7a-2202998cc7cc",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=68af9678-b6a0-4943-85e4-83c373785edd&returnTo=/dashboard",
+      "draftId": "a3066eac-15c5-4658-a5f4-3dc22461ccd1",
+      "appD3Id": "a4fd56a8-1759-460f-99c0-7ba08413dfc8",
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=a3066eac-15c5-4658-a5f4-3dc22461ccd1"
+    },
+    {
+      "key": "E",
+      "label": "Second Tenant / Readonly User (Isolation & Permission Gate)",
+      "email": "sam.security@isolated.test",
+      "displayName": "Sam Security",
+      "role": "READONLY",
+      "tenantId": "bea5e0c0-c09a-4c53-8dc7-2c6dc07d60b6",
+      "candidateId": "22d6a4bb-5abf-490f-88f9-ce0edaf9a415",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=81c6275d-7e49-4763-9864-21166176d901&returnTo=/dashboard",
+      "draftId": "27a43cc4-0d6b-4870-b935-44bd68a43249",
+      "appD3Id": null,
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=27a43cc4-0d6b-4870-b935-44bd68a43249"
+    }
+  ],
+  "routes": [
+    {
+      "name": "Root Landing",
+      "path": "/"
+    },
+    {
+      "name": "Login Portal",
+      "path": "/login"
+    },
+    {
+      "name": "Candidate Dashboard",
+      "path": "/dashboard"
+    },
+    {
+      "name": "Onboarding Wizard",
+      "path": "/onboarding"
+    },
+    {
+      "name": "Profile Editor",
+      "path": "/profile"
+    },
+    {
+      "name": "Skills Explorer",
+      "path": "/skills"
+    },
+    {
+      "name": "Projects Portfolio",
+      "path": "/projects"
+    },
+    {
+      "name": "Connected Sources",
+      "path": "/sources"
+    },
+    {
+      "name": "Radar Job Discovery",
+      "path": "/apps/radar"
+    },
+    {
+      "name": "Resumes Hub",
+      "path": "/resumes"
+    },
+    {
+      "name": "Resume Studio",
+      "path": "/resume-studio"
+    },
+    {
+      "name": "Applications Board",
+      "path": "/applications"
+    },
+    {
+      "name": "Snowflake Handoff Kit",
+      "path": "/applications/a4fd56a8-1759-460f-99c0-7ba08413dfc8/handoff"
+    },
+    {
+      "name": "AI Connection Center",
+      "path": "/connect"
+    },
+    {
+      "name": "Account Settings",
+      "path": "/settings"
+    },
+    {
+      "name": "MCP Documentation",
+      "path": "/docs/mcp"
+    }
+  ]
+}

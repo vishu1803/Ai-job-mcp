@@ -719,7 +719,10 @@ describe('Resume Studio persistent drafts — real PostgreSQL, sessions and HTTP
     assert.deepEqual(await sourceRecords(), originalRecords);
     assert.deepEqual((await (await request('GET', '/drafts/' + draft.id)).json()).data, draft);
     const count = await db.execute(sql`SELECT count(*) FROM drizzle.__drizzle_migrations`);
-    assert.equal(Number(count.rows[0].count), 25);
+    const journal = JSON.parse(
+      await fs.readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')
+    );
+    assert.equal(Number(count.rows[0].count), journal.entries.length);
   });
   it('deleting the source does not delete its independent draft; tenant deletion cascades drafts', async () => {
     const independent = await new ResumeStudioDraftService({ database: db }).create(

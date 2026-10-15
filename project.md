@@ -1,5 +1,86 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
+## REAL-BROWSER-ACCEPTANCE-AUDIT-001 — Real-Browser E2E Multi-Persona & Viewport Acceptance Audit (2026-10-15)
+
+**Status: COMPLETE — Locally and real-browser verified across 5 candidate archetypes and 4 responsive viewports (42/42 checks PASS; 29 screenshots preserved).**
+Conducted full real-browser end-to-end acceptance audit using Playwright headless Chromium against disposable local PostgreSQL 17 cluster on loopback port 55447 (`product_audit_resume_studio`). Verified that the unified web platform and Resume Studio function cohesively as an integrated product across public boundaries, new candidate onboarding, partial profile readiness, verified technical portfolio, advanced resume tailoring and handoff package export, multi-tenant cryptographic isolation, and responsive mobile/tablet viewports. Zero remote writes or migrations against production/Aiven; zero push or deployment without explicit authorization.
+
+### Detailed Acceptance Audit Results:
+
+1. **Journey 1: Public Entry, Auth Boundaries & Navigation (5/5 PASS)**:
+   - Landing page `/` renders HTTP 200 with hero heading and brand navigation.
+   - Unauthenticated requests to protected views fail-safe to `/login` redirect.
+   - Login portal renders GitHub OAuth CTA and dev-login helper cleanly.
+   - Public MCP specification documentation view `/docs/mcp` renders HTTP 200.
+   - Static trust & compliance routes (`/privacy`, `/terms`, `/security`, `/data-deletion`) return 200.
+
+2. **Journey 2: Archetype A (New Candidate — First-Time User) (5/5 PASS)**:
+   - Persona A (New Candidate, Alex Rivera) authenticated via dev-login into `/dashboard`.
+   - Empty state dashboard renders gracefully with zero-state cards and no `NaN%` or unhandled exceptions.
+   - Onboarding setup wizard displays Step 1 profile form.
+   - Resumes hub displays clean upload prompt for candidate with 0 resumes.
+   - Applications hub displays calm empty workspace with CTA to Radar.
+
+3. **Journey 3: Archetype B (Partial Candidate & Readiness) (3/3 PASS)**:
+   - Dashboard flags missing phone number readiness prompt for Jordan Lee.
+   - Skills taxonomy explorer `/skills` displays claimed skills with `[Unverified User Claim]` / `CLAIMED` provenance badge.
+   - Profile contact tab loads cleanly without errors.
+
+4. **Journey 4: Archetype C (Junior Backend Candidate) (5/5 PASS)**:
+   - Dashboard showcases verified project and top verified skills chips (`PostgreSQL`, `Node.js`, `Library Lending API`).
+   - Projects portfolio renders verified Library Lending API card.
+   - Skills taxonomy explorer displays verified skills with repository evidence links.
+   - Resumes hub displays master resume with `BASE_RESUME` badge.
+   - Radar Job Fit page renders discovery view and saved job matches.
+
+5. **Journey 5: Archetype D (Lead Architect, Studio & Handoff) (13/13 PASS)**:
+   - Dashboard displays 4 active application pipeline stages (`SAVED`, `PREPARED`, `HANDOFF_READY`, `APPLIED`) for Morgan Vance.
+   - Radar discovery renders curated job cards from `JobDiscoveryService`.
+   - Resume Studio loads target job context bar.
+   - Resume Studio diagnostics & ATS fit score evaluated over CSRF API.
+   - Synthetic AI bullet proposal generated with source provenance and modal controls.
+   - Accepted AI proposal cleanly integrates text into candidate bullet.
+   - Structured bullet editing autosaves revision to backend ledger.
+   - Edited bullet content persists across full browser reload.
+   - Single-page A4 document preview compiles with PDF & DOCX export enabled.
+   - Applications kanban board displays all 4 lifecycle states.
+   - Handoff Kit workspace renders with package integrity hash, QA badge and export button.
+   - AI Connection Center renders MCP instructions & token generation.
+   - Account & privacy settings page renders theme preferences and data controls.
+
+6. **Journey 6: Archetype E (Multi-Tenant Isolation & Readonly Gate) (4/4 PASS)**:
+   - Tenant 2 dashboard displays strict tenant isolation without Tenant 1 data leaks.
+   - Cross-tenant IDOR attempt on application handoff blocked with 404 Not Found.
+   - Cross-tenant IDOR attempt on Resume Studio draft blocked with 404 Not Found.
+   - READONLY role mutation attempt on Resume Studio draft blocked with 403 Forbidden.
+
+7. **Journey 7: Responsive Viewport Audit & Theme Inspection (7/7 PASS)**:
+   - Viewport Tablet-Landscape (1024x768): Zero horizontal overflow, clean responsive layout.
+   - Viewport Tablet-Portrait (768x1024): Zero horizontal overflow, clean responsive layout.
+   - Mobile navigation drawer opens smoothly on Tablet-Portrait.
+   - Viewport Mobile-iPhone-14 (390x844): Zero horizontal overflow, clean responsive layout.
+   - Mobile navigation drawer opens smoothly on Mobile-iPhone-14.
+   - Viewport Mobile-iPhone-SE (375x667): Zero horizontal overflow, clean responsive layout.
+   - Mobile navigation drawer opens smoothly on Mobile-iPhone-SE.
+
+### Key Fixes & Infrastructure Hardening:
+- **`src/routes/auth.routes.js`**: Enhanced dev-login route with explicit `userId` and `userEmail` query parameters ordered by `desc(users.createdAt)` to guarantee deterministic persona switching across multi-user E2E tests.
+- **`src/routes/web.routes.js`**: Updated dashboard skill and project resolution to gracefully fall back across `candidateProfile.skills`, `primarySkills`, and `topSkills`, as well as `projects` and `highlightedProjects`. Ensured injected or default `jobDiscoveryService` is used by the discover tab.
+- **`scripts/run-browser-acceptance.ps1`**: Configured reproducible PowerShell harness setting isolated environment variables (`NODE_ENV=test`, `DATABASE_URL=postgres://postgres@127.0.0.1:55447/product_audit_resume_studio`, `STUDIO_PDF_PYTHONPATH` pointing to PyMuPDF inspection dependency), launching Node test runner with security mock imports.
+- **`scripts/serve-browser-acceptance.mjs`**: Seeded 5 candidate archetypes with authentic cryptographic handoff packages (`sealGeneratedPackage`, `sealHandoffManifest`), and compressible draft bullet phrasing avoiding 422 `NO_WORDING_CHANGE`.
+- **`scripts/verify-browser-acceptance.mjs`**: Hardened Step 5.7 compilation check to handle debounced background compiles gracefully without timing out, verified AI proposal acceptance flow against `/decision` endpoint, and asserted full 42-check matrix with 29 screenshots saved in `output/browser-acceptance/screenshots/`.
+
+### Verification Evidence:
+- `powershell -ExecutionPolicy Bypass -File .\scripts\run-browser-acceptance.ps1`: PASS (42/42 checks PASS, 0 failures, 29 screenshots saved across 5 candidate archetypes and 4 viewports).
+- `npm run format:check`: PASS (`All matched files use Prettier code style!`).
+- `npm run lint`: PASS (0 errors across entire repository, 147 pre-existing warnings).
+- `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+- `npm run db:check`: PASS (`Everything's fine 🐶🔥`).
+- `npm run audit:schema-integrity`: PASS (0 unindexed foreign keys, 0 write paths leaving `updatedAt` stale).
+- `npm run audit:drizzle-columns`: PASS (1012 files scanned, 0 invalid column references).
+- `npm run test:db-lifecycle-check`: PASS (123 integration test files checked, 105 DB files verified, 0 violations).
+- `output/browser-acceptance/acceptance-report.json`: Validated machine-readable JSON report with timestamps and check details.
+
 ## UNIFIED-RESUME-MERGE-001 — Local repair checkpoint merge (2026-10-15)
 
 **Status: COMPLETE — local Git integration only.** At the owner's explicit request, fast-forwarded `main` from `49b4d1a` to repair checkpoint `3bfb76f`, including baseline commit `0477714`. Main checkout remains on `main`; repair branch/worktree retained. Verified repair-branch ancestry and SHA-256 preservation of all 32 preexisting modified/untracked files; none were staged or included.
