@@ -1,5 +1,15 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
+## UNIFIED-RESUME-001 — Authoritative resume engine and Studio repair (2026-10-15)
+
+**Status: IN_PROGRESS. Stage A baseline/architecture; stages B–F NOT_STARTED.**
+Owner approved unified generation/versioning/Studio/Latin Modern A4 implementation. Verified live remote main and local HEAD at `49b4d1a82229a195c2ecdf96cc8ad1f1ad52dcc5`; isolated branch `repair/unified-resume-20261015` in Temp preserves dirty main and three existing worktrees. No push/deploy or remote migration.
+
+Retrieved actual CI run `38714906218`: 4,261 pass, 177 fail, 17 cancelled / 4,455; artifact and integration stages skipped, dependency security passed. Confirmed Studio master-clone divergence, duplicated generation/regeneration orchestration, web handoff independent composition and strict-page Chrome system-font path. No product fixes or acceptance claimed yet.
+
+Created new loopback PostgreSQL 17 cluster on 55449; verified 26 migration rows and successful synthetic seed only there. Full unit baseline: 4,269 pass, 176 fail, 16 cancelled / 4,461, exit 1, 328.6s, blank external-provider credentials; local Node 24 differs from CI Node 22. Normal app TLS validation is disabled with no CA; strict read-only connection fails SELF_SIGNED_CERT_IN_CHAIN before authentication. Trusted CA requested; credential rotation not yet verified. Detailed source map, safe environment, evidence paths and continuation sequence: [implementation report](docs/product/unified-resume-implementation.md). Progress percentages unchanged.
+
+
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-10-15*
 ## COMPREHENSIVE-PRODUCT-QUALITY-002 - Remote Main CI Repair, Migration Compatibility, Extension Safety & Factual Retention (2026-10-15)
