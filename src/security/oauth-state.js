@@ -74,6 +74,7 @@ export function isValidReturnTo(returnTo) {
       pathname.startsWith('/settings/') ||
       pathname === '/resumes' ||
       pathname.startsWith('/resumes/') ||
+      pathname === '/resume-studio' ||
       pathname === '/applications' ||
       pathname.startsWith('/applications/') ||
       pathname === '/onboarding' ||

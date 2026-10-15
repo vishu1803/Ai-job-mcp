@@ -1,0 +1,1907 @@
+{
+  "contractVersion": "1.0.0",
+  "request": {
+    "$ref": "#/definitions/StudioAnalyzeRequest",
+    "definitions": {
+      "StudioAnalyzeRequest": {
+        "type": "object",
+        "properties": {
+          "jobTarget": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "company": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255
+              },
+              "sourceUrl": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 2048
+              },
+              "rawDescription": {
+                "type": "string",
+                "minLength": 100,
+                "maxLength": 250000
+              }
+            },
+            "required": ["rawDescription"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jobTarget"],
+        "additionalProperties": false
+      }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "responseData": {
+    "$ref": "#/definitions/StudioAnalyzeResponseData",
+    "definitions": {
+      "StudioAnalyzeResponseData": {
+        "type": "object",
+        "properties": {
+          "contractVersion": {
+            "type": "string",
+            "const": "1.0.0"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "analyzedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "company": {
+                "type": ["string", "null"]
+              },
+              "requirementsCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "extractionMode": {
+                "type": "string",
+                "const": "DETERMINISTIC"
+              }
+            },
+            "required": ["title", "company", "requirementsCount", "extractionMode"],
+            "additionalProperties": false
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "const": "JOB_DESCRIPTION_TRUNCATED"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "additionalProperties": false
+            }
+          },
+          "candidateFit": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "jobDescriptionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "candidateId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "analysisStatus": {
+                    "type": "string",
+                    "enum": ["COMPLETE", "INSUFFICIENT_DATA"],
+                    "default": "COMPLETE"
+                  },
+                  "isFallbackScore": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "zeroRequirementWarning": {
+                    "type": ["string", "null"],
+                    "default": null
+                  },
+                  "overallScore": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "jobMatchScore": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "atsFitScore": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fitBand": {
+                    "type": "string",
+                    "enum": [
+                      "EXCELLENT",
+                      "STRONG",
+                      "GOOD",
+                      "MODERATE",
+                      "WEAK",
+                      "LOW",
+                      "INSUFFICIENT_DATA"
+                    ]
+                  },
+                  "scoreBreakdown": {
+                    "type": "object",
+                    "properties": {
+                      "requiredSkillsScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "preferredSkillsScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "projectRelevanceScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "experienceFitScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "educationFitScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "locationFitScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "evidenceConfidenceScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "rawScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "scoreCap": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "overallScore": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "jobMatchScore": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "atsFitScore": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "denominatorAudit": {
+                        "type": "object",
+                        "properties": {
+                          "requiredSkills": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "preferredSkills": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "projectRelevance": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "experience": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "education": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "evidenceConfidence": {
+                            "type": "object",
+                            "properties": {
+                              "earnedPoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "possiblePoints": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["EVALUATED", "UNKNOWN", "NOT_APPLICABLE", "MISSING"]
+                              }
+                            },
+                            "required": ["earnedPoints", "possiblePoints", "status"],
+                            "additionalProperties": false
+                          },
+                          "totalEarnedPoints": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "totalPossiblePoints": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "requiredSkills",
+                          "preferredSkills",
+                          "projectRelevance",
+                          "experience",
+                          "education",
+                          "location",
+                          "evidenceConfidence",
+                          "totalEarnedPoints",
+                          "totalPossiblePoints"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "requiredSkillsScore",
+                      "preferredSkillsScore",
+                      "projectRelevanceScore",
+                      "experienceFitScore",
+                      "educationFitScore",
+                      "locationFitScore",
+                      "evidenceConfidenceScore",
+                      "rawScore",
+                      "overallScore"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "criticalGapCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "highGapCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "isCapped": {
+                    "type": "boolean"
+                  },
+                  "keyStrengths": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "REQUIRED_SKILL_COVERAGE",
+                            "PROJECT_RELEVANCE",
+                            "ARCHITECTURAL_DENSITY",
+                            "EVIDENCE_INTEGRITY",
+                            "PREFERRED_SKILL_COVERAGE",
+                            "EXPERIENCE_TENURE"
+                          ]
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        },
+                        "contributionScore": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 40
+                        },
+                        "evidenceRefs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "resourceId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "resourceName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "evidenceType": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "filePath": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 1024
+                              },
+                              "commitSha": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "not": {}
+                                      },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-fA-F]{40}$"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "lineRange": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "not": {}
+                                      },
+                                      {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "start": {
+                                                "type": "integer",
+                                                "exclusiveMinimum": 0
+                                              },
+                                              "end": {
+                                                "type": "integer",
+                                                "exclusiveMinimum": 0
+                                              }
+                                            },
+                                            "required": ["start", "end"],
+                                            "additionalProperties": false
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^\\d+(?:-\\d+)?$"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "excerpt": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "not": {}
+                                      },
+                                      {
+                                        "type": "string",
+                                        "maxLength": 1024
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "provenanceTrustClass": {
+                                "type": "string",
+                                "enum": ["HIGH_TRUST", "LOW_TRUST"]
+                              },
+                              "confidenceScore": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "default": 1
+                              },
+                              "detectedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "resourceId",
+                              "resourceName",
+                              "evidenceType",
+                              "filePath"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "default": []
+                        }
+                      },
+                      "required": ["category", "title", "description", "contributionScore"],
+                      "additionalProperties": false
+                    },
+                    "default": []
+                  },
+                  "skillGaps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "requirementId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "skillSlug": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "skillName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "SKILL",
+                            "EXPERIENCE",
+                            "EDUCATION",
+                            "DOMAIN",
+                            "LOCATION",
+                            "ELIGIBILITY",
+                            "CERTIFICATION",
+                            "OTHER"
+                          ]
+                        },
+                        "priority": {
+                          "type": "string",
+                          "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": [
+                            "EXPLICITLY_MISSING",
+                            "UNVERIFIED_CLAIM",
+                            "INSUFFICIENT_EVIDENCE",
+                            "PARTIAL_TENURE"
+                          ]
+                        },
+                        "evidenceTrust": {
+                          "type": "string",
+                          "enum": ["HIGH_TRUST", "LOW_TRUST", "NO_EVIDENCE"],
+                          "default": "NO_EVIDENCE"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["MISSING", "PARTIAL"]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "recommendation": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "requirementId",
+                        "skillName",
+                        "category",
+                        "priority",
+                        "severity",
+                        "status",
+                        "reason",
+                        "recommendation"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "default": []
+                  },
+                  "topRelevantProjects": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "projectName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "projectSlug": {
+                          "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/skillSlug/anyOf/0"
+                        },
+                        "projectType": {
+                          "type": "string",
+                          "enum": [
+                            "APPLICATION",
+                            "LIBRARY",
+                            "API",
+                            "WEBSITE",
+                            "CLI",
+                            "INFRASTRUCTURE",
+                            "DATA_PROJECT",
+                            "MONOREPO",
+                            "OTHER"
+                          ],
+                          "default": "APPLICATION"
+                        },
+                        "relevanceScore": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "relevanceBand": {
+                          "type": "string",
+                          "enum": ["HIGH", "MEDIUM", "LOW", "MINIMAL"]
+                        },
+                        "scoreBreakdown": {
+                          "type": "object",
+                          "properties": {
+                            "requirementCoverageScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 50
+                            },
+                            "architecturalDensityScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 25
+                            },
+                            "evidenceQualityScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 15
+                            },
+                            "projectCompletenessScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 5
+                            },
+                            "recencyScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 5
+                            },
+                            "totalScore": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 100
+                            }
+                          },
+                          "required": [
+                            "requirementCoverageScore",
+                            "architecturalDensityScore",
+                            "evidenceQualityScore",
+                            "projectCompletenessScore",
+                            "recencyScore",
+                            "totalScore"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "matchedRequirementIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "default": []
+                        },
+                        "contributingSkills": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/skillSlug/anyOf/0"
+                          },
+                          "default": []
+                        },
+                        "architecturalSignals": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
+                        "supportingEvidence": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items"
+                          },
+                          "maxItems": 5,
+                          "default": []
+                        },
+                        "explanations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "requirementId": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "not": {}
+                                      },
+                                      {
+                                        "type": "string",
+                                        "minLength": 1
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "skillSlug": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "not": {}
+                                      },
+                                      {
+                                        "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/skillSlug/anyOf/0"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "contribution": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 50
+                              },
+                              "relationshipType": {
+                                "type": "string",
+                                "enum": [
+                                  "EXACT",
+                                  "BUILT_ON",
+                                  "ECOSYSTEM_OF",
+                                  "IMPLEMENTS",
+                                  "PARENT_OF",
+                                  "DOMAIN",
+                                  "NONE"
+                                ],
+                                "default": "NONE"
+                              },
+                              "evidenceRefs": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items"
+                                },
+                                "default": []
+                              },
+                              "reason": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 1000
+                              }
+                            },
+                            "required": ["contribution", "reason"],
+                            "additionalProperties": false
+                          },
+                          "default": []
+                        },
+                        "explanation": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1000
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "resourcesCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 1
+                        },
+                        "rank": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "selectionStatus": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": ["SELECTED", "REJECTED", "OMITTED_BUDGET", "ELIGIBLE"]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "matchedTechnologies": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "default": []
+                        },
+                        "selectionReason": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "rejectionReason": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "projectId",
+                        "projectName",
+                        "projectSlug",
+                        "relevanceScore",
+                        "relevanceBand",
+                        "scoreBreakdown",
+                        "explanation",
+                        "confidence"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 3,
+                    "default": []
+                  },
+                  "explanations": {
+                    "type": "object",
+                    "properties": {
+                      "overallReason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "strengthsSummary": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "gapsSummary": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "cappingReason": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["overallReason", "strengthsSummary", "gapsSummary"],
+                    "additionalProperties": false
+                  },
+                  "explanation": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "analyzedAt": {
+                    "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items/properties/detectedAt",
+                    "default": "2026-10-14T12:14:39.868Z"
+                  }
+                },
+                "required": [
+                  "jobDescriptionId",
+                  "candidateId",
+                  "tenantId",
+                  "overallScore",
+                  "fitBand",
+                  "scoreBreakdown",
+                  "criticalGapCount",
+                  "highGapCount",
+                  "isCapped",
+                  "explanation",
+                  "confidence"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fitStatus": {
+            "type": "string",
+            "enum": ["AVAILABLE", "INSUFFICIENT_REQUIREMENTS"]
+          },
+          "requirementAnalysis": {
+            "type": "object",
+            "properties": {
+              "jobDescriptionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "candidateId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "tenantId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "totalRequirements": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "matchedCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "partialCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "missingCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "unknownCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "unverifiedClaimCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "unsupportedCandidateCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "criticalGapsCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "highGapsCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "mediumGapsCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "lowGapsCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "totalRequirements",
+                  "matchedCount",
+                  "partialCount",
+                  "missingCount",
+                  "unknownCount",
+                  "criticalGapsCount",
+                  "highGapsCount",
+                  "mediumGapsCount",
+                  "lowGapsCount"
+                ],
+                "additionalProperties": false
+              },
+              "requirementMatches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "requirementId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "category": {
+                      "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/category"
+                    },
+                    "importance": {
+                      "type": "string",
+                      "enum": [
+                        "REQUIRED",
+                        "PREFERRED",
+                        "NICE_TO_HAVE",
+                        "CONDITIONAL",
+                        "LOCATION_GATED",
+                        "AUTHORIZATION_GATED",
+                        "EXPERIENCE_GATED",
+                        "EDUCATION_GATED",
+                        "CERTIFICATION_GATED",
+                        "OPTIONAL"
+                      ]
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "originalRequirement": {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    "normalizedRequirement": {
+                      "type": "string",
+                      "maxLength": 255
+                    },
+                    "weight": {
+                      "type": "number",
+                      "minimum": 0.1,
+                      "maximum": 1,
+                      "default": 1
+                    },
+                    "skillSlug": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/skillSlug/anyOf/0"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "extractedValue": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    },
+                    "matchStatus": {
+                      "type": "string",
+                      "enum": [
+                        "MATCHED",
+                        "PARTIAL",
+                        "MISSING",
+                        "UNKNOWN",
+                        "UNSUPPORTED_CANDIDATE",
+                        "UNVERIFIED_CLAIM"
+                      ]
+                    },
+                    "matchConfidence": {
+                      "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items/properties/confidenceScore"
+                    },
+                    "isUserClaim": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "claimLabel": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "candidateSkills": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "candidateProvenance": {
+                      "type": "string",
+                      "enum": [
+                        "VERIFIED",
+                        "CORROBORATED",
+                        "CLAIMED",
+                        "NONE",
+                        "INFERRED",
+                        "USER_PROVIDED",
+                        "SELF_DECLARED",
+                        "LEARNING"
+                      ],
+                      "default": "NONE"
+                    },
+                    "truthCategory": {
+                      "type": "string",
+                      "enum": ["VERIFIED", "INFERRED", "CLAIMED", "MISSING_EVIDENCE", "UNKNOWN"]
+                    },
+                    "provenanceTrustClass": {
+                      "type": "string",
+                      "enum": ["HIGH_TRUST", "LOW_TRUST", "NO_EVIDENCE"]
+                    },
+                    "matchedSkillSlug": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items/properties/skillSlug/anyOf/0"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "relationshipType": {
+                      "type": "string",
+                      "enum": [
+                        "EXACT",
+                        "BUILT_ON",
+                        "ECOSYSTEM_OF",
+                        "IMPLEMENTS",
+                        "PARENT_OF",
+                        "NONE"
+                      ],
+                      "default": "NONE"
+                    },
+                    "primaryEvidence": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "supportingEvidence": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items"
+                      },
+                      "maxItems": 3,
+                      "default": []
+                    },
+                    "explanation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    }
+                  },
+                  "required": [
+                    "requirementId",
+                    "category",
+                    "importance",
+                    "extractedValue",
+                    "matchStatus",
+                    "matchConfidence",
+                    "explanation"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "skillGaps": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/skillGaps/items"
+                }
+              },
+              "explanations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "requirementId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "$ref": "#/definitions/StudioAnalyzeResponseData/properties/requirementAnalysis/properties/requirementMatches/items/properties/matchStatus"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "evidenceRefs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items"
+                      },
+                      "maxItems": 3,
+                      "default": []
+                    },
+                    "matchConfidence": {
+                      "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items/properties/confidenceScore"
+                    }
+                  },
+                  "required": ["requirementId", "status", "reason", "matchConfidence"],
+                  "additionalProperties": false
+                }
+              },
+              "analyzedAt": {
+                "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/keyStrengths/items/properties/evidenceRefs/items/properties/detectedAt",
+                "default": "2026-10-14T12:14:39.869Z"
+              }
+            },
+            "required": [
+              "jobDescriptionId",
+              "candidateId",
+              "tenantId",
+              "summary",
+              "requirementMatches",
+              "skillGaps",
+              "explanations"
+            ],
+            "additionalProperties": false
+          },
+          "projectRelevance": {
+            "type": "object",
+            "properties": {
+              "jobDescriptionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "candidateId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "tenantId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "projectRankings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/topRelevantProjects/items"
+                }
+              },
+              "topProject": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/StudioAnalyzeResponseData/properties/candidateFit/anyOf/0/properties/topRelevantProjects/items"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "totalProjectsEvaluated": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "highRelevanceCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "mediumRelevanceCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "lowRelevanceCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "minimalRelevanceCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "averageProjectScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "totalProjectsEvaluated",
+                  "highRelevanceCount",
+                  "mediumRelevanceCount",
+                  "lowRelevanceCount",
+                  "minimalRelevanceCount",
+                  "averageProjectScore"
+                ],
+                "additionalProperties": false
+              },
+              "analyzedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "jobDescriptionId",
+              "candidateId",
+              "tenantId",
+              "projectRankings",
+              "summary",
+              "analyzedAt"
+            ],
+            "additionalProperties": false
+          },
+          "keywordCoverage": {
+            "type": "object",
+            "properties": {
+              "overallCoveragePercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "intendedCoveragePercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "renderedCoveragePercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "totalJobTerms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requiredTerms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "preferredTerms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "exactMatches": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "taxonomyMatches": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "semanticMatches": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "missingTerms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "criticalMissingTerms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unrenderedTerms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              },
+              "termBreakdown": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "canonicalSlug": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "canonicalName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "importance": {
+                      "type": "string",
+                      "enum": ["REQUIRED", "PREFERRED", "OPTIONAL"]
+                    },
+                    "matchType": {
+                      "type": "string",
+                      "enum": [
+                        "EXACT",
+                        "TAXONOMY_EQUIVALENT",
+                        "RELATED",
+                        "MISSING",
+                        "UNSUPPORTED_CANDIDATE"
+                      ]
+                    },
+                    "satisfiesRequirement": {
+                      "type": "boolean"
+                    },
+                    "polarity": {
+                      "type": "string",
+                      "enum": ["POSITIVE", "NEGATED", "ASPIRATIONAL", "CONTEXT_ONLY", "UNKNOWN"],
+                      "default": "POSITIVE"
+                    },
+                    "candidateAuthorization": {
+                      "type": "string",
+                      "enum": [
+                        "AUTHORIZED",
+                        "UNAUTHORIZED",
+                        "EVIDENCE_MISSING",
+                        "CONTRADICTED",
+                        "UNKNOWN"
+                      ],
+                      "default": "UNKNOWN"
+                    },
+                    "matchedResumeTerm": {
+                      "type": ["string", "null"],
+                      "default": null
+                    },
+                    "placements": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "header",
+                          "summary",
+                          "skills",
+                          "experience",
+                          "projects",
+                          "education",
+                          "certifications",
+                          "dsa"
+                        ]
+                      },
+                      "default": []
+                    },
+                    "occurrences": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "default": 0
+                    },
+                    "relationshipType": {
+                      "type": ["string", "null"],
+                      "default": null
+                    },
+                    "explanation": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "intendedPresence": {
+                      "type": "boolean"
+                    },
+                    "artifactPresence": {
+                      "type": "boolean"
+                    },
+                    "isRendered": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "term",
+                    "canonicalSlug",
+                    "canonicalName",
+                    "importance",
+                    "matchType",
+                    "satisfiesRequirement",
+                    "explanation"
+                  ],
+                  "additionalProperties": false
+                },
+                "default": []
+              },
+              "keywordPlacements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "keyword": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "canonicalSkill": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "category": {
+                      "type": "string",
+                      "default": "TOOL"
+                    },
+                    "occurrences": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sections": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/StudioAnalyzeResponseData/properties/keywordCoverage/properties/termBreakdown/items/properties/placements/items"
+                      },
+                      "default": []
+                    },
+                    "contextualBreadthScore": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "default": 0
+                    },
+                    "isNaturalUsage": {
+                      "type": "boolean",
+                      "default": true
+                    },
+                    "stuffingWarning": {
+                      "type": ["string", "null"],
+                      "default": null
+                    }
+                  },
+                  "required": ["keyword", "canonicalSkill", "occurrences"],
+                  "additionalProperties": false
+                },
+                "default": []
+              },
+              "stuffingWarnings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "term": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "section": {
+                      "$ref": "#/definitions/StudioAnalyzeResponseData/properties/keywordCoverage/properties/termBreakdown/items/properties/placements/items"
+                    },
+                    "occurrences": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "densityScore": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": ["term", "section", "occurrences", "densityScore", "reason"],
+                  "additionalProperties": false
+                },
+                "default": []
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 1
+              },
+              "confidenceFactors": {
+                "type": "object",
+                "properties": {
+                  "pdfExtractionQuality": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 1
+                  },
+                  "requirementExtractionQuality": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 1
+                  },
+                  "taxonomyResolution": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 1
+                  },
+                  "evidenceCoverage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 1
+                  }
+                },
+                "additionalProperties": false
+              },
+              "analyzedAt": {
+                "type": "string",
+                "format": "date-time",
+                "default": "2026-10-14T12:14:39.883Z"
+              }
+            },
+            "required": [
+              "overallCoveragePercent",
+              "totalJobTerms",
+              "requiredTerms",
+              "preferredTerms",
+              "exactMatches",
+              "taxonomyMatches",
+              "semanticMatches",
+              "missingTerms",
+              "criticalMissingTerms"
+            ],
+            "additionalProperties": false
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "term": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "EXACT_VERIFIED",
+                    "EXACT_CLAIMED",
+                    "TAXONOMY_EQUIVALENT",
+                    "RELATED_INSUFFICIENT",
+                    "MISSING_IN_PROFILE",
+                    "UNSUPPORTED_ON_RESUME"
+                  ]
+                },
+                "truthState": {
+                  "type": "string",
+                  "enum": ["VERIFIED", "CLAIMED", "INFERRED", "MISSING_EVIDENCE"]
+                },
+                "lexicalMatchType": {
+                  "type": "string"
+                },
+                "satisfiesRequirement": {
+                  "type": "boolean"
+                },
+                "explanation": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "term",
+                "category",
+                "truthState",
+                "lexicalMatchType",
+                "satisfiesRequirement",
+                "explanation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "writingQuality": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["AVAILABLE", "NOT_EVALUABLE"]
+              },
+              "report": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "writingQualityScore": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "dimensions": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      },
+                      "findings": {
+                        "type": "array",
+                        "items": {}
+                      },
+                      "strengths": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "recommendations": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "writingQualityScore",
+                      "dimensions",
+                      "findings",
+                      "strengths",
+                      "recommendations"
+                    ],
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["status", "report"],
+            "additionalProperties": false
+          },
+          "parseability": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "NOT_VERIFIED"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": ["status", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "contractVersion",
+          "candidateId",
+          "analyzedAt",
+          "target",
+          "warnings",
+          "candidateFit",
+          "fitStatus",
+          "requirementAnalysis",
+          "projectRelevance",
+          "keywordCoverage",
+          "keywords",
+          "writingQuality",
+          "parseability"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

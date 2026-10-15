@@ -1,0 +1,716 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.3.0",
+    "draftId": "41792ef6-cf83-4323-9d80-9ab92fc7c304",
+    "revision": 3,
+    "analysis": {
+      "contractVersion": "1.0.0",
+      "candidateId": "0e5c886a-9d67-4d5c-98f4-e3cb4e2a7959",
+      "analyzedAt": "2026-10-14T18:10:10.585Z",
+      "target": {
+        "title": "Frontend Engineer",
+        "company": "Synthetic Systems",
+        "requirementsCount": 2,
+        "extractionMode": "DETERMINISTIC"
+      },
+      "warnings": [],
+      "candidateFit": {
+        "jobDescriptionId": "80b0f1d8-4c9c-49cc-a80f-9b0621a25870",
+        "candidateId": "0e5c886a-9d67-4d5c-98f4-e3cb4e2a7959",
+        "tenantId": "fa26a201-66a4-42fa-a35a-7f3fc1589f13",
+        "analysisStatus": "COMPLETE",
+        "isFallbackScore": false,
+        "zeroRequirementWarning": null,
+        "overallScore": 28.63,
+        "jobMatchScore": 28.63,
+        "atsFitScore": 28.63,
+        "fitBand": "WEAK",
+        "scoreBreakdown": {
+          "requiredSkillsScore": 10,
+          "preferredSkillsScore": 0,
+          "projectRelevanceScore": 5,
+          "experienceFitScore": 0,
+          "educationFitScore": 0,
+          "locationFitScore": 0,
+          "evidenceConfidenceScore": 3.61,
+          "rawScore": 28.63,
+          "scoreCap": null,
+          "overallScore": 28.63,
+          "jobMatchScore": 28.63,
+          "atsFitScore": 28.63,
+          "denominatorAudit": {
+            "requiredSkills": {
+              "earnedPoints": 10,
+              "possiblePoints": 40,
+              "status": "EVALUATED"
+            },
+            "preferredSkills": {
+              "earnedPoints": 0,
+              "possiblePoints": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "projectRelevance": {
+              "earnedPoints": 5,
+              "possiblePoints": 20,
+              "status": "EVALUATED"
+            },
+            "experience": {
+              "earnedPoints": 0,
+              "possiblePoints": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "education": {
+              "earnedPoints": 0,
+              "possiblePoints": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "location": {
+              "earnedPoints": 0,
+              "possiblePoints": 0,
+              "status": "NOT_APPLICABLE"
+            },
+            "evidenceConfidence": {
+              "earnedPoints": 3.61,
+              "possiblePoints": 5,
+              "status": "EVALUATED"
+            },
+            "totalEarnedPoints": 18.61,
+            "totalPossiblePoints": 65
+          }
+        },
+        "criticalGapCount": 0,
+        "highGapCount": 2,
+        "isCapped": false,
+        "keyStrengths": [],
+        "skillGaps": [
+          {
+            "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+            "skillSlug": "react",
+            "skillName": "React",
+            "category": "SKILL",
+            "priority": "HIGH",
+            "severity": "UNVERIFIED_CLAIM",
+            "evidenceTrust": "NO_EVIDENCE",
+            "status": "PARTIAL",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims React ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "recommendation": "Connect a repository containing React code, manifests, or deployment configurations."
+          },
+          {
+            "requirementId": "e9d6eee6-1b34-488c-aedf-e6efb6253f52",
+            "skillSlug": "postgresql",
+            "skillName": "PostgreSQL",
+            "category": "SKILL",
+            "priority": "HIGH",
+            "severity": "UNVERIFIED_CLAIM",
+            "evidenceTrust": "NO_EVIDENCE",
+            "status": "PARTIAL",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims PostgreSQL ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "recommendation": "Connect a repository containing PostgreSQL code, manifests, or deployment configurations."
+          }
+        ],
+        "topRelevantProjects": [
+          {
+            "projectId": "376cb80c-6ee1-4662-9d19-7c6a616ff5d3",
+            "projectName": "Source project 0",
+            "projectSlug": "source-project-0",
+            "projectType": "APPLICATION",
+            "relevanceScore": 25,
+            "relevanceBand": "LOW",
+            "scoreBreakdown": {
+              "requirementCoverageScore": 25,
+              "architecturalDensityScore": 0,
+              "evidenceQualityScore": 0,
+              "projectCompletenessScore": 0,
+              "recencyScore": 0,
+              "totalScore": 25
+            },
+            "matchedRequirementIds": ["7d8bc78d-4556-4dc7-8fef-5648791fc714"],
+            "contributingSkills": ["react"],
+            "architecturalSignals": [],
+            "supportingEvidence": [
+              {
+                "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+                "resourceId": "00000000-0000-0000-0000-000000000000",
+                "resourceName": "Repository",
+                "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                "filePath": "project.technologies",
+                "commitSha": null,
+                "lineRange": null,
+                "excerpt": null,
+                "confidenceScore": 0.85
+              }
+            ],
+            "explanations": [
+              {
+                "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+                "skillSlug": "react",
+                "contribution": 10,
+                "relationshipType": "EXACT",
+                "evidenceRefs": [
+                  {
+                    "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+                    "resourceId": "00000000-0000-0000-0000-000000000000",
+                    "resourceName": "Repository",
+                    "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                    "filePath": "project.technologies",
+                    "commitSha": null,
+                    "lineRange": null,
+                    "excerpt": null,
+                    "confidenceScore": 0.85
+                  }
+                ],
+                "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+              }
+            ],
+            "explanation": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+            "confidence": 0.64,
+            "resourcesCount": 1,
+            "rank": 1,
+            "selectionStatus": "SELECTED",
+            "matchedTechnologies": ["react"],
+            "selectionReason": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+            "rejectionReason": null
+          },
+          {
+            "projectId": "5031f00a-cbf4-48a4-a9f3-6ae4bb73e6cd",
+            "projectName": "Source project 1",
+            "projectSlug": "source-project-1",
+            "projectType": "APPLICATION",
+            "relevanceScore": 25,
+            "relevanceBand": "LOW",
+            "scoreBreakdown": {
+              "requirementCoverageScore": 25,
+              "architecturalDensityScore": 0,
+              "evidenceQualityScore": 0,
+              "projectCompletenessScore": 0,
+              "recencyScore": 0,
+              "totalScore": 25
+            },
+            "matchedRequirementIds": ["7d8bc78d-4556-4dc7-8fef-5648791fc714"],
+            "contributingSkills": ["react"],
+            "architecturalSignals": [],
+            "supportingEvidence": [
+              {
+                "id": "4b62e806-49ed-4cba-958c-b06f34dc6e75",
+                "resourceId": "00000000-0000-0000-0000-000000000000",
+                "resourceName": "Repository",
+                "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                "filePath": "project.technologies",
+                "commitSha": null,
+                "lineRange": null,
+                "excerpt": null,
+                "confidenceScore": 0.85
+              }
+            ],
+            "explanations": [
+              {
+                "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+                "skillSlug": "react",
+                "contribution": 10,
+                "relationshipType": "EXACT",
+                "evidenceRefs": [
+                  {
+                    "id": "4b62e806-49ed-4cba-958c-b06f34dc6e75",
+                    "resourceId": "00000000-0000-0000-0000-000000000000",
+                    "resourceName": "Repository",
+                    "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                    "filePath": "project.technologies",
+                    "commitSha": null,
+                    "lineRange": null,
+                    "excerpt": null,
+                    "confidenceScore": 0.85
+                  }
+                ],
+                "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+              }
+            ],
+            "explanation": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 1'.",
+            "confidence": 0.64,
+            "resourcesCount": 1,
+            "rank": 2,
+            "selectionStatus": "SELECTED",
+            "matchedTechnologies": ["react"],
+            "selectionReason": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 1'.",
+            "rejectionReason": null
+          }
+        ],
+        "explanations": {
+          "overallReason": "WEAK fit (28.63/100): Demonstrates baseline capability across evaluated criteria.. Gaps: 2 preferred skill gaps.",
+          "strengthsSummary": "Demonstrates baseline capability across evaluated criteria.",
+          "gapsSummary": "2 preferred skill gaps.",
+          "cappingReason": null
+        },
+        "explanation": "WEAK fit (28.63/100): Demonstrates baseline capability across evaluated criteria.. Gaps: 2 preferred skill gaps.",
+        "confidence": 0.538,
+        "analyzedAt": "2026-10-14T18:10:10.547Z"
+      },
+      "fitStatus": "AVAILABLE",
+      "requirementAnalysis": {
+        "jobDescriptionId": "80b0f1d8-4c9c-49cc-a80f-9b0621a25870",
+        "candidateId": "0e5c886a-9d67-4d5c-98f4-e3cb4e2a7959",
+        "tenantId": "fa26a201-66a4-42fa-a35a-7f3fc1589f13",
+        "summary": {
+          "totalRequirements": 2,
+          "matchedCount": 0,
+          "partialCount": 0,
+          "missingCount": 0,
+          "unknownCount": 0,
+          "unverifiedClaimCount": 2,
+          "unsupportedCandidateCount": 0,
+          "criticalGapsCount": 0,
+          "highGapsCount": 2,
+          "mediumGapsCount": 0,
+          "lowGapsCount": 0
+        },
+        "requirementMatches": [
+          {
+            "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+            "category": "SKILL",
+            "importance": "REQUIRED",
+            "required": true,
+            "originalRequirement": "Requirements: React experience building accessible frontend systems. PostgreSQL database knowledge and writing clear technical documentation. Maintain readable interfaces and document engineering decisions.",
+            "normalizedRequirement": "React",
+            "weight": 1,
+            "skillSlug": "react",
+            "extractedValue": "React",
+            "matchStatus": "UNVERIFIED_CLAIM",
+            "matchConfidence": 0.47,
+            "isUserClaim": true,
+            "claimLabel": "[Unverified User Claim]",
+            "candidateSkills": ["React"],
+            "candidateProvenance": "CLAIMED",
+            "truthCategory": "CLAIMED",
+            "provenanceTrustClass": "LOW_TRUST",
+            "matchedSkillSlug": "react",
+            "relationshipType": "EXACT",
+            "primaryEvidence": null,
+            "supportingEvidence": [],
+            "explanation": "UNVERIFIED_CLAIM: Candidate self-claims React ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories."
+          },
+          {
+            "requirementId": "e9d6eee6-1b34-488c-aedf-e6efb6253f52",
+            "category": "SKILL",
+            "importance": "REQUIRED",
+            "required": true,
+            "originalRequirement": "Requirements: React experience building accessible frontend systems. PostgreSQL database knowledge and writing clear technical documentation. Maintain readable interfaces and document engineering decisions.",
+            "normalizedRequirement": "PostgreSQL",
+            "weight": 1,
+            "skillSlug": "postgresql",
+            "extractedValue": "PostgreSQL",
+            "matchStatus": "UNVERIFIED_CLAIM",
+            "matchConfidence": 0.47,
+            "isUserClaim": true,
+            "claimLabel": "[Unverified User Claim]",
+            "candidateSkills": ["PostgreSQL"],
+            "candidateProvenance": "CLAIMED",
+            "truthCategory": "CLAIMED",
+            "provenanceTrustClass": "LOW_TRUST",
+            "matchedSkillSlug": "postgresql",
+            "relationshipType": "EXACT",
+            "primaryEvidence": null,
+            "supportingEvidence": [],
+            "explanation": "UNVERIFIED_CLAIM: Candidate self-claims PostgreSQL ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories."
+          }
+        ],
+        "skillGaps": [
+          {
+            "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+            "skillSlug": "react",
+            "skillName": "React",
+            "category": "SKILL",
+            "priority": "HIGH",
+            "severity": "UNVERIFIED_CLAIM",
+            "evidenceTrust": "NO_EVIDENCE",
+            "status": "PARTIAL",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims React ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "recommendation": "Connect a repository containing React code, manifests, or deployment configurations."
+          },
+          {
+            "requirementId": "e9d6eee6-1b34-488c-aedf-e6efb6253f52",
+            "skillSlug": "postgresql",
+            "skillName": "PostgreSQL",
+            "category": "SKILL",
+            "priority": "HIGH",
+            "severity": "UNVERIFIED_CLAIM",
+            "evidenceTrust": "NO_EVIDENCE",
+            "status": "PARTIAL",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims PostgreSQL ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "recommendation": "Connect a repository containing PostgreSQL code, manifests, or deployment configurations."
+          }
+        ],
+        "explanations": [
+          {
+            "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+            "status": "UNVERIFIED_CLAIM",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims React ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "evidenceRefs": [],
+            "matchConfidence": 0.47
+          },
+          {
+            "requirementId": "e9d6eee6-1b34-488c-aedf-e6efb6253f52",
+            "status": "UNVERIFIED_CLAIM",
+            "reason": "UNVERIFIED_CLAIM: Candidate self-claims PostgreSQL ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories.",
+            "evidenceRefs": [],
+            "matchConfidence": 0.47
+          }
+        ],
+        "analyzedAt": "2026-10-14T18:10:10.538Z"
+      },
+      "projectRelevance": {
+        "jobDescriptionId": "80b0f1d8-4c9c-49cc-a80f-9b0621a25870",
+        "candidateId": "0e5c886a-9d67-4d5c-98f4-e3cb4e2a7959",
+        "tenantId": "fa26a201-66a4-42fa-a35a-7f3fc1589f13",
+        "projectRankings": [
+          {
+            "projectId": "376cb80c-6ee1-4662-9d19-7c6a616ff5d3",
+            "projectName": "Source project 0",
+            "projectSlug": "source-project-0",
+            "projectType": "APPLICATION",
+            "relevanceScore": 25,
+            "relevanceBand": "LOW",
+            "scoreBreakdown": {
+              "requirementCoverageScore": 25,
+              "architecturalDensityScore": 0,
+              "evidenceQualityScore": 0,
+              "projectCompletenessScore": 0,
+              "recencyScore": 0,
+              "totalScore": 25
+            },
+            "matchedRequirementIds": ["7d8bc78d-4556-4dc7-8fef-5648791fc714"],
+            "contributingSkills": ["react"],
+            "architecturalSignals": [],
+            "supportingEvidence": [
+              {
+                "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+                "resourceId": "00000000-0000-0000-0000-000000000000",
+                "resourceName": "Repository",
+                "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                "filePath": "project.technologies",
+                "commitSha": null,
+                "lineRange": null,
+                "excerpt": null,
+                "confidenceScore": 0.85
+              }
+            ],
+            "explanations": [
+              {
+                "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+                "skillSlug": "react",
+                "contribution": 10,
+                "relationshipType": "EXACT",
+                "evidenceRefs": [
+                  {
+                    "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+                    "resourceId": "00000000-0000-0000-0000-000000000000",
+                    "resourceName": "Repository",
+                    "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                    "filePath": "project.technologies",
+                    "commitSha": null,
+                    "lineRange": null,
+                    "excerpt": null,
+                    "confidenceScore": 0.85
+                  }
+                ],
+                "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+              }
+            ],
+            "explanation": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+            "confidence": 0.64,
+            "resourcesCount": 1,
+            "rank": 1,
+            "selectionStatus": "SELECTED",
+            "matchedTechnologies": ["react"],
+            "selectionReason": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+            "rejectionReason": null
+          },
+          {
+            "projectId": "5031f00a-cbf4-48a4-a9f3-6ae4bb73e6cd",
+            "projectName": "Source project 1",
+            "projectSlug": "source-project-1",
+            "projectType": "APPLICATION",
+            "relevanceScore": 25,
+            "relevanceBand": "LOW",
+            "scoreBreakdown": {
+              "requirementCoverageScore": 25,
+              "architecturalDensityScore": 0,
+              "evidenceQualityScore": 0,
+              "projectCompletenessScore": 0,
+              "recencyScore": 0,
+              "totalScore": 25
+            },
+            "matchedRequirementIds": ["7d8bc78d-4556-4dc7-8fef-5648791fc714"],
+            "contributingSkills": ["react"],
+            "architecturalSignals": [],
+            "supportingEvidence": [
+              {
+                "id": "4b62e806-49ed-4cba-958c-b06f34dc6e75",
+                "resourceId": "00000000-0000-0000-0000-000000000000",
+                "resourceName": "Repository",
+                "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                "filePath": "project.technologies",
+                "commitSha": null,
+                "lineRange": null,
+                "excerpt": null,
+                "confidenceScore": 0.85
+              }
+            ],
+            "explanations": [
+              {
+                "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+                "skillSlug": "react",
+                "contribution": 10,
+                "relationshipType": "EXACT",
+                "evidenceRefs": [
+                  {
+                    "id": "4b62e806-49ed-4cba-958c-b06f34dc6e75",
+                    "resourceId": "00000000-0000-0000-0000-000000000000",
+                    "resourceName": "Repository",
+                    "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                    "filePath": "project.technologies",
+                    "commitSha": null,
+                    "lineRange": null,
+                    "excerpt": null,
+                    "confidenceScore": 0.85
+                  }
+                ],
+                "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+              }
+            ],
+            "explanation": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 1'.",
+            "confidence": 0.64,
+            "resourcesCount": 1,
+            "rank": 2,
+            "selectionStatus": "SELECTED",
+            "matchedTechnologies": ["react"],
+            "selectionReason": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 1'.",
+            "rejectionReason": null
+          }
+        ],
+        "topProject": {
+          "projectId": "376cb80c-6ee1-4662-9d19-7c6a616ff5d3",
+          "projectName": "Source project 0",
+          "projectSlug": "source-project-0",
+          "projectType": "APPLICATION",
+          "relevanceScore": 25,
+          "relevanceBand": "LOW",
+          "scoreBreakdown": {
+            "requirementCoverageScore": 25,
+            "architecturalDensityScore": 0,
+            "evidenceQualityScore": 0,
+            "projectCompletenessScore": 0,
+            "recencyScore": 0,
+            "totalScore": 25
+          },
+          "matchedRequirementIds": ["7d8bc78d-4556-4dc7-8fef-5648791fc714"],
+          "contributingSkills": ["react"],
+          "architecturalSignals": [],
+          "supportingEvidence": [
+            {
+              "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+              "resourceId": "00000000-0000-0000-0000-000000000000",
+              "resourceName": "Repository",
+              "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+              "filePath": "project.technologies",
+              "commitSha": null,
+              "lineRange": null,
+              "excerpt": null,
+              "confidenceScore": 0.85
+            }
+          ],
+          "explanations": [
+            {
+              "requirementId": "7d8bc78d-4556-4dc7-8fef-5648791fc714",
+              "skillSlug": "react",
+              "contribution": 10,
+              "relationshipType": "EXACT",
+              "evidenceRefs": [
+                {
+                  "id": "f1108556-4373-4a1f-b055-2fe4cf3cabc3",
+                  "resourceId": "00000000-0000-0000-0000-000000000000",
+                  "resourceName": "Repository",
+                  "evidenceType": "CONFIG_SYNTAX_DECLARATION",
+                  "filePath": "project.technologies",
+                  "commitSha": null,
+                  "lineRange": null,
+                  "excerpt": null,
+                  "confidenceScore": 0.85
+                }
+              ],
+              "reason": "Project demonstrates 'React' via EXACT 'react' (+10 pts)"
+            }
+          ],
+          "explanation": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+          "confidence": 0.64,
+          "resourcesCount": 1,
+          "rank": 1,
+          "selectionStatus": "SELECTED",
+          "matchedTechnologies": ["react"],
+          "selectionReason": "LOW relevance (25/100): Covers 1 requirement(s) via react. Demonstrates 0 architectural dimension(s) in project 'Source project 0'.",
+          "rejectionReason": null
+        },
+        "summary": {
+          "totalProjectsEvaluated": 2,
+          "highRelevanceCount": 0,
+          "mediumRelevanceCount": 0,
+          "lowRelevanceCount": 2,
+          "minimalRelevanceCount": 0,
+          "averageProjectScore": 25
+        },
+        "analyzedAt": "2026-10-14T18:10:10.544Z"
+      },
+      "keywordCoverage": {
+        "overallCoveragePercent": 100,
+        "intendedCoveragePercent": 100,
+        "renderedCoveragePercent": 100,
+        "totalJobTerms": 2,
+        "requiredTerms": 2,
+        "preferredTerms": 0,
+        "exactMatches": 2,
+        "taxonomyMatches": 0,
+        "semanticMatches": 0,
+        "missingTerms": 0,
+        "criticalMissingTerms": 0,
+        "unrenderedTerms": [],
+        "termBreakdown": [
+          {
+            "term": "React",
+            "canonicalSlug": "react",
+            "canonicalName": "React",
+            "importance": "REQUIRED",
+            "matchType": "EXACT",
+            "satisfiesRequirement": true,
+            "polarity": "POSITIVE",
+            "candidateAuthorization": "AUTHORIZED",
+            "matchedResumeTerm": "React",
+            "placements": ["skills", "experience"],
+            "occurrences": 2,
+            "relationshipType": null,
+            "explanation": "Exact match for 'React' found in skills, experience.",
+            "intendedPresence": true,
+            "artifactPresence": true,
+            "isRendered": true
+          },
+          {
+            "term": "PostgreSQL",
+            "canonicalSlug": "postgresql",
+            "canonicalName": "PostgreSQL",
+            "importance": "REQUIRED",
+            "matchType": "EXACT",
+            "satisfiesRequirement": true,
+            "polarity": "POSITIVE",
+            "candidateAuthorization": "AUTHORIZED",
+            "matchedResumeTerm": "PostgreSQL",
+            "placements": ["skills", "experience"],
+            "occurrences": 2,
+            "relationshipType": null,
+            "explanation": "Exact match for 'PostgreSQL' found in skills, experience.",
+            "intendedPresence": true,
+            "artifactPresence": true,
+            "isRendered": true
+          }
+        ],
+        "keywordPlacements": [
+          {
+            "keyword": "React",
+            "canonicalSkill": "React",
+            "category": "FRAMEWORK",
+            "occurrences": 2,
+            "sections": ["skills", "experience"],
+            "contextualBreadthScore": 0.6666666666666666,
+            "isNaturalUsage": true,
+            "stuffingWarning": null
+          },
+          {
+            "keyword": "PostgreSQL",
+            "canonicalSkill": "PostgreSQL",
+            "category": "DATABASE",
+            "occurrences": 2,
+            "sections": ["skills", "experience"],
+            "contextualBreadthScore": 0.6666666666666666,
+            "isNaturalUsage": true,
+            "stuffingWarning": null
+          }
+        ],
+        "stuffingWarnings": [],
+        "confidence": 0.91,
+        "confidenceFactors": {
+          "pdfExtractionQuality": 0.75,
+          "requirementExtractionQuality": 1,
+          "taxonomyResolution": 1,
+          "evidenceCoverage": 1
+        },
+        "analyzedAt": "2026-10-14T18:10:10.557Z"
+      },
+      "keywords": [
+        {
+          "term": "React",
+          "category": "EXACT_CLAIMED",
+          "truthState": "CLAIMED",
+          "lexicalMatchType": "EXACT",
+          "satisfiesRequirement": false,
+          "explanation": "UNVERIFIED_CLAIM: Candidate self-claims React ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories."
+        },
+        {
+          "term": "PostgreSQL",
+          "category": "EXACT_CLAIMED",
+          "truthState": "CLAIMED",
+          "lexicalMatchType": "EXACT",
+          "satisfiesRequirement": false,
+          "explanation": "UNVERIFIED_CLAIM: Candidate self-claims PostgreSQL ([Unverified User Claim]), but no verified code or manifest evidence was discovered in connected repositories."
+        }
+      ],
+      "writingQuality": {
+        "status": "AVAILABLE",
+        "report": {
+          "writingQualityScore": 64,
+          "dimensions": {
+            "actionVerbStrength": 80,
+            "accomplishmentRatio": 25,
+            "technicalSpecificity": 50,
+            "resultCoverage": 25,
+            "semanticDiversity": 80,
+            "redundancy": 75,
+            "genericLanguage": 100,
+            "passiveVoice": 100,
+            "verbosity": 55,
+            "jobRelevance": 0,
+            "summaryQuality": 75,
+            "sectionCoherence": 100,
+            "descriptionOnlyRatio": 0,
+            "candidateContributionRatio": 75,
+            "narrativeCompleteness": 44,
+            "fragmentCount": 0,
+            "excessiveLengthCount": 0,
+            "sourceSupportedMetricUsage": 100,
+            "sourceTraceability": 100
+          },
+          "findings": [
+            {
+              "code": "INCOMPLETE_ORPHAN_BULLET",
+              "severity": "WARN",
+              "message": "Found 3 dangling bullet(s) lacking supporting technical mechanism or result/purpose"
+            },
+            {
+              "code": "SEMANTIC_REDUNDANCY",
+              "severity": "WARN",
+              "message": "Found 1 semantically overlapping bullet pairs"
+            }
+          ],
+          "strengths": ["Strong action verb usage across bullet openers"],
+          "recommendations": [],
+          "quantification": {
+            "totalBullets": 4,
+            "quantifiedBulletCount": 0,
+            "sourceSupportedMetricCount": 0,
+            "quantificationRate": 0
+          }
+        }
+      },
+      "parseability": {
+        "status": "NOT_VERIFIED",
+        "reason": "No compiled artifact was inspected."
+      }
+    }
+  }
+}

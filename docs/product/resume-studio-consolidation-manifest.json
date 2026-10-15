@@ -1,0 +1,869 @@
+{
+  "task": "STUDIO-MAIN-001",
+  "baseline": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+  "mainLedgerCheckpoint": "4196bf7",
+  "backendCheckpoint": "47c1cf9",
+  "frontendCheckpoint": "6318484",
+  "backup": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\studio-consolidation-1792013233",
+  "files": {
+    "main": {
+      "root": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
+      "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+      "files": [
+        {
+          "path": ".claude/settings.local.json",
+          "size": 61,
+          "sha256": "a3d9f2f4bceac7fb7a19f1af50662624309c668c91fa3832274a2989e46d7ef3"
+        },
+        {
+          "path": "project.md",
+          "size": 2108074,
+          "sha256": "cf82311d384aa0bfde2ac916525f24d3a9e94f8bb996bfe40398413e0148678f"
+        }
+      ]
+    },
+    "backend": {
+      "root": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-backend",
+      "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+      "files": [
+        {
+          "path": "docs/api/resume-studio-documents-v1.md",
+          "size": 5923,
+          "sha256": "ef880d4a82c4a4f574d1a226a879f4289693deae4a136fe58b0494de8086a30e"
+        },
+        {
+          "path": "docs/api/resume-studio-documents-v1.schema.json",
+          "size": 96525,
+          "sha256": "ca9ced5a9740ce7d75301f4b4377987499b78e6d34d51d651c42c465efce94e1"
+        },
+        {
+          "path": "docs/api/resume-studio-drafts-v1.md",
+          "size": 8009,
+          "sha256": "af1ee5271147e0ca15a97fb53f009db63999e2cd180cee64fed5c2c60131e30e"
+        },
+        {
+          "path": "docs/api/resume-studio-drafts-v1.schema.json",
+          "size": 57884,
+          "sha256": "1c9d48ad9ba298b57a5e26029709ac9294a1d2917726d894998c51c8fc9106a5"
+        },
+        {
+          "path": "docs/api/resume-studio-proposals-v1.md",
+          "size": 6920,
+          "sha256": "02552046007f1ed1602950a0ca0736de7466912f71d9a41f86a94d1f79ca1e0e"
+        },
+        {
+          "path": "docs/api/resume-studio-proposals-v1.schema.json",
+          "size": 74040,
+          "sha256": "0847551b204e6b5075b1f2327567da09f66400e239ff874bc5dbabb69585c9c6"
+        },
+        {
+          "path": "docs/api/resume-studio-v1.md",
+          "size": 10325,
+          "sha256": "821f09f6bfe91a74b25a8cb196211fd196ae65575f4cc9ee8e1e09b3a36362f0"
+        },
+        {
+          "path": "docs/api/resume-studio-v1.schema.json",
+          "size": 71718,
+          "sha256": "1d0de135b7d8a5a05316fff9f0685280ace9ac5b362c4bd89a97c680b59b4bc5"
+        },
+        {
+          "path": "docs/product/resume-studio-integration-handoff.md",
+          "size": 16584,
+          "sha256": "c30800600c2f46deff4221e72fe05f93175f58bc200bb6ba4914ec54b7397f81"
+        },
+        {
+          "path": "docs/product/resume-studio-local-visual-testing.md",
+          "size": 6799,
+          "sha256": "8765267228d59adcc4220c7d2938cc39aaf3d3b36eef5b0bf14a142f9791c0ea"
+        },
+        {
+          "path": "drizzle.config.js",
+          "size": 327,
+          "sha256": "96d86ecd01c196e1b9ad0989b3ffcf5aca49f5fccca78605e910c55629d8b4f0"
+        },
+        {
+          "path": "drizzle/0022_resume_studio_drafts.sql",
+          "size": 4199,
+          "sha256": "18d3db3404e2ec382b1cd2a141bf83de9c434502b74ee68aaec86eb7aada5b9b"
+        },
+        {
+          "path": "drizzle/0023_resume_studio_proposals.sql",
+          "size": 2888,
+          "sha256": "91d56cddffe34d4f2900c1cdc876a2a064f7850309ceabd439f49b4b055dbc3b"
+        },
+        {
+          "path": "drizzle/0024_resume_studio_documents.sql",
+          "size": 1521,
+          "sha256": "5fa8dce685fc03d86667a27eb002c445e2252cf5c33c341fe40479ed95279c27"
+        },
+        {
+          "path": "drizzle/meta/_journal.json",
+          "size": 3861,
+          "sha256": "414b91b36998ed9a65caa6ba32c1e63c134ac17456860f2204791f6279610ee7"
+        },
+        {
+          "path": "output/resume-studio/changed-files.json",
+          "size": 6932,
+          "sha256": "8cba8f2c915adfe027ec8646e4ae7aad842be7afd43e98c4f0b1b163b76a0a88"
+        },
+        {
+          "path": "output/resume-studio/dense-spacing-diagnostic.pdf",
+          "size": 79039,
+          "sha256": "fa7043cb89afe0090a8ffaa45ddd0f2d12c0ba1817a670937c93d92f27a99514"
+        },
+        {
+          "path": "output/resume-studio/dense-spacing-diagnostic.png",
+          "size": 208120,
+          "sha256": "f5c42727851888a207c9856da60123c30cb169b01684ee261f742921e43fdd6b"
+        },
+        {
+          "path": "output/resume-studio/dense-spacing-diagnostic.verification.json",
+          "size": 384,
+          "sha256": "a9877cd4d34778e0d243d8e2270d283294ec440077f4d8a921f5c9fb8fbce96e"
+        },
+        {
+          "path": "output/resume-studio/experienced.docx",
+          "size": 3090,
+          "sha256": "fcfc0df0ff2f7a3976c534c4e45deb43d029f06dfcfdfae2fd3690e333a8c0fc"
+        },
+        {
+          "path": "output/resume-studio/experienced.pdf",
+          "size": 76113,
+          "sha256": "c099e19d1768f610280bfe4c0985a133fddc804ba5d71c7a69dda895724bd56a"
+        },
+        {
+          "path": "output/resume-studio/experienced.png",
+          "size": 181495,
+          "sha256": "220797995fc637fe81d61fee66410c7fa3af4674fb4d8ac4ad0fecf4f63afe4c"
+        },
+        {
+          "path": "output/resume-studio/experienced.verification.json",
+          "size": 384,
+          "sha256": "c08ba024bf8aff6054384a1cb476ca03f34cb7a9a5e6e98236770f3e63acc195"
+        },
+        {
+          "path": "output/resume-studio/integration-manifest.json",
+          "size": 34456,
+          "sha256": "00e0848c2da921997fb6cb02db50b04072141f2359daa94b7cbcec7a89bd5035"
+        },
+        {
+          "path": "output/resume-studio/junior.docx",
+          "size": 2687,
+          "sha256": "09aa339f1d5b38c528d1108d244ab5bed0ad2aae940fd245b71d9e35f2aecd1e"
+        },
+        {
+          "path": "output/resume-studio/junior.pdf",
+          "size": 54355,
+          "sha256": "5fdcd7285aa609619fbb7e71b911c3c7738f370576bce184cde9042e65ad69a1"
+        },
+        {
+          "path": "output/resume-studio/junior.png",
+          "size": 67501,
+          "sha256": "e9ac3d46f86b8b50f287053824029a7d74e942b73ca14295ed6310af5158b141"
+        },
+        {
+          "path": "output/resume-studio/junior.verification.json",
+          "size": 384,
+          "sha256": "c08ba024bf8aff6054384a1cb476ca03f34cb7a9a5e6e98236770f3e63acc195"
+        },
+        {
+          "path": "output/resume-studio/local-visual-server.json",
+          "size": 788,
+          "sha256": "6789773f7e385fbd56b15d85318e678f3af3f0b57461734ac06f9d9882789e54"
+        },
+        {
+          "path": "output/resume-studio/mid-level.docx",
+          "size": 2926,
+          "sha256": "caf6622ae74b0be7147c8c094afdb601efb406b00c6a386c7a3951dbeab5f00a"
+        },
+        {
+          "path": "output/resume-studio/mid-level.pdf",
+          "size": 68915,
+          "sha256": "023b4ba7ef22c6fe848142d65131fe978e7ff4d568c8b8e695a599a6fce3030d"
+        },
+        {
+          "path": "output/resume-studio/mid-level.png",
+          "size": 109782,
+          "sha256": "f07bca2feb41f1c2271914e463118e9eef03ed1e8b3a73ecc3ff158224a2f31e"
+        },
+        {
+          "path": "output/resume-studio/mid-level.verification.json",
+          "size": 384,
+          "sha256": "c08ba024bf8aff6054384a1cb476ca03f34cb7a9a5e6e98236770f3e63acc195"
+        },
+        {
+          "path": "output/resume-studio/screenshots/desktop-viewport.png",
+          "size": 188463,
+          "sha256": "09226c2328f43c479fe97694cc9e6de4711f305758b8729107e0251c92aa3891"
+        },
+        {
+          "path": "output/resume-studio/screenshots/desktop.png",
+          "size": 371637,
+          "sha256": "b05bee9ae7bd05943e17f9eaf6419f2525bdec7b957a79f62cf36600f8da6e92"
+        },
+        {
+          "path": "output/resume-studio/screenshots/experienced.png",
+          "size": 657590,
+          "sha256": "6ee45330baea4b7215988e5de3d34769f58095931510991d7f29bd6608f09938"
+        },
+        {
+          "path": "output/resume-studio/screenshots/integrated.docx",
+          "size": 2962,
+          "sha256": "77c12182b26a37a14181c2c31a5726a49ec56108b333db87816d82d7d3410064"
+        },
+        {
+          "path": "output/resume-studio/screenshots/integrated.pdf",
+          "size": 68987,
+          "sha256": "b27df58277c4299ebf8c15f4e259686fbe0c783659f397bd425cdb4e4edb7a30"
+        },
+        {
+          "path": "output/resume-studio/screenshots/junior.png",
+          "size": 298187,
+          "sha256": "d10169b03518fce45aec4ff42e7279f6f85df7ca8262e817b649fb985ef430b6"
+        },
+        {
+          "path": "output/resume-studio/screenshots/laptop-viewport.png",
+          "size": 167689,
+          "sha256": "76c955ea8fd97ebde034b87e2b383987f977c3649668f62bf2f4c842b4772ef3"
+        },
+        {
+          "path": "output/resume-studio/screenshots/laptop.png",
+          "size": 359175,
+          "sha256": "4aa831a54335ed8fb3aa9131067e227210b72b614cfc0e8105cda932312acb8a"
+        },
+        {
+          "path": "output/resume-studio/screenshots/mobile-viewport.png",
+          "size": 54523,
+          "sha256": "bba8c214ff8d0736e0ea1fb8300aadb7bc85fe746d4f43538c60d7101178b667"
+        },
+        {
+          "path": "output/resume-studio/screenshots/mobile.png",
+          "size": 280780,
+          "sha256": "807bdc530844ccd9d1b7cc3aaabe7d5cb9fae83b256726d539fe6eef6cb473f1"
+        },
+        {
+          "path": "output/resume-studio/screenshots/tablet-viewport.png",
+          "size": 75787,
+          "sha256": "cd2f5a38847cecf56a81606db3a28d59be75ed438810a0db3100113e2f18b0dc"
+        },
+        {
+          "path": "output/resume-studio/screenshots/tablet.png",
+          "size": 365609,
+          "sha256": "6feed9a98b48ae834b65f7a7c0d31976db5290fc0d42d026dc239f392cc17418"
+        },
+        {
+          "path": "output/resume-studio/test-results.json",
+          "size": 2308,
+          "sha256": "d103178392d0d0c29733e54d7fea90f82d90daab0b2a29296be1218535f94553"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792008699890/login-diagnostic.png",
+          "size": 177302,
+          "sha256": "4fe5a6aa704bbad141e684e4b0f1a8b816718b0d517276794801be051b75cf81"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/desktop-viewport.png",
+          "size": 190144,
+          "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/desktop.png",
+          "size": 413211,
+          "sha256": "0cbdf4b01e7a3d4dc59b7e72b28413286f025743b5ba581d7378f5b3807effb9"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/diagnostics.png",
+          "size": 264159,
+          "sha256": "3765683d616751c972f217b54c88c634558522f7e647a5840e52a561fe87b99e"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/evidence.png",
+          "size": 206730,
+          "sha256": "28e62976d26196a965b40d3c1181eb6734dc48f98691da8efeae8ee5baceaafb"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/laptop-viewport.png",
+          "size": 169357,
+          "sha256": "bf471c75909823280ee1b6123a3bce262a55e9e2f7bd5d81b9d61db146118469"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/laptop.png",
+          "size": 400492,
+          "sha256": "0de20d7ab1aed6cb336429c1881b92188b4183612ee341620a510ae2ddb2e42f"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/mobile-viewport.png",
+          "size": 54523,
+          "sha256": "bba8c214ff8d0736e0ea1fb8300aadb7bc85fe746d4f43538c60d7101178b667"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/mobile.png",
+          "size": 321787,
+          "sha256": "6f6425f4b8cae6d4702b73aac3bc5558349b0fea091c434205cf920bdbfddf76"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/proposal.png",
+          "size": 172664,
+          "sha256": "aa326be045bf8ecb8418e890577801999ac38399b100f7b9ece2172bf456e435"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/tablet-viewport.png",
+          "size": 75787,
+          "sha256": "cd2f5a38847cecf56a81606db3a28d59be75ed438810a0db3100113e2f18b0dc"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/tablet.png",
+          "size": 402937,
+          "sha256": "b73eab80371414925f734fcdea9eaa445902a9e130781232bf97a72ac9a88f6a"
+        },
+        {
+          "path": "output/resume-studio/visual-local-1792009003707/verification.json",
+          "size": 1656,
+          "sha256": "c0bff8088cef4deb7d6f9d9673631f4632067a0df9bf882e54b8fe8bf26784d6"
+        },
+        {
+          "path": "project.md",
+          "size": 2156188,
+          "sha256": "46b9d7461d1f4b53e6214f58fe3021668bab98eae83e9714e2caae165339d56a"
+        },
+        {
+          "path": "public/css/app.css",
+          "size": 33217,
+          "sha256": "bc5071e9d25e30ba91a3c6a2736807934767acb450138d4f44ab8bce128d36da"
+        },
+        {
+          "path": "public/css/resume-studio.css",
+          "size": 31050,
+          "sha256": "d75a2af8852d0391126cfcedca22b31e7b2e6b3217b9f996d3b30622319628d9"
+        },
+        {
+          "path": "public/js/resume-studio-documents.client.js",
+          "size": 11725,
+          "sha256": "f4b4f0443a585c30486e6c86bf059278939588195b1145fd726fb5cecb73c897"
+        },
+        {
+          "path": "public/js/resume-studio-state.js",
+          "size": 2503,
+          "sha256": "f166a810700be95f6384a324ab178e14118f0a75bc94ef93e25f7895f3d7fb7e"
+        },
+        {
+          "path": "public/js/resume-studio.client.js",
+          "size": 83229,
+          "sha256": "06b8684ae22679affc1d7803f5807f8b349da9f3111b8f968c81e7f296e4dcf6"
+        },
+        {
+          "path": "scripts/export-resume-studio-document-contracts.mjs",
+          "size": 1955,
+          "sha256": "59711003fa14c007cf83ccb48bb2094b3c3ca81e9b2bdf3ff58bd997861dcd13"
+        },
+        {
+          "path": "scripts/export-resume-studio-draft-contracts.mjs",
+          "size": 1480,
+          "sha256": "d09b04aeea3bc2c253e78e26285034d5351a302cf4fe200942468c3d9f904aec"
+        },
+        {
+          "path": "scripts/export-resume-studio-proposal-contracts.mjs",
+          "size": 955,
+          "sha256": "21420f40ebf13155941a9ef850e05ebbb774cb39de31ba8f2e3340b72e0720c7"
+        },
+        {
+          "path": "scripts/inspect-studio-pdf.py",
+          "size": 5248,
+          "sha256": "a471ae510758fd178fa3639d6f4c4f81749c6bf31d3cbe9127efd75f01e6493b"
+        },
+        {
+          "path": "scripts/polish-studio-selection.mjs",
+          "size": 2011,
+          "sha256": "ba352faf62a5509273bbb9a9efdb5340baade8daeb37ea12dd14606c6f853ac9"
+        },
+        {
+          "path": "scripts/render-studio-docx.ps1",
+          "size": 2826,
+          "sha256": "451e0e9200ec98d360a3a15ec4528b9248bf1d0f338a69152ea4d6718238cbdd"
+        },
+        {
+          "path": "scripts/requirements-studio-pdf.txt",
+          "size": 16,
+          "sha256": "3aa29ada4775ab257d357dba7471c91ac986cdfe93b5b3a5a720ca4a98c8598a"
+        },
+        {
+          "path": "scripts/serve-studio-visual.mjs",
+          "size": 3678,
+          "sha256": "7f55ce20ba38e2726fc16a843c638dfd418cfbbceb14d77f48f01394fbc6998b"
+        },
+        {
+          "path": "scripts/start-studio-visual.ps1",
+          "size": 2301,
+          "sha256": "718295b1602f9393f88d8641c57a49a01b1ad50945411271a20a92ac1451f2a2"
+        },
+        {
+          "path": "scripts/verify-studio-document-migration.mjs",
+          "size": 1471,
+          "sha256": "427cbbf5f2dac2a73f00f3e1ff24ec5310f49e9e9ff9eabb596b66457cb63be2"
+        },
+        {
+          "path": "scripts/verify-studio-visual.mjs",
+          "size": 8080,
+          "sha256": "36e33e29b76005ee15d239410171981df744301f0c0bc076270871ce003d9c9f"
+        },
+        {
+          "path": "src/app.js",
+          "size": 13670,
+          "sha256": "2f63f0b4756be0e3c4e593dfdb28679c1f5ebcca63e552e7c5568e4a2e9757b0"
+        },
+        {
+          "path": "src/db/repositories/resume-studio-proposal.repository.js",
+          "size": 2094,
+          "sha256": "b8183cbb8d5516c7fc077577abb3ed2bd3512ca401d3827e3d1d3e37f5942171"
+        },
+        {
+          "path": "src/db/repositories/resume-studio.repository.js",
+          "size": 2525,
+          "sha256": "5ea372d401f14d0c12e484506d637c3fb60e919b7f936758bbf93ba554a1f7c8"
+        },
+        {
+          "path": "src/db/resume-studio.schema.js",
+          "size": 3622,
+          "sha256": "98c4f0741f89c746f5d70d6fa922d60efc49600657f1eee6211ea116cc206206"
+        },
+        {
+          "path": "src/domain/career/resume-studio-document.schemas.js",
+          "size": 3711,
+          "sha256": "4c69d2c54062c59c37592ce3f8ef095794387d192b265234ad65dc3babc09396"
+        },
+        {
+          "path": "src/domain/career/resume-studio-draft.schemas.js",
+          "size": 4765,
+          "sha256": "3c6a10eee2125d6192771c46d01837111ca0c30402fc954dd2dba04468e771af"
+        },
+        {
+          "path": "src/domain/career/resume-studio-proposal.schemas.js",
+          "size": 2726,
+          "sha256": "6caca241cd881202449fbf663a76c9e44136d7311c32dc752bce50362c40f75a"
+        },
+        {
+          "path": "src/domain/career/resume-studio.schemas.js",
+          "size": 3013,
+          "sha256": "bbf56211ceb8e136612077cce3fcf5775eda5644a56dc70c6e0149df655c673f"
+        },
+        {
+          "path": "src/routes/resume-studio.routes.js",
+          "size": 8368,
+          "sha256": "2a09a02b4479fc874a05d6491a65306c7cf19609dcc781d3527d65f9466d8a77"
+        },
+        {
+          "path": "src/routes/web.routes.js",
+          "size": 212838,
+          "sha256": "1cd0d95db85a0a3515d9dec4b11fc2fd493be85a5d4459af400dad7286d3a89d"
+        },
+        {
+          "path": "src/security/oauth-state.js",
+          "size": 7243,
+          "sha256": "f0534ea8674c3bfffe3d2cd2d9a552bd0accb0af0ab7686b681b029c7b15e582"
+        },
+        {
+          "path": "src/services/native-docx-export.service.js",
+          "size": 4022,
+          "sha256": "19c824b8b99909991bbbeb6386c538b493386c25d6073e4b7909c60cf7816c52"
+        },
+        {
+          "path": "src/services/resume-studio-analysis.service.js",
+          "size": 9790,
+          "sha256": "f291c1289e07128ae3cb6baf6e5f8fb36ac7e0ff84b01361b812c3a1c86216d6"
+        },
+        {
+          "path": "src/services/resume-studio-diagnostics.service.js",
+          "size": 2062,
+          "sha256": "1197101e1c47c2855b5ddb5596c5798a1d657c3509e6bc3443b8660766e5d7a7"
+        },
+        {
+          "path": "src/services/resume-studio-document-compiler.js",
+          "size": 5819,
+          "sha256": "9a33ed8cac47511f46bd87db3a88323bdecd1b4642b050b5c43597efc88607e2"
+        },
+        {
+          "path": "src/services/resume-studio-document-content.js",
+          "size": 7303,
+          "sha256": "38b6893758e150a04ab7c7e9f4030c386cd30696aab63f7c22de7553baf290dc"
+        },
+        {
+          "path": "src/services/resume-studio-document.service.js",
+          "size": 13670,
+          "sha256": "a9667879c66ff559f799a361e3678dbdc2ba409754a4dc7e2e79ac7b24c0f691"
+        },
+        {
+          "path": "src/services/resume-studio-draft-content.js",
+          "size": 8395,
+          "sha256": "71c18364421b6e64c8c1173c8714c15e8458119aea2256664d4d1d4591a70cbe"
+        },
+        {
+          "path": "src/services/resume-studio-draft.service.js",
+          "size": 10280,
+          "sha256": "1d8969db6d39f409d829fb9f9bd74c13bd23a4aed38663c81fb77e73c3a67701"
+        },
+        {
+          "path": "src/services/resume-studio-history.service.js",
+          "size": 4729,
+          "sha256": "e1f4a9c5d58fc1c95e09afa8997d2c38242b02948f7052b3815225538dc41636"
+        },
+        {
+          "path": "src/services/resume-studio-proposal-grounding.js",
+          "size": 6997,
+          "sha256": "7ec21ffa20d2d01f218309172e525035d87b7cf09b3780797dc279658945799d"
+        },
+        {
+          "path": "src/services/resume-studio-proposal.service.js",
+          "size": 12707,
+          "sha256": "863a7c1266ad42e64e153d7f10901496ae94b3c90a991aa3fe3a82b0baf8e783"
+        },
+        {
+          "path": "src/views/layout.js",
+          "size": 16676,
+          "sha256": "7cbc64d1191a3ac372467c6627ebfb6e6901f2925d52a9eb586dc2740fe60752"
+        },
+        {
+          "path": "src/views/resume-studio.page.js",
+          "size": 20735,
+          "sha256": "429e099538c775bff0dba0e79f0e9591ca8ad6754015f4d2f62f7de131148e3b"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-analysis-response.json",
+          "size": 35684,
+          "sha256": "920d8acc442dafae2536ff3580d2f896d37d19f955f19d47fe1ee4d1cfcb7023"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-approval.json",
+          "size": 436,
+          "sha256": "579da9fbbbf97e27a6a2b7812270b3253bd704285090e61def2df6c010a1dfa6"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-diagnostics.json",
+          "size": 29685,
+          "sha256": "9f42e17db67062a40652b2af4997208e242426fca2b6804a7081fb0e5f511d94"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-document-approval-request.json",
+          "size": 104,
+          "sha256": "1462c4932e52b213742261de67ce435267c67b849e492c2b0c09d7797707ebbe"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-document-export-request.json",
+          "size": 103,
+          "sha256": "aa72cd015824854bf50ed5c4574bd801afc55f8991a5daed6a2a0cc785582b60"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-document-preview-request.json",
+          "size": 28,
+          "sha256": "b108db5108501c38a86c3037203082b6759036e186ceed16ba6827e474dd066b"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-document-restore-request.json",
+          "size": 52,
+          "sha256": "d67dfa96809be6b365990f330f2e13a9f7159efe70aa0ee5bfd96f7a1947052c"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-document.json",
+          "size": 2570,
+          "sha256": "4a75d21a4570253fcafb775c1328b392af642ceba44241d4beaf90623fe6261f"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-conflict.json",
+          "size": 543,
+          "sha256": "dc0a977b8ba8369d0e7f68eb7c097f09678cb701e6410226bce602c596044766"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-create-request.json",
+          "size": 424,
+          "sha256": "6d7305867fc70385001254bebb510a65bf401a89ad898bb7750ab98ab87b1ef1"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-created.json",
+          "size": 35925,
+          "sha256": "0050b5f97972c9aeed5e13179ee27b5137e29c77d72a104c97efe6e02b4731b8"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-update-request.json",
+          "size": 571,
+          "sha256": "b1f82b3bb3c0898ab679b1f4930cc178985fc0617cec9fc095d710dc80fd66de"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-updated.json",
+          "size": 35585,
+          "sha256": "9b977a034f765feb169430c1e30e92332f29d6e95d3ea3f49b93d4d84f2052d1"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-history.json",
+          "size": 534,
+          "sha256": "adfcdc420ed272c6f27da5201705e7473d8708a51abe118a6e44355396709210"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-master.js",
+          "size": 2418,
+          "sha256": "4066caf5af3ed23dfde5ad4a22901789f35d1f56b287d8a195b5a56c1b0138fd"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-personas.js",
+          "size": 1438,
+          "sha256": "5b9648d42ee0da7eb20435b43dbc47b42feeeac4389c4e09cd74c465eaf8ce7b"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-accepted.json",
+          "size": 39933,
+          "sha256": "faa533a7ca2851207de835f38ecfcf53b3863afd91075f9cec44edcb34aeb9e4"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-created.json",
+          "size": 1785,
+          "sha256": "5fe3fdf758f90ebad0a77d9bf95bc27d78186798ce12326a7cd7498703fcf842"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-decision-request.json",
+          "size": 52,
+          "sha256": "4efc8702cbba43959c921008d7b10d68b915c3db6245d525052979f1882201a6"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-generate-request.json",
+          "size": 80,
+          "sha256": "c653c5890c25bf8b68d2be7924aa16bce80dc71f3a3c73d449dc71d685f6c80f"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-list.json",
+          "size": 2080,
+          "sha256": "14eff792b20cef6f561e5963cf6a1bbdec179db2cb6ff2c71ed57b657268fa2e"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-rejected.json",
+          "size": 39955,
+          "sha256": "b6566fe77a1c427c1f6eb9edfae99b94193f2048a434466cdb4d43d7a8488e0e"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-stale.json",
+          "size": 502,
+          "sha256": "70c399e312b3a89f2aa64a3c9d7e5ec99171b99d21aeb71dbb8a5163885a509e"
+        },
+        {
+          "path": "tests/helpers/resume-studio-harness.js",
+          "size": 6465,
+          "sha256": "1f4cf1ef42f681ee2c80960744600405de6f9d346944825ca6daa4fe37f040ec"
+        },
+        {
+          "path": "tests/integration/resume-studio-analysis.test.js",
+          "size": 13603,
+          "sha256": "4ef897cfbe64baa36e0cb4cc9cb96270498266b66cf0f5cb1c45c60599963229"
+        },
+        {
+          "path": "tests/integration/resume-studio-documents.test.js",
+          "size": 14067,
+          "sha256": "d3a5b65479d97481041cbd4e498884477918a20159f49535d18b88ec2e664b2a"
+        },
+        {
+          "path": "tests/integration/resume-studio-drafts.test.js",
+          "size": 31400,
+          "sha256": "8b1bd8c453d8131067a9ccdd8cd1882ac9b62346f6d55d5e834517270a7d1fc1"
+        },
+        {
+          "path": "tests/integration/resume-studio-proposals.test.js",
+          "size": 32320,
+          "sha256": "95fd2aa61e8b96232d3d68daea53d619e9fb68c26caf0354ab40b858447341ce"
+        },
+        {
+          "path": "tests/integration/resume-studio-real-browser.test.js",
+          "size": 21268,
+          "sha256": "b589fb4dfacee358e4b5152a976f4372ffe20e683ba3d75e101eb30d3ccc956c"
+        },
+        {
+          "path": "tests/integration/verify-resume-studio-browser.mjs",
+          "size": 27521,
+          "sha256": "be0ec6e91aeb861db2be6a5b05e8c8c433751f812ea5ea5cdf0b53505733d706"
+        },
+        {
+          "path": "tests/product/verify-resume-studio-documents.mjs",
+          "size": 3468,
+          "sha256": "cec72a47c329904d1cbf0e8837291d37249e7a0e778aa354f6f557a513c0e477"
+        },
+        {
+          "path": "tests/unit/resume-studio-analysis.test.js",
+          "size": 4829,
+          "sha256": "e18a14341711df093efa2c9c848fe16f1a0a207b035c248ce1efd32ff167390d"
+        },
+        {
+          "path": "tests/unit/resume-studio-documents.test.js",
+          "size": 3641,
+          "sha256": "c962f99227544caccd4a95cfd34175a1ea6ec10cd4edf8f0006cb948128088f2"
+        },
+        {
+          "path": "tests/unit/resume-studio-drafts.test.js",
+          "size": 10829,
+          "sha256": "1c6e31c0e9d1a39192798d91e6adce039203a29297e0cdcc7c2f79fd01d452fa"
+        },
+        {
+          "path": "tests/unit/resume-studio-frontend.test.js",
+          "size": 13944,
+          "sha256": "c08d0485a73bb3350fff966d0bef21bbd64405f15444e321e0a5fc4a8cc2621f"
+        },
+        {
+          "path": "tests/unit/resume-studio-navigation.test.js",
+          "size": 787,
+          "sha256": "48901fb477e3b98d681f38f4767afc9016be70c6a25883222e97df4f3ab59b57"
+        },
+        {
+          "path": "tests/unit/resume-studio-proposals.test.js",
+          "size": 8136,
+          "sha256": "7ab32a06be22df50a43987ec9c6d56e20840ebfce2deabd603596c28efa22358"
+        },
+        {
+          "path": "tests/unit/resume-studio-state.test.js",
+          "size": 3547,
+          "sha256": "3798553b30bcd76b66b898a14691acef0e8aa0420a35af0246ee462b14480339"
+        }
+      ]
+    },
+    "frontend": {
+      "root": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-frontend",
+      "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+      "files": [
+        {
+          "path": "docs/api/resume-studio-drafts-v1.md",
+          "size": 7628,
+          "sha256": "a31333fcc8388b3cc9fa01d12b61633da4e52184cae7da8fd4d4540beae77640"
+        },
+        {
+          "path": "docs/api/resume-studio-drafts-v1.schema.json",
+          "size": 57884,
+          "sha256": "1c9d48ad9ba298b57a5e26029709ac9294a1d2917726d894998c51c8fc9106a5"
+        },
+        {
+          "path": "docs/api/resume-studio-proposals-v1.md",
+          "size": 6920,
+          "sha256": "02552046007f1ed1602950a0ca0736de7466912f71d9a41f86a94d1f79ca1e0e"
+        },
+        {
+          "path": "docs/api/resume-studio-proposals-v1.schema.json",
+          "size": 74040,
+          "sha256": "0847551b204e6b5075b1f2327567da09f66400e239ff874bc5dbabb69585c9c6"
+        },
+        {
+          "path": "docs/api/resume-studio-v1.md",
+          "size": 11240,
+          "sha256": "1bfadd63ef5779e131f482671180cafd4a1798b2bc545e70e06c054e55ac35e4"
+        },
+        {
+          "path": "docs/api/resume-studio-v1.schema.json",
+          "size": 71718,
+          "sha256": "1d0de135b7d8a5a05316fff9f0685280ace9ac5b362c4bd89a97c680b59b4bc5"
+        },
+        {
+          "path": "project.md",
+          "size": 2114171,
+          "sha256": "69e0e0bd38ba9624ffb1e7f170e92d105fa4a4dad08507571512c079af7afb80"
+        },
+        {
+          "path": "public/css/resume-studio.css",
+          "size": 29161,
+          "sha256": "24899e8cb6ab0a46bb8013210395cd9e875edc65649bed54ee81668bc454150e"
+        },
+        {
+          "path": "public/js/resume-studio.client.js",
+          "size": 79964,
+          "sha256": "f128e2ce79cd37d84636ceca54ad157875b89c87fb55de1010ec16b846008090"
+        },
+        {
+          "path": "src/routes/web.routes.js",
+          "size": 212830,
+          "sha256": "c80f993df0f2d1dd5a2fbf392295b27413aa748c0726ea02af2c510aa57655a9"
+        },
+        {
+          "path": "src/views/layout.js",
+          "size": 16492,
+          "sha256": "341e73dfd9531319c9b906b15c105f2c3f8b28de7bf819b11442b7bada6a2e86"
+        },
+        {
+          "path": "src/views/resume-studio.page.js",
+          "size": 30814,
+          "sha256": "f3e22925481e1127cdc191368b208cc2f6c1649cb839a6a4b7e24882df22c8a6"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-analysis-response.json",
+          "size": 35684,
+          "sha256": "920d8acc442dafae2536ff3580d2f896d37d19f955f19d47fe1ee4d1cfcb7023"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-conflict.json",
+          "size": 543,
+          "sha256": "dc0a977b8ba8369d0e7f68eb7c097f09678cb701e6410226bce602c596044766"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-create-request.json",
+          "size": 424,
+          "sha256": "6d7305867fc70385001254bebb510a65bf401a89ad898bb7750ab98ab87b1ef1"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-created.json",
+          "size": 35925,
+          "sha256": "0050b5f97972c9aeed5e13179ee27b5137e29c77d72a104c97efe6e02b4731b8"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-update-request.json",
+          "size": 571,
+          "sha256": "b1f82b3bb3c0898ab679b1f4930cc178985fc0617cec9fc095d710dc80fd66de"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-draft-updated.json",
+          "size": 35585,
+          "sha256": "9b977a034f765feb169430c1e30e92332f29d6e95d3ea3f49b93d4d84f2052d1"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-accepted.json",
+          "size": 39933,
+          "sha256": "faa533a7ca2851207de835f38ecfcf53b3863afd91075f9cec44edcb34aeb9e4"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-created.json",
+          "size": 1785,
+          "sha256": "5fe3fdf758f90ebad0a77d9bf95bc27d78186798ce12326a7cd7498703fcf842"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-decision-request.json",
+          "size": 52,
+          "sha256": "4efc8702cbba43959c921008d7b10d68b915c3db6245d525052979f1882201a6"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-generate-request.json",
+          "size": 80,
+          "sha256": "c653c5890c25bf8b68d2be7924aa16bce80dc71f3a3c73d449dc71d685f6c80f"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-rejected.json",
+          "size": 39955,
+          "sha256": "b6566fe77a1c427c1f6eb9edfae99b94193f2048a434466cdb4d43d7a8488e0e"
+        },
+        {
+          "path": "tests/fixtures/resume-studio-proposal-stale.json",
+          "size": 502,
+          "sha256": "70c399e312b3a89f2aa64a3c9d7e5ec99171b99d21aeb71dbb8a5163885a509e"
+        },
+        {
+          "path": "tests/integration/verify-resume-studio-browser.mjs",
+          "size": 27178,
+          "sha256": "dfeaaec9ca9af9a3cf7d62d65589fd436a064b4fe0953ab6c6ad5f1f1f2576eb"
+        },
+        {
+          "path": "tests/unit/resume-studio-frontend.test.js",
+          "size": 13614,
+          "sha256": "54ce4b075dc6ced72b57d0f97a0998b0642b2547fb1029d6e16ca3417b2d1f9b"
+        }
+      ]
+    }
+  },
+  "frontendDecision": "Integrated backend is authoritative; all 26 original frontend files exist there; original frontend commit retained without replaying obsolete UI.",
+  "ledgerDecision": "Main ledger historical body is contained verbatim in integrated backend; Git merged without conflict.",
+  "excluded": [".claude/settings.local.json"],
+  "verification": {
+    "nonBrowser": 486,
+    "realBrowser": 16,
+    "pass": 502,
+    "fail": 0,
+    "method": "Nonoverlapping results; full configured run plus final browser rerun; no prior results recounted.",
+    "logs": ["studio-consolidation-final.log", "studio-consolidation-browser.log"]
+  }
+}
