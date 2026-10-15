@@ -935,7 +935,8 @@ export function buildStructuredResumeDocument({
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: canonicalJob?.id || null,
-    targetRoleTitle: tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
+    targetRoleTitle:
+      jobPosting?.title || tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
     targetCompany: canonicalJob?.company || null,
     candidateArchetype: tailoredHeadingInfo.candidateArchetype || 'EXPERIENCED',
     pageTarget: 'ONE_PAGE_STRICT',

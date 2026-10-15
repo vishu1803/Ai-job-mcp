@@ -1132,6 +1132,9 @@ export default async function extensionRoutes(app, opts = {}) {
 
       const preparedResult = await workflowService.prepareJobApplication({
         tenantId: tenant.id,
+        generationOrigin: 'EXTENSION',
+        userId: user.id,
+        role: user.role,
         candidateId: candidate.id,
         jobPosting: targetJob,
         applicationId: applicationId || undefined,
@@ -1170,6 +1173,12 @@ export default async function extensionRoutes(app, opts = {}) {
 
       return reply.send({
         applicationId: appId,
+        generationId: preparedResult.generationId || preparedResult.resumeGeneration?.id || null,
+        studioUrl:
+          preparedResult.studioUrl ||
+          (preparedResult.resumeGeneration?.id
+            ? '/resume-studio?generationId=' + preparedResult.resumeGeneration.id
+            : null),
         canonicalJobId: preparedResult.jobId || preparedResult.canonicalJobId || null,
         analysisSnapshotId: authoritativeJobFit?.snapshotId || null,
         title: targetJob.title,

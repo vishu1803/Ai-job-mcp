@@ -143,6 +143,9 @@ export function registerJobWorkflowTools(
 
       const result = await workflowService.prepareJobApplication({
         tenantId: context.tenantId,
+        generationOrigin: 'MCP',
+        userId: context.userId,
+        role: context.role,
         candidateId: targetCandidateId,
         applicationId: params.applicationId,
         jobPosting: params.jobPosting,

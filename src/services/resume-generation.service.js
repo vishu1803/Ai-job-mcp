@@ -1,3 +1,4 @@
+import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { StudioDocumentResponseSchema } from '../domain/career/resume-studio-document.schemas.js';
 import { resumeSkillInputs } from './structured-resume.service.js';
 import { reconcileCandidateProjects } from './candidate-artifact-content.service.js';
@@ -42,6 +43,10 @@ const inputSchema = z
     sourceVersion: z.number().int().positive().optional(),
     jobTarget: StudioJobTargetSchema.extend({
       rawDescription: z.string().trim().min(10).max(250000),
+      requirements: z
+        .array(z.union([z.string().trim().min(1).max(2000), z.record(z.unknown())]))
+        .max(500)
+        .optional(),
     }),
     origin: z.enum(['WEB', 'MCP', 'EXTENSION', 'STUDIO_ENTRY', 'REGENERATION']),
     parentGenerationId: z.string().uuid().nullable().default(null),
@@ -55,6 +60,70 @@ const stableJobId = (fingerprint) => {
   const hex = crypto.createHash('sha256').update(fingerprint).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 };
+
+/** Source representation adapter used after ownership authorization. No writing/ranking policy. */
+export function buildGenerationProfile(source, view) {
+  const metadata = { ...source.owner.profileMetadata, resumeData: source.canonical };
+  const masterIdentity = source.canonical.identity || {};
+  const masterInput = { ...masterIdentity, ...source.canonical, profileMetadata: metadata };
+  const sections = normalizeResumeSourceSections(masterInput);
+  const masterDsa = resumeSourceValue(masterInput, 'dsa', ['problemSolving']);
+  const masterLinks = resumeSourceValue(masterInput, 'links', ['portfolioLinks']);
+  const profile = json({
+    ...view.candidate,
+    ...sections,
+    displayName: resumeSourceValue(
+      { ...masterInput, displayName: masterIdentity.name || view.candidate.displayName },
+      'displayName'
+    ),
+    canonicalEmail:
+      source.owner.canonicalEmail || masterIdentity.email || view.candidate.canonicalEmail,
+    phone: resumeSourceValue(masterInput, 'phone', ['canonicalPhone', 'phoneNumber']),
+    location: resumeSourceValue(masterInput, 'location'),
+    headline: resumeSourceValue(masterInput, 'headline'),
+    links:
+      masterLinks === undefined
+        ? [
+            ...['github', 'linkedin', 'leetcode'].flatMap((label) =>
+              masterIdentity[label] ? [{ label, url: masterIdentity[label] }] : []
+            ),
+            ...(masterIdentity.portfolioUrls || []).map((url) => ({ label: 'Portfolio', url })),
+          ]
+        : masterLinks,
+    summary: resumeSourceValue(masterInput, 'summary'),
+    skills: view.skills || [],
+    projects: reconcileCandidateProjects({
+      profileProjects: view.projects || [],
+      resumeDataProjects: source.canonical.projects || [],
+    }),
+
+    dsa: masterDsa === undefined ? view.dsa || null : masterDsa,
+    resumeSections: (view.resumeSections || []).filter(
+      (section) => section.resumeId === source.canonical.sourceResumeId
+    ),
+    profileMetadata: metadata,
+  });
+  profile.projects = profile.projects.map((project) =>
+    z.string().uuid().safeParse(project.id).success
+      ? project
+      : {
+          ...project,
+          id: stableJobId(
+            'candidate:' +
+              source.owner.id +
+              ':project:' +
+              (project.id || project.repositoryUrl || project.slug || project.name)
+          ),
+          metadata: {
+            ...project.metadata,
+            sourceProjectId: project.id || null,
+            sourceProjectKey: project.repositoryUrl || project.slug || project.name,
+          },
+        }
+  );
+  profile.skills = resumeSkillInputs(profile);
+  return profile;
+}
 
 /** Authorized orchestration around the existing shared writer/selection/renderer, never a Studio writer. */
 export class ResumeGenerationService {
@@ -85,6 +154,8 @@ export class ResumeGenerationService {
       );
     const body = parsedInput.data;
     const bounded = boundStudioJobText(body.jobTarget.rawDescription);
+    if (Buffer.byteLength(JSON.stringify(body.jobTarget.requirements || []), 'utf8') > 51200)
+      throw new ValidationError('Job requirements exceed the bounded snapshot limit');
     const source = await this.db.transaction(async (tx) => {
       const [owner] = await tx
         .select()
@@ -166,9 +237,12 @@ export class ResumeGenerationService {
     const canonicalJob = normalizeJobInput({
       title: parsed.jobDescription.title,
       description: bounded.text,
-      requirements: parsed.requirements.map(
-        ({ id: _id, jobDescriptionId: _job, ...requirement }) => requirement
-      ),
+      requirements: [
+        ...(body.jobTarget.requirements || []),
+        ...parsed.requirements.map(
+          ({ id: _id, jobDescriptionId: _job, ...requirement }) => requirement
+        ),
+      ],
     });
     const job = {
       id: stableJobId(canonicalJob.jobFingerprint),
@@ -185,51 +259,17 @@ export class ResumeGenerationService {
       ...(body.jobTarget.sourceUrl ? { sourceUrl: body.jobTarget.sourceUrl } : {}),
     };
     const view = await new CandidateProfileService(this.db).getProfile(context, source.owner.id);
-    const metadata = { ...source.owner.profileMetadata, resumeData: source.canonical };
-    const masterIdentity = source.canonical.identity || {};
-    const masterInput = { ...masterIdentity, ...source.canonical, profileMetadata: metadata };
-    const sections = normalizeResumeSourceSections(masterInput);
-    const masterDsa = resumeSourceValue(masterInput, 'dsa', ['problemSolving']);
-    const masterLinks = resumeSourceValue(masterInput, 'links', ['portfolioLinks']);
-    const profile = json({
-      ...view.candidate,
-      ...sections,
-      displayName: resumeSourceValue(
-        { ...masterInput, displayName: masterIdentity.name || view.candidate.displayName },
-        'displayName'
-      ),
-      canonicalEmail:
-        source.owner.canonicalEmail || masterIdentity.email || view.candidate.canonicalEmail,
-      phone: resumeSourceValue(masterInput, 'phone', ['canonicalPhone', 'phoneNumber']),
-      location: resumeSourceValue(masterInput, 'location'),
-      headline: resumeSourceValue(masterInput, 'headline'),
-      links:
-        masterLinks === undefined
-          ? [
-              ...['github', 'linkedin', 'leetcode'].flatMap((label) =>
-                masterIdentity[label] ? [{ label, url: masterIdentity[label] }] : []
-              ),
-              ...(masterIdentity.portfolioUrls || []).map((url) => ({ label: 'Portfolio', url })),
-            ]
-          : masterLinks,
-      summary: resumeSourceValue(masterInput, 'summary'),
-      skills: view.skills || [],
-      projects: reconcileCandidateProjects({
-        profileProjects: view.projects || [],
-        resumeDataProjects: source.canonical.projects || [],
-      }),
-
-      dsa: masterDsa === undefined ? view.dsa || null : masterDsa,
-      resumeSections: view.resumeSections || [],
-      profileMetadata: metadata,
-    });
-    profile.skills = resumeSkillInputs(profile);
+    const profile = buildGenerationProfile(source, view);
     const ranking = ProjectRelevanceService.computeProjectsRelevance(
       context,
       job,
       profile.projects,
       { candidateId: source.owner.id, skills: profile.skills }
     );
+    const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(context, job, {
+      ...profile,
+      resources: view.resources || [],
+    });
     const selected = new Set(
       ranking.projectRankings
         .filter((r) => r.selectionStatus === 'SELECTED')
@@ -239,6 +279,7 @@ export class ResumeGenerationService {
       candidateProfile: profile,
       jobPosting: job,
       projectRankings: ranking.projectRankings,
+      matchAnalysis,
       selectedProjects: profile.projects.filter((p) => selected.has(p.id)),
       selectedSkills: profile.skills,
       aiProvider: this.aiProvider,
@@ -337,6 +378,7 @@ export class ResumeGenerationService {
             jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
             sourceProfileSnapshot: profile,
             projectRanking: ranking,
+            matchAnalysis,
             writing: content.safeStructuredResume.writing || null,
             jobDescriptionTruncated: bounded.truncated,
           }),

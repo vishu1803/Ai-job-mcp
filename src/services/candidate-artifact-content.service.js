@@ -1,3 +1,4 @@
+import { generatedApplicationResume } from './resume-generation-projection.service.js';
 import {
   formatResumeSourceEntry,
   normalizeResumeSourceSections,
@@ -1309,6 +1310,7 @@ export class CandidateArtifactContentService {
    */
   constructor(options = {}) {
     this.db = options.database || defaultDb;
+    this.resumeGenerationService = options.resumeGenerationService || null;
     this.candidateProfileService =
       options.candidateProfileService || new CandidateProfileService(this.db);
     this.logger = options.logger || defaultLogger;
@@ -1559,6 +1561,10 @@ export class CandidateArtifactContentService {
     const snapshot = {
       tenantId,
       candidateId,
+      sourceMaster: {
+        id: metadata.resumeData?.sourceResumeId,
+        version: metadata.resumeData?.sourceVersion,
+      },
       jobPosting,
       jobKeywords: extractJobKeywords(jobPosting),
       displayName: candidate.displayName || null,
@@ -2247,7 +2253,9 @@ export class CandidateArtifactContentService {
       if (
         typeof s === 'object' &&
         s !== null &&
-        ['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(s)))
+        ['MISSING_EVIDENCE', 'UNKNOWN', 'INFERRED'].includes(
+          normalizeTruthCategory(skillTrustStatus(s))
+        )
       )
         continue;
       const rawName = typeof s === 'string' ? s : s?.name || s?.skillName;
@@ -2433,8 +2441,6 @@ export class CandidateArtifactContentService {
             score += isCloudDevOpsTarget ? 15 : 5;
             if (!matchReason) matchReason = 'Candidate-declared secondary infrastructure skill';
           }
-        } else {
-          score -= 5;
         }
       }
 
@@ -2478,14 +2484,6 @@ export class CandidateArtifactContentService {
         !s.isDirectMatch;
       const isSelfDeclared = s.provenance === 'SELF_DECLARED' || s.provenance === 'USER_PROVIDED';
       const isSelfDeclaredUnverified = isSelfDeclared && s.score < 15;
-      const isClaimedBackendWithoutEvidence =
-        s.category === 'Backend & APIs' &&
-        (s.provenance === 'CLAIMED' || isSelfDeclared) &&
-        s.evidenceCount === 0 &&
-        !s.isDirectMatch &&
-        !jobDesc.includes(s.name.toLowerCase()) &&
-        !featuredProjectTechs.has(s.name.toLowerCase());
-
       // Redundancy check for self-declared cloud providers: if AWS is selected, avoid dumping Azure/GCP/Cloudflare
       const isRedundantCloudProvider =
         isSelfDeclared &&
@@ -2503,16 +2501,6 @@ export class CandidateArtifactContentService {
           score: s.score,
           status: 'OMITTED',
           reason: 'Low-value tooling noise for role (not requested in job posting)',
-        });
-      } else if (isClaimedBackendWithoutEvidence) {
-        skillAudit.push({
-          skill: s.name,
-          category: s.category,
-          provenance: s.provenance,
-          score: s.score,
-          status: 'OMITTED',
-          reason:
-            'Claimed backend technology without repository evidence or direct job requirement',
         });
       } else if (isRedundantCloudProvider) {
         skillAudit.push({
@@ -2534,29 +2522,15 @@ export class CandidateArtifactContentService {
         });
       } else if (s.score >= 15 && categoryGroups[s.category]) {
         // Enforce max 2 self-declared/user-provided skills per category group to preserve evidence balance
-        const existingSelfDeclared = categoryGroups[s.category].filter(
-          (ex) => ex.provenance === 'SELF_DECLARED' || ex.provenance === 'USER_PROVIDED'
-        ).length;
-        if (isSelfDeclared && existingSelfDeclared >= 2) {
-          skillAudit.push({
-            skill: s.name,
-            category: s.category,
-            provenance: s.provenance,
-            score: s.score,
-            status: 'OMITTED',
-            reason: 'Omitted to preserve space for evidence-backed technologies',
-          });
-        } else {
-          categoryGroups[s.category].push(s);
-          skillAudit.push({
-            skill: s.name,
-            category: s.category,
-            provenance: s.provenance,
-            score: s.score,
-            status: 'SELECTED',
-            reason: s.matchReason || 'Role-relevant verified competency',
-          });
-        }
+        categoryGroups[s.category].push(s);
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'SELECTED',
+          reason: s.matchReason || 'Role-relevant candidate competency',
+        });
       } else {
         skillAudit.push({
           skill: s.name,
@@ -3807,7 +3781,49 @@ export class CandidateArtifactContentService {
     if (candidateEmail) candidateData.email = candidateEmail;
     if (candidatePhone) candidateData.phone = candidateData.phone || candidatePhone;
 
-    const resume = this.buildTailoredResumeMarkdown(candidateData, jobPosting, options);
+    if (!this.resumeGenerationService) {
+      const { ResumeGenerationService } = await import('./resume-generation.service.js');
+      this.resumeGenerationService = new ResumeGenerationService({
+        database: this.db,
+        aiProvider: options.aiProvider,
+      });
+    }
+    const jobText =
+      jobPosting.description || jobPosting.rawDescription || jobPosting.rawText || jobPosting.title;
+    const generation = await this.resumeGenerationService.execute(
+      { tenantId, userId, role: options.requestRole || 'MEMBER' },
+      {
+        sourceResumeId: candidateData.sourceMaster?.id,
+        sourceVersion: candidateData.sourceMaster?.version,
+        jobTarget: {
+          title: jobPosting.title,
+          ...(jobPosting.company ? { company: jobPosting.company } : {}),
+          rawDescription: jobText,
+          requirements: [
+            ...(jobPosting.requirements || []),
+            ...(jobPosting.normalizedRequirements || []),
+            ...(jobPosting.responsibilities || []),
+          ],
+          ...(jobPosting.applicationUrl || jobPosting.sourceUrl
+            ? { sourceUrl: jobPosting.applicationUrl || jobPosting.sourceUrl }
+            : {}),
+        },
+        origin: options.generationOrigin || 'WEB',
+        parentGenerationId: options.parentGenerationId || null,
+        applicationId: options.applicationId || null,
+        ...(options.generationIdempotencyKey
+          ? { idempotencyKey: options.generationIdempotencyKey }
+          : {}),
+      }
+    );
+    const identity = generation.bundle.structuredResume.candidateIdentity;
+    Object.assign(candidateData, {
+      displayName: identity.displayName,
+      email: identity.email,
+      phone: identity.phone || null,
+      location: identity.location || null,
+    });
+    const resume = generatedApplicationResume(generation, candidateData);
     const coverLetter = this.buildCoverLetterMarkdown(candidateData, jobPosting, {
       ...options,
       selectedProjects: resume.selectedProjects,
@@ -3828,6 +3844,7 @@ export class CandidateArtifactContentService {
     };
 
     return {
+      generation,
       resume,
       coverLetter,
       evidence,

@@ -39,3 +39,13 @@ test('existing explicit requirement wording retains precedence over extractedVal
     ''
   );
 });
+
+test('single technology in a prose requirement is atomic while tenure remains a distinct requirement', () => {
+  const normalized = normalizeJobInput({
+    title: 'Backend Engineer',
+    requirements: ['Experience with PostgreSQL', '3 years of experience with Python'],
+  });
+  assert.ok(normalized.normalizedRequirements.some((r) => r.normalizedConcept === 'postgresql'));
+  assert.ok(normalized.normalizedRequirements.some((r) => r.normalizedConcept === 'python'));
+  assert.ok(normalized.normalizedRequirements.some((r) => /3 years/i.test(r.text)));
+});

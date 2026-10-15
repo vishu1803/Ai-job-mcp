@@ -1,3 +1,4 @@
+import { savedGenerationFixture } from '../fixtures/saved-generation.fixture.js';
 /**
  * @file Unit Tests: Candidate Artifact Content Service (P14-006)
  *
@@ -27,9 +28,9 @@ import { CandidateArtifactContentService } from '../../src/services/candidate-ar
  */
 const realProfileView = {
   candidate: {
-    id: '00000000-0000-0000-0000-00000000c001',
-    tenantId: '00000000-0000-0000-0000-00000000t001',
-    userId: '00000000-0000-0000-0000-00000000u001',
+    id: '00000000-0000-4000-8000-00000000c001',
+    tenantId: '00000000-0000-4000-8000-00000000a001',
+    userId: '00000000-0000-4000-8000-00000000b001',
     displayName: 'Vishwanath Nishad',
     headline: 'Full-Stack & Backend Developer | Full-Stack Architect',
     summary:
@@ -115,21 +116,42 @@ const vercelBackendJob = {
   retrievedAt: '2026-09-06T00:00:00Z',
 };
 
-function buildService() {
-  const service = new CandidateArtifactContentService({
-    candidateProfileService: {
-      getProfile: async (_context, candidateId) => ({
-        ...realProfileView,
-        candidate: { ...realProfileView.candidate, id: candidateId },
-      }),
+function reviewedFixture(view) {
+  const ready = structuredClone(view);
+  const summary = ready.candidate.summary || '';
+  // Explicit test master assertions; repository observations stay separate and never become VERIFIED.
+  const declared = (ready.skills || []).filter(
+    (skill) =>
+      ['CLAIMED', 'SELF_DECLARED', 'USER_PROVIDED'].includes(skill.provenanceStatus) ||
+      summary.toLowerCase().includes(skill.name.toLowerCase())
+  );
+  ready.candidate.profileMetadata.resumeData = {
+    sourceResumeId: '00000000-0000-4000-8000-00000000e001',
+    sourceVersion: 1,
+    identity: {
+      name: ready.candidate.displayName,
+      email: ready.candidate.canonicalEmail,
+      headline: ready.candidate.headline,
     },
+    summary: ready.candidate.summary,
+    skills: declared.map((skill) => ({ name: skill.name, provenanceStatus: 'CLAIMED' })),
+    projects: ready.projects || [],
+    experience: ready.candidate.profileMetadata.userCustom?.experience || [],
+    education: ready.candidate.profileMetadata.userCustom?.education || [],
+  };
+  return ready;
+}
+function buildService(view = realProfileView) {
+  const ready = reviewedFixture(view);
+  const service = new CandidateArtifactContentService({
+    candidateProfileService: { getProfile: async () => structuredClone(ready) },
+    resumeGenerationService: savedGenerationFixture(ready),
     database: {
       select: () => {
         throw new Error('db not available in unit test');
       },
     },
   });
-  // Bypass stored-project DB load: profile projects carry the evidence
   service.loadStoredProjects = async () => [];
   return service;
 }
@@ -137,8 +159,8 @@ function buildService() {
 async function generate() {
   const service = buildService();
   const docs = await service.generateApplicationDocuments({
-    tenantId: '00000000-0000-0000-0000-00000000t001',
-    userId: '00000000-0000-0000-0000-00000000u001',
+    tenantId: '00000000-0000-4000-8000-00000000a001',
+    userId: '00000000-0000-4000-8000-00000000b001',
     candidateId: realProfileView.candidate.id,
     jobPosting: vercelBackendJob,
   });
@@ -159,7 +181,7 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.ok(resume.includes('Bachelor of Technology in Electronics Engineering'));
     assert.ok(resume.includes('Electronics Engineering'));
     assert.ok(resume.includes('2021'));
-    assert.ok(resume.includes('July 2025'));
+    assert.ok(resume.includes('2025-07'));
   });
 
   it('3. renders the REAL internship employer and title in the resume', async () => {
@@ -167,8 +189,8 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     const resume = docs.resume.markdownContent;
     assert.ok(resume.includes('FTV Saloon'));
     assert.ok(resume.includes('Full Stack Developer Intern'));
-    assert.ok(resume.includes('June 2024'));
-    assert.ok(resume.includes('September 2024'));
+    assert.ok(resume.includes('2024-06'));
+    assert.ok(resume.includes('2024-09'));
   });
 
   it('4. renders REAL skills strictly separated by provenance truth', async () => {
@@ -176,8 +198,8 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     const resume = docs.resume.markdownContent;
 
     // Categorized presentation in resume
-    assert.ok(resume.includes('## Technical Skills'));
-    assert.ok(resume.includes('**Databases & ORMs:**') || resume.includes('**Backend & APIs:**'));
+    assert.ok(resume.includes('## Skills'));
+    assert.ok(resume.includes('Databases & ORMs:') || resume.includes('Backend & APIs:'));
     assert.ok(resume.includes('PostgreSQL') || resume.includes('Postgresql'));
     assert.ok(resume.includes('FastAPI'));
 
@@ -187,11 +209,13 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
 
     const pgAudit = skillAudit.find((s) => s.skill === 'Postgresql' || s.skill === 'PostgreSQL');
     assert.ok(pgAudit, 'Postgresql/PostgreSQL must be present in skill audit');
-    assert.equal(pgAudit.provenance, 'INFERRED');
+    assert.equal(pgAudit.provenance, 'CLAIMED');
+    assert.equal(pgAudit.included, true);
 
     const fastApiAudit = skillAudit.find((s) => s.skill === 'FastAPI');
     assert.ok(fastApiAudit, 'FastAPI must be present in skill audit');
-    assert.equal(fastApiAudit.provenance, 'INFERRED');
+    assert.equal(fastApiAudit.provenance, 'CLAIMED');
+    assert.equal(fastApiAudit.included, true);
 
     const djangoAudit = skillAudit.find((s) => s.skill === 'Django');
     assert.ok(djangoAudit, 'Django must be present in skill audit');
@@ -199,14 +223,18 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
 
     const awsAudit = skillAudit.find((s) => s.skill === 'AWS');
     assert.ok(awsAudit, 'AWS must be present in skill audit');
-    assert.equal(awsAudit.provenance, 'SELF_DECLARED');
+    assert.equal(awsAudit.provenance, 'CLAIMED');
   });
 
   it('5. renders REAL projects with repository names and technologies', async () => {
     const { docs } = await generate();
     const resume = docs.resume.markdownContent;
-    assert.ok(resume.includes('vishu1803/Ai-job-mcp'));
-    assert.ok(resume.includes('vishu1803/Collaborative-task-manager'));
+    assert.ok(resume.includes('AI Job MCP') || resume.includes('Ai-job-mcp'));
+    assert.ok(resume.includes('https://github.com/vishu1803/Ai-job-mcp'));
+    assert.ok(
+      docs.resume.selectionAudit.some((project) => /collaborative/i.test(project.projectName))
+    );
+    assert.ok(docs.resume.omittedProjects.every((project) => project.rejectionReason));
     assert.ok(resume.includes('PostgreSQL'));
   });
 
@@ -249,32 +277,27 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
   });
 
   it('9. missing data is NOT fabricated: sparse profile omits sections cleanly', async () => {
-    const service = new CandidateArtifactContentService({
-      candidateProfileService: {
-        getProfile: async (_context, candidateId) => ({
-          candidate: {
-            id: candidateId,
-            tenantId: '00000000-0000-0000-0000-00000000t001',
-            userId: '00000000-0000-0000-0000-00000000u001',
-            displayName: 'Sparse Candidate',
-            headline: null,
-            summary: null,
-            canonicalEmail: 'sparse@example.test',
-            profileMetadata: {},
-          },
-          userEmail: 'sparse@example.test',
-          identities: [],
-          skills: [],
-          projects: [],
-        }),
+    const candidateId = '00000000-0000-4000-8000-00000000c002';
+    const service = buildService({
+      candidate: {
+        id: candidateId,
+        tenantId: '00000000-0000-0000-0000-00000000a001',
+        userId: '00000000-0000-0000-0000-00000000b001',
+        displayName: 'Sparse Candidate',
+        headline: null,
+        summary: null,
+        canonicalEmail: 'sparse@example.test',
+        profileMetadata: {},
       },
+      userEmail: 'sparse@example.test',
+      identities: [],
+      skills: [],
+      projects: [],
     });
-    service.loadStoredProjects = async () => [];
-
     const docs = await service.generateApplicationDocuments({
-      tenantId: '00000000-0000-0000-0000-00000000t001',
-      userId: '00000000-0000-0000-0000-00000000u001',
-      candidateId: '00000000-0000-0000-0000-00000000c002',
+      tenantId: '00000000-0000-4000-8000-00000000a001',
+      userId: '00000000-0000-4000-8000-00000000b001',
+      candidateId: '00000000-0000-4000-8000-00000000c002',
       jobPosting: vercelBackendJob,
     });
 
@@ -284,10 +307,11 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     assert.ok(!resume.includes('## Education'));
     assert.ok(!resume.includes('## Projects'));
     // Truthful internal missing state for the mandatory summary slot
-    assert.ok(resume.includes('not provided in profile'));
+    assert.equal(docs.generation.bundle.structuredResume.summary.text, '');
+    assert.doesNotMatch(resume, /not provided in profile/);
     // Identity + tailoring still present
     assert.ok(resume.includes('Sparse Candidate'));
-    assert.ok(resume.includes('Software Engineer, Backend'));
+    assert.equal(docs.generation.bundle.structuredResume.targetRole, 'Software Engineer, Backend');
   });
 
   it('10. tailoring prioritizes job-relevant observed skills (Vercel backend)', async () => {
@@ -323,8 +347,8 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     await assert.rejects(
       () =>
         service.generateApplicationDocuments({
-          tenantId: '00000000-0000-0000-0000-00000000t001',
-          userId: '00000000-0000-0000-0000-00000000u001',
+          tenantId: '00000000-0000-4000-8000-00000000a001',
+          userId: '00000000-0000-4000-8000-00000000b001',
           candidateId: '00000000-0000-0000-0000-00000000c003',
           jobPosting: vercelBackendJob,
         }),

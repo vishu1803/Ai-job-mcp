@@ -730,13 +730,18 @@ export function normalizeJobInput(jobInput) {
         text.includes(' ') && text.length > 20
           ? JobDescriptionParser.extractSkillsFromLine(text)
           : [];
-      if (foundSkills.length > 1) {
+      if (
+        foundSkills.length > 0 &&
+        (typeof req !== 'object' || !req?.category || req.category === 'SKILL')
+      ) {
         for (const sk of foundSkills) {
           itemsToProcess.push({
             raw: { text: sk.name, category: 'SKILL', slug: sk.slug },
             defaultSection: 'REQUIREMENTS',
           });
         }
+        if (/\b\d+\+?\s*(?:years?|yrs?|months?)\b/i.test(text))
+          itemsToProcess.push({ raw: req, defaultSection: 'REQUIREMENTS' });
       } else {
         itemsToProcess.push({ raw: req, defaultSection: 'REQUIREMENTS' });
       }

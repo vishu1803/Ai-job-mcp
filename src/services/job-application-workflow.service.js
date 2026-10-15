@@ -72,7 +72,6 @@ import {
   JobApplicationWorkflowStateEnum,
   JobApplicationWorkflowStateMachine,
 } from '../domain/job/job-workflow.schemas.js';
-import { generateResumeContent } from './resume-generation-content.service.js';
 import { onePageResumeMarkdown } from './one-page-resume.service.js';
 import {
   ValidationError,
@@ -364,6 +363,7 @@ export class JobApplicationWorkflowService {
       new CandidateArtifactContentService({
         database: this.db,
         candidateProfileService: this.candidateProfileService,
+        resumeGenerationService: options.resumeGenerationService,
       });
     this.applicationTrackingService =
       options.applicationTrackingService || new ApplicationTrackingService({ database: this.db });
@@ -734,6 +734,7 @@ export class JobApplicationWorkflowService {
     answers = {},
     userId = null,
     role = null,
+    generationOrigin = 'WEB',
   }) {
     if (!tenantId || !candidateId || !jobPosting) {
       throw new ValidationError(
@@ -741,6 +742,12 @@ export class JobApplicationWorkflowService {
         'INVALID_PARAMETERS'
       );
     }
+
+    if (role === 'READONLY')
+      throw new AuthorizationError(
+        'READONLY role cannot generate application packages',
+        'FORBIDDEN'
+      );
 
     if (applicationId) {
       const [appRow] = await this.db
@@ -881,6 +888,10 @@ export class JobApplicationWorkflowService {
           packageStatus: existingAppRow.status || 'SAVED',
           artifactStatus:
             existingKit?.status === 'HANDOFF_READY' || payload.artifactsReady ? 'READY' : 'BLOCKED',
+          generationId: payload.resumeGeneration?.id,
+          studioUrl: payload.resumeGeneration?.id
+            ? '/resume-studio?generationId=' + payload.resumeGeneration.id
+            : undefined,
           lifecycleAction: 'REUSED',
           documentsStatus:
             payload.documentsStatus ||
@@ -1098,12 +1109,18 @@ export class JobApplicationWorkflowService {
           cand.profileMetadata?.identity?.phone ||
           undefined,
         options: {
+          generationOrigin,
+          requestRole: role || 'MEMBER',
+          applicationId: applicationId || existingAppRow?.id || null,
+          aiProvider: this.aiProvider,
           projectRankings: authoritativeRankings,
           matchAnalysis: jobFitAnalysis?.matchAnalysis,
         },
       }
     );
 
+    const generatedIdentity =
+      documentContent.generation?.bundle?.structuredResume?.candidateIdentity;
     const tailoredResumeResult = documentContent.resume;
     const coverLetterResult = documentContent.coverLetter;
 
@@ -1142,7 +1159,10 @@ export class JobApplicationWorkflowService {
     const contentAudit = CandidateArtifactContentService.auditDocumentContent(
       tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
       {
-        requiredTokens: [cand.displayName, candidateEmail].filter(Boolean),
+        requiredTokens: [
+          generatedIdentity?.displayName || cand.displayName,
+          generatedIdentity?.email || candidateEmail,
+        ].filter(Boolean),
         forbiddenTokens: [
           /Dedicated software engineer with verified technical skills/i,
           /Software Development Experience Verified/i,
@@ -1184,51 +1204,37 @@ export class JobApplicationWorkflowService {
       };
     }
 
-    // Generate AI-conditioned Professional Summary and Project Bullets (Content Generation Quality)
-    const candidateProjects = candidateProfileInput.projects || cand.projects || [];
-    const topProjectIdentifiers = (
-      authoritativeRankings.length > 0 ? authoritativeRankings : selectedProjectsList
-    ).slice(0, 2);
-    const topSelectedProjects = topProjectIdentifiers.map((item) => {
-      const pId = item.id || item.projectId;
-      const pName = item.name || item.projectName || item.title;
-      const matched = candidateProjects.find(
-        (cp) =>
-          (pId && (cp.id === pId || cp.projectId === pId)) ||
-          (pName && (cp.name === pName || cp.title === pName))
+    const generation = documentContent.generation;
+    if (!generation?.bundle?.structuredResume)
+      throw new ValidationError(
+        'Authoritative saved generation is required',
+        'GENERATION_NOT_SAVED'
       );
-      return matched || item;
-    });
-
-    const { safeStructuredResume, safeTailoringPlan, safeEvidenceReceipt } =
-      await generateResumeContent({
-        candidateProfile: candidateProfileInput,
-        jobPosting: targetJobPosting,
-        selectedProjects: topSelectedProjects,
-        selectedSkills: verifiedSkills.concat(claimedSkills),
-        projectRankings: authoritativeRankings,
-        matchAnalysis: jobFitAnalysis?.matchAnalysis,
-        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
-        aiProvider: this.aiProvider,
-        generator: this.applicationHandoffService.latexGenerator,
-        compiler: this.applicationHandoffService.latexCompiler,
-        logger: this.logger,
-      });
+    if (generation.bundle.metadata?.projectRanking) {
+      targetJobPosting.projectRankings = generation.bundle.metadata.projectRanking.projectRankings;
+      if (jobFitAnalysis) {
+        jobFitAnalysis.projectRankings = targetJobPosting.projectRankings;
+        jobFitAnalysis.topRelevantProjects = targetJobPosting.projectRankings;
+      }
+    }
+    const {
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
+    } = generation.bundle;
 
     // 6. Build Unhashed Package
     const preparedPackage = {
+      resumeGeneration: {
+        id: generation.id,
+        contentHash: generation.contentHash,
+        sourceResumeId: generation.sourceResumeId,
+        sourceVersion: generation.sourceVersion,
+      },
       candidateId,
-      candidateName: cand.displayName || 'Candidate',
-      candidateEmail,
-      candidatePhone:
-        candidateProfileInput?.phone ||
-        profileView?.candidate?.profileMetadata?.userCustom?.phone ||
-        profileView?.candidate?.profileMetadata?.phone ||
-        cand.profileMetadata?.userCustom?.phone ||
-        cand.profileMetadata?.phone ||
-        cand.phone ||
-        cand.profileMetadata?.identity?.phone ||
-        undefined,
+      candidateName: generatedIdentity.displayName,
+      candidateEmail: generatedIdentity.email,
+      candidatePhone: generatedIdentity.phone || undefined,
       targetJob: targetJobPosting,
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
@@ -1263,32 +1269,18 @@ export class JobApplicationWorkflowService {
       portfolioLinks,
       candidate: {
         id: candidateId,
-        firstName:
-          cand.firstName || (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
-        lastName:
-          cand.lastName || (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
-        fullName: cand.displayName || 'Candidate',
-        displayName: cand.displayName || 'Candidate',
-        email: candidateEmail,
-        canonicalEmail: candidateEmail,
-        phone:
-          candidateProfileInput?.phone ||
-          profileView?.candidate?.profileMetadata?.userCustom?.phone ||
-          profileView?.candidate?.profileMetadata?.phone ||
-          cand.profileMetadata?.userCustom?.phone ||
-          cand.profileMetadata?.phone ||
-          cand.phone ||
-          cand.profileMetadata?.identity?.phone ||
-          undefined,
-        location:
-          candidateProfileInput?.location ||
-          cand.location ||
-          cand.profileMetadata?.identity?.location ||
-          undefined,
+        firstName: generatedIdentity.displayName.split(' ')[0],
+        lastName: generatedIdentity.displayName.split(' ').slice(1).join(' '),
+        fullName: generatedIdentity.displayName,
+        displayName: generatedIdentity.displayName,
+        email: generatedIdentity.email,
+        canonicalEmail: generatedIdentity.email,
+        phone: generatedIdentity.phone || undefined,
+        location: generatedIdentity.location || undefined,
         contact: {
-          email: candidateEmail,
-          phone: candidateProfileInput?.phone || cand.phone || undefined,
-          address: candidateProfileInput?.location || cand.location || undefined,
+          email: generatedIdentity.email,
+          phone: generatedIdentity.phone || undefined,
+          address: generatedIdentity.location || undefined,
         },
         socialLinks: {
           linkedin: candidateProfileInput?.linkedinUrl || cand.linkedinUrl || undefined,
@@ -1486,6 +1478,8 @@ export class JobApplicationWorkflowService {
 
     return {
       ...validatedPackage,
+      generationId: generation.id,
+      studioUrl: '/resume-studio?generationId=' + generation.id,
       applicationId: persisted?.applicationId ?? applicationId ?? undefined,
       jobId: validatedPackage.targetJob?.id || persisted?.canonicalJobId || undefined,
       packageVersion: persisted?.version ?? undefined,
@@ -1737,6 +1731,23 @@ export class JobApplicationWorkflowService {
         candidateId,
         jobPosting,
         candidateEmail,
+        options: {
+          generationOrigin: 'REGENERATION',
+          requestRole: role || 'MEMBER',
+          applicationId: application.id,
+          aiProvider: this.aiProvider,
+          parentGenerationId:
+            currentPkg?.resumeGeneration?.id || currentPkg?.resumeStudio?.generationId || null,
+          generationIdempotencyKey: currentPkg?.packageHash
+            ? [
+                'regen',
+                application.id,
+                currentPkg.packageHash,
+                cand.profileMetadata?.resumeData?.sourceResumeId,
+                cand.profileMetadata?.resumeData?.sourceVersion,
+              ].join(':')
+            : undefined,
+        },
         candidatePhone:
           cand.profileMetadata?.userCustom?.phone ||
           cand.profileMetadata?.phone ||
@@ -1745,6 +1756,9 @@ export class JobApplicationWorkflowService {
           undefined,
       }
     );
+
+    const generatedIdentity =
+      documentContent.generation?.bundle?.structuredResume?.candidateIdentity;
 
     // 6. Handle scope: allow selective reuse if scope is RESUME or COVER_LETTER
     const currentSnapshots = appDetails.tailoredDocuments || [];
@@ -1841,7 +1855,10 @@ export class JobApplicationWorkflowService {
     const contentAudit = CandidateArtifactContentService.auditDocumentContent(
       tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
       {
-        requiredTokens: [cand.displayName, candidateEmail].filter(Boolean),
+        requiredTokens: [
+          generatedIdentity?.displayName || cand.displayName,
+          generatedIdentity?.email || candidateEmail,
+        ].filter(Boolean),
         forbiddenTokens: [
           /Dedicated software engineer with verified technical skills/i,
           /Software Development Experience Verified/i,
@@ -1868,92 +1885,31 @@ export class JobApplicationWorkflowService {
       regenerationTimestamp: new Date().toISOString(),
     };
 
-    // 7b. Build and Validate Structured Resume Snapshot for Draft (P16-001F-1)
-    let candidateProfileInput = documentContent.candidateData;
-    if (!candidateProfileInput) {
-      try {
-        const profileView = await this.candidateProfileService.getProfile(
-          { tenantId, userId: cand.userId, role: 'MEMBER' },
-          candidateId
-        );
-        if (profileView) {
-          candidateProfileInput = {
-            ...profileView.candidate,
-            skills: profileView.skills || [],
-            projects: profileView.projects || [],
-            experience:
-              profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
-            education:
-              profileView.candidate?.profileMetadata?.education || profileView.education || [],
-            certifications:
-              profileView.candidate?.profileMetadata?.certifications ||
-              profileView.certifications ||
-              [],
-            dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
-            links:
-              profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
-            portfolioLinks:
-              profileView.portfolioLinks ||
-              profileView.candidate?.profileMetadata?.portfolioLinks ||
-              [],
-            resumeSections: profileView.resumeSections || [],
-            profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
-          };
-        }
-      } catch (err) {
-        // Fail closed for the same reason as prepareJobApplication: document generation must
-        // never run against a profile that failed to load, because the fabricated fallback
-        // omits education, experience and certifications entirely.
-        this.logger.error(
-          { err, tenantId, candidateId },
-          'Candidate profile load failed during package regeneration; refusing to generate documents from a degraded profile'
-        );
-        throw err;
-      }
-    }
-
-    if (!candidateProfileInput) {
-      // Same refusal as prepareJobApplication: a package regenerated from a profile that never
-      // loaded would ship documents with no projects, experience, education or certifications.
-      throw new NotFoundError('Canonical candidate profile could not be resolved');
-    }
-
-    const authoritativeDraftRankings = jobPosting.projectRankings || [];
-
-    const candidateProjectsForRegen = candidateProfileInput.projects || cand.projects || [];
-    const topDraftIdentifiers = (
-      authoritativeDraftRankings.length > 0 ? authoritativeDraftRankings : selectedProjectsList
-    ).slice(0, 2);
-    const topDraftSelectedProjects = topDraftIdentifiers.map((item) => {
-      const pId = item.id || item.projectId;
-      const pName = item.name || item.projectName || item.title;
-      const matched = candidateProjectsForRegen.find(
-        (cp) =>
-          (pId && (cp.id === pId || cp.projectId === pId)) ||
-          (pName && (cp.name === pName || cp.title === pName))
+    const generation = documentContent.generation;
+    if (!generation?.bundle?.structuredResume)
+      throw new ValidationError(
+        'Authoritative saved generation is required',
+        'GENERATION_NOT_SAVED'
       );
-      return matched || item;
-    });
-
-    const { safeStructuredResume, safeTailoringPlan, safeEvidenceReceipt } =
-      await generateResumeContent({
-        candidateProfile: candidateProfileInput,
-        jobPosting: jobPosting,
-        selectedProjects: topDraftSelectedProjects,
-        selectedSkills: verifiedSkills.concat(claimedSkills),
-        projectRankings: authoritativeDraftRankings,
-        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
-        aiProvider: this.aiProvider,
-        generator: this.applicationHandoffService.latexGenerator,
-        compiler: this.applicationHandoffService.latexCompiler,
-        logger: this.logger,
-      });
+    if (generation.bundle.metadata?.projectRanking)
+      jobPosting.projectRankings = generation.bundle.metadata.projectRanking.projectRankings;
+    const {
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
+    } = generation.bundle;
 
     const preparedPackage = {
+      resumeGeneration: {
+        id: generation.id,
+        contentHash: generation.contentHash,
+        sourceResumeId: generation.sourceResumeId,
+        sourceVersion: generation.sourceVersion,
+      },
       candidateId,
-      candidateName: cand.displayName || 'Candidate',
-      candidateEmail,
-      candidatePhone: cand.phone || undefined,
+      candidateName: generatedIdentity.displayName,
+      candidateEmail: generatedIdentity.email,
+      candidatePhone: generatedIdentity.phone || undefined,
       targetJob: jobPosting,
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
@@ -2115,6 +2071,8 @@ export class JobApplicationWorkflowService {
 
     return {
       package: current,
+      generationId: generation.id,
+      studioUrl: '/resume-studio?generationId=' + generation.id,
       handoffKit,
       documentsStatus: 'DOCUMENTS_READY',
       artifactsReady: true,
