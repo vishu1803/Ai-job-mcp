@@ -1,0 +1,576 @@
+[
+  {
+    "name": "junior-backend-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 0,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EDUCATION",
+      "PROJECTS",
+      "SKILLS"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "junior-full-stack-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 0,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EDUCATION",
+      "PROJECTS",
+      "SKILLS"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "mid-backend-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 1,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EXPERIENCE",
+      "PROJECTS",
+      "SKILLS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "mid-full-stack-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 1,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EXPERIENCE",
+      "PROJECTS",
+      "SKILLS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "experienced-backend-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 3,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EXPERIENCE",
+      "PROJECTS",
+      "SKILLS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "experienced-full-stack-before",
+    "skillCount": 2,
+    "skills": [
+      "NestJS",
+      "Flask"
+    ],
+    "experienceCount": 3,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "EXPERIENCE",
+      "PROJECTS",
+      "SKILLS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "a1386829f15d7b8e870cf328",
+          "text": "Wrote integration tests for checkout validation and error responses.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "e8a921c8c2f52ea0ff7395cb",
+          "text": "Added PostgreSQL migrations for books and lending records.",
+          "reason": "FRAGMENT_BULLET"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 1
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      },
+      {
+        "path": "skills.categories.2.skills.0",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  }
+]

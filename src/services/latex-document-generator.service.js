@@ -149,6 +149,21 @@ export function escapeLatexUrl(url) {
   return str;
 }
 
+/** Presentation only: retain authored metadata together without exposing enum casing. */
+export function formatEmploymentMetadata(location, employmentType) {
+  const labels = {
+    INTERNSHIP: 'Internship',
+    FULL_TIME: 'Full time',
+    PART_TIME: 'Part time',
+    CONTRACT: 'Contract',
+    FREELANCE: 'Freelance',
+    TEMPORARY: 'Temporary',
+    VOLUNTEER: 'Volunteer',
+  };
+  const type = Object.hasOwn(labels, employmentType) ? labels[employmentType] : employmentType;
+  return [location, type].filter(Boolean).join(' | ');
+}
+
 /**
  * Normalizes date ranges into a clean, standard human and ATS readable format
  * such as "Jun 2024 -- Sep 2024" or "2021 -- 2025" (Section 18.D).
@@ -613,7 +628,7 @@ ${bulletTex}`;
         const company = exp.company ? escapeLatex(exp.company) : '';
         const endDate = exp.isCurrent ? 'Present' : exp.endDate || '';
         const dates = formatNormalizedDateRange(exp.startDate, endDate);
-        const location = exp.location ? escapeLatex(exp.location) : '';
+        const metadata = escapeLatex(formatEmploymentMetadata(exp.location, exp.employmentType));
         const rawBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
         const bullets = formatLatexBullets(
           rawBullets.map((b) => (typeof b === 'string' ? b : b?.text || ''))
@@ -623,11 +638,10 @@ ${bulletTex}`;
         if (dates) headerLine += ` \\hfill ${escapeLatex(dates)}`;
 
         const entryLines = [`${headerLine}\\par`];
-        if (location) {
+        if (metadata) {
           entryLines.push('\\vspace{\\atsRoleToMetadata}');
-          entryLines.push(`{\\small\\textit{${location}}}\\par`);
+          entryLines.push(`{\\small\\textit{${metadata}}}\\par`);
         }
-        if (exp.employmentType) entryLines.push(`${escapeLatex(exp.employmentType)}\\par`);
         if (exp.technologies?.length)
           entryLines.push(`Technologies: ${escapeLatex(exp.technologies.join(', '))}\\par`);
         for (const text of new Set([exp.summary, exp.description].filter(Boolean)))
@@ -656,7 +670,9 @@ ${bulletTex}`;
         const fieldAlreadyInDegree =
           rawField && rawDegree.toLowerCase().includes(rawField.toLowerCase());
         const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
-        const institution = edu.institution ? escapeLatex(edu.institution) : '';
+        const institution = escapeLatex(
+          [edu.institution, edu.location].filter(Boolean).join(' | ')
+        );
         const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
         const dates = formatNormalizedDateRange(edu.startDate, endDate);
         const coursework =
@@ -680,11 +696,7 @@ ${bulletTex}`;
           entryLines.push(
             `Expected completion: ${escapeLatex(formatNormalizedDateRange(edu.endDate, ''))}\\par`
           );
-        for (const detail of [
-          edu.location,
-          edu.grade ? `Grade: ${edu.grade}` : '',
-          ...(edu.honors || []),
-        ]) {
+        for (const detail of [edu.grade ? `Grade: ${edu.grade}` : '', ...(edu.honors || [])]) {
           if (detail) entryLines.push(`{\\small ${escapeLatex(detail)}}\\par`);
         }
         const educationBullets = formatLatexBullets(edu.bullets || []);

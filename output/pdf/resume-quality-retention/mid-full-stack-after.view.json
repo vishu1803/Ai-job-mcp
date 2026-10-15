@@ -1,0 +1,880 @@
+{
+  "documentId": "36d7b41f-b93c-4103-ad78-aee19cb66f60",
+  "schemaVersion": "2.0.0",
+  "targetRole": "Full-stack Developer",
+  "sectionOrder": [
+    "HEADER",
+    "SUMMARY",
+    "EXPERIENCE",
+    "PROJECTS",
+    "SKILLS",
+    "EDUCATION"
+  ],
+  "candidateIdentity": {
+    "displayName": "Synthetic mid Candidate",
+    "headline": "Target role: Full-stack Developer",
+    "masterHeadline": null,
+    "tailoredHeadline": "Target role: Full-stack Developer",
+    "email": "candidate@example.test",
+    "phone": null,
+    "location": null,
+    "links": [
+      {
+        "label": "Portfolio",
+        "url": "https://portfolio.example.test/candidate",
+        "platform": "PORTFOLIO"
+      }
+    ]
+  },
+  "summary": {
+    "text": "Builds TypeScript and Node.js APIs with PostgreSQL and Docker. Maintains NestJS and Python Flask services with request validation and integration tests.",
+    "referencedSkillSlugs": [],
+    "referencedProjectIds": [],
+    "evidenceRefs": [],
+    "matchedRequirementIds": [],
+    "composedFromFactIds": [],
+    "provenanceStatus": "CLAIMED",
+    "sourceFact": "Builds TypeScript and Node.js APIs with PostgreSQL and Docker. Maintains NestJS and Python Flask services with request validation and integration tests.",
+    "transformationType": "VERBATIM"
+  },
+  "skills": {
+    "categories": [
+      {
+        "categoryName": "Backend & APIs",
+        "skills": [
+          {
+            "name": "Node.js",
+            "slug": "node-js",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 95,
+            "matchedRequirementId": "req-acded19bfc43"
+          },
+          {
+            "name": "NestJS",
+            "slug": "nestjs",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 70,
+            "matchedRequirementId": "req-fde7dbde2067"
+          },
+          {
+            "name": "Flask",
+            "slug": "flask",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 70,
+            "matchedRequirementId": "req-e47eeb4ef728"
+          }
+        ]
+      },
+      {
+        "categoryName": "Languages",
+        "skills": [
+          {
+            "name": "TypeScript",
+            "slug": "typescript",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 95,
+            "matchedRequirementId": "req-2809b2f2ff81"
+          },
+          {
+            "name": "Python",
+            "slug": "python",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 70,
+            "matchedRequirementId": "req-44407571a645"
+          }
+        ]
+      },
+      {
+        "categoryName": "Databases & ORMs",
+        "skills": [
+          {
+            "name": "PostgreSQL",
+            "slug": "postgresql",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 95,
+            "matchedRequirementId": "req-34e85e1313e6"
+          }
+        ]
+      },
+      {
+        "categoryName": "Cloud, DevOps & Systems",
+        "skills": [
+          {
+            "name": "Docker",
+            "slug": "docker",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 70,
+            "matchedRequirementId": "req-319a32d333db"
+          }
+        ]
+      }
+    ]
+  },
+  "projects": [
+    {
+      "projectId": "00000000-0000-4000-8000-000000000004",
+      "name": "Library API",
+      "displayName": "Library API",
+      "description": "An API for a library lending workflow.",
+      "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
+      "liveUrl": null,
+      "technologies": [
+        "TypeScript",
+        "Node.js",
+        "PostgreSQL"
+      ],
+      "bullets": [
+        {
+          "text": "Implemented lending endpoints with TypeScript and Node.js, and wrote integration tests for checkout validation and error responses.",
+          "evidenceRefs": [],
+          "matchedRequirementIds": [
+            "req-2809b2f2ff81",
+            "req-acded19bfc43",
+            "req-34e85e1313e6"
+          ],
+          "composedFromFactIds": [
+            "eda115f72abff8ccfcbfeaf9",
+            "a1386829f15d7b8e870cf328"
+          ],
+          "provenanceStatus": "CLAIMED"
+        }
+      ],
+      "relevanceScore": 80,
+      "rank": 1,
+      "selectionSource": "AUTHORITATIVE_RANKING",
+      "authoritativeRankingRank": 1,
+      "selectedBecause": "Ranked #1 for target role",
+      "projectMatchedRequirements": [],
+      "selectedBulletFactIds": [
+        "eda115f72abff8ccfcbfeaf9",
+        "a1386829f15d7b8e870cf328"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "experience-0",
+      "company": "Synthetic Software Company 1",
+      "title": "Backend Engineer",
+      "startDate": "2021-01",
+      "endDate": null,
+      "isCurrent": false,
+      "location": "Remote",
+      "employmentType": "FULL_TIME",
+      "technologies": [],
+      "rawDateRange": null,
+      "bullets": [
+        "Implemented Node.js API validation and documented error responses.",
+        "Added PostgreSQL transaction tests and investigated failed requests.",
+        "Maintained Docker development workflows and reviewed deployment checks."
+      ],
+      "provenanceStatus": "CLAIMED"
+    }
+  ],
+  "education": [
+    {
+      "id": "education-1",
+      "institution": "Synthetic University",
+      "degree": "BSc",
+      "fieldOfStudy": "Computer Science",
+      "startDate": "2007-09",
+      "endDate": "2011-06",
+      "isCurrent": false,
+      "location": null,
+      "grade": null,
+      "coursework": [],
+      "honors": [],
+      "bullets": [],
+      "rawDateRange": null,
+      "provenanceStatus": "USER_PROVIDED"
+    }
+  ],
+  "certifications": [],
+  "dsa": null,
+  "optionalSections": {
+    "coursework": [],
+    "publications": [],
+    "achievements": [],
+    "additionalSkills": [],
+    "awards": [],
+    "languages": [],
+    "volunteerExperience": [],
+    "leadership": [],
+    "customSections": []
+  },
+  "sourceWarnings": [],
+  "tailoringPlan": {
+    "planId": "d7f0de8a-8199-4315-af4b-aebe13c9ee64",
+    "targetJobId": null,
+    "targetRoleTitle": "Full-stack Developer",
+    "targetCompany": null,
+    "candidateArchetype": "EXPERIENCED",
+    "pageTarget": "ONE_PAGE_STRICT",
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EXPERIENCE",
+      "EDUCATION"
+    ],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000004"
+    ],
+    "selectedSkillSlugs": [
+      "node-js",
+      "typescript",
+      "postgresql",
+      "nestjs",
+      "flask",
+      "python",
+      "docker",
+      "rust"
+    ],
+    "selectedSkills": [
+      {
+        "slug": "node-js",
+        "name": "Node.js",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 95,
+        "matchedRequirementId": "req-acded19bfc43",
+        "confidenceScore": 0.5,
+        "order": 1
+      },
+      {
+        "slug": "nestjs",
+        "name": "NestJS",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 70,
+        "matchedRequirementId": "req-fde7dbde2067",
+        "confidenceScore": 0.5,
+        "order": 2
+      },
+      {
+        "slug": "flask",
+        "name": "Flask",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 70,
+        "matchedRequirementId": "req-e47eeb4ef728",
+        "confidenceScore": 0.5,
+        "order": 3
+      },
+      {
+        "slug": "typescript",
+        "name": "TypeScript",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 95,
+        "matchedRequirementId": "req-2809b2f2ff81",
+        "confidenceScore": 0.5,
+        "order": 4
+      },
+      {
+        "slug": "python",
+        "name": "Python",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 70,
+        "matchedRequirementId": "req-44407571a645",
+        "confidenceScore": 0.5,
+        "order": 5
+      },
+      {
+        "slug": "rust",
+        "name": "Rust",
+        "category": "Languages",
+        "provenanceStatus": "INFERRED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 20,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 6
+      },
+      {
+        "slug": "postgresql",
+        "name": "PostgreSQL",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 3,
+        "relevanceScore": 95,
+        "matchedRequirementId": "req-34e85e1313e6",
+        "confidenceScore": 0.5,
+        "order": 7
+      },
+      {
+        "slug": "docker",
+        "name": "Docker",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 70,
+        "matchedRequirementId": "req-319a32d333db",
+        "confidenceScore": 0.5,
+        "order": 8
+      }
+    ],
+    "skillCategoryOrder": [
+      "Backend & APIs",
+      "Languages",
+      "Databases & ORMs",
+      "Cloud, DevOps & Systems"
+    ],
+    "optionalSections": {
+      "includeDsa": false,
+      "includeCertifications": false,
+      "includeCoursework": false,
+      "includePublications": false,
+      "includeAchievements": false,
+      "includeAdditionalSkills": false,
+      "includeAwards": false
+    },
+    "summaryDirectives": {
+      "focusAreas": [],
+      "keyHighlightedProjectIds": [],
+      "keyMatchedSkillSlugs": []
+    }
+  },
+  "writing": {
+    "method": "SOURCE_GROUNDED_DETERMINISTIC",
+    "providerUsed": false,
+    "providerStatus": "UNAVAILABLE",
+    "missingDataGuidance": []
+  },
+  "createdAt": "2026-10-15T06:11:50.192Z",
+  "debugTrace": {
+    "candidateHeadline": "Full-Stack Software Engineer",
+    "targetRole": "Full-stack Developer",
+    "targetRoleFamily": "FULL_STACK",
+    "dsaDecision": {
+      "hasCandidateBullets": false,
+      "hasProfileUrl": false,
+      "sectionIncluded": false
+    },
+    "syntheticContentBlocked": [
+      "DSA_HARDCODED_PROSE",
+      "DOMAIN_LABEL_REWRITING",
+      "HEADLINE_JOB_TITLE_LEAK"
+    ],
+    "factInventorySummary": [
+      {
+        "factId": "03b3eff4836f267e06413b74",
+        "sourceType": "education",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "1a8046f1501f57e8d9c94315",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "DESCRIPTION",
+        "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "a1386829f15d7b8e870cf328",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "e8a921c8c2f52ea0ff7395cb",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "eda115f72abff8ccfcbfeaf9",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      }
+    ],
+    "claimPlanSummary": [
+      {
+        "claimId": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4",
+        "factIds": [
+          "a1386829f15d7b8e870cf328"
+        ],
+        "semanticDimensions": [
+          "implementation",
+          "integration"
+        ],
+        "jobRelevance": 100,
+        "selected": true
+      },
+      {
+        "claimId": "claim-00000000-0000-4000-8000-000000000004-indiv-ac00190d25",
+        "factIds": [
+          "e8a921c8c2f52ea0ff7395cb"
+        ],
+        "semanticDimensions": [
+          "capability",
+          "capability"
+        ],
+        "jobRelevance": 100,
+        "selected": true
+      },
+      {
+        "claimId": "fallback-claim-eda115f72abff8ccfcbfeaf9",
+        "factIds": [
+          "eda115f72abff8ccfcbfeaf9",
+          "a1386829f15d7b8e870cf328"
+        ],
+        "semanticDimensions": [
+          "implementation",
+          "integration"
+        ],
+        "jobRelevance": 0,
+        "selected": true
+      },
+      {
+        "claimId": "fallback-claim-e8a921c8c2f52ea0ff7395cb",
+        "factIds": [
+          "e8a921c8c2f52ea0ff7395cb"
+        ],
+        "semanticDimensions": [
+          "capability"
+        ],
+        "jobRelevance": 0,
+        "selected": true
+      },
+      {
+        "claimId": "omitted-eda115f72abff8ccfcbfeaf9",
+        "factIds": [
+          "eda115f72abff8ccfcbfeaf9"
+        ],
+        "selected": false,
+        "omissionReason": "UNSUBSTANTIATED"
+      },
+      {
+        "claimId": "omitted-a1386829f15d7b8e870cf328",
+        "factIds": [
+          "a1386829f15d7b8e870cf328"
+        ],
+        "selected": false,
+        "omissionReason": "FRAGMENT_BULLET"
+      },
+      {
+        "claimId": "omitted-e8a921c8c2f52ea0ff7395cb",
+        "factIds": [
+          "e8a921c8c2f52ea0ff7395cb"
+        ],
+        "selected": false,
+        "omissionReason": "FRAGMENT_BULLET"
+      },
+      {
+        "claimId": "omitted-e8a921c8c2f52ea0ff7395cb",
+        "factIds": [
+          "e8a921c8c2f52ea0ff7395cb"
+        ],
+        "selected": false,
+        "omissionReason": "FRAGMENT_BULLET"
+      },
+      {
+        "claimId": "omitted-1a8046f1501f57e8d9c94315",
+        "factIds": [
+          "1a8046f1501f57e8d9c94315"
+        ],
+        "selected": false,
+        "omissionReason": "CAPACITY_LIMIT"
+      }
+    ],
+    "realizationSummary": [
+      {
+        "claimId": "bullet-1",
+        "text": "Implemented lending endpoints with TypeScript and Node.js, and wrote integration tests for checkout validation and error responses.",
+        "validationResult": "VALID"
+      }
+    ],
+    "pdfSummary": {
+      "renderedClaimIds": [
+        "bullet-1"
+      ],
+      "renderedFactIds": [
+        "eda115f72abff8ccfcbfeaf9",
+        "a1386829f15d7b8e870cf328"
+      ]
+    },
+    "requirementCoverage": {
+      "requirements": [
+        {
+          "id": "req-fde7dbde2067",
+          "text": "NestJS",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-e47eeb4ef728",
+          "text": "Flask",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-2809b2f2ff81",
+          "text": "TypeScript",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "1a8046f1501f57e8d9c94315",
+            "a1386829f15d7b8e870cf328",
+            "e8a921c8c2f52ea0ff7395cb",
+            "eda115f72abff8ccfcbfeaf9"
+          ]
+        },
+        {
+          "id": "req-acded19bfc43",
+          "text": "Node.js",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "1a8046f1501f57e8d9c94315",
+            "a1386829f15d7b8e870cf328",
+            "e8a921c8c2f52ea0ff7395cb",
+            "eda115f72abff8ccfcbfeaf9"
+          ]
+        },
+        {
+          "id": "req-34e85e1313e6",
+          "text": "PostgreSQL",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "1a8046f1501f57e8d9c94315",
+            "a1386829f15d7b8e870cf328",
+            "e8a921c8c2f52ea0ff7395cb",
+            "eda115f72abff8ccfcbfeaf9"
+          ]
+        },
+        {
+          "id": "req-319a32d333db",
+          "text": "Docker",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-44407571a645",
+          "text": "Python",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-6c6a47e31602",
+          "text": "React",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        }
+      ],
+      "selectedProjectIds": [
+        "00000000-0000-4000-8000-000000000004"
+      ],
+      "selectedFactIds": [
+        "1a8046f1501f57e8d9c94315",
+        "a1386829f15d7b8e870cf328",
+        "e8a921c8c2f52ea0ff7395cb",
+        "eda115f72abff8ccfcbfeaf9"
+      ]
+    },
+    "jobFingerprint": "fbbb1c9d4a67773d19d8dff76dc47d2ad6d2247b2dac3a39c9c53b486bfc0194",
+    "normalizedRequirements": [
+      {
+        "id": "req-fde7dbde2067",
+        "text": "NestJS",
+        "normalizedConcept": "nestjs",
+        "aliases": [
+          "nestjs"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-e47eeb4ef728",
+        "text": "Flask",
+        "normalizedConcept": "flask",
+        "aliases": [
+          "flask"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-2809b2f2ff81",
+        "text": "TypeScript",
+        "normalizedConcept": "typescript",
+        "aliases": [
+          "typescript"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-acded19bfc43",
+        "text": "Node.js",
+        "normalizedConcept": "node.js",
+        "aliases": [
+          "node.js"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-34e85e1313e6",
+        "text": "PostgreSQL",
+        "normalizedConcept": "postgresql",
+        "aliases": [
+          "postgresql"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-319a32d333db",
+        "text": "Docker",
+        "normalizedConcept": "docker",
+        "aliases": [
+          "docker"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-44407571a645",
+        "text": "Python",
+        "normalizedConcept": "python",
+        "aliases": [
+          "python"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-6c6a47e31602",
+        "text": "React",
+        "normalizedConcept": "react",
+        "aliases": [
+          "react"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      }
+    ],
+    "matches": [
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "1a8046f1501f57e8d9c94315",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "1a8046f1501f57e8d9c94315",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "1a8046f1501f57e8d9c94315",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "a1386829f15d7b8e870cf328",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "a1386829f15d7b8e870cf328",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "a1386829f15d7b8e870cf328",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "e8a921c8c2f52ea0ff7395cb",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "e8a921c8c2f52ea0ff7395cb",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "e8a921c8c2f52ea0ff7395cb",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "eda115f72abff8ccfcbfeaf9",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "eda115f72abff8ccfcbfeaf9",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "eda115f72abff8ccfcbfeaf9",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      }
+    ],
+    "projectRemovalRecords": [],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000004"
+    ],
+    "renderedProjectIds": [
+      "00000000-0000-4000-8000-000000000004"
+    ],
+    "selectedFactIds": [
+      "1a8046f1501f57e8d9c94315",
+      "a1386829f15d7b8e870cf328",
+      "e8a921c8c2f52ea0ff7395cb",
+      "eda115f72abff8ccfcbfeaf9"
+    ],
+    "renderedFactIds": [
+      "eda115f72abff8ccfcbfeaf9",
+      "a1386829f15d7b8e870cf328"
+    ],
+    "authoritativeEligibleProjectCount": 1
+  }
+}

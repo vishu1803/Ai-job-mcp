@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { studioPersonas } from '../fixtures/resume-studio-personas.js';
 import {
   normalizeStudioMaster,
@@ -11,7 +13,9 @@ import { compileStudioDocument } from '../../src/services/resume-studio-document
 
 assert.equal(process.env.NODE_ENV, 'test');
 assert.ok(!process.env.GEMINI_API_KEY && !process.env.GOOGLE_CLOUD_PROJECT);
-const output = new URL('../../output/resume-studio/', import.meta.url);
+const output = process.argv[2]
+  ? pathToFileURL(path.resolve(process.argv[2]) + path.sep)
+  : new URL('../../output/resume-studio/', import.meta.url);
 await fs.mkdir(output, { recursive: true });
 const personas = studioPersonas(),
   senior = personas.experienced;

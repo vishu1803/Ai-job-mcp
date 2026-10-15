@@ -1,4 +1,7 @@
-import { formatNormalizedDateRange } from './latex-document-generator.service.js';
+import {
+  formatNormalizedDateRange,
+  formatEmploymentMetadata,
+} from './latex-document-generator.service.js';
 import { formatResumeSourceEntry } from '../utils/resume-source-normalizer.js';
 
 /** Projection only: include explicit selections, preserve all other source sections. */
@@ -65,8 +68,7 @@ export function studioDocumentContent(draft) {
     for (const e of content.experience) {
       add([e.title, e.company].filter(Boolean).join(' — '), 'Heading2');
       add(date(e));
-      add(e.location);
-      add(e.employmentType);
+      add(formatEmploymentMetadata(e.location, e.employmentType));
       if (e.technologies?.length) add('Technologies: ' + e.technologies.join(', '));
       for (const text of new Set([e.summary, e.description].filter(Boolean))) add(text);
       e.bullets.forEach((text) => add(text, 'Bullet'));
@@ -98,11 +100,10 @@ export function studioDocumentContent(draft) {
         'Heading2'
       );
       add(date(e));
-      add(e.institution);
+      add([e.institution, e.location].filter(Boolean).join(' | '));
       if (e.coursework?.length) add('Relevant Coursework: ' + e.coursework.join(', '));
       if (e.isCurrent && e.endDate)
         add('Expected completion: ' + formatNormalizedDateRange(e.endDate, ''));
-      add(e.location);
       if (e.grade) add('Grade: ' + e.grade);
       e.honors?.forEach((text) => add(text));
       e.bullets?.forEach((text) => add(text, 'Bullet'));
