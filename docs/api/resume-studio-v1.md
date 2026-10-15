@@ -24,7 +24,7 @@ Additional existing presentation fields may vary with the centralized error cata
 400 VALIDATION_ERROR; 401 UNAUTHENTICATED/INVALID_SESSION; 403 CSRF_DETECTED,
 CSRF_TOKEN_MISSING/CSRF_TOKEN_INVALID or FORBIDDEN; 404 NOT_FOUND for nonexistent
 or foreign resources; 413 framework body limit; 500 sanitized INTERNAL_ERROR for
-unexpected failures. CAS conflicts use 409 with `error.details[0].reason` equal
+unexpected failures. Future CAS conflicts use 409 with `error.details.reason` equal
 to DRAFT_REVISION_CONFLICT or STALE_PROPOSAL. Do not retry those blindly.
 
 ## Implemented slice STUDIO-BE-001: baseline analysis
@@ -77,29 +77,26 @@ never verified. INFERRED content is unsupported, never displayed as a satisfied 
 Related matches never satisfy exact requirements. Existing verification policy limits
 VERIFIED to scoped repository source facts; it does not prove candidate competence.
 
-## Slice 2 draft endpoints
+## Dependent endpoint contracts (NOT IMPLEMENTED; no frontend calls yet)
 
-Persistent create/read/update are implemented by [draft contract 1.1.0](resume-studio-drafts-v1.md).
-This is an additive contract; the analysis request/response above stay version1.0.0.
-Canonical master cloning requires `{kind:"RESUME",resumeId}`; the earlier planned PROFILE
-alternative is deferred. The draft contract documents actual conflict details arrays,
-schemas, node IDs, selection semantics and source/provenance boundaries.
+Canonical prefix `/api/v1/resume-studio`; UUID IDs. All success payloads carry
+contractVersion. These contracts fix ordering, authority and boundaries for later slices;
+their executable schemas and complete response fixtures are delivered before each slice.
+Server returns 404 for these paths today; availability is not inferred from this table.
 
-## Slice 3 proposal endpoints
-
-Generate/read/accept/reject proposals are implemented by [proposal contract1.2.0](resume-studio-proposals-v1.md).
-This is additive: analysis1.0.0 and draft1.1.0 payloads remain unchanged. Unavailable
-or unsupported model output is explicit; no proposal is automatically applied.
-
-## Integrated history, diagnostics and document endpoints
-
-See [additive contract 1.3.0](resume-studio-documents-v1.md) and its JSON Schemas/real synthetic
-HTTP fixtures for implemented paths. The canonical export path is singular `/export`, and
-approval is `/approval`. History uses latest 200 headers plus direct revision retrieval;
-restore uses `restoreRevision`. Earlier planned `/exports` and `/approval-package` names
-were never implemented and remain unavailable. Bounded geometry is part of `/preview`;
-there is no separate `/fit` endpoint. JSON Resume, public sharing and coach reviews remain
-deferred. Original analysis and draft/proposal contracts are unchanged.
+| Method/path | Request | Response and dependency |
+| --- | --- | --- |
+| POST /drafts | source `{kind: PROFILE}` or `{kind: RESUME, resumeId}`, jobTarget | 201 draft with id, revision=1, sourceSnapshotHash, contentHash, structuredResume, immutable provenance, selection; ownership-checked clone storage first |
+| GET /drafts/:id | none | draft at authoritative revision; tenant AND user/candidate scoped |
+| PATCH /drafts/:id | expectedRevision, edits `[{nodeId,text}]`, optional selection `{projectIds,experienceIds,bulletIds,skillIds}` | updated draft; atomic CAS; changes candidate-authored CLAIMED text only; source facts remain immutable |
+| POST /drafts/:id/proposals | expectedRevision, nodeId | 201 immutable proposal: id,draftId,baseRevision,nodeId,originalText,proposedText,rationale,evidenceLinks,truthState,status=PENDING |
+| POST /drafts/:id/proposals/:proposalId/decision | expectedRevision, decision ACCEPT or REJECT | atomic decision and draft; authoritative revision + stable node snapshot + PENDING status; stale => 409 STALE_PROPOSAL with no text overwrite |
+| GET /drafts/:id/history | cursor?, limit<=50 | bounded revision metadata, nextCursor; immutable intermediate revisions retained |
+| POST /drafts/:id/restore | expectedRevision, revisionToRestore | new revision; history never destroyed; pending proposals invalidated even if text returns to original |
+| POST /drafts/:id/preview | expectedRevision | revision-bound PDF artifact reference + measured page count/A4/font/layout report; PageMap only where exact nodes are verified, never heuristic click claims |
+| POST /drafts/:id/fit | expectedRevision | measured geometry-only result or NEEDS_CONTENT_DECISION with exact suggested omissions; no implicit pruning |
+| POST /drafts/:id/exports | expectedRevision, format PDF/DOCX/JSON | verified revision-bound artifact, hash, downloadUrl; PDF must exactly one A4 page with actual body font>=10pt (measurement tolerance documented), readable extraction, >=0.50in margins; fail closed on overflow |
+| POST /drafts/:id/approval-package | expectedRevision | prepared package through EXISTING approval/hash/receipt pipeline; draft and download are not approval |
 
 Editing a sealed snapshot creates a new draft branch; never mutate packages or consumed
 tickets. Approval still requires existing explicit review ticket flow and binds actual
@@ -110,7 +107,7 @@ The monotonic draft revision is independent of resume.version/application packag
 Undo/redo via restore creates new revisions, preventing ABA/stale acceptance; 200 visible
 history steps may be paginated without deleting approved or audit snapshots.
 
-## Original slice implementation roadmap (historical)
+## Implementation dependencies and ownership
 
 1. STUDIO-BE-001 canonical session API + baseline diagnostics (this slice).
 2. STUDIO-BE-002 separate draft persistence/migration and independent clones with stable
@@ -128,19 +125,10 @@ history steps may be paginated without deleting approved or audit snapshots.
    Docs/LibreOffice compatibility is NOT VERIFIED until tested in those applications.
 7. STUDIO-BE-007 existing approval/regeneration integration with output checksums.
 
-The current sole-owner integration status is recorded in project.md STUDIO-INTEGRATION-001.
-The roadmap above originated in Slice1; it is not the current endpoint availability table.
-
 Reuse current parser, EvidenceMatchingService, ProjectRelevanceService.computeProjectsRelevance,
-AtsFitScoreService, CandidateProfileService, keyword and writing services. Slice1 changed
-no frontend, parser, structured-resume, LaTeX/geometry, storage, workflow or approval repair
-files and required no migration. Later integrated changes stay isolated from active repair
-implementations. PRD-002 is locally complete; PRD-004/005 and live AI
-remain open. The integrated frontend now consumes implemented contracts through real
-session/CSRF HTTP. Native Office rendering remains unverified pending local setup; live
-provider quality is not claimed. No commit/push/merge/deploy authorized.
-
-
-## Local main consolidation and library navigation (2026-10-15)
-
-Local integration/checkpoint commits and main merge are now authorized and completed; earlier no-commit statements describe the historical slices. Remote publication/deployment remain prohibited. Additive1.4 [owned draft library and web context](resume-studio-library-v1.md) and its JSON Schema are implemented.1.0analysis/1.1draft/1.2proposals/1.3document contracts remain compatible. See ../product/unified-ui-milestone-1-handoff.md for current592-case local verification and limits.
+AtsFitScoreService, CandidateProfileService, keyword and writing services. No frontend,
+parser, structured-resume, LaTeX/geometry, encrypted storage, workflow or approval repair
+files changed. The new app registration is the only shared composition seam. No dependency
+installation/migration in slice001. PRD-002 is locally complete; PRD-004/005 and live AI
+remain open. Antigravity may connect analyze now after branch integration; editor and
+export bindings must wait for implemented dependent slices. No push/merge/deploy authorized.

@@ -1,5 +1,3 @@
-import { ResumeStudioDraftService } from '../services/resume-studio-draft.service.js';
-import { StudioJobTargetSchema } from '../domain/career/resume-studio.schemas.js';
 import { buildArtifactContentDisposition } from '../utils/artifact-filename-builder.js';
 /**
  * @file Web Application View Routes (P13.5-002).
@@ -196,7 +194,6 @@ async function getOrCreateCandidate(database, tenantId, user) {
  */
 export default async function webRoutes(app, opts = {}) {
   const database = opts.db || defaultDb;
-  const studioDrafts = new ResumeStudioDraftService({ database });
   const ingestionService =
     opts.ingestionService || new CandidateRepositoryIngestionService({ db: database });
   const repositorySelectionService = new GitHubRepositorySelectionService({
@@ -567,18 +564,8 @@ export default async function webRoutes(app, opts = {}) {
     const copilotOpen = req.query?.copilot === 'open' || Boolean(req.query?.intent);
     const initialIntent = typeof req.query?.intent === 'string' ? req.query.intent : null;
 
-    let studioLibrary = null;
-    try {
-      studioLibrary = await studioDrafts.list(
-        { tenantId: data.tenant.id, userId: data.user.id, role: data.user.role },
-        { limit: 2 }
-      );
-    } catch (error) {
-      req.log.warn({ code: error.code }, 'Studio draft summary unavailable');
-    }
     const html = renderDashboardPage({
       ...data,
-      studioLibrary,
       flashMessage,
       flashError,
       copilotOpen,
@@ -2141,24 +2128,27 @@ export default async function webRoutes(app, opts = {}) {
   // -------------------------------------------------------------------------
   // 15b. GET /resume-studio — AI Tailored Resume Studio (Slice 2: Persistent Editor)
   // -------------------------------------------------------------------------
-  async function studioPage(req, reply, pastedTarget = null) {
+  app.get('/resume-studio', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
-      return reply.redirect(
-        '/login?returnTo=' + encodeURIComponent(req.method === 'GET' ? req.url : '/resume-studio')
-      );
+      return reply.redirect('/login?returnTo=/resume-studio');
     }
 
     const { user, tenant } = sessionContext;
-    const [candidate] = await database
-      .select()
-      .from(candidates)
-      .where(and(eq(candidates.tenantId, tenant.id), eq(candidates.userId, user.id)))
-      .limit(1);
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    let candidateProfile = null;
+    try {
+      candidateProfile = await candidateProfileService.getCareerProfile(
+        { tenantId: tenant.id, role: user.role || 'MEMBER', userId: user.id },
+        candidate.id
+      );
+    } catch {
+      candidateProfile = null;
+    }
 
     let baseResumes = [];
     try {
-      if (!candidate) throw new Error('Candidate master not available');
       const list = await resumeService.listResumes({
         context: {
           tenantId: tenant.id,
@@ -2167,102 +2157,25 @@ export default async function webRoutes(app, opts = {}) {
         },
         candidateId: candidate.id,
       });
-      baseResumes = Array.isArray(list) ? list : list?.resumes || [];
-      baseResumes = baseResumes.filter(
-        (resume) => resume.isBaseResume && resume.lifecycleState === 'BASE_RESUME'
-      );
+      baseResumes = Array.isArray(list) ? list : (list?.resumes || []);
     } catch {
       baseResumes = [];
     }
 
-    const context = { tenantId: tenant.id, userId: user.id, role: user.role };
-    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    for (const key of ['draftId', 'sourceResumeId', 'applicationId']) {
-      if (req.query?.[key] && !uuid.test(String(req.query[key])))
-        throw new ValidationError('Invalid Studio context');
-    }
-    let initialJobTarget = pastedTarget,
-      returnContext = { href: '/resumes', label: 'Back to Resumes', origin: 'Resumes' };
-    const draft = req.query?.draftId
-      ? await studioDrafts.get(context, String(req.query.draftId))
-      : null;
-    if (draft) initialJobTarget = draft.jobTarget;
-    if (
-      req.query?.sourceResumeId &&
-      !baseResumes.some((r) => r.id === String(req.query.sourceResumeId).toLowerCase())
-    )
-      throw new NotFoundError('Master resume not found');
-    if (req.query?.applicationId) {
-      const [application] = candidate
-        ? await database
-            .select()
-            .from(jobApplications)
-            .where(
-              and(
-                eq(jobApplications.id, String(req.query.applicationId)),
-                eq(jobApplications.tenantId, tenant.id),
-                eq(jobApplications.candidateId, candidate.id)
-              )
-            )
-            .limit(1)
-        : [];
-      if (!application) throw new NotFoundError('Application not found');
-      const target = {
-        title: application.jobTitle,
-        company: application.companyName,
-        rawDescription: application.rawJobDescription || '',
-        ...(application.jobUrl ? { sourceUrl: application.jobUrl } : {}),
-      };
-      if (
-        draft &&
-        (draft.jobTarget.rawDescription.trim() !== target.rawDescription.trim() ||
-          draft.jobTarget.title !== target.title ||
-          draft.jobTarget.company !== target.company)
-      )
-        throw new NotFoundError('Draft context not found');
-      initialJobTarget = draft ? draft.jobTarget : target;
-      const fromJob = req.query?.from === 'jobs';
-      returnContext = {
-        href: fromJob ? '/apps/radar?tab=saved' : '/applications/' + application.id + '/apply',
-        label: fromJob ? 'Back to saved job' : 'Back to application',
-        origin: fromJob ? 'Jobs' : 'Applications',
-      };
-    } else if (req.query?.from === 'jobs' || pastedTarget)
-      returnContext = { href: '/apps/radar?tab=analyze', label: 'Back to Jobs', origin: 'Jobs' };
-    const csrfToken = generateCsrfToken(sessionContext.session.id);
+    const csrfToken = generateCsrfToken(sessionContext.sessionId);
     const initialDraftId = req.query?.draftId ? String(req.query.draftId) : null;
 
     const html = renderResumeStudioPage({
       user,
       tenant,
       candidate,
+      candidateProfile,
       baseResumes,
       draftId: initialDraftId,
       csrfToken,
-      initialJobTarget,
-      returnContext,
-      sourceResumeId: req.query?.sourceResumeId || null,
     });
 
     return reply.type('text/html; charset=utf-8').send(html);
-  }
-  app.get('/resume-studio', studioPage);
-  app.post('/resume-studio/open', { bodyLimit: 1024 * 1024 }, async (req, reply) => {
-    const session = await getOptionalSession(req, database);
-    if (!session) return reply.redirect('/login?returnTo=/resume-studio');
-    await verifyCsrf(req, reply, { requireOrigin: true, requireToken: true });
-    const body = req.body || {};
-    const result = StudioJobTargetSchema.safeParse({
-      title: body.jobTitle || undefined,
-      company: body.companyName || undefined,
-      rawDescription: body.jobDescriptionText || '',
-      ...(body.sourceUrl ? { sourceUrl: body.sourceUrl } : {}),
-    });
-    if (!result.success)
-      throw new ValidationError(
-        'Add a complete job description (at least 100 characters) before tailoring.'
-      );
-    return studioPage(req, reply, result.data);
   });
 
   // -------------------------------------------------------------------------
@@ -2311,22 +2224,7 @@ export default async function webRoutes(app, opts = {}) {
       : '';
     const errorMessage = req.query?.error ? String(req.query.error) : '';
 
-    let studioLibrary = null;
-    try {
-      studioLibrary = await studioDrafts.list(
-        {
-          tenantId: sessionContext.tenant.id,
-          userId: sessionContext.user.id,
-          role: sessionContext.user.role,
-        },
-        { offset: req.query?.draftOffset || 0 }
-      );
-    } catch (error) {
-      if (error instanceof ValidationError) throw error;
-      req.log.warn({ code: error.code }, 'Studio library unavailable');
-    }
     const html = renderResumesPage({
-      studioLibrary,
       user: sessionContext.user,
       tenant: sessionContext.tenant,
       candidate,
@@ -5353,7 +5251,6 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const html = renderRadarPage({
-      csrfToken: generateCsrfToken(sessionContext.session.id),
       user,
       tenant,
       candidate,
@@ -5418,12 +5315,6 @@ export default async function webRoutes(app, opts = {}) {
         user: sessionContext.user,
         tenant: sessionContext.tenant,
         analysisData,
-        studioTarget: {
-          title: jobTitle || '',
-          company: companyName || '',
-          rawDescription: jobDescriptionText.trim(),
-        },
-        csrfToken: generateCsrfToken(sessionContext.session.id),
       });
       return reply.type('text/html; charset=utf-8').send(html);
     } catch (err) {
