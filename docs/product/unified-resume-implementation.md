@@ -1,6 +1,6 @@
 # Unified resume implementation — UNIFIED-RESUME-001
 
-Status: IN_PROGRESS. Stage A baseline and architecture in progress. Stages B–F NOT_STARTED.
+Status: IN_PROGRESS. Stage A baseline recorded; CI root-cause closure and private-source reproduction remain open. Stage B shared composition extraction locally verified, full authoritative operation incomplete. Stages C–F NOT_STARTED.
 
 ## Scope and safety
 
@@ -19,7 +19,7 @@ Strategic alignment: provider-neutral evidence-backed career artifacts and tenan
 - Test environment: C:/Users/VISHW/AppData/Local/Temp/career-product-audit-run-9ZIuT8/audit.env, produced by existing safety harness, provider credentials blank.
 - Node 24.13.0 locally versus CI Node 22. Existing node_modules linked read-only by convention through a directory junction; lockfile install equivalence not yet verified.
 - Full unit baseline command: ENV_FILE=<above> npm run test:unit. Log output/unified-resume/unit-baseline.log. Exit 1: 4461 tests, 4269 pass, 176 fail, 16 cancelled, zero skipped, 328.6 seconds. Node 24 runner counts differ from CI Node 22; not claimed identical.
-- No product code modified yet. No new migration proposed yet.
+- Baseline local commit: 0477714. No new migration proposed or applied beyond existing 26 migrations.
 
 ## Actual CI evidence
 
@@ -74,4 +74,32 @@ Identity today: canonical reviewed resume/version in resumes and candidate profi
 5. Stage E: actual embedded Latin Modern and independent one-page geometry/content/DOCX verification.
 6. Stage F: complete real HTTP/browser journeys and all repository gates; leave local fixture app for manual review.
 
-NOT VERIFIED: credential rotation connectivity/TLS, original/corrected real candidate PDF, shared-engine implementation, generated Library linkage, regeneration carry-forward, font embedding, DOCX pagination, final browser workflows or full acceptance. No completion percentage asserted.
+NOT VERIFIED: credential rotation connectivity/TLS, original/corrected real candidate PDF, complete shared-engine implementation, generated Library linkage, regeneration carry-forward, corrected font embedding, DOCX pagination, final browser workflows or full acceptance. No completion percentage asserted.
+
+## Stage B checkpoint: shared composition extraction
+
+Changed src/services/job-application-workflow.service.js and added src/services/resume-generation-content.service.js. Both prepareJobApplication and regenerateApplicationPackage now call generateResumeContent for AI/deterministic composition, structured snapshot construction, schema/evidence validation and physical fitting. Removed duplicated orchestration; retained existing services, JSON-safe cloning, caller authorization, source loading, persistence, approval and renderer policies. Provider failure logs no longer include arbitrary provider exception text.
+
+This is an internal composition boundary, NOT the completed authorized generation/persistence API. Source resolution, project selection and application persistence still live in workflow. Studio and web handoff fallback still diverge. No UI change, new schema, source overwrite or approval bypass.
+
+Tests added: tests/unit/resume-generation-content.test.js verifies semantic parity against pre-extraction composition for fresher and long-history fixtures, source immutability, compiler failure propagation and rejection of unknown page count. Compiler is explicitly stubbed in these contract tests; no PDF acceptance claim.
+
+Verification:
+- Before extraction: 29/29 existing source-grounded writing and one-page selection tests pass.
+- After extraction/final JSON-safe clone check: 33/33 pass, zero failures/cancellations/skips; output/unified-resume/composition-final.log.
+- Full post-extraction suite: 4465 tests, 4285 pass, 180 fail, zero cancelled/skipped, 274.96 seconds; output/unified-resume/unit-after-extraction.log. Reused isolated fixture DB after baseline, so not a fresh-state/Node22 CI equivalence claim. All failing test locations were already failing or cancelled in baseline; AI-quality setup completed this time, revealing failed job-conditioning assertions (FullStack/PythonBackend summary similarity 1.000 and frontend emphasis failure). Full suite remains RED.
+- Scoped ESLint: zero errors, eight preexisting workflow warnings. Scoped formatting and git diff --check pass.
+- Secrets scan: PASS. Schema integrity: PASS (zero unindexed FKs/stale update paths). Drizzle migration-journal check: PASS. Logs in output/unified-resume.
+- No remote CI rerun, push or deployment.
+
+Provider investigation: current summary synthesis invokes provider.generateStructured when configured but discards its output, then uses composeSourceGroundedSummary. Metadata honestly reports SOURCE_GROUNDED_DETERMINISTIC/providerUsed=false and ADVISORY_ONLY/FAILED/UNAVAILABLE. Provider-authored writing is not implemented by this extraction; must add validated fact-bound selection/composition without bypassing current policy.
+
+## Actual existing PDF baseline
+
+Independent PyMuPDF 1.26.7 inspection (isolated Temp dependency) of tracked synthetic artifacts:
+- output/pdf/test-retention/mid-backend-after.pdf: 1 page, 594.96 x 841.92 pt; embedded font resource names SegoeUI-Bold, SegoeUI-Semibold, SegoeUI, SegoeUI-Italic.
+- output/resume-studio/screenshots/integrated.pdf: 1 page, same dimensions; SegoeUI-Bold, SegoeUI, SegoeUI-Italic plus MicrosoftYaHei/Bold glyph fallback.
+
+These are existing synthetic PDFs, not the user's original defective PDF or repaired outputs. Confirms typography mismatch in actual PDFs. No new rendered artifact, corrected geometry or visual acceptance is claimed. Default Python lacked PyMuPDF; old project inspection runtime had access restrictions; new runtime lives at C:/Users/VISHW/AppData/Local/Temp/career-unified-pdf-inspection and requires access as its installing user.
+
+Continuation priority: complete authorized generation/persistence boundary and stable generation identity, then map exact saved content into Studio without cloning master. Preserve all current source/approval invariants. The full original A–H acceptance checklist remains outstanding; do not relabel this bounded extraction as complete.

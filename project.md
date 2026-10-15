@@ -2,10 +2,12 @@
 
 ## UNIFIED-RESUME-001 — Authoritative resume engine and Studio repair (2026-10-15)
 
-**Status: IN_PROGRESS. Stage A baseline/architecture; stages B–F NOT_STARTED.**
+**Status: IN_PROGRESS. Stage A baseline recorded; Stage B composition extraction locally verified but authoritative operation incomplete; stages C–F NOT_STARTED.**
 Owner approved unified generation/versioning/Studio/Latin Modern A4 implementation. Verified live remote main and local HEAD at `49b4d1a82229a195c2ecdf96cc8ad1f1ad52dcc5`; isolated branch `repair/unified-resume-20261015` in Temp preserves dirty main and three existing worktrees. No push/deploy or remote migration.
 
 Retrieved actual CI run `38714906218`: 4,261 pass, 177 fail, 17 cancelled / 4,455; artifact and integration stages skipped, dependency security passed. Confirmed Studio master-clone divergence, duplicated generation/regeneration orchestration, web handoff independent composition and strict-page Chrome system-font path. No product fixes or acceptance claimed yet.
+
+Stage B bounded change: generation and regeneration share `resume-generation-content.service.js` for existing composition, structured validation/evidence gates and fitting; no security/persistence/schema/UI change. Added four contract tests. Focused final gate 33/33 PASS; full post-extraction suite remains RED: 4,285 pass, 180 fail, zero cancelled / 4,465 (previously cancelled AI-quality cases executed; no new failing locations). Scoped lint zero errors/eight existing warnings; formatting/whitespace, secrets, schema integrity and migration-journal checks pass. Baseline checkpoint `0477714`. Actual existing synthetic PDF inspection confirms Segoe UI, not Latin Modern. Complete engine, Studio generation linkage, version carry-forward, font repair and browser acceptance remain outstanding.
 
 Created new loopback PostgreSQL 17 cluster on 55449; verified 26 migration rows and successful synthetic seed only there. Full unit baseline: 4,269 pass, 176 fail, 16 cancelled / 4,461, exit 1, 328.6s, blank external-provider credentials; local Node 24 differs from CI Node 22. Normal app TLS validation is disabled with no CA; strict read-only connection fails SELF_SIGNED_CERT_IN_CHAIN before authentication. Trusted CA requested; credential rotation not yet verified. Detailed source map, safe environment, evidence paths and continuation sequence: [implementation report](docs/product/unified-resume-implementation.md). Progress percentages unchanged.
 

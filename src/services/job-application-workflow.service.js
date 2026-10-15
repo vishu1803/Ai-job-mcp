@@ -72,14 +72,8 @@ import {
   JobApplicationWorkflowStateEnum,
   JobApplicationWorkflowStateMachine,
 } from '../domain/job/job-workflow.schemas.js';
-import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
-import { fitOnePageResume, onePageResumeMarkdown } from './one-page-resume.service.js';
-import { defaultAiResumeContentGenerator } from './ai-resume-content-generator.service.js';
-import {
-  StructuredResumeDocumentSchema,
-  ResumeTailoringPlanSchema,
-  EvidenceValidationReceiptSchema,
-} from '../domain/career/resume.schemas.js';
+import { generateResumeContent } from './resume-generation-content.service.js';
+import { onePageResumeMarkdown } from './one-page-resume.service.js';
 import {
   ValidationError,
   NotFoundError,
@@ -1206,61 +1200,20 @@ export class JobApplicationWorkflowService {
       return matched || item;
     });
 
-    let aiContent = null;
-    try {
-      aiContent = await defaultAiResumeContentGenerator.generateResumeAiContent({
+    const { safeStructuredResume, safeTailoringPlan, safeEvidenceReceipt } =
+      await generateResumeContent({
         candidateProfile: candidateProfileInput,
-        targetJobPosting,
+        jobPosting: targetJobPosting,
         selectedProjects: topSelectedProjects,
         selectedSkills: verifiedSkills.concat(claimedSkills),
-        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
-        aiProvider: this.aiProvider,
-      });
-    } catch (aiErr) {
-      this.logger.warn(
-        { error: aiErr.message },
-        'AI resume content generation failed; falling back to deterministic baseline'
-      );
-      aiContent = null;
-    }
-
-    const structuredSnapshot = buildStructuredResumeSnapshot({
-      candidateProfile: candidateProfileInput,
-      jobPosting: targetJobPosting,
-      options: {
         projectRankings: authoritativeRankings,
         matchAnalysis: jobFitAnalysis?.matchAnalysis,
-        aiContent,
-      },
-    });
-
-    // Integrity Validation Gate (Fail-Closed)
-    StructuredResumeDocumentSchema.parse(structuredSnapshot.structuredResume);
-    ResumeTailoringPlanSchema.parse(structuredSnapshot.tailoringPlan);
-    EvidenceValidationReceiptSchema.parse(structuredSnapshot.evidenceValidationReceipt);
-
-    if (structuredSnapshot.evidenceValidationReceipt.overallStatus !== 'PASS') {
-      const violations = (structuredSnapshot.evidenceValidationReceipt.violations || [])
-        .map((v) => `${v.section || 'DOCUMENT'}: ${v.message || v.violationType}`)
-        .join('; ');
-      throw new ValidationError(
-        `Structured resume document failed evidence integrity validation: ${violations || 'receipt status is not PASS'}`,
-        'STRUCTURED_RESUME_INTEGRITY_FAILED'
-      );
-    }
-
-    const safeStructuredResume = await fitOnePageResume(
-      JSON.parse(JSON.stringify(structuredSnapshot.structuredResume)),
-      targetJobPosting,
-      {
+        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
+        aiProvider: this.aiProvider,
         generator: this.applicationHandoffService.latexGenerator,
         compiler: this.applicationHandoffService.latexCompiler,
-      }
-    );
-    const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
-    const safeEvidenceReceipt = JSON.parse(
-      JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
-    );
+        logger: this.logger,
+      });
 
     // 6. Build Unhashed Package
     const preparedPackage = {
@@ -1982,59 +1935,19 @@ export class JobApplicationWorkflowService {
       return matched || item;
     });
 
-    let aiContent = null;
-    try {
-      aiContent = await defaultAiResumeContentGenerator.generateResumeAiContent({
+    const { safeStructuredResume, safeTailoringPlan, safeEvidenceReceipt } =
+      await generateResumeContent({
         candidateProfile: candidateProfileInput,
-        targetJobPosting: jobPosting,
+        jobPosting: jobPosting,
         selectedProjects: topDraftSelectedProjects,
         selectedSkills: verifiedSkills.concat(claimedSkills),
+        projectRankings: authoritativeDraftRankings,
         factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
         aiProvider: this.aiProvider,
-      });
-    } catch (aiErr) {
-      this.logger.warn(
-        { error: aiErr.message },
-        'AI resume content generation failed during regeneration; falling back to deterministic baseline'
-      );
-      aiContent = null;
-    }
-
-    const structuredSnapshot = buildStructuredResumeSnapshot({
-      candidateProfile: candidateProfileInput,
-      jobPosting,
-      options: {
-        projectRankings: authoritativeDraftRankings,
-        aiContent,
-      },
-    });
-
-    StructuredResumeDocumentSchema.parse(structuredSnapshot.structuredResume);
-    ResumeTailoringPlanSchema.parse(structuredSnapshot.tailoringPlan);
-    EvidenceValidationReceiptSchema.parse(structuredSnapshot.evidenceValidationReceipt);
-
-    if (structuredSnapshot.evidenceValidationReceipt.overallStatus !== 'PASS') {
-      const violations = (structuredSnapshot.evidenceValidationReceipt.violations || [])
-        .map((v) => `${v.section || 'DOCUMENT'}: ${v.message || v.violationType}`)
-        .join('; ');
-      throw new ValidationError(
-        `Structured resume document failed evidence integrity validation during regeneration: ${violations || 'receipt status is not PASS'}`,
-        'STRUCTURED_RESUME_INTEGRITY_FAILED'
-      );
-    }
-
-    const safeStructuredResume = await fitOnePageResume(
-      JSON.parse(JSON.stringify(structuredSnapshot.structuredResume)),
-      jobPosting,
-      {
         generator: this.applicationHandoffService.latexGenerator,
         compiler: this.applicationHandoffService.latexCompiler,
-      }
-    );
-    const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
-    const safeEvidenceReceipt = JSON.parse(
-      JSON.stringify(structuredSnapshot.evidenceValidationReceipt)
-    );
+        logger: this.logger,
+      });
 
     const preparedPackage = {
       candidateId,
