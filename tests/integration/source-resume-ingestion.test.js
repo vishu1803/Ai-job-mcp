@@ -288,8 +288,8 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
     assert.ok(resHtml.body.includes('alpha_resume_v1.txt'));
     assert.ok(resHtml.body.includes('alpha_resume_v2.txt'));
     assert.ok(resHtml.body.includes('Career'));
-    assert.ok(resHtml.body.includes('Sources'));
-    assert.ok(resHtml.body.includes('AI Connect'));
+    assert.ok(resHtml.body.includes('href="/profile"'));
+    assert.ok(resHtml.body.includes('AI connections'));
     assert.ok(resHtml.body.includes('Sign Out'));
 
     // 3c. Empty State HTML for User B (Recognizes authenticated Candidate B, not missing session)
@@ -305,10 +305,10 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
     assert.equal(resHtmlEmpty.statusCode, 200);
     assert.ok(resHtmlEmpty.body.includes(`Bob Builder ${testRunId}`));
     assert.ok(
-      resHtmlEmpty.body.includes('No resumes uploaded yet') ||
+      resHtmlEmpty.body.includes('No resume imported yet') ||
         resHtmlEmpty.body.includes('No Source Resumes Uploaded Yet')
     );
-    assert.ok(resHtmlEmpty.body.includes('Upload'));
+    assert.ok(resHtmlEmpty.body.includes('Import'));
     assert.ok(resHtmlEmpty.body.includes('Sign Out'));
   });
 

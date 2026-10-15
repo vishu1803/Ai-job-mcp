@@ -14,12 +14,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { db, closeDatabase } from '../../src/db/index.js';
-import {
-  tenants,
-  users,
-  candidates,
-  jobApplications,
-} from '../../src/db/schema.js';
+import { tenants, users, candidates, jobApplications } from '../../src/db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import {
   JobApplicationWorkflowStateEnum,
@@ -129,14 +124,20 @@ describe('Phase 9.5 — Application State Consistency & State Machine Invariants
 
     it('permits READY_FOR_FINAL_REVIEW -> SUBMITTED when authorizedSubmissionExecuted is explicitly true', () => {
       const sm = new JobApplicationWorkflowStateMachine('READY_FOR_FINAL_REVIEW');
-      const newState = sm.transition('SUBMITTED', { authorizedSubmissionExecuted: true, reason: 'User confirmed final submission' });
+      const newState = sm.transition('SUBMITTED', {
+        authorizedSubmissionExecuted: true,
+        reason: 'User confirmed final submission',
+      });
       assert.strictEqual(newState, 'SUBMITTED');
       assert.strictEqual(sm.state, 'SUBMITTED');
     });
 
     it('permits READY_FOR_FINAL_REVIEW -> APPLIED when authorizedSubmissionExecuted is explicitly true', () => {
       const sm = new JobApplicationWorkflowStateMachine('READY_FOR_FINAL_REVIEW');
-      const newState = sm.transition('APPLIED', { authorizedSubmissionExecuted: true, reason: 'User executed external submit' });
+      const newState = sm.transition('APPLIED', {
+        authorizedSubmissionExecuted: true,
+        reason: 'User executed external submit',
+      });
       assert.strictEqual(newState, 'APPLIED');
       assert.strictEqual(sm.state, 'APPLIED');
     });
@@ -176,7 +177,10 @@ describe('Phase 9.5 — Application State Consistency & State Machine Invariants
 
     it('allows retry transition: FAILED -> PREPARED', () => {
       const sm = new JobApplicationWorkflowStateMachine('FAILED');
-      assert.strictEqual(sm.transition('PREPARED', { reason: 'User restarted workflow' }), 'PREPARED');
+      assert.strictEqual(
+        sm.transition('PREPARED', { reason: 'User restarted workflow' }),
+        'PREPARED'
+      );
     });
   });
 
@@ -280,7 +284,10 @@ describe('Phase 9.5 — Application State Consistency & State Machine Invariants
       });
 
       assert.strictEqual(finalResult.status, 'SUBMITTED');
-      assert.ok(finalResult.appliedAt !== null, 'appliedAt timestamp must be set on actual submission');
+      assert.ok(
+        finalResult.appliedAt !== null,
+        'appliedAt timestamp must be set on actual submission'
+      );
 
       const [appRow] = await db
         .select()
@@ -395,7 +402,11 @@ describe('Phase 9.5 — Application State Consistency & State Machine Invariants
 
       assert.ok(savedApp, 'Application must be recorded in DB');
       assert.strictEqual(savedApp.status, 'READY_FOR_FINAL_REVIEW');
-      assert.strictEqual(savedApp.appliedAt, null, 'appliedAt MUST remain null when final submit is blocked');
+      assert.strictEqual(
+        savedApp.appliedAt,
+        null,
+        'appliedAt MUST remain null when final submit is blocked'
+      );
       assert.strictEqual(savedApp.metadata.finalSubmitBlocked, true);
     });
 

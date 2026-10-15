@@ -1,0 +1,528 @@
+[
+  {
+    "name": "junior-backend-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 0,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.1",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "junior-full-stack-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 0,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.2",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "mid-backend-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 1,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "EXPERIENCE",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.1",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "mid-full-stack-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 1,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "EXPERIENCE",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.2",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "experienced-backend-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 3,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "EXPERIENCE",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.1",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  },
+  {
+    "name": "experienced-full-stack-after",
+    "skillCount": 7,
+    "skills": [
+      "Node.js",
+      "NestJS",
+      "Flask",
+      "TypeScript",
+      "Python",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "experienceCount": 3,
+    "projectCount": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "EXPERIENCE",
+      "PROJECTS",
+      "EDUCATION"
+    ],
+    "receipt": "PASS",
+    "factCompositionReport": {
+      "usedFactComposition": true,
+      "totalFacts": 5,
+      "distinctFacts": 5,
+      "factsByType": {
+        "education": 1,
+        "project-description": 1,
+        "candidate-authored": 3
+      },
+      "composedBullets": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "a1386829f15d7b8e870cf328"
+          ],
+          "semanticDimensions": [
+            "implementation",
+            "integration"
+          ]
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "composedFromFactIds": [
+            "e8a921c8c2f52ea0ff7395cb"
+          ],
+          "semanticDimensions": [
+            "capability",
+            "capability"
+          ]
+        }
+      ],
+      "omittedFacts": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "eda115f72abff8ccfcbfeaf9",
+          "text": "Implemented lending endpoints with TypeScript and Node.js.",
+          "reason": "UNSUBSTANTIATED",
+          "selectedAlternative": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4"
+        },
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "factId": "1a8046f1501f57e8d9c94315",
+          "text": "An API for a library lending workflow.",
+          "reason": "CAPACITY_LIMIT"
+        }
+      ],
+      "perProjectCapacity": [
+        {
+          "projectId": "00000000-0000-4000-8000-000000000004",
+          "projectName": "Library API",
+          "bulletCount": 2
+        }
+      ]
+    },
+    "presentationDecisions": [
+      {
+        "path": "skills.categories.1.skills.2",
+        "action": "OMITTED",
+        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+      }
+    ],
+    "renderer": "CHROME_FALLBACK_FORCED"
+  }
+]

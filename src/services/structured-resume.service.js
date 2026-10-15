@@ -46,7 +46,7 @@ import {
 } from './resume-content-strategy.service.js';
 import { MasterResumeStructureService } from './master-resume-structure.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
-import { formatTechnologyStack } from '../utils/technology-normalizer.js';
+import { formatTechnologyStack, normalizeTechnologyName } from '../utils/technology-normalizer.js';
 import {
   normalizeResumeSourceSections,
   resumeSourceValue,
@@ -278,17 +278,63 @@ function extractCandidateLinks(profile) {
   return links;
 }
 
-/**
- * Creates an authoritative StructuredResumeDocument from candidate-owned data and a target job.
- * Guarantees zero mutation of source inputs and zero synthetic placeholder injection.
- *
- * @param {object} params
- * @param {object} params.candidateProfile Candidate profile record or domain object
- * @param {object} [params.jobPosting] Target job posting (optional)
- * @param {object} [params.tailoringPlan] Pre-computed or custom tailoring plan (optional)
- * @param {object} [params.options] Additional options
- * @returns {object} Parsed & validated StructuredResumeDocument
- */
+// Reconcile explicit master assertions with the indexed inventory. Project stack
+// mentions are deliberately not an input: they do not establish candidate skills.
+function resumeSkillInputs(source) {
+  const meta = source.profileMetadata || {};
+  const override = [meta.userCustom, meta].find((entry) => entry && Object.hasOwn(entry, 'skills'));
+  const declaredSkills = override ? override.skills : source.skills;
+  const inventory = [
+    ...(Array.isArray(declaredSkills) ? declaredSkills : []),
+    ...(Array.isArray(source.additionalSkills) ? source.additionalSkills : []),
+    ...(Array.isArray(meta.additionalSkills) ? meta.additionalSkills : []),
+  ].map((skill) =>
+    typeof skill === 'string'
+      ? { name: skill, provenanceStatus: 'CLAIMED', resumeClaim: true }
+      : skill
+  );
+  const master = meta.resumeData || source.resumeData;
+  const claims =
+    !override &&
+    master?.sourceResumeId &&
+    Number.isInteger(master.sourceVersion) &&
+    master.sourceVersion > 0
+      ? (Array.isArray(master.skills) ? master.skills : []).flatMap((skill) => {
+          const name = typeof skill === 'string' ? skill : skill?.name || skill?.skillName;
+          const status = typeof skill === 'string' ? 'CLAIMED' : skillTrustStatus(skill || {});
+          return name && ['CLAIMED', 'USER_PROVIDED', 'SELF_DECLARED'].includes(status)
+            ? [
+                {
+                  ...(typeof skill === 'object' ? skill : {}),
+                  name,
+                  provenanceStatus: 'CLAIMED',
+                  resumeClaim: true,
+                },
+              ]
+            : [];
+        })
+      : [];
+  const key = (skill) =>
+    normalizeTechnologyName(skill?.name || skill?.skillName || '').toLowerCase();
+  const claimed = new Set(claims.map(key));
+  const indexed = new Set(inventory.map(key));
+  return [
+    ...inventory.map((skill) => {
+      const status = skillTrustStatus(skill || {});
+      // Keep explicit learning/gap states; a stale master must not override them.
+      if (!claimed.has(key(skill)) || ['LEARNING', 'MISSING_EVIDENCE', 'UNKNOWN'].includes(status))
+        return skill;
+      return {
+        ...skill,
+        resumeClaim: true,
+        provenanceStatus: skillTrustStatus({ ...skill, resumeClaim: true }),
+      };
+    }),
+    ...claims.filter((skill) => !indexed.has(key(skill))),
+  ];
+}
+
+/** Build a validated snapshot without mutating candidate-owned source records. */
 export function buildStructuredResumeDocument({
   candidateProfile,
   jobPosting = null,
@@ -715,20 +761,13 @@ export function buildStructuredResumeDocument({
     }
   }
 
-  const rawSkills = [
-    ...(Array.isArray(meta.skills)
-      ? meta.skills
-      : Array.isArray(source.skills)
-        ? source.skills
-        : []),
-    ...(Array.isArray(source.additionalSkills) ? source.additionalSkills : []),
-    ...(Array.isArray(meta.additionalSkills) ? meta.additionalSkills : []),
-  ].filter(
+  const rawSkills = resumeSkillInputs(source).filter(
     (skill) =>
       typeof skill !== 'object' ||
       skill === null ||
       !skill.provenanceStatus ||
-      !['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(skill)))
+      (skillTrustStatus(skill) !== 'LEARNING' &&
+        !['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(skill))))
   );
 
   const skillSelectionResult = candidateContentService.selectAndCategorizeSkillsForJob(

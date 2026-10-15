@@ -27,6 +27,14 @@ export class DownloadManager {
       packageHash
     );
 
+    // P15-002: verify the served artifact's identity BEFORE initiating the download
+    const identity = await this.verifyArtifactIdentity(applicationId, artifactType, packageHash);
+    if (!identity.verified) {
+      throw new Error(
+        `Artifact identity verification failed before download: ${identity.reason || 'identity unverified'}`
+      );
+    }
+
     // If chrome.downloads is available (standard extension context)
     if (typeof chrome !== 'undefined' && chrome.downloads?.download) {
       const downloadId = await chrome.downloads.download({
@@ -39,10 +47,7 @@ export class DownloadManager {
         saveAs: false,
       });
 
-      // P15-002: verify the served artifact's identity before reporting
-      // success — never claim verification that did not happen.
-      const identity = await this.verifyArtifactIdentity(applicationId, artifactType, packageHash);
-      return { downloadId, verified: identity.verified, reason: identity.reason, url: downloadUrl };
+      return { downloadId, verified: true, reason: null, url: downloadUrl };
     }
 
     // Fallback for non-extension environments / browser fetch
@@ -55,8 +60,17 @@ export class DownloadManager {
     const returnedPackageHash = response.headers.get('x-package-hash');
     const returnedAppId = response.headers.get('x-application-id');
 
-    if (packageHash && returnedPackageHash && returnedPackageHash !== packageHash) {
-      throw new Error(`Package hash mismatch: expected ${packageHash}, got ${returnedPackageHash}`);
+    if (packageHash) {
+      if (!returnedPackageHash) {
+        throw new Error(
+          'Package integrity verification failed: server response missing x-package-hash header'
+        );
+      }
+      if (returnedPackageHash !== packageHash) {
+        throw new Error(
+          `Package hash mismatch: expected ${packageHash}, got ${returnedPackageHash}`
+        );
+      }
     }
     if (applicationId && returnedAppId && returnedAppId !== applicationId) {
       throw new Error(`Application ID mismatch: expected ${applicationId}, got ${returnedAppId}`);
@@ -101,8 +115,13 @@ export class DownloadManager {
         return { verified: false, reason: `HTTP ${probe.status}` };
       }
       const servedHash = probe.headers.get('x-package-hash');
-      if (packageHash && servedHash && servedHash !== packageHash) {
-        return { verified: false, reason: 'PACKAGE_HASH_MISMATCH' };
+      if (packageHash) {
+        if (!servedHash) {
+          return { verified: false, reason: 'MISSING_PACKAGE_HASH_HEADER' };
+        }
+        if (servedHash !== packageHash) {
+          return { verified: false, reason: 'PACKAGE_HASH_MISMATCH' };
+        }
       }
       const servedAppId = probe.headers.get('x-application-id');
       if (applicationId && servedAppId && servedAppId !== applicationId) {

@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Career Hub unified design review</title
+  ><style>
+    body {
+      margin: 0;
+      background: #f5f6f8;
+      color: #18212e;
+      font: 16px/1.6 system-ui;
+    }
+    header,
+    main {
+      max-width: 1240px;
+      margin: auto;
+      padding: 28px;
+    }
+    h1 {
+      font-size: 32px;
+    }
+    a {
+      color: #315b93;
+    }
+    section {
+      padding: 24px 0;
+      border-top: 1px solid #d4dae3;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    figure {
+      margin: 0;
+      background: white;
+      border: 1px solid #d4dae3;
+      padding: 12px;
+      border-radius: 8px;
+    }
+    img {
+      width: 100%;
+      height: 320px;
+      object-fit: contain;
+      object-position: top;
+      background: #eee;
+    }
+    figcaption {
+      padding: 12px 0;
+    }
+    .notice {
+      padding: 16px;
+      background: #fff3d9;
+    }
+    .tag {
+      font-size: 13px;
+    }
+    @media (max-width: 720px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <header>
+    <p class="tag">PLANNING / NOT IMPLEMENTED / NO WORKTREE CHANGES</p>
+    <h1>Career Hub + Resume Studio</h1>
+    <p>
+      One product, one candidate context. The current-state captures are real browser screens. The
+      proposed SVG/PNG boards are static review wireframes, not working application screens.
+    </p>
+    <p>
+      <a href="plan.html">Read the complete unified plan</a> ·
+      <a href="browser-audit.json">Browser evidence</a> ·
+      <a href="proposed-tokens.json">Theme tokens and measured contrast</a>
+    </p>
+    <p class="notice">
+      The current app supports a dark visual treatment only. Light and dark below are proposed
+      designs. Illustrative populated review/handoff boards are not evidence of live handoff
+      behavior.
+    </p>
+  </header>
+  <main>
+    <section>
+      <h2>Actual current app</h2>
+      <div class="grid">
+        <figure>
+          <a href="current-screens/overview-desktop.png"
+            ><img
+              src="current-screens/overview-desktop-viewport.png"
+              alt="Actual current overview desktop screen"
+          /></a>
+          <figcaption>
+            overview · <a href="current-screens/overview-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/profile-desktop.png"
+            ><img
+              src="current-screens/profile-desktop-viewport.png"
+              alt="Actual current profile desktop screen"
+          /></a>
+          <figcaption>
+            profile · <a href="current-screens/profile-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/jobs-desktop.png"
+            ><img
+              src="current-screens/jobs-desktop-viewport.png"
+              alt="Actual current jobs desktop screen"
+          /></a>
+          <figcaption>
+            jobs · <a href="current-screens/jobs-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/library-desktop.png"
+            ><img
+              src="current-screens/library-desktop-viewport.png"
+              alt="Actual current library desktop screen"
+          /></a>
+          <figcaption>
+            library · <a href="current-screens/library-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/studio-desktop.png"
+            ><img
+              src="current-screens/studio-desktop-viewport.png"
+              alt="Actual current studio desktop screen"
+          /></a>
+          <figcaption>
+            studio · <a href="current-screens/studio-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/applications-desktop.png"
+            ><img
+              src="current-screens/applications-desktop-viewport.png"
+              alt="Actual current applications desktop screen"
+          /></a>
+          <figcaption>
+            applications ·
+            <a href="current-screens/applications-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/sources-desktop.png"
+            ><img
+              src="current-screens/sources-desktop-viewport.png"
+              alt="Actual current sources desktop screen"
+          /></a>
+          <figcaption>
+            sources · <a href="current-screens/sources-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/onboarding-desktop.png"
+            ><img
+              src="current-screens/onboarding-desktop-viewport.png"
+              alt="Actual current onboarding desktop screen"
+          /></a>
+          <figcaption>
+            onboarding · <a href="current-screens/onboarding-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/skills-desktop.png"
+            ><img
+              src="current-screens/skills-desktop-viewport.png"
+              alt="Actual current skills desktop screen"
+          /></a>
+          <figcaption>
+            skills · <a href="current-screens/skills-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/projects-desktop.png"
+            ><img
+              src="current-screens/projects-desktop-viewport.png"
+              alt="Actual current projects desktop screen"
+          /></a>
+          <figcaption>
+            projects · <a href="current-screens/projects-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/settings-desktop.png"
+            ><img
+              src="current-screens/settings-desktop-viewport.png"
+              alt="Actual current settings desktop screen"
+          /></a>
+          <figcaption>
+            settings · <a href="current-screens/settings-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="current-screens/connect-desktop.png"
+            ><img
+              src="current-screens/connect-desktop-viewport.png"
+              alt="Actual current connect desktop screen"
+          /></a>
+          <figcaption>
+            connect · <a href="current-screens/connect-mobile.png">Actual mobile capture</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Overview</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/overview-desktop-light.png"
+            ><img
+              src="wireframes/overview-desktop-light.png"
+              alt="Proposed Overview desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/overview-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/overview-mobile-light.png"
+            ><img
+              src="wireframes/overview-mobile-light.png"
+              alt="Proposed Overview mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/overview-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/overview-desktop-dark.png"
+            ><img
+              src="wireframes/overview-desktop-dark.png"
+              alt="Proposed Overview desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/overview-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/overview-mobile-dark.png"
+            ><img
+              src="wireframes/overview-mobile-dark.png"
+              alt="Proposed Overview mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/overview-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Your career profile</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/onboarding-desktop-light.png"
+            ><img
+              src="wireframes/onboarding-desktop-light.png"
+              alt="Proposed Your career profile desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/onboarding-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/onboarding-mobile-light.png"
+            ><img
+              src="wireframes/onboarding-mobile-light.png"
+              alt="Proposed Your career profile mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/onboarding-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/onboarding-desktop-dark.png"
+            ><img
+              src="wireframes/onboarding-desktop-dark.png"
+              alt="Proposed Your career profile desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/onboarding-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/onboarding-mobile-dark.png"
+            ><img
+              src="wireframes/onboarding-mobile-dark.png"
+              alt="Proposed Your career profile mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/onboarding-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Career profile</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/profile-desktop-light.png"
+            ><img
+              src="wireframes/profile-desktop-light.png"
+              alt="Proposed Career profile desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/profile-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/profile-mobile-light.png"
+            ><img
+              src="wireframes/profile-mobile-light.png"
+              alt="Proposed Career profile mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/profile-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/profile-desktop-dark.png"
+            ><img
+              src="wireframes/profile-desktop-dark.png"
+              alt="Proposed Career profile desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/profile-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/profile-mobile-dark.png"
+            ><img
+              src="wireframes/profile-mobile-dark.png"
+              alt="Proposed Career profile mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/profile-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Sources and evidence</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/sources-desktop-light.png"
+            ><img
+              src="wireframes/sources-desktop-light.png"
+              alt="Proposed Sources and evidence desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/sources-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/sources-mobile-light.png"
+            ><img
+              src="wireframes/sources-mobile-light.png"
+              alt="Proposed Sources and evidence mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/sources-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/sources-desktop-dark.png"
+            ><img
+              src="wireframes/sources-desktop-dark.png"
+              alt="Proposed Sources and evidence desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/sources-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/sources-mobile-dark.png"
+            ><img
+              src="wireframes/sources-mobile-dark.png"
+              alt="Proposed Sources and evidence mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/sources-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Jobs</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/jobs-desktop-light.png"
+            ><img
+              src="wireframes/jobs-desktop-light.png"
+              alt="Proposed Jobs desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/jobs-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/jobs-mobile-light.png"
+            ><img src="wireframes/jobs-mobile-light.png" alt="Proposed Jobs mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/jobs-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/jobs-desktop-dark.png"
+            ><img src="wireframes/jobs-desktop-dark.png" alt="Proposed Jobs desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/jobs-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/jobs-mobile-dark.png"
+            ><img src="wireframes/jobs-mobile-dark.png" alt="Proposed Jobs mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/jobs-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Frontend Engineer</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/job-detail-desktop-light.png"
+            ><img
+              src="wireframes/job-detail-desktop-light.png"
+              alt="Proposed Frontend Engineer desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/job-detail-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/job-detail-mobile-light.png"
+            ><img
+              src="wireframes/job-detail-mobile-light.png"
+              alt="Proposed Frontend Engineer mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/job-detail-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/job-detail-desktop-dark.png"
+            ><img
+              src="wireframes/job-detail-desktop-dark.png"
+              alt="Proposed Frontend Engineer desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/job-detail-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/job-detail-mobile-dark.png"
+            ><img
+              src="wireframes/job-detail-mobile-dark.png"
+              alt="Proposed Frontend Engineer mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/job-detail-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Resumes</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/library-desktop-light.png"
+            ><img
+              src="wireframes/library-desktop-light.png"
+              alt="Proposed Resumes desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/library-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/library-mobile-light.png"
+            ><img
+              src="wireframes/library-mobile-light.png"
+              alt="Proposed Resumes mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/library-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/library-desktop-dark.png"
+            ><img
+              src="wireframes/library-desktop-dark.png"
+              alt="Proposed Resumes desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/library-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/library-mobile-dark.png"
+            ><img
+              src="wireframes/library-mobile-dark.png"
+              alt="Proposed Resumes mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/library-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Resume Studio</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/studio-desktop-light.png"
+            ><img
+              src="wireframes/studio-desktop-light.png"
+              alt="Proposed Resume Studio desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/studio-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/studio-mobile-light.png"
+            ><img
+              src="wireframes/studio-mobile-light.png"
+              alt="Proposed Resume Studio mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/studio-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/studio-desktop-dark.png"
+            ><img
+              src="wireframes/studio-desktop-dark.png"
+              alt="Proposed Resume Studio desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/studio-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/studio-mobile-dark.png"
+            ><img
+              src="wireframes/studio-mobile-dark.png"
+              alt="Proposed Resume Studio mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/studio-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Review wording</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/proposal-desktop-light.png"
+            ><img
+              src="wireframes/proposal-desktop-light.png"
+              alt="Proposed Review wording desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/proposal-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/proposal-mobile-light.png"
+            ><img
+              src="wireframes/proposal-mobile-light.png"
+              alt="Proposed Review wording mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/proposal-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/proposal-desktop-dark.png"
+            ><img
+              src="wireframes/proposal-desktop-dark.png"
+              alt="Proposed Review wording desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/proposal-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/proposal-mobile-dark.png"
+            ><img
+              src="wireframes/proposal-mobile-dark.png"
+              alt="Proposed Review wording mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/proposal-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Applications</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/applications-desktop-light.png"
+            ><img
+              src="wireframes/applications-desktop-light.png"
+              alt="Proposed Applications desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/applications-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/applications-mobile-light.png"
+            ><img
+              src="wireframes/applications-mobile-light.png"
+              alt="Proposed Applications mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/applications-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/applications-desktop-dark.png"
+            ><img
+              src="wireframes/applications-desktop-dark.png"
+              alt="Proposed Applications desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/applications-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/applications-mobile-dark.png"
+            ><img
+              src="wireframes/applications-mobile-dark.png"
+              alt="Proposed Applications mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/applications-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Application review</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/review-desktop-light.png"
+            ><img
+              src="wireframes/review-desktop-light.png"
+              alt="Proposed Application review desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/review-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/review-mobile-light.png"
+            ><img
+              src="wireframes/review-mobile-light.png"
+              alt="Proposed Application review mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/review-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/review-desktop-dark.png"
+            ><img
+              src="wireframes/review-desktop-dark.png"
+              alt="Proposed Application review desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/review-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/review-mobile-dark.png"
+            ><img
+              src="wireframes/review-mobile-dark.png"
+              alt="Proposed Application review mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/review-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Application handoff</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/handoff-desktop-light.png"
+            ><img
+              src="wireframes/handoff-desktop-light.png"
+              alt="Proposed Application handoff desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/handoff-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/handoff-mobile-light.png"
+            ><img
+              src="wireframes/handoff-mobile-light.png"
+              alt="Proposed Application handoff mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/handoff-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/handoff-desktop-dark.png"
+            ><img
+              src="wireframes/handoff-desktop-dark.png"
+              alt="Proposed Application handoff desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/handoff-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/handoff-mobile-dark.png"
+            ><img
+              src="wireframes/handoff-mobile-dark.png"
+              alt="Proposed Application handoff mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/handoff-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+    <section>
+      <h2>Account and integrations</h2>
+      <p>
+        Proposed structure. Review the two themes and two sizes; capability dependencies are
+        documented in the plan.
+      </p>
+      <div class="grid">
+        <figure>
+          <a href="wireframes/settings-desktop-light.png"
+            ><img
+              src="wireframes/settings-desktop-light.png"
+              alt="Proposed Account and integrations desktop light wireframe"
+          /></a>
+          <figcaption>
+            desktop / light / <a href="wireframes/settings-desktop-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/settings-mobile-light.png"
+            ><img
+              src="wireframes/settings-mobile-light.png"
+              alt="Proposed Account and integrations mobile light wireframe"
+          /></a>
+          <figcaption>
+            mobile / light / <a href="wireframes/settings-mobile-light.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/settings-desktop-dark.png"
+            ><img
+              src="wireframes/settings-desktop-dark.png"
+              alt="Proposed Account and integrations desktop dark wireframe"
+          /></a>
+          <figcaption>
+            desktop / dark / <a href="wireframes/settings-desktop-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="wireframes/settings-mobile-dark.png"
+            ><img
+              src="wireframes/settings-mobile-dark.png"
+              alt="Proposed Account and integrations mobile dark wireframe"
+          /></a>
+          <figcaption>
+            mobile / dark / <a href="wireframes/settings-mobile-dark.svg">Editable SVG</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
+</html>

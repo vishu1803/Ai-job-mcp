@@ -1,0 +1,1977 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Career Hub unified product proposal</title
+  ><style>
+    body {
+      font: 16px/1.7 system-ui;
+      color: #18212e;
+      background: #f5f6f8;
+      margin: 0;
+    }
+    header,
+    main {
+      max-width: 1200px;
+      margin: auto;
+      padding: 32px;
+    }
+    main {
+      background: white;
+    }
+    header {
+      font-size: 15px;
+    }
+    h1 {
+      font-size: 34px;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 25px;
+      margin-top: 48px;
+      border-top: 1px solid #d4dae3;
+      padding-top: 24px;
+    }
+    h3 {
+      font-size: 19px;
+      margin-top: 28px;
+    }
+    p {
+      max-width: 95ch;
+    }
+    a {
+      color: #315b93;
+    }
+    code {
+      font-size: 13px;
+      background: #eef1f5;
+      padding: 2px 4px;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      overflow: auto;
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+    .table {
+      overflow: auto;
+      margin: 20px 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      border: 1px solid #d4dae3;
+      padding: 12px;
+    }
+    th {
+      background: #eef1f5;
+    }
+    .bullet {
+      padding-left: 20px;
+      border-left: 3px solid #d4dae3;
+    }
+    .numbered {
+      margin: 20px 0;
+    }
+    .map {
+      width: 100%;
+      height: auto;
+    }
+    @media (max-width: 600px) {
+      header,
+      main {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 27px;
+      }
+      table {
+        min-width: 720px;
+      }
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      header {
+        display: none;
+      }
+      main {
+        padding: 0;
+      }
+      h2 {
+        break-after: avoid;
+      }
+      tr {
+        break-inside: avoid;
+      }
+      .map {
+        break-inside: avoid;
+      }
+    }
+  </style>
+  <header>
+    <strong>PROPOSED / APPROVAL PENDING</strong> &nbsp;
+    <a href="review.html">Visual review gallery</a> &nbsp;
+    <a href="UNIFIED-PRODUCT-PLAN.md">Markdown source</a>
+  </header>
+  <main>
+    <h1>Career Hub + Resume Studio: unified product proposal</h1>
+    <p><strong>DESIGN-UNIFIED-001 / v1.0 / 2026-10-15 / PROPOSED — APPROVAL PENDING</strong></p>
+    <p>
+      Planning and design review only. No application implementation, schema changes, migration, Git
+      checkpoint, merge, copy between worktrees, deployment or production action is authorized by
+      this document. The separate review folder contains evidence and static wireframes only. No
+      worktree or project ledger is edited; a proposed ledger entry accompanies this plan because
+      the explicit read-only instruction takes precedence over the usual ledger-update protocol.
+    </p>
+    <h2>1. Recommended direction</h2>
+    <p>
+      Make Career Hub one candidate workspace with five primary destinations:
+      <strong>Overview, Profile, Jobs, Resumes, Applications</strong>. Resume Studio is the focused
+      editor inside Resumes, reachable directly from a job, a master resume, an application or a
+      saved draft. It does not get a second account system, candidate model, generation engine or
+      independent product navigation.
+    </p>
+    <p>
+      Use one restrained visual system with light and dark themes, existing Inter typography,
+      existing SVG icon vocabulary, consistent controls and semantic states. Keep the document white
+      in both themes. Replace repetitive dashboards and architecture banners with clear next actions
+      and inspectable details. Preserve functionality rather than hiding it to achieve a sparse
+      screen.
+    </p>
+    <p>
+      The first engineering priority after approval is context integration, not a new skin alone.
+      Draft listing, reusable job targeting and exact Studio-document binding into application
+      review/handoff are prerequisites for the proposed connected journey.
+    </p>
+    <h2>2. Evidence, scope and verified baseline</h2>
+    <h3>Inputs examined</h3>
+    <p class="bullet">
+      Main <code>AGENTS.md</code>, <code>goal.md</code>, <code>project.md</code>; integrated ledger
+      and current PRD repair roadmap.
+    </p>
+    <p class="bullet">
+      Original BLUEPRINT-2026-001 and UIUX-BLUEPRINT-2026-001; approved Antigravity desktop/mobile
+      prototype references and prototype source.
+    </p>
+    <p class="bullet">
+      Competitive artifacts: <code>verified_feature_catalog.md</code>,
+      <code>actual_resume_benchmark.md</code>, <code>reactive_resume_runtime_trace.md</code>,
+      <code>rezi_product_specification.md</code>, and the research-closure ledger entry. These are
+      historical research inputs, not new live competitor evaluations. Feature-catalog
+      implementation statuses predate the integrated Studio and are not adopted as current fact.
+      Competitor prices and proprietary score claims are not requirements.
+    </p>
+    <p class="bullet">
+      Current Studio contracts 1.0 analysis, 1.1 drafts, 1.2 proposals, 1.3
+      documents/history/diagnostics/approval, their executable schemas, fixtures, integration
+      handoff and local-visibility report.
+    </p>
+    <p class="bullet">
+      Current app routes, layout, CSS, profile/readiness, Radar, library, Studio,
+      application-review/handoff source and existing persistence/approval adapters.
+    </p>
+    <p>
+      The goal&#x27;s Phase0 footer is stale relative to the execution ledger&#x27;s Phase14/16/17
+      work. This proposal follows the unchanged provider-neutral, evidence-based mission and the
+      explicitly authorized product refinement, without rewriting strategic documents or inventing
+      completion percentages.
+    </p>
+    <h3>Runtime and repository evidence</h3>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Surface</th>
+            <th>Verified state</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main checkout</td>
+            <td>
+              <code>C:\Users\VISHW\OneDrive\Desktop\Ai-career-agent</code>, branch
+              <code>main</code>, HEAD890bcf03ed37bff11a912e68c1c7ee37c21f401a
+            </td>
+            <td>Original application preserved; port3000 currently refuses connection</td>
+          </tr>
+          <tr>
+            <td>Integrated checkout</td>
+            <td>
+              <code>C:\Users\VISHW\AppData\Local\Temp\career-resume-studio-backend</code>, branch
+              <code>backend/resume-studio-20261014</code>, same HEAD
+            </td>
+            <td>Running at127.0.0.1:4317; includes actual Studio frontend and APIs</td>
+          </tr>
+          <tr>
+            <td>Frontend checkout</td>
+            <td>
+              <code>C:\Users\VISHW\AppData\Local\Temp\career-resume-studio-frontend</code>, branch
+              <code>frontend/resume-studio-20261014</code>, same HEAD
+            </td>
+            <td>Earlier UI work preserved; not the complete integrated application</td>
+          </tr>
+          <tr>
+            <td>Common repository</td>
+            <td>All three registered worktrees, same baseline</td>
+            <td>No merge assumed; valuable uncommitted changes remain</td>
+          </tr>
+          <tr>
+            <td>Source equivalence</td>
+            <td>Twelve main page templates byte-identical between main and integrated checkout</td>
+            <td>
+              Career Hub&#x27;s rendered pages on4317 are valid visual references for those original
+              templates; shared layout/navigation changes are explicitly different
+            </td>
+          </tr>
+          <tr>
+            <td>Browser audit</td>
+            <td>Twelve authenticated top-level routes plus two source-detail captures return200</td>
+            <td>
+              Desktop1440×1000 and mobile390×844 inspected; the two detail captures resolve the same
+              owned source document
+            </td>
+          </tr>
+          <tr>
+            <td>Additional states</td>
+            <td>
+              Seven Profile/Radar GET states return200, plus stored proposal/source/history and
+              account/mobile navigation captures
+            </td>
+            <td>
+              No business actions performed; some Profile aliases are retained by existing
+              navigation
+            </td>
+          </tr>
+          <tr>
+            <td>Business mutations</td>
+            <td>No edits, generation, approval, application creation or submission requested</td>
+            <td>
+              Normal login creates a session. Two cached preview POSTs only reread an existing
+              immutable document; its ID and revision2 remain unchanged
+            </td>
+          </tr>
+          <tr>
+            <td>Existing acceptance</td>
+            <td>Prior500-case integration and39-case navigation gates documented</td>
+            <td>Historical evidence, not rerun or relabeled as design-review test results</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      This review uses the disposable synthetic candidate. There are no connected repositories,
+      live-job results or application records. Source-document bytes are fixture placeholders while
+      canonical structured master data is seeded separately; the zero parsed-sections screen is not
+      evidence of a parser failure on real uploads. Live discovery, source import, populated
+      application review, handoff, external submission, live AI and Office DOCX pagination are
+      <strong>NOT VERIFIED in this audit</strong>. The earlier Office-rendering blocker remains.
+    </p>
+    <p>
+      Current screenshots are real Chrome renders in <code>current-screens/</code>;
+      <code>browser-audit.json</code> records status, controls, links, overflow and theme behavior.
+      Proposed SVG/PNG boards in <code>wireframes/</code> are clearly marked
+      <strong>NOT IMPLEMENTED</strong>. They illustrate structure and example states, not working
+      routes or fabricated verification results. No hosted design service, generic image mockup,
+      tool installation or code-generation integration was used under this read-only scope.
+    </p>
+    <h2>3. Current-state audit</h2>
+    <p>
+      Status meanings: <strong>WORKING</strong> = directly observed within this read-only surface;
+      <strong>PARTIAL</strong> = visible with missing connection or limited evidence;
+      <strong>BROKEN</strong> = reproduced presentation defect; <strong>NOT VERIFIED</strong> =
+      unavailable state or prohibited operation. They do not imply production readiness.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Screen</th>
+            <th>Evidence/status</th>
+            <th>Findings and consequence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Overview <code>/dashboard</code></td>
+            <td>WORKING rendered; actions not executed</td>
+            <td>
+              Greeting/workspace identity dominates. Several links perform job discovery; empty
+              jobs/apps consume large cards. Dashboard shows75% readiness and0 issues while Profile
+              shows44% ready,85% populated and5 issues. These are different heuristic scopes, not
+              necessarily fabricated numbers, but the current presentation suggests one inconsistent
+              measure. No visible continue-Studio-draft action.
+            </td>
+          </tr>
+          <tr>
+            <td>Jobs <code>/apps/radar</code></td>
+            <td>PARTIAL, empty synthetic dataset</td>
+            <td>
+              Discovery, Saved Pipeline and Custom Analysis exist. Main copy calls fit an ATS score;
+              source contains a saved-card default75 fallback that also replaces a legitimate zero.
+              Populated saved-card behavior not run. No directly integrated Studio entry observed.
+              Provider-unavailable and genuinely empty results are not clearly distinguished in the
+              rendered empty state. Custom Analysis advertises minimum50 characters versus
+              Studio&#x27;s100; a shared targeting interface must preserve endpoint-specific
+              compatibility.
+            </td>
+          </tr>
+          <tr>
+            <td>Radar mobile</td>
+            <td>BROKEN presentation</td>
+            <td>
+              Custom Analysis tab is clipped at390px; root horizontal overflow reproduced.
+              Rewrapping/scrollable local tabs must preserve all three actions.
+            </td>
+          </tr>
+          <tr>
+            <td>Profile <code>/profile</code></td>
+            <td>WORKING display, saving not tested</td>
+            <td>
+              Six local tabs and multiple readiness representations. Five missing items repeat in
+              separate panels with Add, Fix and Add-arrow actions. Raw <code>HANDOFF_READY</code>,
+              <code>workAuthorization</code> and <code>visaSponsorship</code> leak into candidate
+              copy. A general Verified tag covers a completeness checklist; completeness is not
+              proof of qualifications.
+            </td>
+          </tr>
+          <tr>
+            <td>Skills <code>/skills</code></td>
+            <td>PARTIAL</td>
+            <td>
+              Four colored aggregate cards, technical taxonomy pipeline and zero-citation
+              confidence50% for a claimed React skill. Truth categories are useful; percentages and
+              technical classifications require explanations and should not dominate. A GitHub
+              profile link does not mean a connector is connected or a claim verified.
+            </td>
+          </tr>
+          <tr>
+            <td>Projects <code>/projects</code></td>
+            <td>PARTIAL, empty</td>
+            <td>
+              Large AST pipeline, empty-state card, multiple connect/ingest actions. Imported resume
+              projects visible in Studio are distinct from repository-derived portfolio records;
+              confusing if both surfaces are presented as one project inventory without source
+              labels.
+            </td>
+          </tr>
+          <tr>
+            <td>Sources <code>/sources</code></td>
+            <td>WORKING display, connector operations not tested</td>
+            <td>
+              Resume view/download/replace overlap Library. GitHub permissions/revocation are
+              valuable. Technical security labels occupy primary space, and “automatically verify
+              your technical skills” overstates what merely connecting a resource proves.
+            </td>
+          </tr>
+          <tr>
+            <td>Resume Library <code>/resumes</code></td>
+            <td>PARTIAL</td>
+            <td>
+              Uploaded master and version history work as a rendered archive. It is hidden in the
+              account dropdown rather than primary navigation. Persistent Studio drafts are absent;
+              no owned draft-list API exists. Active source, upload and history repeat
+              identity/security cards and document actions.
+            </td>
+          </tr>
+          <tr>
+            <td>Source review <code>/resumes/:id</code></td>
+            <td>WORKING fixture display only</td>
+            <td>
+              Clear candidate-claim distinction exists. Hash/MIME/file metadata dominate above
+              source review. Review &amp; Promote is technical terminology; use Review imported
+              facts. Empty fixture parsing is not a production parser diagnosis.
+            </td>
+          </tr>
+          <tr>
+            <td>Studio <code>/resume-studio?draftId=…</code></td>
+            <td>WORKING inspected current draft/artifact; editing not repeated</td>
+            <td>
+              Neutral editorial theme and real compiled PDF are strengths. Form, selection, source
+              inspector, proposals, diagnostics, history and exports exist. Main blue/purple shell
+              and Studio charcoal token family diverge. Two large score cards compete with
+              preview;100% lexical coverage beside28.63 job fit needs clearer meaning. Repeated
+              Claim tags and top explanatory cards consume writing space.
+            </td>
+          </tr>
+          <tr>
+            <td>Studio context/persistence</td>
+            <td>PARTIAL integration</td>
+            <td>
+              Deep-link restoration exists, but Library cannot list drafts. Target parsing is
+              duplicated with Radar; the analysis form can analyze another target while the existing
+              draft&#x27;s immutable target remains the original. This is a source-observed context
+              risk, not a mutation performed here. Approval response returns applicationId, but
+              client records only local approval state and does not provide a completed
+              return-to-application journey.
+            </td>
+          </tr>
+          <tr>
+            <td>Studio mobile</td>
+            <td>WORKING no overflow; usability issue</td>
+            <td>
+              Long stacked content puts the preview far below the editor. A user must scroll a great
+              distance between a field and its actual PDF. Adopt one compact Edit/Preview/Checks
+              mode selector without duplicating it above and below.
+            </td>
+          </tr>
+          <tr>
+            <td>Applications <code>/applications</code></td>
+            <td>WORKING empty state; populated NOT VERIFIED</td>
+            <td>
+              Lifecycle banner highlights Interviewing with no records. Five zero-value statistics
+              repeat filter counts. Track Application/Find Jobs actions duplicate header and
+              empty-state actions. Preparing, reviewed package and submitted status need different
+              treatment.
+            </td>
+          </tr>
+          <tr>
+            <td>Application review <code>/applications/:id/apply</code></td>
+            <td>SOURCE-INSPECTED; populated NOT VERIFIED</td>
+            <td>
+              Existing readiness/conflict/question/review flow is valuable. Do not replace it with
+              another Studio wizard. Source uses an ATS Alignment/Verified Claims line and expects
+              its existing resume/package representation. Studio approval alone does not prove
+              screening answers or attachment adapters are ready.
+            </td>
+          </tr>
+          <tr>
+            <td>Handoff <code>/applications/:id/handoff</code></td>
+            <td>SOURCE-INSPECTED; populated NOT VERIFIED</td>
+            <td>
+              Existing package history, regeneration, snapshots, preview and approvals must remain.
+              Duplicate regenerate controls and document operations can be consolidated. No verified
+              adapter consumes Studio&#x27;s exact PDF/DOCX bytes throughout the legacy
+              handoff/download flow. Do not show a newly regenerated substitute under an old
+              approval.
+            </td>
+          </tr>
+          <tr>
+            <td>Onboarding <code>/onboarding</code></td>
+            <td>WORKING first step; later steps NOT VERIFIED</td>
+            <td>
+              Five steps foreground GitHub and engineering domains. Import/master review should be a
+              clear valid path; authorized resources remain optional and provider-neutral. “Verified
+              career profile” before evidence review is overconfident.
+            </td>
+          </tr>
+          <tr>
+            <td>Settings <code>/settings</code>, AI Connect <code>/connect</code></td>
+            <td>WORKING display only</td>
+            <td>
+              Privacy/session/token/revocation functions are important. Repeated identity/tier cards
+              and protocol diagrams are excessive for routine account management. Keep MCP
+              configuration under advanced integrations. No tokens generated, copied into reports or
+              revoked.
+            </td>
+          </tr>
+          <tr>
+            <td>Global shell</td>
+            <td>PARTIAL</td>
+            <td>
+              Brand link leads to public root rather than authenticated Overview.
+              Library/skills/projects are buried in the account menu; Sources is primary while
+              Studio is a separate primary destination. Back to Dashboard is used regardless of
+              origin. Long marketing/technical footer repeats navigation and has competing branding
+              “Career Hub”/“AI Careers Hub.”
+            </td>
+          </tr>
+          <tr>
+            <td>Themes/accessibility</td>
+            <td>PARTIAL</td>
+            <td>
+              No current light theme or theme control found. Both preferred-light and preferred-dark
+              browser renders stay dark. Source has many <code>transition:all</code> declarations,
+              no observed reduced-motion rule/skip link, and a mouse-only divider without semantic
+              keyboard separator behavior. Studio&#x27;s keyboard tabs/drawer focus behavior already
+              exists and should be preserved. Full WCAG conformance not assessed.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Highest-priority changes</h3>
+    <p class="numbered">
+      1. Put all resume work in a discoverable Resumes destination, backed by an owned list of
+      existing drafts and approved versions.
+    </p>
+    <p class="numbered">
+      2. Bind job, master, draft and associated application context across screens; eliminate
+      re-pasting job descriptions and regenerating a different resume during handoff.
+    </p>
+    <p class="numbered">
+      3. Replace contradictory readiness displays with scoped, actionable checklists. Never supply a
+      default fit score when data is absent.
+    </p>
+    <p class="numbered">
+      4. Unify theme/component tokens and give mobile Studio direct access to Edit/Preview/Checks.
+    </p>
+    <p class="numbered">
+      5. Consolidate decorative/technical/repeated UI while keeping evidence, source history,
+      privacy, error recovery and approval capability reachable.
+    </p>
+    <h2>4. Information architecture and navigation</h2>
+    <p><img class="map" src="navigation-map.svg" alt="Proposed navigation architecture" /></p>
+    <details>
+      <summary>Diagram source</summary>
+      <pre>
+flowchart LR
+  O[Overview] --&gt; P[Profile: facts and preferences]
+  P --&gt; E[Sources and evidence]
+  P --&gt; J[Jobs: discover / saved / analyze]
+  J --&gt; T[Job detail and requirements]
+  T --&gt; L[Choose master in Resumes]
+  R[Resumes: masters / drafts / approved] --&gt; L
+  L --&gt; S[Resume Studio]
+  R --&gt; S
+  O --&gt; S
+  A[Applications] --&gt; V[Application review]
+  V --&gt; S
+  S --&gt; V
+  V --&gt; H[Handoff: exact reviewed package]
+  H --&gt; X[Separate authorized submission or manual use]</pre>
+    </details>
+    <p>
+      The diagram describes the proposed experience. It does not imply that missing context adapters
+      exist.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Destination</th>
+            <th>Contents</th>
+            <th>Existing paths retained</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Overview</td>
+            <td>
+              Current draft, next actionable item, recent jobs/applications; helpful first-use
+              checklist
+            </td>
+            <td><code>/dashboard</code></td>
+          </tr>
+          <tr>
+            <td>Profile</td>
+            <td>
+              Facts/contact/experience/education; skills/projects; sources; job/screening
+              preferences
+            </td>
+            <td>
+              <code>/profile</code>, <code>/skills</code>, <code>/projects</code>,
+              <code>/sources</code>, <code>/onboarding</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Jobs</td>
+            <td>Discover, Saved, Analyze description, target detail/requirements</td>
+            <td><code>/apps/radar</code>, <code>/jobs</code> alias, existing analysis flow</td>
+          </tr>
+          <tr>
+            <td>Resumes</td>
+            <td>All, Masters, Drafts, Approved; import/source review; focused Studio</td>
+            <td>
+              <code>/resumes</code>, <code>/resumes/:id</code>,
+              <code>/resume-studio?draftId=:id</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Applications</td>
+            <td>
+              Preparing, Submitted/Screening, Interviews, Offers/Closed; readiness/questions/review;
+              handoff/history
+            </td>
+            <td>
+              <code>/applications</code>, <code>/applications/:id/apply?step=…</code>,
+              <code>/applications/:id/handoff</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Account/Help</td>
+            <td>
+              Theme, privacy/data controls, sessions, AI/MCP integrations, documentation/support
+            </td>
+            <td>
+              <code>/settings</code>, <code>/connect</code>, <code>/docs/mcp</code>, existing
+              legal/help routes
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      No immediate route renaming. Primary nav becomes five items; contextual Profile tabs expose
+      Sources, Skills and Projects without deleting their deep links. Resumes is active while Studio
+      is open. Global assistance becomes contextual where it adds value; <code>/assistant</code> and
+      MCP integrations remain available. Navigation itself does not create or mutate business
+      records.
+    </p>
+    <h3>Breadcrumb and return rules</h3>
+    <p class="bullet">
+      Overview is the authenticated brand destination. Existing public landing remains accessible
+      outside candidate workspace navigation.
+    </p>
+    <p class="bullet">
+      Library entry:
+      <strong>Resumes &gt; Frontend Engineer / Synthetic Systems &gt; Studio</strong>, return
+      <strong>Back to Resumes</strong>.
+    </p>
+    <p class="bullet">
+      Job entry: <strong>Jobs &gt; Frontend Engineer / Synthetic Systems &gt; Resume</strong>,
+      return <strong>Back to job</strong>. Preserve job search/filter/tab state in a validated
+      same-origin return path.
+    </p>
+    <p class="bullet">
+      Application entry:
+      <strong>Applications &gt; Frontend Engineer / Synthetic Systems &gt; Resume</strong>, return
+      <strong>Back to application</strong>. Use an authoritative associated application ID, not a
+      caller-supplied ID as proof.
+    </p>
+    <p class="bullet">
+      Direct draft link/reload: fetch owned current draft by ID. Default return is Resumes when
+      origin is absent; derive job/application links from owned server metadata. Do not depend on
+      browser memory for discovery or restoration.
+    </p>
+    <p class="bullet">
+      Keep only one origin-return control plus hierarchy breadcrumb; remove universal Back to
+      Dashboard links from every detail screen.
+    </p>
+    <p class="bullet">
+      If saving is pending, drain the acknowledged save before leaving. On offline/error/conflict,
+      preserve local edits and offer Stay or explicitly leave with unsaved changes. No silent
+      discard or blanket overwrite.
+    </p>
+    <p class="bullet">
+      Sign-in preserves the safe internal draft link;401 recovery must not lose context.
+      Foreign/nonexistent resources remain indistinguishable404. Malformed context fails safely; no
+      open redirect or tenant/owner query parameter.
+    </p>
+    <h2>5. Source-of-truth and integration map</h2>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th>Authority today</th>
+            <th>Proposed frontend use and boundary</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Candidate/account</td>
+            <td>
+              Existing users/candidates, candidate career-profile service and normalized profile
+              metadata
+            </td>
+            <td>
+              One identity/fact/preference editor. Account display name can differ from resume
+              identity; show and resolve meaningful application conflicts explicitly. No Studio
+              candidate store.
+            </td>
+          </tr>
+          <tr>
+            <td>Evidence/claims</td>
+            <td>
+              Existing authorized resource/evidence/claim-validation services and truth taxonomy
+            </td>
+            <td>
+              Candidate-reported is not independently verified. Hashes prove integrity, not
+              qualification truth. Connecting a repository or listing a profile URL is not
+              verification.
+            </td>
+          </tr>
+          <tr>
+            <td>Master source</td>
+            <td>
+              Owned <code>resumes</code> original encrypted bytes plus candidate-reviewed
+              <code>resumeData</code> bound to sourceResumeId/sourceVersion
+            </td>
+            <td>
+              Immutable source snapshot for each clone. New source approval/profile updates do not
+              silently rewrite existing drafts/packages. Sources manages connection state; Library
+              manages document versions.
+            </td>
+          </tr>
+          <tr>
+            <td>Job target</td>
+            <td>
+              Existing Radar/application job records and normalization; Studio&#x27;s deterministic
+              <code>JobDescriptionParser</code> and immutable bounded jobTarget/jobDescription
+              snapshot
+            </td>
+            <td>
+              One targeting component/read model reuses existing normalized data. No new parallel
+              “Studio jobs” store. Source URL is metadata; Studio does not currently fetch URL-only
+              descriptions.
+            </td>
+          </tr>
+          <tr>
+            <td>Tailored draft</td>
+            <td>
+              Existing encrypted Studio draft/revisions, server node IDs, selection and content
+              hashes
+            </td>
+            <td>
+              Canonical current revision is server-owned. Frontend holds acknowledged snapshot plus
+              transient unsaved deltas. Changes never write back into master. A changed job target
+              creates an explicitly new tailoring instance.
+            </td>
+          </tr>
+          <tr>
+            <td>Proposal</td>
+            <td>Existing immutable proposal body and lifecycle service</td>
+            <td>
+              Explicit generation/review/decision; original/proposed/source/relevant requirement
+              visible. Any revision change can stale a proposal. No client string check as
+              authority.
+            </td>
+          </tr>
+          <tr>
+            <td>Document</td>
+            <td>
+              Existing immutable encrypted Studio artifact with
+              draft/revision/source/content/checksum binding
+            </td>
+            <td>
+              Actual PDF and its raster are the only final-layout preview sources. View theme/zoom
+              do not alter resume content, revision, output or approval.
+            </td>
+          </tr>
+          <tr>
+            <td>Application</td>
+            <td>Existing jobApplications/tracking/flow services</td>
+            <td>
+              Reuse an existing owned target/application when unambiguous. Allow unattached
+              draft/export; do not create an application merely to browse or analyze. Association is
+              server validated.
+            </td>
+          </tr>
+          <tr>
+            <td>Approved package/ticket</td>
+            <td>Existing sealing/hash/version/signing and candidate consent services</td>
+            <td>
+              Exact package/destination/answers/documents/version covered by approval. Later edits
+              append new versions and require fresh review. No “approved” flag invented in draft
+              content.
+            </td>
+          </tr>
+          <tr>
+            <td>Handoff/submission</td>
+            <td>Existing handoff, artifact snapshots/downloads and authorized adapters</td>
+            <td>
+              Reuse exact reviewed Studio bytes through a verified adapter.
+              Opening/download/preparing is not external submission. Preserve immutable history and
+              explicit action receipts.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <details>
+      <summary>Diagram source</summary>
+      <pre>
+flowchart TD
+  C[Candidate facts and existing evidence services] --&gt; M[Reviewed master snapshot]
+  J[Existing normalized job or pasted descriptor] --&gt; D[Owned Studio draft and revisions]
+  M --&gt; D
+  D --&gt; Q[Existing grounded proposals]
+  Q --&gt;|Explicit accept with authoritative CAS| D
+  D --&gt; F[Verified immutable PDF / native DOCX artifact]
+  D -. Proposed owned context association .-&gt; A[Existing application record]
+  F -. Proposed exact-artifact handoff adapter .-&gt; R[Existing application review and sealing]
+  A --&gt; R
+  R --&gt; P[Immutable approved package and ticket]
+  P --&gt; H[Existing handoff and authorized submission layer]</pre>
+    </details>
+    <h3>Required connections, not presumed implemented</h3>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Missing connection</th>
+            <th>Planning constraint</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>D1</td>
+            <td>
+              Owned draft list and library/overview read model, including source/target/current
+              revision and approved-version bindings
+            </td>
+            <td>
+              There is currently no GET draft collection. Propose an additive bounded/paginated read
+              contract after approval; reuse existing draft/package stores. No localStorage registry
+              as substitute.
+            </td>
+          </tr>
+          <tr>
+            <td>D2</td>
+            <td>
+              Job/master/application context handoff into Studio and return/binding before final
+              approval
+            </td>
+            <td>
+              Current create body accepts source RESUME+jobTarget; no authoritative application
+              binding input. Design a reviewed additive association/context contract using existing
+              application services. Validating query IDs alone is insufficient.
+            </td>
+          </tr>
+          <tr>
+            <td>D3</td>
+            <td>
+              Exact Studio PDF/DOCX into application review/handoff/download/attachment resolution
+            </td>
+            <td>
+              Current Studio approval stores resumeStudio binding/checksums and returns
+              applicationId; other attachment adapters are not verified to consume those bytes. Do
+              not launch a second generation pipeline or silently substitute legacy output.
+            </td>
+          </tr>
+          <tr>
+            <td>D4</td>
+            <td>Shared status/readiness/theme/component presentation</td>
+            <td>
+              Preserve existing underlying validators. Replace display fallbacks, reconcile scope
+              terminology, distinguish connector unavailable from empty results, and derive approved
+              state from server package metadata after reload.
+            </td>
+          </tr>
+          <tr>
+            <td>D5</td>
+            <td>Complete mobile/accessibility interaction contract</td>
+            <td>
+              Keep working tabs/drawer focus; add keyboard/pointer separator alternatives, safe-area
+              handling, contrast/motion/reflow validation. No framework migration.
+            </td>
+          </tr>
+          <tr>
+            <td>D6</td>
+            <td>Office DOCX visual gate and active parser/template repair dependencies</td>
+            <td>
+              Existing structural/text validation is not installed-Office pagination proof.
+              PRD-004/005 and related native-export/editor gates remain distinct work.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Contracts1.0/1.1/1.2/1.3 remain compatible. Any D1/D2/D3 addition must first have canonical
+      request/response/error schemas, fixtures, ownership semantics and atomicity acceptance
+      criteria. No endpoint names, migration or new contract version in this proposal should be
+      treated as approved implementation.
+    </p>
+    <h2>6. Shared design system</h2>
+    <h3>Theme decision</h3>
+    <p>
+      Recommended: <strong>System / Light / Dark</strong>, one shared preference and layout.
+      Preserve an existing explicit choice; use System for new candidates. Decide migration default
+      for existing users at approval rather than surprising them. Current app only demonstrates dark
+      styling, so both proposed themes require implementation and validation. Light favors document
+      reading; dark supports longer editing sessions. Neither is declared the final winner from
+      generated imagery.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Proposed light</th>
+            <th>Proposed dark</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Canvas</td>
+            <td>#F5F6F8</td>
+            <td>#11151C</td>
+          </tr>
+          <tr>
+            <td>Surface</td>
+            <td>#FFFFFF</td>
+            <td>#191F28</td>
+          </tr>
+          <tr>
+            <td>Elevated surface</td>
+            <td>#EEF1F5</td>
+            <td>#232B36</td>
+          </tr>
+          <tr>
+            <td>Primary text</td>
+            <td>#18212E</td>
+            <td>#EEF2F7</td>
+          </tr>
+          <tr>
+            <td>Secondary text</td>
+            <td>#536276</td>
+            <td>#ADBACB</td>
+          </tr>
+          <tr>
+            <td>Primary action</td>
+            <td>#315B93</td>
+            <td>#AEC7ED</td>
+          </tr>
+          <tr>
+            <td>Text on action</td>
+            <td>#FFFFFF</td>
+            <td>#14181F</td>
+          </tr>
+          <tr>
+            <td>Structural border</td>
+            <td>#D4DAE3</td>
+            <td>#35404D</td>
+          </tr>
+          <tr>
+            <td>Required control boundary</td>
+            <td>#7A8799</td>
+            <td>#7D8DA3</td>
+          </tr>
+          <tr>
+            <td>Verified evidence text/background</td>
+            <td>#176A49 / #E9F4EE</td>
+            <td>#85D2AE / #1E382F</td>
+          </tr>
+          <tr>
+            <td>Needs review text/background</td>
+            <td>#805700 / #FFF3D9</td>
+            <td>#E8C17A / #3B311F</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Measured proposed pairs in <code>proposed-tokens.json</code>: normal primary text14.99:1
+      light/16.27:1 dark; secondary text6.22/8.41; primary-button text6.89/10.33; verified
+      text5.84/7.12; review text5.81/7.50; control boundaries3.65/4.90. These are token
+      calculations, not a WCAG conformance result. Required body text should meet4.5:1, large
+      text3:1, and state colors must never be the only information channel.
+      <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+        >W3C contrast guidance</a
+      >.
+    </p>
+    <h3>Typography, geometry and components</h3>
+    <p class="bullet">
+      Preserve Inter for interface text; use reliable fallbacks. Body/form text16px, compact
+      rows14px, metadata12–13px; headings24–32px with fewer uppercase/monospace labels. Mono only
+      for inspectable identifiers and technical integration details.
+    </p>
+    <p class="bullet">
+      Keep PDF typography independent: configured body10pt minimum, exactly one measured A4 page,
+      established bounded geometry. Application theme must not restyle the exported document.
+    </p>
+    <p class="bullet">
+      Spacing scale4/8/12/16/24/32/48; content max width1120–1200px for lists/forms, expanded Studio
+      workspace for document editing. Use readable lines and separators; cards represent meaningful
+      grouped entities, not every statistic/paragraph.
+    </p>
+    <p class="bullet">
+      Common control heights40–44px; touch targets preferably44px, with at least the
+      applicable24px/spacing minimum. A single primary action per decision region, clear
+      secondary/overflow actions.
+      <a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html"
+        >W3C target-size guidance</a
+      >.
+    </p>
+    <p class="bullet">
+      Use existing <code>renderIcon</code> SVGs consistently,16–20px, one stroke weight, icons with
+      text where possible. No decorative emoji, logo invention, neon/rainbow chips, glow or glass
+      treatment. Existing mark can be retained; no brand redesign is proposed.
+    </p>
+    <p class="bullet">
+      Shared patterns: app shell, breadcrumb/return, page heading, entity row, field/error/help,
+      source/claim inspector, requirement row, async-save state, conflict comparison, document
+      checks, empty state, disclosure, menu, history row and approval receipt.
+    </p>
+    <p class="bullet">
+      Keep native semantic controls; visible keyboard focus, skip link, aria-current navigation,
+      labelled fields, live async status, reduced motion, modal/drawer focus restoration and Escape.
+      Prefer relevant validation messages over repeated global toasts.
+    </p>
+    <p class="bullet">
+      Desktop Studio: resizable editor/PDF split, compact target/save/source bar, progressive
+      requirement checks. Tablet: user-selected Edit/Split/Preview where viable. Mobile: one sticky
+      Edit/Preview/Checks mode selector, full-width editing or actual PDF, drawers as accessible
+      sheets; no simultaneous miniature preview and long full editor.
+    </p>
+    <p class="bullet">
+      No first-screen marketing footer inside the editor. A compact Help/Privacy link area preserves
+      access to legal, support, MCP and data controls elsewhere.
+    </p>
+    <h3>Semantic vocabulary</h3>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Candidate label</th>
+            <th>Never imply</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>VERIFIED claim</td>
+            <td>Evidence-backed; source inspectable</td>
+            <td>Uploaded/hashed/connected means independently verified</td>
+          </tr>
+          <tr>
+            <td>CLAIMED</td>
+            <td>Candidate-reported</td>
+            <td>Unsupported means false, or saved means verified</td>
+          </tr>
+          <tr>
+            <td>INFERRED</td>
+            <td>Inferred; review before use</td>
+            <td>Deduction is a confirmed qualification</td>
+          </tr>
+          <tr>
+            <td>MISSING_EVIDENCE</td>
+            <td>Evidence missing</td>
+            <td>The person lacks the skill with certainty</td>
+          </tr>
+          <tr>
+            <td>Exact/equivalent/related/missing coverage</td>
+            <td>Separate requirement relationship labels</td>
+            <td>
+              Related satisfies a strict exact requirement; lexical coverage is employer ATS
+              acceptance
+            </td>
+          </tr>
+          <tr>
+            <td>Job fit</td>
+            <td>Explainable heuristic job match</td>
+            <td>Employer ATS ranking or fabricated fallback percentage</td>
+          </tr>
+          <tr>
+            <td>Profile readiness</td>
+            <td>Named required/complete fields for a scope</td>
+            <td>Global qualification quality or consent</td>
+          </tr>
+          <tr>
+            <td>Draft save</td>
+            <td>Saving / Saved / Offline / Review conflict</td>
+            <td>Unsaved local text is durable server state</td>
+          </tr>
+          <tr>
+            <td>PDF checks</td>
+            <td>Current inspected document / Needs content review / Showing older saved preview</td>
+            <td>HTML estimate or old revision is finalized current output</td>
+          </tr>
+          <tr>
+            <td>Package approval</td>
+            <td>Approved package version; immutable</td>
+            <td>The mutable draft or whole application is automatically ready/submitted</td>
+          </tr>
+          <tr>
+            <td>Application stage</td>
+            <td>Preparing / Submitted / Screening / Interviewing / Offer / Closed</td>
+            <td>Preparing a kit counts as applying</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Use labels and restrained icons/dots, not a different saturated color for every technology.
+      Keep the backend&#x27;s seven-component fit engine and evidence taxonomy; redesigning their
+      mathematical policy is outside this proposal.
+    </p>
+    <h2>7. Screen-by-screen proposed behavior</h2>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Screen / board</th>
+            <th>Retain</th>
+            <th>Refine / connection needed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Overview</td>
+            <td>Actionable next step, recent jobs/apps, profile link</td>
+            <td>
+              Lead with Continue draft/Continue application when present. Otherwise useful first-use
+              checklist. One discovery action; scoped required-field count, no competing readiness
+              rings or large zero-card wall. D1 supplies authoritative recents.
+            </td>
+          </tr>
+          <tr>
+            <td>Onboarding</td>
+            <td>Identity/profile facts, authorized source selection, review</td>
+            <td>
+              Offer Import master or enter profile basics, then candidate review. GitHub connection
+              optional; skills/employers are never manufactured to fill empty slots. Existing
+              parser/source approval remains the path to a canonical master.
+            </td>
+          </tr>
+          <tr>
+            <td>Profile</td>
+            <td>Structured fields, preferences, eligibility, links and review</td>
+            <td>
+              Local tabs Facts / Skills &amp; Projects / Sources / Preferences. One scoped checklist
+              and one action per missing field. Raw internal property names removed. Do not require
+              optional social profiles merely for cosmetic completeness; any underlying policy-rule
+              change needs explicit separate review.
+            </td>
+          </tr>
+          <tr>
+            <td>Skills/projects</td>
+            <td>Evidence inventory, candidate facts, inferred separation, archive/restore</td>
+            <td>
+              Present source/truth rows in Profile; separate imported narrative projects from
+              repository evidence without duplicate records. Keep full detail routes. Remove AST
+              pipeline from default view; confidence explanation under inspection.
+            </td>
+          </tr>
+          <tr>
+            <td>Sources</td>
+            <td>Connect/disconnect/revoke, repository scope, source review</td>
+            <td>
+              One source ownership surface. Master row links to Library review; no competing
+              upload/replace workflow. Connection state does not label all claims verified. Advanced
+              permission/security detail stays accessible.
+            </td>
+          </tr>
+          <tr>
+            <td>Jobs</td>
+            <td>Discover/Saved/Analyze, matching and target requirements</td>
+            <td>
+              One shared targeting component. Distinguish service unavailable vs no results vs
+              filters. Contextual Tailor resume selects/reuses master and draft. Saved targets
+              retain original description. D2, plus trustworthy availability/fit read state.
+            </td>
+          </tr>
+          <tr>
+            <td>Job detail</td>
+            <td>Requirements/evidence and existing application entry</td>
+            <td>
+              Job title/company/source/description shown once; match breakdown labelled heuristic.
+              Tailor and Save are separate. Existing draft/application is offered rather than
+              silently duplicated.
+            </td>
+          </tr>
+          <tr>
+            <td>Library</td>
+            <td>Original download/upload/source review/version history/delete</td>
+            <td>
+              All/Masters/Drafts/Approved views backed by D1. Default is meaningful latest work. One
+              row per entity with source/target/status and Continue/Tailor/Review action. Upload is
+              Import master. Delete stays in overflow with confirmation; historical snapshot
+              protection remains.
+            </td>
+          </tr>
+          <tr>
+            <td>Studio</td>
+            <td>
+              Manual structured edits, selection, autosave/CAS, real PDF, proposals/evidence,
+              checks/history
+            </td>
+            <td>
+              Replace tall targeting/score cards with compact context and on-demand detail. Target
+              is fixed for the active draft; Tailor another job is explicit. One section-outline
+              selection tool, one inclusion control per item. Keep all supported
+              contact/experience/education/optional fields; no loss hidden by minimalism.
+            </td>
+          </tr>
+          <tr>
+            <td>Proposal state</td>
+            <td>
+              Original/proposed/rationale/requirement/source, explicit decisions, stale handling
+            </td>
+            <td>
+              Inline review near the bullet, evidence sheet on demand. Button Suggest wording
+              advertises only supported transformations. No invented XYZ metrics/broad paraphrasing
+              claim. Stale state explains re-evaluation; no automatic apply or rejection replay.
+            </td>
+          </tr>
+          <tr>
+            <td>Applications</td>
+            <td>Existing lifecycle tracking, filtering, manual tracking, questions/review</td>
+            <td>
+              Counts live in filters; one empty-state CTA. Preparing clearly separated from
+              Submitted. Link exact draft/package. D2/D3 before promising one-click
+              Studio-to-handoff flow.
+            </td>
+          </tr>
+          <tr>
+            <td>Application review</td>
+            <td>Existing readiness/missing/conflict resolver, answers, package consent</td>
+            <td>
+              Reuse profile facts; ask only for missing/conflicting job-specific values. Current
+              Studio document shown by exact revision/hash binding. Resume edits return to owned
+              draft. A new full package/answers/destination requires its own valid approval.
+            </td>
+          </tr>
+          <tr>
+            <td>Handoff</td>
+            <td>Snapshots, previews/downloads, history/regeneration, manual/provider actions</td>
+            <td>
+              One document action area and one package-version area. Exact reviewed bytes; no
+              default regeneration of a Studio resume. Regenerate means explicit new version;
+              previous approvals stay immutable. Downloads/open destination do not mark Submitted.
+              D3 required.
+            </td>
+          </tr>
+          <tr>
+            <td>Settings/integrations</td>
+            <td>Sessions, privacy/export/delete/revocation, MCP tools</td>
+            <td>
+              Theme preference and advanced AI integrations grouped here. No protocol diagram
+              repeated in candidate workflows. Critical permissions/token warnings retained, not
+              casually hidden or exposed in editor.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Wireframes cover13 representative surfaces/states in both themes and both sizes (52 SVG/PNG
+      boards). Profile&#x27;s skills/projects subpages are consolidated into its board, with their
+      detailed recommendations above. Review/handoff boards show proposed populated examples, not a
+      newly seeded live application.
+    </p>
+    <p>
+      Current editing boundary: identity, summary and existing experience/project text/bullets are
+      editable server nodes; skills support selection. Education, credentials and other source
+      sections are preserved in output but do not currently have editable Studio nodes. Keep them
+      visible/inspectable and provide a safe source-review route. Do not advertise new field/node
+      creation, global Undo/Redo, blank resumes or education editing merely through a redesigned
+      form. Any such expansion needs a separately approved compatible contract. Existing version
+      restore is not a claim of a200-step client Undo/Redo engine.
+    </p>
+    <h2>8. Cleanup decisions with capability preservation</h2>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Existing element / purpose</th>
+            <th>Decision</th>
+            <th>Replacement / loss-prevention check</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Separate Studio primary navigation</td>
+            <td>CONSOLIDATE into Resumes</td>
+            <td>Direct job/app/draft links remain; old Studio URL stays valid</td>
+          </tr>
+          <tr>
+            <td>Library only in account menu</td>
+            <td>PROMOTE</td>
+            <td>Primary Resumes nav; account menu may retain shortcut during transition</td>
+          </tr>
+          <tr>
+            <td>Sources/library master controls</td>
+            <td>CONSOLIDATE</td>
+            <td>
+              One source review/import handler; Sources deep-links to Library; original
+              download/version/revoke retained
+            </td>
+          </tr>
+          <tr>
+            <td>Multiple discovery/Track buttons</td>
+            <td>CONSOLIDATE</td>
+            <td>
+              Header or empty-state primary, not both; keyboard/navigation tests reach same action
+            </td>
+          </tr>
+          <tr>
+            <td>Universal Back to Dashboard plus breadcrumb</td>
+            <td>REPLACE</td>
+            <td>Validated origin return + hierarchy; reload/no-origin fallback tested</td>
+          </tr>
+          <tr>
+            <td>Technical AST/MCP/lifecycle pipeline banners</td>
+            <td>REMOVE from routine page tops</td>
+            <td>
+              Details in evidence/integration/help views; underlying services and full inspector
+              unchanged
+            </td>
+          </tr>
+          <tr>
+            <td>Huge empty metric cards</td>
+            <td>REMOVE/CONDENSE</td>
+            <td>
+              Accurate counts in filters and next-action copy; populated state still discoverable
+            </td>
+          </tr>
+          <tr>
+            <td>Competing75/44/85 readiness metrics</td>
+            <td>CONSOLIDATE display</td>
+            <td>
+              Scoped field checklist; do not change scoring/approval gates without reviewed policy
+            </td>
+          </tr>
+          <tr>
+            <td>Radar fallback75 and zero-to75 conversion</td>
+            <td>REMOVE fallback in future implementation</td>
+            <td>
+              Unavailable/evaluable states from actual data; true zero preserved; no hardcoded
+              replacement
+            </td>
+          </tr>
+          <tr>
+            <td>Repeated Claim badges per unchanged source field</td>
+            <td>CONSOLIDATE</td>
+            <td>
+              Section/source attribution plus explicit exceptions and item inspector; never conceal
+              mixed truth states
+            </td>
+          </tr>
+          <tr>
+            <td>Studio&#x27;s two large score cards</td>
+            <td>CONDENSE</td>
+            <td>
+              Compact Job match/Coverage summary with explanations; every diagnostic remains
+              accessible
+            </td>
+          </tr>
+          <tr>
+            <td>Active-draft/revision UUID decorations</td>
+            <td>REMOVE from ordinary view</td>
+            <td>
+              Saved state and version history retain necessary revision detail; server remains
+              authoritative
+            </td>
+          </tr>
+          <tr>
+            <td>Source SHA/MIME/storage metadata</td>
+            <td>MOVE to details</td>
+            <td>Downloads, security and provenance receipt retain exact inspectable fields</td>
+          </tr>
+          <tr>
+            <td>Profile Add/Fix/Add-arrow triplicates</td>
+            <td>CONSOLIDATE</td>
+            <td>One accessible field-specific edit action with same target/focus</td>
+          </tr>
+          <tr>
+            <td>Main global Copilot and inline AI action</td>
+            <td>CONTEXTUALIZE</td>
+            <td>
+              Keep assistance and MCP capability; do not show two actions for the same operation
+            </td>
+          </tr>
+          <tr>
+            <td>Mobile editor+preview long stack</td>
+            <td>REPLACE layout</td>
+            <td>One Edit/Preview/Checks mode control with retained scroll/focus and actual PDF</td>
+          </tr>
+          <tr>
+            <td>Evidence / conflicts / version history</td>
+            <td>RETAIN</td>
+            <td>Essential to candidate agency; no minimalist deletion</td>
+          </tr>
+          <tr>
+            <td>Export / review / approve / submission</td>
+            <td>RETAIN as separate actions</td>
+            <td>Clear package scope and destination; no combined “Finalize and submit” shortcut</td>
+          </tr>
+          <tr>
+            <td>Prototype/debug/slice controls</td>
+            <td>KEEP ABSENT</td>
+            <td>
+              Current rendered screens already lack the old REVIEW STATES dock; DEV marker remains a
+              local-environment indicator
+            </td>
+          </tr>
+          <tr>
+            <td>Marketing footer in writing workspace</td>
+            <td>CONDENSE</td>
+            <td>Persistent Help/Privacy access, all legal/data-control routes preserved</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Do not remove unfamiliar controls until populated and permission-specific behavior has been
+      checked. Source-only handoff conclusions are recommendations, not permission to delete working
+      safeguards.
+    </p>
+    <h2>9. Seven exact candidate journeys</h2>
+    <p><img class="map" src="candidate-journeys.svg" alt="Proposed candidate journey map" /></p>
+    <h3>J1 — First-time candidate creates a profile</h3>
+    <p>
+      Sign in → <code>/onboarding</code> → enter/confirm own identity and contact → optionally
+      import source through <code>/resumes</code> or connect an authorized resource through Sources
+      → <code>/resumes/:id</code> review imported facts → explicit source approval/designation →
+      <code>/profile</code> inspect normalized saved data → Overview. Resume facts are
+      candidate-reported unless separately corroborated. Import failure preserves original and
+      offers supported recovery, not placeholder candidate facts. Optional connectors/social links
+      are not invented or forced. Empty/master-not-ready states explain why a tailored clone cannot
+      yet be created. Onboarding mechanics after step1 require future acceptance with PRD-004.
+    </p>
+    <h3>J2 — Discover a job and tailor</h3>
+    <p>
+      <code>/apps/radar</code> Discover/Saved/Analyze → owned target detail/read model → Tailor
+      resume → choose canonical master once → POST existing Studio draft-create with server-resolved
+      source and normalized target → navigate <code>/resume-studio?draftId=…</code> →
+      edit/select/review → return to the same job/filter context or Application review. No re-paste
+      or different target analysis under the same active draft. D2 supplies the context adapter;
+      discovery/live providers remain separately verified capabilities. If the posting changed,
+      compare and explicitly create a new targeting instance rather than silently updating an
+      immutable target.
+    </p>
+    <p>
+      Compatibility detail: Radar&#x27;s rendered analysis form allows shorter descriptions than
+      Studio&#x27;s100-character minimum. Reuse the supplied text and explain that tailoring needs
+      more detail; do not ask users to paste the same text again, silently truncate additional
+      facts, or change the legacy analysis contract to make the interfaces look uniform.
+    </p>
+    <h3>J3 — Create directly from Resume Library</h3>
+    <p>
+      <code>/resumes</code> → master row Tailor for a job or Create resume → choose existing saved
+      target or paste job text in the shared targeting component → analyze → create job-specific
+      clone → Studio. This is the currently supported RESUME-source architecture. “Create resume”
+      does not pretend to support blank/untargeted drafts: current API requires a reviewed master
+      and sufficiently long description. Blank/Profile-only creation is deferred pending a
+      separately approved contract and reuse design, not another truth/generation system.
+    </p>
+    <h3>J4 — Continue a saved draft</h3>
+    <p>
+      Overview Continue or Library Drafts → owned draft list D1 → stable Studio draft URL → GET
+      authoritative draft/proposals/current document/history → restore selection and wording → save
+      deltas with expectedRevision. No reliance on stale localStorage as the source of truth.
+      Conflicts preserve unsaved edits, compare against last acknowledged snapshot and require
+      explicit choices for colliding fields; unrelated server changes survive. Preview remains
+      labelled older/current while a save/render is pending. An expired session returns to the same
+      safe draft link. Restore history appends a revision and invalidates old proposals/artifact
+      readiness; it does not unseal an approved package.
+    </p>
+    <h3>J5 — Review evidence-grounded proposals</h3>
+    <p>
+      Saved bullet → Suggest wording → flush acknowledged pending saves → POST existing proposal
+      request with nodeId/expectedRevision/optional known requirement → inline
+      original/proposed/explanation/requirement → Inspect source → Accept or Reject via existing
+      decision API. All truth/source distinctions remain inspectable. No quantified
+      impact/technology/employer/date/seniority addition without source support; current generator
+      is intentionally narrower than broad paraphrasing. Manual editing stays available. Any
+      authoritative revision change may stale the card;409 means re-evaluate, never retry blind
+      overwrite. Proposal source IDs belong to the owned source inventory; an API truth flag from
+      the browser cannot upgrade a claim.
+    </p>
+    <h3>J6 — Export one verified A4 page</h3>
+    <p>
+      Save current draft → existing preview endpoint → actual compiled PDF/raster → current-revision
+      document checks → if unsafe/overfull, show selected content and bounded-layout result, require
+      explicit content review → rerender → Export PDF or native DOCX using exact
+      documentId/expectedRevision. No silent pruning or unreadable shrinking. Typography remains
+      configured10pt, margins at least0.50in; actual
+      page/font/text/reading-order/embedding/glyph/clipping checks gate PDF export. Do not
+      promise300ms compilation or employer ATS compatibility. DOCX XML/text validation and Office
+      visual pagination are described separately; the existing Office gate remains a release
+      dependency. Export alone creates neither approval nor external submission.
+    </p>
+    <h3>J7 — Return to associated application and handoff</h3>
+    <p>
+      Studio Review application → D2 validates/reuses or explicitly creates the owned preparation
+      record without approving it → <code>/applications/:id/apply?step=readiness</code> → fix only
+      required/missing/conflicting job-specific values using existing flow →
+      <code>?step=review</code> with D3&#x27;s exact Studio document and answers/package → explicit
+      approval with existing signing/hash service → <code>/applications/:id/handoff</code> →
+      preview/download exact immutable artifacts → separate authorized destination/submission action
+      → record actual receipt/status. Preserve the same job, source, draft, document and application
+      throughout.
+    </p>
+    <p>
+      Important compatibility: existing Studio1.3 approval already resolves/creates an application
+      and issues an APPROVED package ticket with its current payload. Do not silently change that
+      endpoint&#x27;s semantics or call it approval of answers that were not present. Preserve it as
+      explicit approval of that exact package; a later complete application package with changed
+      answers/documents requires a new version and fresh approval. The preferred unified Review
+      application action must not call approval merely to obtain an applicationId. D2/D3 must
+      resolve this dependency before a polished CTA is advertised as complete.
+    </p>
+    <h2>10. Safe future integration and implementation roadmap</h2>
+    <p>
+      No action in this section is executed by approval of the design alone. Git checkpoints, source
+      reconciliation, migrations, live-provider tests and deployment have their own authorization
+      boundaries.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Stage</th>
+            <th>Scope</th>
+            <th>Dependencies and exit evidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P0 — Design approval</td>
+            <td>
+              Confirm IA, Studio child context, themes/default migration behavior, terminology and
+              seven journeys
+            </td>
+            <td>Explicit owner decision on this proposal; identify any scope corrections</td>
+          </tr>
+          <tr>
+            <td>P1 — Preserve/reconcile baseline</td>
+            <td>
+              Reinspect worktrees/PRD owners; recovery manifests and changed-file history; prepare a
+              file-level integration plan against latest verified main
+            </td>
+            <td>
+              Do not copy directories or overwrite ledgers. Request authorization before
+              commits/merge. Preserve original frontend/backend diff and repair ownership. Re-run
+              relevant baseline gates in disposable environment only
+            </td>
+          </tr>
+          <tr>
+            <td>P2 — Canonical context/read contracts</td>
+            <td>
+              Specify D1 owned draft listing/recents/approved bindings and D2
+              target/master/application association
+            </td>
+            <td>
+              Additive schemas/fixtures/error/owner/CAS contracts reviewed before dependent
+              frontend. Reuse existing stores. Any migration scoped to authorized disposable DB
+              first
+            </td>
+          </tr>
+          <tr>
+            <td>P3 — Exact output/application adapter</td>
+            <td>
+              D3 application review/handoff references exact Studio bytes and package/answer
+              bindings
+            </td>
+            <td>
+              Checksum equality across Studio preview/export/review/handoff/native attachment;
+              immutable historical tickets/packages; no automatic regeneration/submission; populated
+              authorized fixture journey
+            </td>
+          </tr>
+          <tr>
+            <td>P4 — Shared visual shell/components</td>
+            <td>
+              Central tokens/themes, nav/breadcrumbs/status/fields/rows/empty states, responsive
+              jobs/layout
+            </td>
+            <td>
+              Existing SSR/ESM framework remains. Keep legacy route aliases/auth return paths.
+              Replace inline style values incrementally with scoped token aliases; no global
+              stylesheet replacement
+            </td>
+          </tr>
+          <tr>
+            <td>P5 — Screen refinements</td>
+            <td>
+              Library/Overview read model, shared job targeting, Profile/Sources, Studio
+              mobile/editor, Apps/review/handoff
+            </td>
+            <td>
+              Every retain/remove/consolidate item has capability/permission regression proof. One
+              independent feature/visual slice at a time. Do not overwrite active PRD repair files;
+              coordinate shared-file changes after owner review
+            </td>
+          </tr>
+          <tr>
+            <td>P6 — Visual/workflow acceptance</td>
+            <td>
+              Junior/mid/experienced, long/mixed scripts, zero-data/read-only, offline/conflicts,
+              both themes/devices/keyboard, all seven journeys
+            </td>
+            <td>
+              Real integrated HTTP/PostgreSQL/browser; deterministic provider clearly labelled;
+              independent PDF and native Office checks; no fabricated live readiness
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      PRD-002/003 are locally complete in recorded scope; PRD-004 intake/parser and broader PRD-005
+      layout/native export remain open. The blueprint proposes services that do not necessarily
+      exist; actual code is authoritative. New design must reuse <code>JobDescriptionParser</code>,
+      Studio services, candidate fact/evidence services, existing source ingestion and existing
+      application tracking/flow/approval/handoff. Do not recreate proposed nonexistent approval/fact
+      tables from the blueprint.
+    </p>
+    <p>
+      Shared files with regression risk: <code>src/views/layout.js</code>,
+      <code>src/routes/web.routes.js</code>, <code>src/security/oauth-state.js</code>,
+      <code>public/css/app.css</code>, <code>public/js/app.js</code>,
+      profile/Radar/library/application templates, Studio clients and application artifact
+      resolution. Purely presentational changes must not alter session transport, CSRF checks,
+      required approvals, encrypted storage, truth classification or generation selection.
+    </p>
+    <p>
+      Migration/rollback plan is additive and compatibility-safe: old API clients stay supported,
+      old package/source records remain readable and immutable, feature presentation can roll back
+      without deleting data. Deployment/push remains separately prohibited until authorized. Do not
+      move secrets/provider credentials into frontend or copy a development environment file between
+      worktrees.
+    </p>
+    <h2>11. Risk assessment</h2>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Severity</th>
+            <th>Mitigation / evidence required before implementation completion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Dirty-worktree/repair overwrite</td>
+            <td>Critical</td>
+            <td>
+              Byte/hash manifests, explicit file owners, latest baseline reconciliation and
+              authorized checkpoints
+            </td>
+          </tr>
+          <tr>
+            <td>Wrong job/app/master after navigation</td>
+            <td>High</td>
+            <td>
+              Validated context association, shared target read model, safe return paths,
+              reload/new-tab tests
+            </td>
+          </tr>
+          <tr>
+            <td>Studio approval exists but handoff generates different PDF</td>
+            <td>Critical</td>
+            <td>
+              D3 checksum equality and exact-document adapter; stop on binding mismatch rather than
+              substitute
+            </td>
+          </tr>
+          <tr>
+            <td>Resume package approval mistaken for complete application consent</td>
+            <td>Critical</td>
+            <td>
+              Scope labels, existing flow readiness, changed-answer/package version invalidation and
+              fresh explicit approval
+            </td>
+          </tr>
+          <tr>
+            <td>Stale edit/proposal overwrites user changes</td>
+            <td>Critical</td>
+            <td>
+              Existing server CAS/transaction/identity/text validation; safe three-way conflict UI;
+              two-tab/ABA/replay tests
+            </td>
+          </tr>
+          <tr>
+            <td>Claim/evidence/coverage statuses collapsed</td>
+            <td>High</td>
+            <td>
+              Shared semantic mapping; candidate-reported/inferred boundaries remain; no new
+              verification or score fallbacks
+            </td>
+          </tr>
+          <tr>
+            <td>Cross-tenant library/context listing leak</td>
+            <td>Critical</td>
+            <td>
+              Bounded owner-scoped queries; same-tenant OWNER cannot inspect another candidate;
+              foreign404/read-only guards
+            </td>
+          </tr>
+          <tr>
+            <td>One-page design silently removes content</td>
+            <td>Critical</td>
+            <td>
+              Actual selected-text/page/font/geometry verification; explicit omission review, no
+              theme effect on PDF
+            </td>
+          </tr>
+          <tr>
+            <td>DOCX claimed one-page/compatible without native rendering</td>
+            <td>High</td>
+            <td>
+              Resolve Office blocker and reference-viewer pagination/text/raster checks; disclose
+              portability limits
+            </td>
+          </tr>
+          <tr>
+            <td>Mobile new shell breaks old routes/forms</td>
+            <td>High</td>
+            <td>
+              Width/zoom/keyboard/long-label test matrix; incremental token migration, no duplicate
+              bottom controls
+            </td>
+          </tr>
+          <tr>
+            <td>Light theme has invisible controls/semantic colors</td>
+            <td>Medium</td>
+            <td>
+              Measured tokens plus actual browser contrast/focus/states in both themes; not just
+              background replacement
+            </td>
+          </tr>
+          <tr>
+            <td>Empty fixture mistaken for live capability failure/success</td>
+            <td>Medium</td>
+            <td>
+              Explicit observed/source-only/not-verified states; populated scenarios only in later
+              authorized disposable tests
+            </td>
+          </tr>
+          <tr>
+            <td>URL fetching/live search/provider configuration</td>
+            <td>High</td>
+            <td>
+              Existing safeguards; URL metadata only until an authorized SSRF-safe ingestion adapter
+              exists; no new credential work during design
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h2>12. Visual and workflow acceptance criteria</h2>
+    <p>These are <strong>future pass conditions</strong>, not results of this planning task.</p>
+    <p class="numbered">
+      1. Same navigation, logo/type scale, colors, fields, row structure and semantic status meaning
+      across all five destinations and Studio in light/dark. No isolated <code>--rs-*</code> design
+      language; aliases may remain during a staged migration.
+    </p>
+    <p class="numbered">
+      2. Resumes and Continue draft are discoverable from desktop/mobile without account-menu
+      hunting. Every old supported route and safe auth return link remains valid.
+    </p>
+    <p class="numbered">
+      3. All seven journeys preserve server-owned source/target/draft/application context through
+      reload, new tab, Back and deep link; descriptions/profile facts are not re-requested
+      unnecessarily.
+    </p>
+    <p class="numbered">
+      4. UI reads real state: no fixed75/92 score, fabricated success/compatibility, misleading
+      verified tags, fake employer claims, or displayed technical raw property/state names in
+      ordinary candidate copy.
+    </p>
+    <p class="numbered">
+      5. Tested widths320/375/390/768/1024/1280/1440/1920 and200% zoom: no root horizontal overflow,
+      clipped primary actions or hidden local tabs. Intentional zoom/pan inside a PDF canvas is
+      allowed and clearly scoped.
+    </p>
+    <p class="numbered">
+      6. Desktop split is readable/resizable; keyboard and pointer/touch alternatives exist. Mobile
+      has exactly one Edit/Preview/Checks selector and preserves per-mode focus/scroll; preview is
+      reachable without scrolling through the entire resume.
+    </p>
+    <p class="numbered">
+      7. Visible focus, correct headings/labels, skip link, no keyboard traps, meaningful
+      aria-current, live async states, reduced-motion behavior and accessible drawer/modal recovery.
+      Focus is not obscured by sticky headers/bottom bars. Formal AA conformance requires further
+      assistive-technology testing.
+    </p>
+    <p class="numbered">
+      8. Body text/controls meet relevant contrast and target-size requirements in both themes,
+      including errors/disabled/hover/focus/status/native select states. Color alone conveys no
+      truth or workflow state.
+    </p>
+    <p class="numbered">
+      9. Every removed/consolidated item in section8 still has an accessible functional destination;
+      privacy/revocation/source history/delete confirmation/export/approval/submission controls
+      remain.
+    </p>
+    <p class="numbered">
+      10. Manual edits autosave/reload correctly; offline edits remain on the device with truthful
+      status. Safe three-way resolution never reverts unrelated server edits; date/current-role
+      status included in conflict comparison.
+    </p>
+    <p class="numbered">
+      11. Proposal requests/decisions are candidate controlled; stale/replayed/concurrent/foreign
+      operations fail correctly without mutation. Supporting source/truth and relevant requirement
+      are inspectable. Deterministic provider tests are not live-quality evaluation.
+    </p>
+    <p class="numbered">
+      12. Preview comes from exact compiled PDF bytes, current revision is evident, only verified
+      PageMap elements map to fields, and stale/unsaved output cannot be finalized.
+    </p>
+    <p class="numbered">
+      13. Junior, mid-level,15-year and dense experienced resumes finalize to exactly one physical
+      A4 page with configured body&gt;=10pt and measured font verification. Existing numerical
+      conversion tolerance is documented; all selected text/reading order/embedded
+      fonts/glyphs/clipping checks pass. Overflow offers explicit selection trade-offs and does not
+      silently discard content.
+    </p>
+    <p class="numbered">
+      14. Native DOCX round-trip structure/text and installed-Office rendering/pagination are
+      verified separately; no unsupported universal viewer/ATS guarantee.
+    </p>
+    <p class="numbered">
+      15. Application review/handoff/download/authorized attachment use the identical Studio
+      PDF/DOCX checksums, correct full package/answers and approval version. Approved
+      packages/masters stay immutable; later changes append versions and invalidate obsolete current
+      readiness.
+    </p>
+    <p class="numbered">
+      16. Export, review/approval and external submission remain distinct. No GET/view/navigation
+      sends applications or consumes approval; actual submission receipt/status is recorded only
+      after authorized external success.
+    </p>
+    <p class="numbered">
+      17. Authenticated/unauthenticated/READONLY/same-tenant-other-user/foreign-tenant tests
+      preserve existing cookie/CSRF/authorization/encryption/provenance safeguards. Theme and
+      navigation preferences do not mutate draft revisions or package approval.
+    </p>
+    <p class="numbered">
+      18.
+      Empty/loading/service-unavailable/filter-no-results/saving/conflict/expired-session/overfull/missing-source
+      states are distinguishable and offer an accurate next action.
+    </p>
+    <h2>13. Review package and approval decisions</h2>
+    <p class="bullet">
+      <a href="review.html">Offline review gallery</a>: actual current screens and all proposed
+      boards.
+    </p>
+    <p class="bullet">
+      <a href="browser-audit.json">Browser evidence</a>,
+      <a href="source-state-before.json">before source inventory</a>,
+      <a href="source-state-after.json">after source comparison</a>.
+    </p>
+    <p class="bullet">
+      <a href="proposed-tokens.json">Proposed theme tokens and calculated contrast</a>,
+      <a href="wireframe-manifest.json">wireframe manifest</a>.
+    </p>
+    <p class="bullet">
+      Desktop/mobile light/dark examples:
+      <a href="wireframes/studio-desktop-light.png">Studio light desktop</a>,
+      <a href="wireframes/studio-mobile-dark.png">Studio dark mobile</a>,
+      <a href="wireframes/library-desktop-light.png">Library light desktop</a>,
+      <a href="wireframes/overview-desktop-dark.png">Overview dark desktop</a>.
+    </p>
+    <p class="bullet">
+      <code>PLANNING-LEDGER-ENTRY.md</code> is a proposed future record, not a modification to
+      project.md.
+    </p>
+    <p>
+      Approve or revise: (a) five-destination IA and Studio-as-editor relationship; (b)
+      System/Light/Dark direction and existing-user migration default; (c) scope/terminology/cleanup
+      decisions; (d) D1/D2/D3 integration contracts before visual implementation. Approval of this
+      plan does not authorize commits, migrations on shared databases, merge, push, production
+      release or external submission.
+    </p>
+    <p>
+      <strong
+        >Stop at this planning deliverable. Implementation is NOT_STARTED under this redesign
+        proposal.</strong
+      >
+    </p>
+    <h2>14. Source anchors for implementation review</h2>
+    <p>
+      These anchors are evidence pointers, not approved edit instructions. Resolve them against the
+      verified current baseline before coding.
+    </p>
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Current source anchor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main navigation / hidden library / Studio relationship</td>
+            <td>
+              <code>src/views/layout.js:64</code>, account-menu Resumes link; Studio-only Copilot
+              omission
+            </td>
+          </tr>
+          <tr>
+            <td>Current web paths and owned Studio bootstrap</td>
+            <td>
+              <code>src/routes/web.routes.js:2121</code>; profile2545, applications3312, application
+              apply3518, handoff3978, Radar5132
+            </td>
+          </tr>
+          <tr>
+            <td>Dark-only shared style versus separate Studio token family</td>
+            <td><code>public/css/app.css:1</code>; <code>public/css/resume-studio.css:17</code></td>
+          </tr>
+          <tr>
+            <td>Source-observed saved-job fallback</td>
+            <td>
+              <code>src/views/radar.page.js:316</code>–318; missing fit and legitimate zero must not
+              become75
+            </td>
+          </tr>
+          <tr>
+            <td>Review-score wording / package expectations</td>
+            <td>
+              <code>src/views/apply.page.js:595</code>;
+              <code>src/services/job-application-flow.service.js</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Candidate facts, master resolution and immutable job snapshot</td>
+            <td>
+              <code>src/services/resume-studio-draft.service.js</code>; existing candidate
+              career-profile/source-ingestion services
+            </td>
+          </tr>
+          <tr>
+            <td>Supported draft edit/selection boundary</td>
+            <td><code>src/services/resume-studio-draft-content.js:115</code>–143 and156 onward</td>
+          </tr>
+          <tr>
+            <td>No draft collection GET today</td>
+            <td>
+              <code>src/routes/resume-studio.routes.js:67</code> onward; create POST and owned ID
+              GET/PATCH, not a list
+            </td>
+          </tr>
+          <tr>
+            <td>Current standalone analysis can use a form target</td>
+            <td>
+              <code>public/js/resume-studio.client.js:1970</code> onward; bind display to active
+              draft or clearly separate new analysis
+            </td>
+          </tr>
+          <tr>
+            <td>Cached preview does not create a new artifact</td>
+            <td>
+              <code>src/services/resume-studio-document.service.js:115</code>–135; immutable output
+              creation follows only cache absence
+            </td>
+          </tr>
+          <tr>
+            <td>Package scope/application ID/checksums</td>
+            <td>
+              <code>src/services/resume-studio-document.service.js:282</code> onward; exact
+              resumeStudio binding, existing tracking/sealing/ticket reuse
+            </td>
+          </tr>
+          <tr>
+            <td>Legacy handoff expects its existing snapshot representation</td>
+            <td>
+              <code>src/services/application-handoff.service.js:432</code> onward;
+              <code>src/views/handoff.page.js</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Scope of current API compatibility</td>
+            <td>
+              <code>docs/api/resume-studio-{v1,drafts-v1,proposals-v1,documents-v1}.md</code> and
+              matching schemas/fixtures
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Accessibility review guidance was checked against the
+      <a
+        href="https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md"
+        >Vercel Web Interface Guidelines</a
+      >, alongside the linked W3C criteria. Source warnings are not a claim of a completed
+      accessibility audit.
+    </p>
+  </main>
+</html>

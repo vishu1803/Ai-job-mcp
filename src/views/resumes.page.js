@@ -1,3 +1,4 @@
+import { action, pageHeading, draftRows, status } from './components/workspace.js';
 /**
  * @file Human-Facing Resumes & Document Lifecycle View (P13.5-003 / ARCH-052).
  *
@@ -62,259 +63,32 @@ function renderResumeStatusBadge(status, isBase = false) {
  */
 export function renderResumesPage({
   user = null,
+  candidate: _candidate = null,
   tenant: _tenant = null,
-  candidate = null,
   resumesList = [],
+  studioLibrary = null,
   csrfToken = '',
   flashMessage = '',
   errorMessage = '',
 }) {
-  const candidateName = candidate?.displayName || user?.displayName || 'Authenticated Candidate';
-  const candidateEmail = candidate?.canonicalEmail || user?.email || '';
-  const candidateHeadline = candidate?.headline || 'Candidate Profile';
-
-  const content = `
-    <div class="container">
-      <!-- Back Navigation -->
-      <a href="/dashboard" class="back-nav-link">
-        <span aria-hidden="true">←</span> Back to Dashboard
-      </a>
-
-      <!-- Breadcrumb -->
-      <div class="breadcrumb">
-        <a href="/dashboard">Overview</a>
-        <span class="separator">/</span>
-        <span class="current">Resumes</span>
-      </div>
-
-      <!-- Header -->
-      <div class="page-header" style="margin-top: 1rem;">
-        <div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-            <span class="badge badge-indigo">RESUME MANAGEMENT</span>
-            <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.25);">Private &amp; Secure</span>
-          </div>
-          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Resumes &amp; Career Documents</h1>
-          <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
-            Upload your resume (PDF, DOCX, TXT) to establish your baseline narrative and extract your work history, education, and skills.
-          </p>
-        </div>
-      </div>
-
-      <!-- Authenticated Candidate Context Banner -->
-      <div class="context-banner">
-        <div class="context-banner-inner">
-          <div class="context-banner-avatar">
-            ${escapeHtml(candidateName.charAt(0).toUpperCase())}
-          </div>
-          <div>
-            <div class="context-banner-meta">
-              <span>${escapeHtml(candidateName)}</span>
-              <span class="badge badge-indigo" style="font-size:0.7rem;">CANDIDATE</span>
-            </div>
-            <div class="context-banner-sub">
-              ${escapeHtml(candidateHeadline)} &bull; ${escapeHtml(candidateEmail)}
-            </div>
-          </div>
-        </div>
-        <div style="font-size:0.8rem; color:var(--text-dim); font-family:var(--font-mono);">
-          ${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'} indexed
-        </div>
-      </div>
-
-      ${flashMessage ? `<div class="alert alert-success">${escapeHtml(flashMessage)}</div>` : ''}
-      ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
-
-      <!-- Candidate Narrative & Corroboration -->
-      <div class="card" style="margin-bottom:2rem; padding:20px; background:#111827; border:1px solid var(--border-subtle);">
-        <div style="display:flex; gap:12px; align-items:flex-start;">
-          <span class="badge badge-indigo" style="font-size:0.7rem; flex-shrink:0; margin-top:2px;">CANDIDATE NARRATIVE</span>
-          <div>
-            <strong style="color:var(--text-main); font-size:0.925rem;">Authentic Resume History</strong>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin:6px 0 0 0; line-height:1.5;">
-              Uploaded resume statements, experience, and skills establish your candidate-authored career narrative. Technical skills corroborated by your connected GitHub repositories are verified with code evidence.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      ${(() => {
-        const baseResume = resumesList.find((r) => r.isBaseResume);
-        if (!baseResume) return '';
-        return `
-        <div class="card" style="margin-bottom:2rem; padding:20px 24px; border-left:4px solid var(--accent-emerald); background:var(--bg-surface-elevated);">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
-            <div style="display:flex; gap:14px; align-items:center;">
-              <div style="width:42px; height:42px; border-radius:10px; background:rgba(16,185,129,0.12); color:var(--accent-emerald); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                ${renderIcon('resumes', { size: 20 })}
-              </div>
-              <div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0;">
-                    ${escapeHtml(baseResume.fileName)}
-                  </h3>
-                  <span class="badge badge-verified" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('check', { size: 11 })} <span>ACTIVE BASE RESUME</span></span>
-                </div>
-                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
-                  Version ${baseResume.version} &bull; ${formatBytes(baseResume.fileSizeBytes)} &bull; Uploaded ${new Date(baseResume.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                </div>
-              </div>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <a href="/resumes/${escapeHtml(baseResume.id)}" class="btn btn-primary btn-sm">
-                Review Claims
-              </a>
-              <a href="/resumes/${escapeHtml(baseResume.id)}/download" class="btn btn-secondary btn-sm">
-                Download Original
-              </a>
-            </div>
-          </div>
-        </div>
-      `;
-      })()}
-
-      <!-- Upload Zone -->
-      <div class="card" style="margin-bottom:2.5rem; padding:28px;">
-        <div class="section-header" style="margin-bottom:12px;">
-          <div>
-            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Upload Source Resume Version</h2>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0 0; line-height:1.5;">
-              Supported formats: <strong>PDF (.pdf)</strong>, <strong>Microsoft Word (.docx)</strong>, <strong>Plain Text (.txt, .md)</strong>. Maximum file size: <strong>10 MB</strong>.
-            </p>
-          </div>
-        </div>
-
-        <div id="resumeDropzone" style="border:1px dashed rgba(255,255,255,0.18); background:rgba(0,0,0,0.15); border-radius:var(--radius-md); padding:24px; margin-top:16px;">
-          <form action="/resumes/upload" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
-
-            <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
-              <div style="flex:1; min-width:280px;">
-                <input type="file" name="resumeFile" id="resumeFileInput" accept=".pdf,.docx,.txt,.md" required class="form-control" style="background:#0B0F19;">
-              </div>
-              <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
-                Upload &amp; Parse Resume
-              </button>
-            </div>
-
-            <details class="advanced-disclosure" style="margin-top:14px; padding:0; border:none; background:transparent;">
-              <summary style="font-size:0.75rem; color:var(--text-dim); cursor:pointer;">
-                Security &amp; storage specifications
-              </summary>
-              <div style="margin-top:8px; display:flex; gap:1.25rem; flex-wrap:wrap; color:var(--text-dim); font-size:0.75rem;">
-                <span>AES-256-GCM Storage Encryption</span>
-                <span>&bull;</span>
-                <span>Sandboxed AST Claim Extraction</span>
-                <span>&bull;</span>
-                <span>Automated Secret Scrubber</span>
-              </div>
-            </details>
-          </form>
-        </div>
-      </div>
-
-      <!-- Resumes Version History -->
-      <div>
-        <div class="section-header" style="margin-bottom:16px;">
-          <div>
-            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Resume Version History</h2>
-            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px; margin-bottom:0;">Chronological record of candidate resume snapshots and parsing states.</p>
-          </div>
-          <span class="badge badge-cyan" style="font-size:0.75rem;">${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'}</span>
-        </div>
-
-        ${
-          resumesList.length === 0
-            ? `
-          <div class="empty-state">
-            <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('resumes', { size: 36 })}</div>
-            <h3 class="empty-state-title">No resumes uploaded yet.</h3>
-            <p class="empty-state-desc">
-              Uploading your resume establishes your baseline candidate narrative, extracts structured claims, and allows ATS tailoring without hallucinations.
-            </p>
-            <div class="empty-state-actions">
-              <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('resumeFileInput')?.click() || window.scrollTo({top:0, behavior:'smooth'})">
-                Upload Resume Document
-              </button>
-              <a href="/profile" class="btn btn-secondary btn-sm">
-                Edit Profile Narrative &rarr;
-              </a>
-            </div>
-          </div>
-        `
-            : `
-          <div class="table-responsive">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th style="width: 80px;">Version</th>
-                  <th>Original Filename</th>
-                  <th style="width: 90px;">Size</th>
-                  <th style="width: 170px;">Lifecycle State</th>
-                  <th style="width: 120px;">Uploaded</th>
-                  <th style="text-align: right; width: 180px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${resumesList
-                  .map(
-                    (r) => `
-                  <tr>
-                    <td>
-                      <span style="font-weight: 700; color: var(--accent-indigo); font-family: var(--font-mono); font-size: 0.875rem;">
-                        v${r.version}
-                      </span>
-                    </td>
-                    <td>
-                      <div style="font-weight: 600; color: var(--text-main); font-size: 0.875rem;">${escapeHtml(r.fileName)}</div>
-                      <div style="font-size: 0.725rem; color: var(--text-dim); margin-top:2px;">
-                        <span>${escapeHtml(r.mimeType)}</span>
-                        <span>&bull;</span>
-                        <span title="${escapeHtml(r.contentHash || '')}">${escapeHtml((r.contentHash || '').slice(0, 10))}…</span>
-                      </div>
-                    </td>
-                    <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">${formatBytes(r.fileSizeBytes)}</td>
-                    <td>
-                      ${renderResumeStatusBadge(r.lifecycleState, r.isBaseResume)}
-                    </td>
-                    <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">
-                      ${new Date(r.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </td>
-                    <td style="text-align: right;">
-                      <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                        <a href="/resumes/${escapeHtml(r.id)}" class="btn btn-secondary btn-sm" style="font-size: 0.78rem;">
-                          Review Claims
-                        </a>
-                        <a href="/resumes/${escapeHtml(r.id)}/download" class="btn btn-secondary btn-sm" style="font-size: 0.78rem;" title="Download Decrypted Source">
-                          Download
-                        </a>
-                        <form action="/resumes/${escapeHtml(r.id)}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this resume version and its encrypted storage?');" style="display: inline;">
-                          <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
-                          <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 0.78rem; color: #f87171;" title="Delete Version">
-                            Delete
-                          </button>
-                        </form>
-                      </div>
-                    </td>
-                  </tr>
-                `
-                  )
-                  .join('')}
-              </tbody>
-            </table>
-          </div>
-        `
-        }
-      </div>
-    </div>
-  `;
-
-  return renderLayout({
-    title: 'Source Resumes & Documents',
-    activeNav: 'resumes',
-    content,
-    user,
-  });
+  const drafts = studioLibrary?.drafts || [],
+    master = resumesList.find((r) => r.isBaseResume),
+    e = escapeHtml;
+  const sourceRows = resumesList
+    .map(
+      (r) =>
+        `<article class="ch-row"><span class="ch-document-icon" aria-hidden="true">${renderIcon('resumes', { size: 22 })}</span><div class="ch-row-content"><h3><a href="/resumes/${e(r.id)}">${e(r.fileName || 'Resume source')}</a></h3><p>Version ${r.version} &middot; ${e(formatBytes(r.fileSizeBytes))} &middot; ${e(new Date(r.createdAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }))}</p><div class="ch-source-actions"><a href="/resumes/${e(r.id)}">Review imported facts</a><a href="/resumes/${e(r.id)}/download">Download original</a><form action="/resumes/${e(r.id)}/delete" method="POST" onsubmit="return confirm('Delete this imported source version? Saved draft snapshots remain independent.');"><input type="hidden" name="_csrf" value="${e(csrfToken)}"><button type="submit">Delete source</button></form></div></div>${status(r.isBaseResume ? 'Master' : r.lifecycleState === 'PARSED' ? 'Needs review' : r.lifecycleState === 'USER_APPROVED' ? 'Reviewed source' : 'Imported source', r.isBaseResume ? 'good' : 'neutral')}${r.isBaseResume ? action('/resume-studio?sourceResumeId=' + r.id, 'Tailor for a job') : ''}</article>`
+    )
+    .join('');
+  const content = `<div class="ch-page">${pageHeading('Resumes', 'Your master resume, tailored drafts and source history, together in one place.', action(master ? '/resume-studio?sourceResumeId=' + master.id : '#import-resume', master ? 'Create tailored resume' : 'Import resume', true))}
+  ${flashMessage ? `<div class="ch-notice" role="status">${e(flashMessage)}</div>` : ''}${errorMessage ? `<div class="ch-notice" role="alert">${e(errorMessage)}</div>` : ''}
+  <div class="ch-grid"><div><div class="ch-section-header"><h2>Tailored drafts</h2><span class="ch-note">Saved automatically in Studio</span></div>
+  ${studioLibrary === null ? '<div class="ch-notice" role="alert">Saved drafts could not be loaded. Reload this page to retry.</div>' : drafts.length ? `<div class="ch-list">${draftRows(drafts)}</div>` : '<div class="ch-list ch-empty"><h3>A resume for your next role.</h3><p>Choose your master and a job description to create an independent, editable draft.</p>' + action(master ? '/resume-studio' : '#import-resume', master ? 'Choose a target job' : 'Import a master') + '</div>'}
+  ${studioLibrary?.nextOffset !== null && studioLibrary?.nextOffset !== undefined ? `<p class="ch-note"><a href="/resumes?draftOffset=${studioLibrary.nextOffset}">More saved drafts</a></p>` : ''}
+  <div class="ch-section-header"><h2>Master &amp; imported sources</h2><a href="#import-resume">Import another version</a></div>${sourceRows ? `<div class="ch-list">${sourceRows}</div>` : '<div class="ch-list ch-empty"><p>No resume imported yet. Upload a document, then review its facts to make it your master.</p></div>'}
+  <details class="ch-import" id="import-resume"><summary>Import a resume</summary><p class="ch-note">PDF, DOCX, TXT or Markdown ? up to 10 MB. Review imported facts before choosing a master.</p><form action="/resumes/upload" method="POST" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="${e(csrfToken)}"><label for="resumeFileInput" class="ch-visually-hidden">Resume file</label><input type="file" name="resumeFile" id="resumeFileInput" accept=".pdf,.docx,.txt,.md" required><div class="ch-actions"><button type="submit" class="ch-button ch-button-primary">Import and review</button></div></form></details></div>
+  <aside><section class="ch-panel"><p class="ch-eyebrow">ONE SOURCE, MANY STORIES</p><h2 style="margin-top:12px">Tailor with confidence.</h2><p>Your master holds the original narrative. Each tailored draft keeps its own wording and content choices.</p><p class="ch-note">Candidate-reported claims stay distinct from independently supported evidence.</p><div class="ch-actions">${action('/profile', 'Career profile')}</div></section><section class="ch-panel"><h2>Versions &amp; approvals</h2><p>Open a draft to inspect its saved history and exported versions. Application approval is a separate review of the exact package.</p><div class="ch-actions">${action('/applications', 'Applications')}</div></section></aside></div></div>`;
+  return renderLayout({ title: 'Resumes', activeNav: 'resumes', content, user });
 }
 
 /**

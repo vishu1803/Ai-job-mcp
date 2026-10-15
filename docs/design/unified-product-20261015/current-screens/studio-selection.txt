@@ -1,0 +1,137 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+S
+Synthetic Studio Candidate
+Resume Studio
+All changes saved
+Target: Frontend Engineer at Synthetic Systems
+Diagnostics
+Evidence
+Selection
+01 / TARGET JOB SPECIFICATION
+Job Requirements & Targeting
+
+Choose your master resume and paste a job description. Review the requirements, then create your tailored draft.
+
+Job target
+02 / STRUCTURED RESUME EDITOR
+ACTIVE DRAFT
+Your resume
+
+Select relevant content and edit your wording. AI suggestions preserve your facts; you decide whether to use them. Candidate-reported claims remain distinct from verified evidence.
+
+Version history
+Contact and role details
+Professional Summary
+CLAIMED
+WORK EXPERIENCE
+Developer
+at Source Company
+2023-01 – 2024-06
+Experience Bullets (Select & Tailor Wording)
+CLAIMED
+Wording
+WORDING SUGGESTION
+React
+[UNVERIFIED USER CLAIM]
+ORIGINAL
+Implemented React views with the use of component interfaces in order to support internal workflows.
+PROPOSED
+Implemented React views using component interfaces to support internal workflows.
+Rationale: Condenses filler or normalizes presentation while preserving the source statement. Job requirements do not authorize additional facts.
+Supporting Evidence:
+Inspect master wording (CLAIMED)
+Accept Proposal
+Reject
+CLAIMED
+Wording
+PORTFOLIO PROJECTS
+Selected: 2 / 4 max
+Source project 0
+PROJECT
+CLAIMED
+Wording
+Source project 1
+PROJECT
+CLAIMED
+Wording
+Source project 2
+PROJECT
+CLAIMED
+Wording
+Source project 3
+PROJECT
+CLAIMED
+Wording
+Source project 4
+PROJECT
+CLAIMED
+Wording
+SKILLS & COMPETENCIES
+React
+CLAIMED
+PostgreSQL
+CLAIMED
+Writing
+CLAIMED
+CANDIDATE–JOB FIT
+28.63
+/ 100
+WEAK
+KEYWORD COVERAGE
+100%
+Lexical coverage; claims and verified evidence are distinct.
+Document
+Requirements & Gaps
+Project Relevance
+Writing Diagnostics
+Evaluated Candidate Projects
+
+Review project alignment with the role. A relevance score is a local recommendation, not proof of a qualification.
+
+Source project 0
+SCORE: 25
+Matched Keywords: react
+Source project 1
+SCORE: 25
+Matched Keywords: react
+Included content
+×
+
+Review your selection and jump to an item in the editor to change it. Include up to four projects.
+
+1 roles, 2 projects and 3 skills included. Your source records stay unchanged.
+
+Included: Developer at Source Company
+Included: Source project 0
+Included: Source project 1
+Excluded: Source project 2
+Excluded: Source project 3
+Excluded: Source project 4
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository

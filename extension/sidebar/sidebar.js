@@ -1081,13 +1081,21 @@ class SidebarController {
   // Sidebar does not maintain a second independent hydration loop.
 
   async _handleFormDetectedEvent(formData) {
-    if (!this.cachedState) return;
+    if (!formData) return;
 
-    this.cachedState.formData = formData;
-    this.cachedState.workflowState = WORKFLOW_STATES.FORM_DETECTED;
-    await this.store.saveTabState(this.activeTabId, this.cachedState);
+    this.detectedFormData = formData;
+    if (this.cachedState) {
+      this.cachedState.formData = formData;
+      this.cachedState.detectedFormFields = formData.fields || formData.mappedFields || [];
+      this.cachedState.workflowState = WORKFLOW_STATES.FORM_DETECTED;
+      await this.store.saveTabState(this.activeTabId, this.cachedState);
+    }
 
     this._renderFormCard(formData);
+    const fields = formData.fields || formData.mappedFields || [];
+    if (fields.length > 0 && this.elements.autofillFormBtn) {
+      this.elements.autofillFormBtn.removeAttribute('disabled');
+    }
   }
 
   _renderAllFromState(state = null) {
@@ -1509,17 +1517,8 @@ class SidebarController {
     }
   }
 
-  _handleFormDetectedEvent(formData) {
-    if (!formData) return;
-    this.detectedFormData = formData;
-    this._renderFormCard(formData);
-    const fields = formData.fields || formData.mappedFields || [];
-    if (fields.length > 0 && this.elements.autofillFormBtn) {
-      this.elements.autofillFormBtn.removeAttribute('disabled');
-    }
-  }
-
   /**
+
    * P9.2 Canonical Autofill Execution Handler.
    *
    * Executes the 9-step canonical lifecycle:
@@ -1558,7 +1557,7 @@ class SidebarController {
         } catch {}
       }
 
-      // 2. Verify destination binding
+      // 2. Verify destination binding (must fail closed)
       const expectedUrl =
         this.cachedState?.handoffPackage?.metadata?.destinationUrl ||
         this.cachedState?.handoffPackage?.destinationUrl ||
@@ -1566,14 +1565,12 @@ class SidebarController {
         this.activeJob?.sourceUrl ||
         '';
 
-      if (expectedUrl && tabUrl) {
-        const isBindingValid = this._verifyDestinationBinding(tabUrl, expectedUrl);
-        if (!isBindingValid) {
-          this._showFormError(
-            `Destination mismatch: Active tab does not match approved job destination.`
-          );
-          return;
-        }
+      if (!tabUrl || !expectedUrl || !this._verifyDestinationBinding(tabUrl, expectedUrl)) {
+        this._showFormError(
+          `Destination mismatch: Active tab does not match approved job destination.`
+        );
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
       }
 
       // 3. Request the canonical handoff/package
@@ -1599,11 +1596,26 @@ class SidebarController {
         }
       }
 
-      if (!appPackage) {
-        appPackage = {
-          candidate: this.currentUser?.candidate || this.cachedState?.candidate || {},
-          metadata: { destinationUrl: tabUrl },
-        };
+      // Strict authoritative check: Never fall back to synthetic or metadata-only package
+      const candidateData = appPackage?.candidate;
+      const hasAuthoritativeCandidate =
+        candidateData &&
+        typeof candidateData === 'object' &&
+        (Boolean(candidateData.email || candidateData.canonicalEmail) ||
+          Boolean(candidateData.displayName || candidateData.fullName));
+
+      const hasPackageIntegrity =
+        Boolean(appPackage?.packageHash) ||
+        Boolean(appPackage?.lifecycleState) ||
+        Boolean(this.cachedState?.handoffPackage?.packageHash) ||
+        Boolean(appPackage?.metadata?.packageHash);
+
+      if (!appPackage || !hasAuthoritativeCandidate || !hasPackageIntegrity) {
+        this._showFormError(
+          'Authoritative application package required. Please review and approve the tailored package in Career Hub before autofilling.'
+        );
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
       }
 
       // 4. Request form detection (GET_FORM_STATE)
@@ -1688,7 +1700,26 @@ class SidebarController {
         return;
       }
 
-      // 7. Send execution request (EXECUTE_FILL)
+      // 7. Check application/job/package identity immediately before DOM changes
+      let latestTabUrl = '';
+      try {
+        const currentTab = await chrome.tabs.get(targetTabId);
+        latestTabUrl = currentTab?.url || '';
+      } catch (err) {
+        this._showFormError(`Security check failed: Target tab is no longer accessible.`);
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      if (!latestTabUrl || !this._verifyDestinationBinding(latestTabUrl, expectedUrl)) {
+        this._showFormError(
+          `Security check failed: Active tab navigated away from approved destination before fill execution.`
+        );
+        this._setAutofillButtonState('ready', 'Fill Verified Fields');
+        return;
+      }
+
+      // Send execution request (EXECUTE_FILL)
       this._setAutofillButtonState('loading', 'Filling Fields...');
       let execRes = null;
       try {
@@ -1740,17 +1771,189 @@ class SidebarController {
   }
 
   _verifyDestinationBinding(tabUrl, expectedUrl) {
-    if (!tabUrl || !expectedUrl) return true;
+    if (!tabUrl || !expectedUrl) return false;
     try {
-      const tabOrigin = new URL(tabUrl).origin.toLowerCase();
-      const expectedOrigin = new URL(expectedUrl).origin.toLowerCase();
-      if (tabOrigin === expectedOrigin) return true;
-      if (tabOrigin.includes('localhost') || tabOrigin.includes('127.0.0.1')) return true;
-      const tabHost = new URL(tabUrl).hostname.toLowerCase();
-      const expectedHost = new URL(expectedUrl).hostname.toLowerCase();
-      return tabHost.endsWith(expectedHost) || expectedHost.endsWith(tabHost);
-    } catch {
+      const tab = new URL(tabUrl);
+      const expected = new URL(expectedUrl);
+
+      // Protocols must match
+      if (tab.protocol !== expected.protocol) return false;
+
+      const tabHost = tab.hostname.toLowerCase();
+      const expectedHost = expected.hostname.toLowerCase();
+
+      const isTabLoopback = tabHost === 'localhost' || tabHost === '127.0.0.1';
+      const isExpLoopback = expectedHost === 'localhost' || expectedHost === '127.0.0.1';
+
+      if (isTabLoopback !== isExpLoopback) {
+        return false;
+      }
+
+      if (isTabLoopback && isExpLoopback) {
+        const tabPort = tab.port || (tab.protocol === 'https:' ? '443' : '80');
+        const expPort = expected.port || (expected.protocol === 'https:' ? '443' : '80');
+        if (tabPort !== expPort) return false;
+      }
+
+      const sharedAtsHosts = new Set([
+        'boards.greenhouse.io',
+        'jobs.lever.co',
+        'jobs.ashbyhq.com',
+        'jobs.smartrecruiters.com',
+      ]);
+
+      if (!isTabLoopback) {
+        if (tabHost !== expectedHost) {
+          // If either host is in shared ATS hosts, exact host matching is required
+          if (sharedAtsHosts.has(tabHost) || sharedAtsHosts.has(expectedHost)) {
+            return false;
+          }
+
+          // For employer-specific subdomain ATS platforms
+          const subdomainAtsSuffixes = [
+            'myworkdayjobs.com',
+            'icims.com',
+            'bamboohr.com',
+            'workable.com',
+            'taleo.net',
+            'ultipro.com',
+            'successfactors.com',
+          ];
+          const isAtsSubdomain = subdomainAtsSuffixes.some(
+            (s) => tabHost.endsWith(s) || expectedHost.endsWith(s)
+          );
+          if (isAtsSubdomain) {
+            const tabEmployer = tabHost.split('.')[0];
+            const expEmployer = expectedHost.split('.')[0];
+            if (tabEmployer !== expEmployer) {
+              return false;
+            }
+          }
+
+          const tabParts = tabHost.split('.');
+          const expParts = expectedHost.split('.');
+
+          if (tabParts.length < 2 || expParts.length < 2) return false;
+
+          // Apex domain check
+          const tabBase = tabParts.slice(-2).join('.');
+          const expBase = expParts.slice(-2).join('.');
+          if (tabBase !== expBase) return false;
+
+          // If employer subdomain differs, reject
+          if (tabParts.length === expParts.length) {
+            for (let i = 0; i < tabParts.length; i++) {
+              if (tabParts[i] !== expParts[i]) return false;
+            }
+          } else {
+            // Only allow www prefix difference
+            const tabClean = tabHost.replace(/^www\./, '');
+            const expClean = expectedHost.replace(/^www\./, '');
+            if (tabClean !== expClean) return false;
+          }
+        }
+      }
+
+      // Query parameter job ID extraction
+      const jobIdParamKeys = [
+        'gh_jid',
+        'token',
+        'jobid',
+        'job_id',
+        'id',
+        'req_id',
+        'requisitionid',
+        'posting_id',
+      ];
+      const extractQueryJobId = (urlObj) => {
+        for (const [k, v] of urlObj.searchParams.entries()) {
+          if (jobIdParamKeys.includes(k.toLowerCase()) && v) {
+            return v.toLowerCase();
+          }
+        }
+        return null;
+      };
+
+      const tabQueryJobId = extractQueryJobId(tab);
+      const expQueryJobId = extractQueryJobId(expected);
+      if (tabQueryJobId && expQueryJobId && tabQueryJobId !== expQueryJobId) {
+        return false;
+      }
+
+      // Path binding: Prevent cross-job autofill on the same host/ATS
+      const actionTokens = new Set([
+        'apply',
+        'application',
+        'submit',
+        'view',
+        'form',
+        'embed',
+        'job_app',
+        'jobs',
+        'job',
+        'careers',
+        'career',
+        'openings',
+        'positions',
+      ]);
+      const tabPath = tab.pathname.replace(/\/+$/, '').toLowerCase();
+      const expPath = expected.pathname.replace(/\/+$/, '').toLowerCase();
+
+      const expSegments = expPath.split('/').filter((s) => Boolean(s) && !actionTokens.has(s));
+      const tabSegments = tabPath.split('/').filter((s) => Boolean(s) && !actionTokens.has(s));
+
+      const isSharedAts = sharedAtsHosts.has(tabHost) || sharedAtsHosts.has(expectedHost);
+
+      // If employer slug exists in path on multi-tenant ATS, employer must match
+      if (isSharedAts) {
+        if (expSegments.length >= 1 && tabSegments.length >= 1) {
+          if (expSegments[0] !== tabSegments[0]) {
+            return false;
+          }
+        }
+      } else if (expSegments.length >= 2 && tabSegments.length >= 2) {
+        if (expSegments[0] !== tabSegments[0]) {
+          return false;
+        }
+      }
+
+      // For shared ATS, segment 0 is the employer/company slug; job ID is in subsequent segments
+      const expJobSegments = isSharedAts ? expSegments.slice(1) : expSegments;
+      const tabJobSegments = isSharedAts ? tabSegments.slice(1) : tabSegments;
+
+      const expJobId = expJobSegments.length > 0 ? expJobSegments[expJobSegments.length - 1] : null;
+      const tabJobId = tabJobSegments.length > 0 ? tabJobSegments[tabJobSegments.length - 1] : null;
+
+      // Ensure specific job identity cannot be bypassed by navigating to a generic/root career URL
+      const expCanonicalJobId = expQueryJobId || expJobId;
+      const tabCanonicalJobId = tabQueryJobId || tabJobId;
+      if (expCanonicalJobId && !tabCanonicalJobId) {
+        return false;
+      }
+      if (tabCanonicalJobId && !expCanonicalJobId) {
+        return false;
+      }
+
+      if (expJobId && tabJobId && expJobId !== tabJobId) {
+        if (!tabJobSegments.includes(expJobId) && !expJobSegments.includes(tabJobId)) {
+          // Allow if query parameter matches the path job ID
+          if (tabQueryJobId !== expJobId && expQueryJobId !== tabJobId) {
+            return false;
+          }
+        }
+      }
+
+      // If one defines a job ID in query/path and the other does not match it
+      if (expJobId && !tabJobId && tabQueryJobId && tabQueryJobId !== expJobId) {
+        return false;
+      }
+      if (tabJobId && !expJobId && expQueryJobId && expQueryJobId !== tabJobId) {
+        return false;
+      }
+
       return true;
+    } catch {
+      return false;
     }
   }
 
@@ -1770,64 +1973,6 @@ class SidebarController {
     }
     if (this.elements.formDetectionCard) {
       this.elements.formDetectionCard.classList.remove('hidden');
-    }
-  }
-
-  async handlePreviewAutofillPlan() {
-    await this.handleAutofillForm();
-  }
-
-  async handleExplainJob() {
-    if (!this.activeJob) return;
-    try {
-      const res = await this.backendClient.explainJob(this.activeJob);
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent =
-          res?.explanation || res?.summary || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = `Explain Job: ${err.message}`;
-      }
-    }
-  }
-
-  async handleCheckRequirements() {
-    if (!this.activeJob) return;
-    try {
-      const res = await this.backendClient.compareRequirements(this.activeJob);
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent =
-          res?.comparison || res?.summary || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = `Check Requirements: ${err.message}`;
-      }
-    }
-  }
-
-  async handleAssistantQuery() {
-    const query = this.elements.assistantQueryInput?.value?.trim();
-    if (!query) return;
-    try {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = 'Thinking...';
-      }
-      const res = await this.backendClient.askAssistant(query, this.activeJob);
-      if (this.elements.assistantResponseContent) {
-        this.elements.assistantResponseContent.textContent =
-          res?.answer || res?.response || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseContent) {
-        this.elements.assistantResponseContent.textContent = `Assistant: ${err.message}`;
-      }
     }
   }
 
@@ -2110,7 +2255,12 @@ class SidebarController {
       return;
     }
 
-    const packageHash = this.cachedState?.handoffData?.packageHash || '';
+    const packageHash =
+      this.cachedState?.handoffData?.packageHash ||
+      this.cachedState?.handoffPackage?.packageHash ||
+      this.cachedState?.handoffPackage?.applicationPackage?.packageHash ||
+      this.cachedState?.applicationPackage?.packageHash ||
+      '';
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
     const candidateName =
@@ -2137,7 +2287,12 @@ class SidebarController {
       return;
     }
 
-    const packageHash = this.cachedState?.handoffData?.packageHash || '';
+    const packageHash =
+      this.cachedState?.handoffData?.packageHash ||
+      this.cachedState?.handoffPackage?.packageHash ||
+      this.cachedState?.handoffPackage?.applicationPackage?.packageHash ||
+      this.cachedState?.applicationPackage?.packageHash ||
+      '';
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
     if (typeof window !== 'undefined') {
@@ -2318,7 +2473,11 @@ class SidebarController {
    * Previews safe autofill plan.
    */
   async handlePreviewAutofillPlan() {
-    const fields = this.cachedState?.detectedFormFields || [];
+    const fields =
+      this.cachedState?.detectedFormFields ||
+      this.cachedState?.formData?.fields ||
+      this.detectedFormData?.fields ||
+      [];
     if (fields.length === 0) {
       this._showAssistantResponse('No application form fields detected on this page yet.');
       return;

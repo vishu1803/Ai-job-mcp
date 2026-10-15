@@ -24,3 +24,4 @@ CREATE UNIQUE INDEX uq_application_execution_approval ON application_executions(
 CREATE INDEX idx_application_execution_tenant_status ON application_executions(tenant_id,status);
 -- Rollback: disable submission and stop ALL workers first. Retain this table as
 -- forensic evidence; never reset consumed tickets or run vulnerable old workers.
+

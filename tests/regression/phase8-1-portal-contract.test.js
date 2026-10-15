@@ -71,7 +71,8 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
     company: 'Stripe',
     title: 'Senior Infrastructure Engineer',
     location: 'Remote - US',
-    description: 'Design and operate large-scale distributed databases and payments infrastructure using Go and PostgreSQL.',
+    description:
+      'Design and operate large-scale distributed databases and payments infrastructure using Go and PostgreSQL.',
     source: 'GREENHOUSE',
     applicationUrl: 'https://boards.greenhouse.io/stripe/jobs/99887766',
     sourceUrl: 'https://boards.greenhouse.io/stripe',
@@ -239,7 +240,11 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
     const invalidIdentityResult = PortalAdapterIdentitySchema.safeParse({
       id: 'no-name-adapter',
     });
-    assert.strictEqual(invalidIdentityResult.success, false, 'Identity missing name must be rejected');
+    assert.strictEqual(
+      invalidIdentityResult.success,
+      false,
+      'Identity missing name must be rejected'
+    );
   });
 
   it('TEST 3 — Unknown form fields are preserved rather than silently discarded', async () => {
@@ -372,7 +377,11 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
 
     const resolved = registry.resolve('https://partner.com/jobs/123');
     assert.ok(resolved, 'Adapter must be resolved');
-    assert.strictEqual(resolved.identity.id, 'high-prio', 'Registry must resolve highest priority adapter');
+    assert.strictEqual(
+      resolved.identity.id,
+      'high-prio',
+      'Registry must resolve highest priority adapter'
+    );
   });
 
   it('TEST 10 — Unknown portal produces explicit unsupported/handoff state', async () => {
@@ -410,7 +419,11 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
       applicationPackage: pkg,
     });
 
-    assert.strictEqual(result.status, 'HANDOFF_READY', 'Must yield HANDOFF_READY for unintegrated portal');
+    assert.strictEqual(
+      result.status,
+      'HANDOFF_READY',
+      'Must yield HANDOFF_READY for unintegrated portal'
+    );
     assert.ok(result.manualHandoffKit, 'Must include complete manual handoff kit');
   });
 
@@ -482,7 +495,11 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
       },
     });
 
-    assert.strictEqual(response.statusCode, 200, `Expected 200 OK, got ${response.statusCode}: ${response.body}`);
+    assert.strictEqual(
+      response.statusCode,
+      200,
+      `Expected 200 OK, got ${response.statusCode}: ${response.body}`
+    );
     const json = JSON.parse(response.body);
     assert.strictEqual(json.success, true);
     assert.strictEqual(json.submissionResult.status, 'HANDOFF_READY');
@@ -512,7 +529,11 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
       },
     });
 
-    assert.strictEqual(response.statusCode, 403, 'Must reject unapproved submission with 403 FORBIDDEN');
+    assert.strictEqual(
+      response.statusCode,
+      403,
+      'Must reject unapproved submission with 403 FORBIDDEN'
+    );
     const json = JSON.parse(response.body);
     assert.strictEqual(json.error, 'APPROVAL_TICKET_REQUIRED');
 
@@ -673,7 +694,10 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
     assert.strictEqual(ticket.candidateId, candidateId);
     assert.strictEqual(ticket.packageHash, basePackage.packageHash);
     assert.ok(ticket.signature.length > 20, 'HMAC signature must be present');
-    assert.ok(['ISSUED', 'PENDING'].includes(ticket.status), `Ticket status should be ISSUED or PENDING, got ${ticket.status}`);
+    assert.ok(
+      ['ISSUED', 'PENDING'].includes(ticket.status),
+      `Ticket status should be ISSUED or PENDING, got ${ticket.status}`
+    );
   });
 
   it('TEST 20 — Extension preparation remains compatible with the canonical package', async () => {
@@ -684,9 +708,16 @@ describe('Phase 8.1 — Canonical Portal Adapter Contract & Submission Convergen
 
     // Test form schema bridge
     const mockDoc = {};
-    const canonicalForm = baseAdapter.extractFormSchema(mockDoc, 'https://boards.greenhouse.io/demo/jobs/1');
+    const canonicalForm = baseAdapter.extractFormSchema(
+      mockDoc,
+      'https://boards.greenhouse.io/demo/jobs/1'
+    );
     const parsed = PortalFormSchema.safeParse(canonicalForm);
-    assert.strictEqual(parsed.success, true, 'Extension adapter output must conform to PortalFormSchema');
+    assert.strictEqual(
+      parsed.success,
+      true,
+      'Extension adapter output must conform to PortalFormSchema'
+    );
     assert.strictEqual(parsed.data.portalId, 'ext-greenhouse-adapter');
   });
 });

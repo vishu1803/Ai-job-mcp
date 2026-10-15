@@ -147,7 +147,11 @@ describe('PostgreSQL & Drizzle Foundation (P1-003)', () => {
   test('11. Drizzle Kit configuration is valid and structured for PostgreSQL dialect', () => {
     assert.ok(drizzleConfig);
     assert.equal(drizzleConfig.dialect, 'postgresql');
-    assert.equal(drizzleConfig.schema, './src/db/schema.js');
+    assert.ok(
+      Array.isArray(drizzleConfig.schema)
+        ? drizzleConfig.schema.includes('./src/db/schema.js')
+        : drizzleConfig.schema === './src/db/schema.js'
+    );
     assert.equal(drizzleConfig.out, './drizzle');
     assert.ok(drizzleConfig.dbCredentials);
     assert.equal(drizzleConfig.dbCredentials.url, config.DATABASE_URL);

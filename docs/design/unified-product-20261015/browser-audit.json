@@ -1,0 +1,2302 @@
+{
+  "baseUrl": "http://127.0.0.1:4317",
+  "observations": [
+    {
+      "name": "overview",
+      "url": "/dashboard",
+      "status": 200,
+      "title": "Candidate Dashboard | AI Careers Hub",
+      "headings": [
+        "Good morning, Synthetic Studio Candidate",
+        "Which jobs should I consider?",
+        "No matching jobs yet",
+        "Which applications need attention?",
+        "No Applications Tracked Yet",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "Edit Profile →",
+          "href": "/profile"
+        },
+        {
+          "text": "Launch Job Radar",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Explore All in Job Radar",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Browse jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "View All Applications (0)",
+          "href": "/applications"
+        },
+        {
+          "text": "Discover Matching Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "jobs",
+      "url": "/apps/radar",
+      "status": 200,
+      "title": "Job Fit Radar | AI Careers Hub",
+      "headings": ["Job Radar & Market Fit", "No Live Opportunities Found", "Career Copilot"],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Search",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "How strong is my match?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What am I missing?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Should I apply?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Tailor my resume",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Discover Jobs",
+          "href": "/apps/radar?tab=discover"
+        },
+        {
+          "text": "Saved Pipeline\n          0",
+          "href": "/apps/radar?tab=saved"
+        },
+        {
+          "text": "Custom Analysis",
+          "href": "/apps/radar?tab=analyze"
+        },
+        {
+          "text": "Analyze a Job Posting",
+          "href": "/apps/radar?tab=analyze"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": true
+    },
+    {
+      "name": "profile",
+      "url": "/profile",
+      "status": 200,
+      "title": "Candidate Profile & Readiness Workspace | AI Careers Hub",
+      "headings": [
+        "Synthetic Studio Candidate",
+        "Career Profile: 85% Populated",
+        "5 issue(s) require your attention",
+        "Application Readiness Checklist (4)",
+        "Needs Attention (5)",
+        "Professional Identity",
+        "Skills & Projects",
+        "Job Preferences",
+        "Application & Eligibility",
+        "Contact & Links",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Save changes",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Overview",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Professional",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Skills & Projects",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Job Preferences",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Application & Eligibility\n            5",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Contact & Links",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Add →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Manage",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Manage",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Edit",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Manage",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Manage",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What's missing from my profile?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Fix my profile gaps",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What evidence is missing?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "Fix",
+          "href": "/dashboard?copilot=open&intent=complete_profile"
+        },
+        {
+          "text": "Fix",
+          "href": "/dashboard?copilot=open&intent=complete_profile"
+        },
+        {
+          "text": "Fix",
+          "href": "/dashboard?copilot=open&intent=complete_profile"
+        },
+        {
+          "text": "Fix",
+          "href": "/dashboard?copilot=open&intent=complete_profile"
+        },
+        {
+          "text": "Fix",
+          "href": "/dashboard?copilot=open&intent=complete_profile"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "sources",
+      "url": "/sources",
+      "status": 200,
+      "title": "Career Sources | AI Careers Hub",
+      "headings": [
+        "Career Sources & Documents",
+        "synthetic-master.txt",
+        "GitHub Account",
+        "Selected Repositories",
+        "Additional Career Sources",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Replace Resume",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What evidence do my sources provide?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Which skills need stronger evidence?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Review my connected sources",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "View",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f"
+        },
+        {
+          "text": "Download",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f/download"
+        },
+        {
+          "text": "View",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f"
+        },
+        {
+          "text": "Download",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f/download"
+        },
+        {
+          "text": "Connect GitHub App →",
+          "href": "/integrations/github/install"
+        },
+        {
+          "text": "Connect GitHub →",
+          "href": "/integrations/github/install"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "library",
+      "url": "/resumes",
+      "status": 200,
+      "title": "Source Resumes & Documents | AI Careers Hub",
+      "headings": [
+        "Resumes & Career Documents",
+        "synthetic-master.txt",
+        "Upload Source Resume Version",
+        "Resume Version History",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Upload & Parse Resume",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Delete",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "Review my active resume",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What claims lack evidence?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Tailor my resume",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Review Claims",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f"
+        },
+        {
+          "text": "Download Original",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f/download"
+        },
+        {
+          "text": "Review Claims",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f"
+        },
+        {
+          "text": "Download",
+          "href": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f/download"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "studio",
+      "url": "/resume-studio?draftId=ac572b4d-5fad-4d01-9732-fa50cf50a1ae",
+      "status": 200,
+      "title": "AI Tailored Resume Studio | AI Careers Hub",
+      "headings": ["Resume Studio", "Job Requirements & Targeting", "Your resume"],
+      "buttons": [
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Diagnostics",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Evidence",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Selection",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Create Tailored Draft",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Analyze Fit",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Inspect master wording (CLAIMED)",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Accept Proposal",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Reject",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Wording",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Document",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Requirements & Gaps",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Project Relevance",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Writing Diagnostics",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Refresh document",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Edit I build accessible interfaces and document backend systems."
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Edit Implemented React views with the use of component interfaces in order to support internal workflows."
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Edit Documented PostgreSQL query behavior for application documentation."
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Edit Implemented source feature 0."
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Edit Implemented source feature 1."
+        },
+        {
+          "text": "Download PDF",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Download Word",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Approve package",
+          "disabled": true,
+          "label": null
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "Open selectable PDF",
+          "href": "/api/v1/resume-studio/drafts/ac572b4d-5fad-4d01-9732-fa50cf50a1ae/documents/54e30176-8e48-4c21-9edb-bef6adfcdb47/pdf"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "applications",
+      "url": "/applications",
+      "status": 200,
+      "title": "Job Applications Tracker | AI Careers Hub",
+      "headings": [
+        "Job Applications Tracker",
+        "No job applications tracked yet.",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "+ Track Application",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "+ Track Application",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "Is this application ready?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What is missing?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my match",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Launch Job Fit Radar →",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "All (0)",
+          "href": "/applications"
+        },
+        {
+          "text": "Interviewing (0)",
+          "href": "/applications?filter=INTERVIEWING"
+        },
+        {
+          "text": "Applied (0)",
+          "href": "/applications?filter=APPLIED"
+        },
+        {
+          "text": "Saved (0)",
+          "href": "/applications?filter=SAVED"
+        },
+        {
+          "text": "Offers (0)",
+          "href": "/applications?filter=OFFER"
+        },
+        {
+          "text": "Archived (0)",
+          "href": "/applications?filter=REJECTED"
+        },
+        {
+          "text": "Find Matches with Radar →",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "onboarding",
+      "url": "/onboarding",
+      "status": 200,
+      "title": "Onboarding Step 1 — Candidate Setup | AI Careers Hub",
+      "headings": [
+        "Set Up Your Career Profile",
+        "Candidate Identity & Target Specialization",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Save & Continue to GitHub Setup →",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "Skip to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "projects",
+      "url": "/projects",
+      "status": 200,
+      "title": "Portfolio Projects | AI Careers Hub",
+      "headings": ["Projects & Code Evidence", "No projects added yet.", "Career Copilot"],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "+ Ingest New Repositories",
+          "href": "/onboarding?step=3"
+        },
+        {
+          "text": "Active Portfolio Projects\n          0",
+          "href": "/projects?tab=active"
+        },
+        {
+          "text": "Archived / Hidden\n          0",
+          "href": "/projects?tab=archived"
+        },
+        {
+          "text": "+ Add Project",
+          "href": "/onboarding?step=3"
+        },
+        {
+          "text": "Connect GitHub →",
+          "href": "/sources"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "skills",
+      "url": "/skills",
+      "status": 200,
+      "title": "Verified Skills Graph | AI Careers Hub",
+      "headings": [
+        "Verified Skills Graph",
+        "Primary Career Competencies",
+        "Frontend Frameworks & UI",
+        "Databases & Storage",
+        "Inferred Skills\n              0 Inferences",
+        "Evidence Explorer (Technology & Implementation Signals)\n                1 Total Signals",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Expand All",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Collapse All",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "View Evidence Explorer",
+          "href": "#evidence-explorer"
+        },
+        {
+          "text": "+ Ingest Repositories",
+          "href": "/onboarding?step=3"
+        },
+        {
+          "text": "React",
+          "href": "/skills/react"
+        },
+        {
+          "text": "Inspect Citations & Evidence →",
+          "href": "/skills/react"
+        },
+        {
+          "text": "PostgreSQL",
+          "href": "/skills/postgresql"
+        },
+        {
+          "text": "Inspect Citations & Evidence →",
+          "href": "/skills/postgresql"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "settings",
+      "url": "/settings",
+      "status": 200,
+      "title": "Account Settings | AI Careers Hub",
+      "headings": [
+        "Account & Privacy Settings",
+        "Candidate Identity & Workspace",
+        "Security & Active Browser Session",
+        "Connected Integrations & AI Clients",
+        "Data Portability & Inspection",
+        "Data Sovereignty & Account Erasure",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Sign Out Session",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Delete Account & All Data",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Edit Full Profile →",
+          "href": "/profile"
+        },
+        {
+          "text": "Manage Sources →",
+          "href": "/sources"
+        },
+        {
+          "text": "AI Connectors →",
+          "href": "/connect"
+        },
+        {
+          "text": "MCP Documentation →",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Inspect Resumes →",
+          "href": "/resumes"
+        },
+        {
+          "text": "Explore Skills →",
+          "href": "/skills"
+        },
+        {
+          "text": "Deletion Guide →",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "connect",
+      "url": "/connect",
+      "status": 200,
+      "title": "AI Connection Center | AI Careers Hub",
+      "headings": [
+        "AI Connection Center",
+        "Universal Remote MCP Endpoint",
+        "Real-Time AI Provider Status",
+        "Anthropic Claude",
+        "OpenAI ChatGPT",
+        "Google Gemini",
+        "Personal MCP API Tokens",
+        "Active Tokens (0)",
+        "No Personal MCP Tokens Yet",
+        "Two-Phase Write Safety & Stopping Protocol",
+        "Career Copilot"
+      ],
+      "buttons": [
+        {
+          "text": "Copilot",
+          "disabled": false,
+          "label": "Open Career Copilot"
+        },
+        {
+          "text": "S\n              \n                Synthetic Studio Candidate",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Copy Endpoint",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Refresh Live Status",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Generate Personal Token",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Clear",
+          "disabled": false,
+          "label": "Clear conversation"
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Close Career Copilot"
+        },
+        {
+          "text": "What should I do next?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "What's blocking me from applying?",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Improve my profile",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "Find matching jobs",
+          "disabled": false,
+          "label": null
+        },
+        {
+          "text": "",
+          "disabled": false,
+          "label": "Send message"
+        }
+      ],
+      "links": [
+        {
+          "text": "AI\n        Career Hub\n        DEV",
+          "href": "/"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Studio",
+          "href": "/resume-studio"
+        },
+        {
+          "text": "Jobs",
+          "href": "/apps/radar"
+        },
+        {
+          "text": "Applications",
+          "href": "/applications"
+        },
+        {
+          "text": "Profile",
+          "href": "/profile"
+        },
+        {
+          "text": "Sources",
+          "href": "/sources"
+        },
+        {
+          "text": "← Back to Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Overview",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Connect Claude →",
+          "href": "/docs/mcp#claude"
+        },
+        {
+          "text": "Connect ChatGPT →",
+          "href": "/docs/mcp#chatgpt"
+        },
+        {
+          "text": "Manage Gemini Tokens ↓",
+          "href": "#tokenGenerationSection"
+        },
+        {
+          "text": "Dashboard",
+          "href": "/dashboard"
+        },
+        {
+          "text": "Career Intent",
+          "href": "/profile"
+        },
+        {
+          "text": "MCP Protocol",
+          "href": "/docs/mcp"
+        },
+        {
+          "text": "Health Status",
+          "href": "/healthz"
+        },
+        {
+          "text": "Privacy Notice",
+          "href": "/privacy"
+        },
+        {
+          "text": "Terms of Service",
+          "href": "/terms"
+        },
+        {
+          "text": "Cookie Policy",
+          "href": "/cookies"
+        },
+        {
+          "text": "Security Architecture",
+          "href": "/security"
+        },
+        {
+          "text": "Data Deletion",
+          "href": "/data-deletion"
+        },
+        {
+          "text": "Accessibility",
+          "href": "/accessibility"
+        },
+        {
+          "text": "Subprocessors",
+          "href": "/subprocessors"
+        },
+        {
+          "text": "GitHub Repository",
+          "href": "https://github.com/vishu1803/Ai-job-mcp"
+        }
+      ],
+      "bodyBackground": "rgb(11, 15, 25)",
+      "font": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+      "overflow": false,
+      "themeControls": [],
+      "mobileOverflow": false
+    },
+    {
+      "name": "library-detail-0",
+      "url": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f",
+      "status": 200
+    },
+    {
+      "name": "library-detail-1",
+      "url": "/resumes/bea9c71d-d105-4763-88a1-6d63193aa76f",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "blockedMutationRequests": [],
+  "allowedCachedPreview": [
+    {
+      "documentId": "54e30176-8e48-4c21-9edb-bef6adfcdb47",
+      "revision": 2
+    },
+    {
+      "documentId": "54e30176-8e48-4c21-9edb-bef6adfcdb47",
+      "revision": 2
+    }
+  ],
+  "themePreferenceResults": [
+    {
+      "preferred": "dark",
+      "body": "rgb(11, 15, 25)"
+    },
+    {
+      "preferred": "light",
+      "body": "rgb(11, 15, 25)"
+    }
+  ],
+  "readOnly": true
+}

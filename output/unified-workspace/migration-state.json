@@ -1,0 +1,8 @@
+{
+  "database": "product_audit_resume_studio",
+  "port": 55447,
+  "migrations": 25,
+  "hashesMatch": true,
+  "studioGuardCount": 1,
+  "mutations": false
+}

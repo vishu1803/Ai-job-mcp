@@ -1,0 +1,112 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+Sources
+Connected Sources Hub
+Synthetic integrated studio
+Career Sources & Documents
+
+Manage the authentic documents and codebases that power your candidate profile, verified skills, and job matches.
+
+synthetic-master.txt
+ACTIVE BASE RESUME
+
+Uploaded Oct 15, 2026 • 27 B • text/plain
+
+View
+Download
+Replace Resume
+Version History (1 previous)
+GitHub Account
+GitHub App Connector
+NOT CONNECTED
+
+Connect your GitHub account to automatically verify your technical skills and showcase projects.
+
+Connect GitHub App →
+ACCESS SCOPE
+Repository Read Only
+Technical permissions
+SELECTED REPOSITORIES
+0 repositories
+SECURITY
+Secure App Installation
+Selected Repositories
+No Repositories Connected
+
+Connect showcase repositories from your GitHub account to verify your technical capabilities.
+
+Connect GitHub →
+Additional Career Sources
+
+Expand your evidence base by linking additional development, document, and portfolio platforms.
+
+GitLab
+Coming soon
+
+Continuous synchronization of repositories and project contributions.
+
+Google Drive
+Coming soon
+
+Import career certificates, recommendations, and portfolio PDFs.
+
+Microsoft OneDrive
+Coming soon
+
+Document synchronization for work achievements and certificates.
+
+LinkedIn
+Coming soon
+
+Verified recommendations and career milestone synchronization.
+
+Portfolio / Website
+Coming soon
+
+Live project URLs and portfolio showcase verification.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What evidence do my sources provide?
+Which skills need stronger evidence?
+Review my connected sources
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

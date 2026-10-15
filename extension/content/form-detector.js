@@ -19,7 +19,14 @@
  * @param {number|string} [params.position]
  * @returns {string} Deterministic field ID
  */
-export function generateDeterministicFieldId({ formId = 'form', name = '', id = '', label = '', type = 'text', position = 0 }) {
+export function generateDeterministicFieldId({
+  formId = 'form',
+  name = '',
+  id = '',
+  label = '',
+  type = 'text',
+  position = 0,
+}) {
   const cleanName = (name || id || '').toLowerCase().trim();
   const cleanLabel = (label || '').toLowerCase().trim();
   const cleanType = (type || 'text').toLowerCase().trim();
@@ -45,7 +52,15 @@ export class FormDetector {
    */
   static detect(doc) {
     if (!doc) {
-      return { hasForm: false, formId: 'default-form', step: 1, totalSteps: 1, stepTitle: '', fields: [], repeatedGroups: [] };
+      return {
+        hasForm: false,
+        formId: 'default-form',
+        step: 1,
+        totalSteps: 1,
+        stepTitle: '',
+        fields: [],
+        repeatedGroups: [],
+      };
     }
 
     // Step indicators (e.g. "Step 2 of 4", "Personal Information", etc.)
@@ -63,8 +78,12 @@ export class FormDetector {
     const formId = formEl?.id || 'application-form';
 
     const inputs = formEl
-      ? formEl.querySelectorAll('input, select, textarea, [role="textbox"], [role="combobox"], [contenteditable="true"], [data-custom-widget]')
-      : doc.querySelectorAll('input, select, textarea, [role="textbox"], [role="combobox"], [contenteditable="true"], [data-custom-widget]');
+      ? formEl.querySelectorAll(
+          'input, select, textarea, [role="textbox"], [role="combobox"], [contenteditable="true"], [data-custom-widget]'
+        )
+      : doc.querySelectorAll(
+          'input, select, textarea, [role="textbox"], [role="combobox"], [contenteditable="true"], [data-custom-widget]'
+        );
 
     const seenRadioGroups = new Map();
     const detectedFields = [];
@@ -95,14 +114,28 @@ export class FormDetector {
     const repeatedGroups = [];
     if (typeof doc.querySelectorAll === 'function') {
       try {
-        const groupContainers = doc.querySelectorAll('fieldset[data-group], [data-repeated-group], .repeated-group, .history-entry, .education-entry, .experience-item');
+        const groupContainers = doc.querySelectorAll(
+          'fieldset[data-group], [data-repeated-group], .repeated-group, .history-entry, .education-entry, .experience-item'
+        );
         if (groupContainers && typeof groupContainers.forEach === 'function') {
           groupContainers.forEach((container, gIdx) => {
-            if (!container || typeof container.querySelectorAll !== 'function' || container.tagName === 'INPUT' || container.tagName === 'SELECT' || container.tagName === 'TEXTAREA') {
+            if (
+              !container ||
+              typeof container.querySelectorAll !== 'function' ||
+              container.tagName === 'INPUT' ||
+              container.tagName === 'SELECT' ||
+              container.tagName === 'TEXTAREA'
+            ) {
               return;
             }
-            const groupId = (typeof container.getAttribute === 'function' ? container.getAttribute('data-group') || container.getAttribute('id') : null) || `group_${gIdx + 1}`;
-            const groupLabel = (typeof container.querySelector === 'function' ? container.querySelector('legend, h3, h4, .group-title')?.textContent?.trim() : null) || `Group ${gIdx + 1}`;
+            const groupId =
+              (typeof container.getAttribute === 'function'
+                ? container.getAttribute('data-group') || container.getAttribute('id')
+                : null) || `group_${gIdx + 1}`;
+            const groupLabel =
+              (typeof container.querySelector === 'function'
+                ? container.querySelector('legend, h3, h4, .group-title')?.textContent?.trim()
+                : null) || `Group ${gIdx + 1}`;
             const groupInputs = container.querySelectorAll('input, select, textarea');
             const groupFields = [];
             if (groupInputs && typeof groupInputs.forEach === 'function') {
@@ -295,7 +328,9 @@ export class FormDetector {
       position,
     });
 
-    const isCustomQuestion = fieldType === 'UNKNOWN' && (tagName === 'TEXTAREA' || tagName === 'SELECT' || Boolean(name) || Boolean(label));
+    const isCustomQuestion =
+      fieldType === 'UNKNOWN' &&
+      (tagName === 'TEXTAREA' || tagName === 'SELECT' || Boolean(name) || Boolean(label));
     const isUnknown = fieldType === 'UNKNOWN' && resolvedType === 'UNKNOWN';
 
     return {

@@ -1,0 +1,2027 @@
+{
+  "baseline": "22151e9",
+  "records": [
+    {
+      "path": ".superdesign/init/components.md",
+      "bytes": 9458,
+      "sha256": "ac39de38e0b79a3a111fc3939d451da22741b1c1b7e18559b31e006c2d9f9a23"
+    },
+    {
+      "path": ".superdesign/init/extractable-components.md",
+      "bytes": 324,
+      "sha256": "3a1d728e19004c722b73a9c4b06959b55600f5d0d727f4bbdd4fcc9f44bc2ecc"
+    },
+    {
+      "path": ".superdesign/init/layouts.md",
+      "bytes": 21886,
+      "sha256": "17ef762d9e123f84c7a8a7493961fb5610130a8c5ee2bb5380ea00e4a828ceed"
+    },
+    {
+      "path": ".superdesign/init/pages.md",
+      "bytes": 445,
+      "sha256": "969d22f35d5884ff072a140a2a79377062af77ae73ac83dc1a165d3fdda72722"
+    },
+    {
+      "path": ".superdesign/init/routes.md",
+      "bytes": 326,
+      "sha256": "1dd10949267418cde61f206004306b8af6eb1095168c8deb499fecb0617600a3"
+    },
+    {
+      "path": ".superdesign/init/theme.md",
+      "bytes": 15020,
+      "sha256": "4cf51dace15e644e359319b8f471f1177de8bff070d7a63256d91b0a666719d1"
+    },
+    {
+      "path": "docs/api/resume-studio-library-v1.md",
+      "bytes": 2877,
+      "sha256": "8b41ebfa7d0f12bd9db3363c52beac618c82ab81cf6f1f359ba91b242e92cf2d"
+    },
+    {
+      "path": "docs/api/resume-studio-library-v1.schema.json",
+      "bytes": 2127,
+      "sha256": "b6ee74822c9eff711d4cd66e28f12af3195c07dde7f06b9e5e4180a2f54a7491"
+    },
+    {
+      "path": "docs/api/resume-studio-v1.md",
+      "bytes": 11024,
+      "sha256": "b27adffc6e6a5c76ff50599f4b0fdf9d020eaabcbefe0069600872b7e72adaf3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/README.md",
+      "bytes": 675,
+      "sha256": "5860200005de5bee33298a01b2962f547334188062b3d612a635768aaac0616c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/UNIFIED-PRODUCT-PLAN.md",
+      "bytes": 57946,
+      "sha256": "a3cba2f55758e4981fb538ae914f8b199b5afb88a76ffe2871b1c618c3f88286"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/additional-browser-audit.json",
+      "bytes": 694,
+      "sha256": "5fedfdeef74c4906d04622b0df9f88a3428dba82aea263a6d331e816b693eb5c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/artifact-verification.json",
+      "bytes": 451,
+      "sha256": "41f7585148a54d6b04983aa905b34770dceb583ac73201f84dcc2c796ec7b61e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/browser-audit.json",
+      "bytes": 54961,
+      "sha256": "dec86ce8d5a01b9547aade52c8bf4bb39a79bf15097f396765dfa2593d1b5f97"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/candidate-journeys.svg",
+      "bytes": 11754,
+      "sha256": "051df916ea92d8c789e5dace7a72938bd0f8b9055eea8d149291463b790a3a95"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/account-navigation.png",
+      "bytes": 142742,
+      "sha256": "d8868ac18618d8b74e85738622bbf12397d2ff968702a4c44ad09e3553a79cfa"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/applications-desktop-viewport.png",
+      "bytes": 103019,
+      "sha256": "34bf77431429561fbef811117c14bf22361a4f56b752c4c1ea07adadbda15ede"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/applications-desktop.png",
+      "bytes": 143710,
+      "sha256": "d9f16f1e174d92bca6a91202569b7cda97f5ea445ee753c69e703fd4a8dc396e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/applications-mobile-viewport.png",
+      "bytes": 55624,
+      "sha256": "51ed481fe0f91a345b7b950d4328c5b24431ece72db2847e5d4a554b0c5e2889"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/applications-mobile.png",
+      "bytes": 135162,
+      "sha256": "c56ba1340ce6bdceb34f2cedaebf68b57e88e883634388bf6692b6ba801eb6ea"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/applications.txt",
+      "bytes": 1560,
+      "sha256": "4f316e2e41822b2a6b77a1ee912c268b147a034ac0ce51f5a3866eca459ab2db"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/connect-desktop-viewport.png",
+      "bytes": 162179,
+      "sha256": "a7b2fc396b279d2b2dc790cf4f9387be74c885fc25b6fabc5fcf65310b65ea25"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/connect-desktop.png",
+      "bytes": 405522,
+      "sha256": "1321dd2a4151cdaeada3e8fc2fa305f47b88b7e95954fd87c8a8c1497e1f8806"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/connect-mobile-viewport.png",
+      "bytes": 75344,
+      "sha256": "008659b7bb750f6c7473b6a3bedc1e703ea786ef1bc8c8c11858b8903869ed39"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/connect-mobile.png",
+      "bytes": 393090,
+      "sha256": "2d31db2ac2e6e4902a68a934167db426e3d9aaf69acafa09e83dfdf8676ffb15"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/connect.txt",
+      "bytes": 4382,
+      "sha256": "254386fc028e3a261c92d89f4441219e5aa8a24b115224e012c8f78766a913ca"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-analysis.png",
+      "bytes": 172896,
+      "sha256": "b233321c07671a0fd903ca724b8c16a56ad572bfb4bbfc7cac6ff4978e0132a3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-analysis.txt",
+      "bytes": 1769,
+      "sha256": "5fa823f82ab20f823e016d66204b844c32077c09c98b664ed11e91c4acd1e05d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-desktop-viewport.png",
+      "bytes": 101530,
+      "sha256": "862fee482a4b11a28096294754c0f13d3a1df4aebbec471afc054bdd005f47d6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-desktop.png",
+      "bytes": 141847,
+      "sha256": "cab86869bfe7711a8d4060b4582094b71a00c065dcdcfa42a9eda0760aff8766"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-mobile-viewport.png",
+      "bytes": 63820,
+      "sha256": "f0d532f3c55d4be2538225065387a00d5467816321e58ed669cf8959530151b0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-mobile.png",
+      "bytes": 123948,
+      "sha256": "6353ee35efb296110aa504a67e1008a72f354b64f3e98e1b59f3be8d58e54169"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-saved.png",
+      "bytes": 117492,
+      "sha256": "bca99f0825052089fe33861519e83816dc7685c3e02c4a6a93bb596dae564646"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs-saved.txt",
+      "bytes": 1277,
+      "sha256": "9f792265233f812e9628255873ac77140fd51571cf7c30ee0724a2f49083d9cd"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/jobs.txt",
+      "bytes": 1407,
+      "sha256": "6d697522329271eccae0a15ea049ae15d57f2a1cbd5bed787ecbbd7bc3470797"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-desktop-viewport.png",
+      "bytes": 129327,
+      "sha256": "108259ae3f86c6b789537f7bc5e9b780c07834be337b2969a3430e6e112076ed"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-desktop.png",
+      "bytes": 200321,
+      "sha256": "96df0e064d24a33ede62d9c6b68d335db6311d20964e08ef769e67c23f98ecc0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-detail-0-desktop.png",
+      "bytes": 205455,
+      "sha256": "ff2424aa6918c05dca47f5f285bfa938d5b67df0504b4e73b7e4b0276d04aa37"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-detail-0.txt",
+      "bytes": 2202,
+      "sha256": "70814987e3b40e102a8c79ffb9c229720f5c9d9d3d4c6334caac23dcbd19cfdd"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-detail-1-desktop.png",
+      "bytes": 205455,
+      "sha256": "ff2424aa6918c05dca47f5f285bfa938d5b67df0504b4e73b7e4b0276d04aa37"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-detail-1.txt",
+      "bytes": 2202,
+      "sha256": "70814987e3b40e102a8c79ffb9c229720f5c9d9d3d4c6334caac23dcbd19cfdd"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-mobile-viewport.png",
+      "bytes": 71413,
+      "sha256": "c987833a6a6356c605ce8b287acb20ee8c8c91eaa5f8831f3b71df0752646473"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library-mobile.png",
+      "bytes": 174114,
+      "sha256": "d66a58baae577fc6a29542c1cd57f56df288a0e9fd0b0904c6c5c8d4f2bc13d7"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/library.txt",
+      "bytes": 2014,
+      "sha256": "1e9b4a300a6ed0196da64ae44584458790b3303b55306e721339a889e806f0af"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/mobile-navigation.png",
+      "bytes": 45517,
+      "sha256": "819abd33f5f6b43b901f8dd1c057d575f68c5ca6bd7a4ae597ca5cc8ac63321c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/onboarding-desktop-viewport.png",
+      "bytes": 114755,
+      "sha256": "5f16b747ac09862935ee56192171d9fc53c91ae1ba634cda1bdcd768a4021ddb"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/onboarding-desktop.png",
+      "bytes": 178019,
+      "sha256": "828728f8caf58e25a98939dfdc2f557de35230a575ecd5aae7188e81cffd2587"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/onboarding-mobile-viewport.png",
+      "bytes": 67504,
+      "sha256": "d5a429f235ee164cd19a3151f184cb22b91e0586602cc7b46304d5151df9dea0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/onboarding-mobile.png",
+      "bytes": 140357,
+      "sha256": "c232fef472269855294c5fb71dd891744276d8ca90a7063861c177f5939a4095"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/onboarding.txt",
+      "bytes": 1772,
+      "sha256": "ae136739d3a1ce5e983766bdbe20e983e2a48566d7310294df6cc0e97821f83b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/overview-desktop-viewport.png",
+      "bytes": 115701,
+      "sha256": "ecb53c9171025ac50573200001bf78c3430c02a3304143d5d8765ab0533dd0e6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/overview-desktop.png",
+      "bytes": 181041,
+      "sha256": "92be7dda8d28a5492ec8e28bfd189643b873d9173a1712bbfa2e4746b9ddb3a5"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/overview-mobile-viewport.png",
+      "bytes": 67105,
+      "sha256": "d26cd7902635c993c83c333c384b9ffede7bf0f011cc4f955b48b43edb5d0c17"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/overview-mobile.png",
+      "bytes": 150305,
+      "sha256": "6efcb88aa80902575699500df4f609a59260e3470f2bb63b9cf42503462df685"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/overview.txt",
+      "bytes": 1764,
+      "sha256": "c19a6e28a3b18f472ec46ab49192ee0a9b053efb9943fc3175aee70b1707ef10"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-contact.png",
+      "bytes": 143198,
+      "sha256": "dea1127c80667c531e8e8becefd30c8f345f785f0cdd4760bec2edcf15c608e7"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-contact.txt",
+      "bytes": 4324,
+      "sha256": "d180f653e088c6224c69b42dbe5f5e2ae58d9c53dc91ff261ac4a87b4832dff3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-desktop-viewport.png",
+      "bytes": 159343,
+      "sha256": "74b9c3b61d6255321895d4cf95b227a12ebffe1b6d608af2c981829734dcd7c8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-desktop.png",
+      "bytes": 320858,
+      "sha256": "3a113e1cb11294eea932427bd01e016a29b0c428d66bf7c740c1c07ebfefd2f4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-eligibility.png",
+      "bytes": 165121,
+      "sha256": "c2592a89eb1c0ce800bc7a7da6368b2cf486c0ec33ecb784907ae29c47f5f7eb"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-eligibility.txt",
+      "bytes": 2086,
+      "sha256": "8521ad67ee6c406db3a16b2bc5114aef7216f434cceea2c558775896fed2a29d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-mobile-viewport.png",
+      "bytes": 68550,
+      "sha256": "e932b1913281a47ac428ae9c06c2f056d16a1e40559c10e2a94c87cb4fb3861f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-mobile.png",
+      "bytes": 311474,
+      "sha256": "2a6a2cff8754ac092bbdba7b0a62838f16b11c8b87926c8f859662da24dd9a7f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-preferences.png",
+      "bytes": 157053,
+      "sha256": "7c994815a3bf85564a08b694337da730c6bac9d6371c5132bb25efca609d80bf"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-preferences.txt",
+      "bytes": 1874,
+      "sha256": "5c3872a6c509ff9150ad5e07b39ba376b9db9a3e04617b7a1cd5fd183c37eb28"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-professional.png",
+      "bytes": 214748,
+      "sha256": "19d1e8a487e2281b2ec6b6ebafa92c8fb989fab7400f3cb087dcaab9fcc98a35"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-professional.txt",
+      "bytes": 2258,
+      "sha256": "54173f250b846fee28c5ee17112947e5fa9ac6da9a9c9a7e8088f9103ac74855"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-skills.png",
+      "bytes": 200410,
+      "sha256": "db5b6ad3ef07efba67c052327a5cc35d3576c494073c6fe3577ced4fa51b6e0d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile-skills.txt",
+      "bytes": 1977,
+      "sha256": "dbfff5a6a10069d15ad136bb84b30bdf25648c1ef9e093d32af9a5ae574c0f33"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/profile.txt",
+      "bytes": 3176,
+      "sha256": "a05374cdd644b509769ce0ebf87b89d310ab491d71e0725f25dc71fb3d59108a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/projects-desktop-viewport.png",
+      "bytes": 100346,
+      "sha256": "71f541ca552341eac181cba0d625445e3c109de737719b0641ed0694f517e0ba"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/projects-desktop.png",
+      "bytes": 126797,
+      "sha256": "d5d6f8f4efb8138dee2cf41aa295d96e99da2922a78c09296e23fdc047a7812e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/projects-mobile-viewport.png",
+      "bytes": 66424,
+      "sha256": "961431e11573ef8baedb79c0ee532656da2b12f6188072aec65814c9d4314cf1"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/projects-mobile.png",
+      "bytes": 117165,
+      "sha256": "9c6a2ee4daf8fc0c48dcec8b93d2cee0ae3a85b8011c2c688475bc91279ef8d9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/projects.txt",
+      "bytes": 1446,
+      "sha256": "32d0f3e4619287f04fc9f8996b8257520717e8fe69f0a7d7093f348e847714c8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/settings-desktop-viewport.png",
+      "bytes": 125845,
+      "sha256": "a1797235e7fb7bf4b789b1ab098e713c25f10660ff032278bbc3adc6ba638a62"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/settings-desktop.png",
+      "bytes": 368470,
+      "sha256": "9e073b603052962213374a2adf263f59fd45f66cb6004eab83941c87a4232422"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/settings-mobile-viewport.png",
+      "bytes": 69213,
+      "sha256": "116250047a2e517c8a1726d698266f54fa748ec55a793137841969f6a19e6365"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/settings-mobile.png",
+      "bytes": 336816,
+      "sha256": "23b19d6fc81cc1730a7e8fbbea5f2324e04bc28f9e93160cbfdad22e1eeed712"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/settings.txt",
+      "bytes": 4075,
+      "sha256": "8e75522a22b3022d9cb28363b3decf1a082cd6c6491354d20789f35138aab8c1"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/skills-desktop-viewport.png",
+      "bytes": 138816,
+      "sha256": "fd060509d561b8ad3f4c7447c1c1ec83ed4ec2f1051d8fac7e83ba5655d9588d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/skills-desktop.png",
+      "bytes": 266079,
+      "sha256": "da3a7fea7bfac84d35f3de91c425883f187fe6a78228662440192181824fb432"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/skills-mobile-viewport.png",
+      "bytes": 69342,
+      "sha256": "badd81f2c6c05d11e9bc0d94c5f172adaaa5c429e2f9280918048c044a56f192"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/skills-mobile.png",
+      "bytes": 257031,
+      "sha256": "a199f253d2bd4cc1f907fd143d553d38228e5b1498a45d5d20afd49b615d2714"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/skills.txt",
+      "bytes": 3061,
+      "sha256": "02d10f3b1f1ab72f557a52380953ffaeb90bb6de13d1ba27c2dd625c9d7e190e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/sources-desktop-viewport.png",
+      "bytes": 115393,
+      "sha256": "b8703bcc94da6e508d25b2b147472958afb3b6da425e8af49b1a5c745f4d0906"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/sources-desktop.png",
+      "bytes": 213439,
+      "sha256": "b2e23abba81b020fdcd525f18b27cfefad6fce78d7cc152a6a7ab353cc32b1e4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/sources-mobile-viewport.png",
+      "bytes": 61326,
+      "sha256": "43d0a47ff7ce53e8ca4938981d886a3eab37fadf7dabf58c43d94c36f854dd0b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/sources-mobile.png",
+      "bytes": 219816,
+      "sha256": "73e19ac12793d06fdb85a3ac7d0c158ef7ed792242a1d7292b529293f34bce2f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/sources.txt",
+      "bytes": 2259,
+      "sha256": "7571a30770b26775fafc8aa3e31616f8aee72443146b50ec55240ca7840c955e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-desktop-viewport.png",
+      "bytes": 190144,
+      "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-desktop.png",
+      "bytes": 413211,
+      "sha256": "0cbdf4b01e7a3d4dc59b7e72b28413286f025743b5ba581d7378f5b3807effb9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-diagnostics.png",
+      "bytes": 353511,
+      "sha256": "0e97a995881b417026676eaf621f7afc157712136cd220db535c8dfc015237a0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-diagnostics.txt",
+      "bytes": 2798,
+      "sha256": "eac3a9f8a9527ae3d88bd5077b06952ce67542046836251b500aa4740ac1828f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-evidence.png",
+      "bytes": 356075,
+      "sha256": "b8c147bef5226730ad64b687d2d89321b64406dfe662a407c4461a0bc3e54365"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-evidence.txt",
+      "bytes": 2803,
+      "sha256": "2cdf6f3883dab30fbd3c916ba860556fbdd6ac65ea6c4d007a2bb0e0387b2df6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-history.png",
+      "bytes": 212919,
+      "sha256": "3c8b99fbaa77158a4d0a6e84cf3e335a8db9d9cafee2c11b888bb142756f294a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-mobile-viewport.png",
+      "bytes": 56600,
+      "sha256": "05716d09e368b4201d127c620c9e1d6311fa059b88c54f46bc1cb5f7fa644166"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-mobile.png",
+      "bytes": 325756,
+      "sha256": "1b38cf9e9dc5b36eb45fe4fa48b28a9627643e06b4de695e41bfb6f882369233"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-os-dark.png",
+      "bytes": 266108,
+      "sha256": "bedca920e9c0b4f1774fe905277fedc1fdb1a0b8836693ee80a311106cfa7435"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-os-light.png",
+      "bytes": 190144,
+      "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-projects.png",
+      "bytes": 313742,
+      "sha256": "a1fa7cf105daafc0937b3af2478e8de34adf9b73cf3cbfb85c3130b5bddafa93"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-projects.txt",
+      "bytes": 2468,
+      "sha256": "533cde226368237beafc1fa67a338bd12de1634afc3a6530850661c708441473"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-proposal-source.png",
+      "bytes": 265803,
+      "sha256": "2c000aeed92a0546ae75d2bf0b1af8dd11891b4f3304ce32579f55641ca4a5f8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-proposal.png",
+      "bytes": 175575,
+      "sha256": "27e043f2b1d5bcb872a31d2dad6207dc320f7cf9ea173b5d2c4835cc45187e0c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-requirements.png",
+      "bytes": 314108,
+      "sha256": "c573eebf65a1530ff36350d0956e47803562ed20d1ef1749815637d8d3ccfe8c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-requirements.txt",
+      "bytes": 2488,
+      "sha256": "ef81652164689d8f1510aefed6e89af5e0ab2dd4164b6e82d0d6348f0628c8c2"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-selection.png",
+      "bytes": 353081,
+      "sha256": "7bc8197cd4778809a5f111208c1bfc85bee9b6f0e05ba5193b1dc8763451ff27"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-selection.txt",
+      "bytes": 2842,
+      "sha256": "666152385a5bf707a6773b344a32cb82766ae1d4477513605fa1f309a81fa166"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-writing.png",
+      "bytes": 325520,
+      "sha256": "ec4eaef3473896d812c399c276f0ceaa7040d694a6946424d8f23045fcafbc5a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio-writing.txt",
+      "bytes": 2677,
+      "sha256": "8351e29166bc61fe7fed59b8240e4ed1e1d154011d94b08e67ce1d06e2ee2226"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/current-screens/studio.txt",
+      "bytes": 2477,
+      "sha256": "33366aa261906f78d225fa9250c83297ef1ccb32d8498f592ff8d24a5b455b62"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/implemented-tokens.json",
+      "bytes": 1146,
+      "sha256": "cd0f7e7424941106263bd38e1d7cb53afd1ba9c269bedd61170fad60c3dbf261"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/navigation-map.svg",
+      "bytes": 7068,
+      "sha256": "ecdeed0208a3783a01a63a45cea48287fdf1600efb942d82c8bd4cd35a76120d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/actual_resume_benchmark.md",
+      "bytes": 10737,
+      "sha256": "aa2e20f11ad0d4b2692dda91bf3f61e422e89e83a543acc487301b0121bc67de"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/career_hub_resume_product_blueprint.md",
+      "bytes": 49208,
+      "sha256": "2a059b27b834384f01dc5c16f3e805580e0d3cf426efb6f0ede25ab3b71f55a2"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/career_hub_resume_studio_ui_ux_blueprint.md",
+      "bytes": 38088,
+      "sha256": "0d1f903de95c9c133f65d2670f205f85298dc75d1e7cea6fe3acc87df4dbbc03"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/prototype/app.js",
+      "bytes": 42967,
+      "sha256": "aa78348703106b222a64547513a06fb7f8080070c61224ff6694a6ba0a96f55e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/prototype/index.html",
+      "bytes": 12509,
+      "sha256": "a662048a04e96fb9d7cf7b52b70a2c4bb82c35e6369f89f5843e70c6e7e439d3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/prototype/style.css",
+      "bytes": 25054,
+      "sha256": "9e0f0b22161399d44bf44c58e5e9945b3030e8dccf42a0daf0272d49aa6b2e72"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/prototype/synthetic-data.js",
+      "bytes": 12537,
+      "sha256": "94d0f9d545d76a1197fc7921f26cfabfe423a64ddd361339e61c0c61e1e694e0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/reactive_resume_runtime_trace.md",
+      "bytes": 9142,
+      "sha256": "1a07b68abe888224c3c657b8c304b9e579751211a6048641d564db26e6990803"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/rezi_product_specification.md",
+      "bytes": 9802,
+      "sha256": "3567aff2590d30e38346610699402dc5c396234cfb4d2383123a8f09809a428c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-default.png",
+      "bytes": 238121,
+      "sha256": "34ae28831bf4bb86094e195785435992d2316946d1316e43a718371fbebe7f5a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-diagnostics-drawer.png",
+      "bytes": 287396,
+      "sha256": "0c3dfab9fa7570e8ecbfc032b2cfd13ac72919ca7040f28bdcb1f5b99ffe761f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-evidence-inspector.png",
+      "bytes": 338319,
+      "sha256": "4df060f086bd543f947a33110b333b1b8e365cbd48338e33587b05169779bf27"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-fitted-1page.png",
+      "bytes": 256291,
+      "sha256": "d824b1cf2ac81c80483009ace3e9f5833fc2dd4244d6a089a11ec1bcd4bf4ade"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-modular-selector.png",
+      "bytes": 299569,
+      "sha256": "6cc22d7218b6981076cfc921bd0df13b023419fb73e29fb0b6686658d9e3115e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-overflow-state.png",
+      "bytes": 249579,
+      "sha256": "8f577a6c3dc6a034e4d78d358c9229a704498938659b151d497a24c8cfbb9922"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-proposal-active.png",
+      "bytes": 257280,
+      "sha256": "7010a98039591b2b87d191b33d7a258890cee551299667ee695f754ed73526a9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/desktop-1440-proposal-stale.png",
+      "bytes": 248830,
+      "sha256": "cce45ebd71a2012e8ed9532185f14573257dd662582fd8386551ac878e1e864b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/laptop-1280-split.png",
+      "bytes": 215646,
+      "sha256": "721a94ac630c2e172bb148ffba1afeef53547066348e1e85dce1782ad915cf94"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/mobile-375-stacked.png",
+      "bytes": 87120,
+      "sha256": "bb7ceb2d03d0b2ab754a403ac1a29ce13220af3007f6b5a3b7453266b7b9c00d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-analyzed.png",
+      "bytes": 455341,
+      "sha256": "e009b516b616385cfa9e87cdd60db2ea251f9c75b03250337cc5e9df6699b6da"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-drawer-diagnostics.png",
+      "bytes": 599907,
+      "sha256": "3e4189482ab55391aba8f8d85f0d083f10dcdefc8b3469f861e6afc188a635ff"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-drawer-evidence.png",
+      "bytes": 528922,
+      "sha256": "bb92495347d4b59a44cf388157b93fe1712f51b68dee095b2389ff0d9c51824f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-drawer-modular.png",
+      "bytes": 503471,
+      "sha256": "7fb1cac0a58e27a27f5effdb4c572ed8efbf2e180ca374ff407592b741d298f3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-initial.png",
+      "bytes": 344671,
+      "sha256": "a3731e24baca8d5fe98573f02516e25fc689591e179c85167c6086d1117f56b7"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-tab-parseability.png",
+      "bytes": 371950,
+      "sha256": "10da193cd4f50d81a376ea8e5c3bff36d9659ffc48743eac0ad5dbb962d62e23"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-tab-projects.png",
+      "bytes": 435285,
+      "sha256": "b8b3063fb381c12f79e0ba9805684b3006928e6872679da55b4f08fc01e22eb4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-tab-writing.png",
+      "bytes": 465521,
+      "sha256": "d92d91a94f92f8b1d9360f0199fbe5613b6ed8ee6f9f8704e2a9f451dfcc936b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/desktop-1440-validation-error.png",
+      "bytes": 319055,
+      "sha256": "360151de112c16b1950f14ed80aba4bb47f457fcd5828b2ed1c49b1c5eac217b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/laptop-1280-split.png",
+      "bytes": 367426,
+      "sha256": "8ec6240f011eef4c1c7b427c0a32fd8ec656feba909a2d355e8171ff6c8cce31"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/mobile-375-stacked.png",
+      "bytes": 162877,
+      "sha256": "2ff0ffc27d2118e93cd22ee28a0c5b0b7d81b139c2a8869c69db1b36f2c9ea7e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice1/tablet-1024-stacked.png",
+      "bytes": 216368,
+      "sha256": "8f872112fa568c1ab8696fdfd1a837095970d278b2e5f916fd746fbcd90ae406"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/01_desktop-1440-initial.png",
+      "bytes": 351156,
+      "sha256": "71563f82a252915d28e2c1a5a78b2c0a09ee01a559b73bd80e6729d0f6a07af8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/02_desktop-1440-draft-created.png",
+      "bytes": 405129,
+      "sha256": "85da35b054af2ef6092aad7f8fb5049a879e52b5f84f103176e1a4da059db548"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/03_desktop-1440-bullet-edited.png",
+      "bytes": 280347,
+      "sha256": "ad32cd08579589e8ad0d14cd5b673dea0d13421d12f4cdccc29bebcbecfd357c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/04_desktop-1440-selection-toggled.png",
+      "bytes": 271611,
+      "sha256": "e13f718de0cbda5abc6d45e386acdf59544eab32b1ed464b7df1c4e7775ab548"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/05_desktop-1440-conflict-detected.png",
+      "bytes": 268398,
+      "sha256": "f403613e6a6f84ce4dafd3d4202171edc8abec315ad0155e5bf69da8b461c1b1"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/06_desktop-1440-conflict-resolved.png",
+      "bytes": 403255,
+      "sha256": "717d6d24eaa53b17db75319c7922e06c10f9903e1fc4fa01c5b8cb284ecbe010"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/07_desktop-1440-reloaded.png",
+      "bytes": 403340,
+      "sha256": "dc38b9896efdd021f291a1ca43400a14293c84fa7191c446d7b6c72ea85f3a23"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/08_desktop-1440-readonly.png",
+      "bytes": 403340,
+      "sha256": "dc38b9896efdd021f291a1ca43400a14293c84fa7191c446d7b6c72ea85f3a23"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/09_laptop-1280-editor.png",
+      "bytes": 331000,
+      "sha256": "4539c5891006abca01c69ddf125bf80d9456dec5123f2403768f6cf35086d591"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/10_tablet-1024-editor.png",
+      "bytes": 233401,
+      "sha256": "f36d70945b00f3b978d8f995e978a2b1e90371da49ed8aa883310ed47a4688e2"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/11_mobile-375-editor.png",
+      "bytes": 169847,
+      "sha256": "1ace4834ffbb06137180efb43c19ad5ebcf0cb63e2073c69620fbb12f5b3a63b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice2/12_desktop-1440-modular-drawer.png",
+      "bytes": 624224,
+      "sha256": "7b32689228e4c476559a8534c24a55077f962fb3f9ac5fff3301aa3bcb6d1c13"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice3/01_desktop-1440-editing-preview-notice.png",
+      "bytes": 392670,
+      "sha256": "aa57473bc27bf8ec3be6ab03906a7c91f89d1bdd1ae7929618927c8cd3853f68"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice3/02_desktop-1440-draft-created.png",
+      "bytes": 422671,
+      "sha256": "c66645545a03728eb5143e48880a90188faa44be04b756a4cade2b7a67e3d133"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice3/03_desktop-1440-conflict-banner.png",
+      "bytes": 307570,
+      "sha256": "e1a8b821486f726a14ae90a089128138482745f9bfaa8c45e344c14a5c782843"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice3/04_desktop-1440-conflict-review-modal.png",
+      "bytes": 491912,
+      "sha256": "49401cd2144b2800696f7235aa5a683df5643b6ec2dc4cf9b6fb9fa6e14dc0be"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/slice3/05_desktop-1440-proposal-active.png",
+      "bytes": 245714,
+      "sha256": "dbaabc5e56056bcc1a8fc0ce2a38de6170542b9eee6f32b0c8e03b69ec3306f6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/screenshots/tablet-1024-split.png",
+      "bytes": 128846,
+      "sha256": "cb3d8d3da303c566e69780fc563dcb42e130e3b4d14d22c5272dbe5708659ade"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/original-references/verified_feature_catalog.md",
+      "bytes": 16691,
+      "sha256": "e733d515584c89eec3879414d0a3e639f5d231dd97c39935ca1590d16237723c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/plan.html",
+      "bytes": 66684,
+      "sha256": "5388232f546ea624c83f33205ff7c6a8ba9aef697c9d1eacbcbec424f62971bd"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/preservation-manifest.json",
+      "bytes": 33151,
+      "sha256": "c392607aa4c8b3c7206e473c4395c38ed24a17a27360ecabf5fd730ac697ee31"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/proposed-tokens.json",
+      "bytes": 2305,
+      "sha256": "f87713604b50c409f372b937e44288e1d58bc4f2b0d6c15fc1bdc0578bc4e7df"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/review.html",
+      "bytes": 21466,
+      "sha256": "c99fb69d5828ed74c297d63ec9200f8d10ce66f86f12b662425b69bf83c374bb"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/source-state-after.json",
+      "bytes": 1676,
+      "sha256": "285a379b2c5df75514afff4285882863fbf24586450469910ba23d5772f57258"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/source-state-before.json",
+      "bytes": 40519,
+      "sha256": "7f999b13e6b29c0ad99c611a80ca8f677194bcaafac70da77f3e0a4c74c95013"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframe-manifest.json",
+      "bytes": 12479,
+      "sha256": "23e27d95ab9944038de7af7a72d5796469f680db56f80e1780fcdaa77f26d480"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-desktop-dark.png",
+      "bytes": 44840,
+      "sha256": "2342f82c75c8840498b3be4da7101c64611c33045f931fc16cbb007bdae32c67"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-desktop-dark.svg",
+      "bytes": 4371,
+      "sha256": "1198bf57c88572b6af9237f2a252ec78dd50a949407f178f378bf9504990258e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-desktop-light.png",
+      "bytes": 44943,
+      "sha256": "24153a0bbffed6552e97d530eb2de11ad77bab820aa3dd6cd5e8e525eaaa55f8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-desktop-light.svg",
+      "bytes": 4372,
+      "sha256": "c410e0e11bc12b6822a0124fed82cc1a431799ddee850911db14fa52a87e42da"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-mobile-dark.png",
+      "bytes": 34998,
+      "sha256": "6fe09a8ee7dafbc3066b9d14bde155a4035855d2aa4976b72ea67fa2ad73fb2b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-mobile-dark.svg",
+      "bytes": 3907,
+      "sha256": "801e335dcf0f6779758cd72caa86ab1e30351454f2e7b9712c0d206780c2284e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-mobile-light.png",
+      "bytes": 34648,
+      "sha256": "1f3e52cf6cfc9bd3c64e9a74d32078c9d80b887cb4020f33cd3141e917c939cb"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/applications-mobile-light.svg",
+      "bytes": 3908,
+      "sha256": "82f645fdfc521d566fcb91cc31ef2bf19f6a7e94256ef69ced069ed70e10a745"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-desktop-dark.png",
+      "bytes": 55973,
+      "sha256": "efd7ab57c708375e4bccbed03492ff78a262ba94b0a25db91f3141c60e096b01"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-desktop-dark.svg",
+      "bytes": 5124,
+      "sha256": "c0a1dfe31b19de0c76ca028163a4dad0349c8cbb6e6e6d4f6505f85dd0a3546f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-desktop-light.png",
+      "bytes": 56363,
+      "sha256": "23b7c50681140232ed72873fc0cde3c3d07797d5b2a3e442faeca6fcaa238523"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-desktop-light.svg",
+      "bytes": 5125,
+      "sha256": "717f261f75f2f406c54fb83979348c6c2ffc2edb8b330a064f7198872dbe945a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-mobile-dark.png",
+      "bytes": 42370,
+      "sha256": "978c8580f829b42aaca4e30162d2c00c9338fb264eec83d03eef936765d7c858"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-mobile-dark.svg",
+      "bytes": 4904,
+      "sha256": "b73a92f6a248a7bc1c9c157e7145d9f9906bad945c0e02524e41d673d4db5036"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-mobile-light.png",
+      "bytes": 42232,
+      "sha256": "c002f242da051e0c7d626efbbd36c66eaef8fb0474b4ff9650f159acada367de"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/handoff-mobile-light.svg",
+      "bytes": 4905,
+      "sha256": "b734ba2167e0b5396f02e94488a33518b3ccc3881510c3f6c7b7b5edc1c39465"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-desktop-dark.png",
+      "bytes": 49331,
+      "sha256": "47b1db23641a0930676cb1ac6fcb611683474f8ba51c1f8e54c51e4bb9b0b7aa"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-desktop-dark.svg",
+      "bytes": 4838,
+      "sha256": "d3e2eeb399783eaadd81d2fa733358543d38fa109135a0e97f412ae2fbbb1745"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-desktop-light.png",
+      "bytes": 49556,
+      "sha256": "e70156b882c2f256fb7597c9d0869ba76b7b193cfd985f9317027d4f4422b147"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-desktop-light.svg",
+      "bytes": 4839,
+      "sha256": "bb3b272db4101fad6cbeb5a93d637da4de611eb76fc3f2512f7afeeb709d8ae5"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-mobile-dark.png",
+      "bytes": 38419,
+      "sha256": "dc20de1cdec9d2b188727730da793bb3349a11b8abfda1013878ae1de843567f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-mobile-dark.svg",
+      "bytes": 4600,
+      "sha256": "cc80f8a768e24fe2f725341f44e61f71c7b8b77d39c951c2436f1cc49a0d38be"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-mobile-light.png",
+      "bytes": 38095,
+      "sha256": "8745e2716ebe50afd6c39703a060ca448813c55dc0941f6e914f94dd50e53819"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/job-detail-mobile-light.svg",
+      "bytes": 4601,
+      "sha256": "9509acf482ac43feafb22d8b0844f2ef7ee1ac202da968e20409a90f76d06772"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-desktop-dark.png",
+      "bytes": 46685,
+      "sha256": "f65cce7cc5c6edcad10ea8d8fbfabd291e0f4dd7c241b99013c2110bf8abbc08"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-desktop-dark.svg",
+      "bytes": 4594,
+      "sha256": "b0043c4ae591be1a1080ccb736b2e32cb8e3f480d755045c6ca9451c46dc77a0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-desktop-light.png",
+      "bytes": 46817,
+      "sha256": "2772ee4ab29c8dd6a5cf278effcaa6687e409b515f9a427ff546d660417a6f57"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-desktop-light.svg",
+      "bytes": 4595,
+      "sha256": "587714dc6d58e0678a0d7a5e0c400c65b2bddfd31301f10779609c28c224e87b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-mobile-dark.png",
+      "bytes": 36494,
+      "sha256": "1adf864dd62d484c65c4bbe1031ae87d8987dcc5fa3913437fcb19ef34f6670e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-mobile-dark.svg",
+      "bytes": 4361,
+      "sha256": "63495651b7bc9d3b7cb59eeabc62a61bbe6d1957e043d91fc3744203ac1ce253"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-mobile-light.png",
+      "bytes": 36366,
+      "sha256": "2494351ad1eafa322e03a69c96ed9906a430962ae0a199c9cb40602ae076c970"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/jobs-mobile-light.svg",
+      "bytes": 4362,
+      "sha256": "55541c188b9df5f5aed619b13bd29cd8df9be809717a2c46211500e8f9d277ea"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-desktop-dark.png",
+      "bytes": 50813,
+      "sha256": "c870a71685fa64c71b7e7938a9bd6c1b013899d32a868122da048905b7770e11"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-desktop-dark.svg",
+      "bytes": 4834,
+      "sha256": "95b008c98fd3c689a204edcf20615116a4aa64ed692085781fd37a0a64bcb950"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-desktop-light.png",
+      "bytes": 50935,
+      "sha256": "d2613bc4d3b895abe07b582724d7b8d21763a0b68bfc1241cbf29041cf825fd6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-desktop-light.svg",
+      "bytes": 4835,
+      "sha256": "64007835be18b1f5e1658b1ebccfe32b68a8aeb77bbdbf673c2de0023559827e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-mobile-dark.png",
+      "bytes": 39145,
+      "sha256": "905001f25884b915fbb3ca1e59630ba4c0991c74b093c56f0bad394625b21f86"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-mobile-dark.svg",
+      "bytes": 4489,
+      "sha256": "1291c224cf1eb3b20a9bdb98c5c06661ca05e77d936eb4e8fc774e5b191add83"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-mobile-light.png",
+      "bytes": 38975,
+      "sha256": "13ee26612d329374deecd748f57947d6ce471b97fbc082090680833608d53aae"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/library-mobile-light.svg",
+      "bytes": 4490,
+      "sha256": "cd829ebff4cba631b5731f389a6e551ed71269712d493eab879b531d4efd0de1"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-desktop-dark.png",
+      "bytes": 41395,
+      "sha256": "71460d0078475ebe6c55e1f55e94bb2eccc044e89cf5416df0329ed670039a09"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-desktop-dark.svg",
+      "bytes": 4551,
+      "sha256": "1e827e7b728a2368ba2ab4e266074ba0e5bab21cd0e4b350b9b9f061173547e4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-desktop-light.png",
+      "bytes": 41643,
+      "sha256": "5336302e49b8b66ea9e4e749c8777f3e473f62e50dd85e34c2b5d9dd4eafd9be"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-desktop-light.svg",
+      "bytes": 4552,
+      "sha256": "d58d9afb6972430f80f9176cb558654823379bd4f5d6a4d13f5488a3dfa689f8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-mobile-dark.png",
+      "bytes": 28804,
+      "sha256": "b64e015d7aa9e0aa7d6d81eb03a6538cb34110f2176a8d6b60df808fc40bb3a3"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-mobile-dark.svg",
+      "bytes": 3888,
+      "sha256": "5b9d3d8bf047dd0fa0f60ce78eb7ad79de6ac0b5c544259e9e41157871c6b417"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-mobile-light.png",
+      "bytes": 28476,
+      "sha256": "91299f0621b985ace1b713c5e024fcde21e8873592d051ff8b5752d08093e343"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/onboarding-mobile-light.svg",
+      "bytes": 3889,
+      "sha256": "80481d5ddc4ac41a4d1f5c6ed654fb878887021115e942ea840f93b7c89c57dd"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-desktop-dark.png",
+      "bytes": 47359,
+      "sha256": "d886079cee7ff1d0e974627f33f3211f8cdc671fcd1453f958e96eb53dc1013b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-desktop-dark.svg",
+      "bytes": 4733,
+      "sha256": "fcb16896ef336f85e1a78b62ad6ebb36318afd5448bac6bde4b9d4c369fb7329"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-desktop-light.png",
+      "bytes": 47545,
+      "sha256": "ff515c7ee0e2232d4bf68934c0c506dc4a09b8b8a5c90262d087feb3041461ce"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-desktop-light.svg",
+      "bytes": 4734,
+      "sha256": "f10592228c24220338777975aa4e8a43c4d0c7c9fac4206f883a42fb29b2707d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-mobile-dark.png",
+      "bytes": 36161,
+      "sha256": "4b45f39089006bce0039b8d1e48490a3a893fcd7e9d0f2b9307212909c54be78"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-mobile-dark.svg",
+      "bytes": 4545,
+      "sha256": "543f58901ce8c9af992f61eeb74be3690a2d1f2773ff812ad5926e4d41f756f7"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-mobile-light.png",
+      "bytes": 35885,
+      "sha256": "da8c364cde5beae0e1d68138f741c3fb8373c70cc5fc27af9ae1990d2e983004"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/overview-mobile-light.svg",
+      "bytes": 4546,
+      "sha256": "1691476f533fa71b8ba940e15bd97edafeccd71320186d81873841a74c2d321c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-desktop-dark.png",
+      "bytes": 49142,
+      "sha256": "f7a0a4fc44b9990bd2408850bd2ad440e6295bd4f4a40bbc3a1f0ea78a9773a0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-desktop-dark.svg",
+      "bytes": 4728,
+      "sha256": "29a513d02120aca562f7e503281e909f3701da337d3021052e66fbbd1a6d30e9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-desktop-light.png",
+      "bytes": 49394,
+      "sha256": "e1558e2835f26099fe7b83740ffec7b3f14543b530c767353eaadcd827d93f56"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-desktop-light.svg",
+      "bytes": 4729,
+      "sha256": "40f00de2d9402a4abae1e82241b374c78eb3be135ac80898275b3bb0544c0336"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-mobile-dark.png",
+      "bytes": 38688,
+      "sha256": "7556ac2350bb15385817a1573383264d710e940207a3af03cbfd5b6018498c7f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-mobile-dark.svg",
+      "bytes": 4980,
+      "sha256": "5325c6aab35a6fde11094a114476919466f4f88a820086fcd649958f7494d484"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-mobile-light.png",
+      "bytes": 38294,
+      "sha256": "08add9158567436dbd25a0cdf870c02cacab51c3f0670e23b6f4f6e0a79717a6"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/profile-mobile-light.svg",
+      "bytes": 4981,
+      "sha256": "16025ed30d93cdb9f8d83cc7a28b7ba9a0cbcdca817cb878edc40fb14cbf3b64"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-desktop-dark.png",
+      "bytes": 54219,
+      "sha256": "048860a84213c372896427dbdb2020eda58c846724b36c3fb91d9d2a607600ce"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-desktop-dark.svg",
+      "bytes": 5052,
+      "sha256": "94dd9fceba52f53a2db2e386f16e16ab42b26744872700dc5e242a7712e48fed"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-desktop-light.png",
+      "bytes": 54648,
+      "sha256": "7a3efdadb1694f578db42b47652062b24aadc7ee90a288292f7e60d651c33bb8"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-desktop-light.svg",
+      "bytes": 5053,
+      "sha256": "6600f075be74e12c11dea5d7aeedaaed4cb80904ea8c69ac6d2ca3239ff5a6a4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-mobile-dark.png",
+      "bytes": 40329,
+      "sha256": "46064c3bd565b54c027295e49e32c8be3a6fadad867be98f795a0c1199bf8ebb"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-mobile-dark.svg",
+      "bytes": 4693,
+      "sha256": "5d97596083f3a7c3a18f76d0710e0776ac15b586cfece513f600550fcdf55c30"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-mobile-light.png",
+      "bytes": 40117,
+      "sha256": "b8aba0ed6239e8459bc31659e938e3c2a5ed05dc5486ca8c88d0b1fdcfacca0f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/proposal-mobile-light.svg",
+      "bytes": 4694,
+      "sha256": "fb02a39ab0add611c81c570418b9400199faef4802185c26fb7d44f820c28193"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-desktop-dark.png",
+      "bytes": 56869,
+      "sha256": "b69943fd1eb48fa552ea5e48a48ab961e5cee702c25ebbe02edcfa981a20ca6f"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-desktop-dark.svg",
+      "bytes": 5061,
+      "sha256": "e711f1526d1b4e2a21634d5c71d72e39bc1abf56a3592b7d3757a1b43a5b0a4d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-desktop-light.png",
+      "bytes": 57316,
+      "sha256": "a3fa42cba02686d8fb3fef40d5525775e9472e4bf18837afe6a86e448006d33e"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-desktop-light.svg",
+      "bytes": 5062,
+      "sha256": "effbcaeac1155b05e8345bada325356371f61d344328a63b030abe6a34c98b0a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-mobile-dark.png",
+      "bytes": 43282,
+      "sha256": "84cb10a281e3d15f0672dc7d848ee051ffb2f7a1cac0e8579aa335f22711ea7a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-mobile-dark.svg",
+      "bytes": 4925,
+      "sha256": "d2b8396fbeda790115a0a13d86d3d2497c453ab61d834a237acb076d2aff9834"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-mobile-light.png",
+      "bytes": 43140,
+      "sha256": "dbf35f66f062f547d23058205fe887c963b4e9fc87add9e8ba8b01cf1dab0fa9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/review-mobile-light.svg",
+      "bytes": 4926,
+      "sha256": "9af6a07e24deee66a98374dd360a307e8823e67835b1573b6566917ef47b1a0d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-desktop-dark.png",
+      "bytes": 53066,
+      "sha256": "5d242aaa7bfc7e835a50f9ffe6209a2182a319e7f3b03916795113eaed064adf"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-desktop-dark.svg",
+      "bytes": 4876,
+      "sha256": "c30e293fd7c3c23a9746e066029257bbb8cfdd943cdc240e4f88c84fc2cc5068"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-desktop-light.png",
+      "bytes": 53205,
+      "sha256": "42dc459e9f4886b5e251aee8eaf52fb7160dfd9d8913b9d7fd096c9d5b884546"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-desktop-light.svg",
+      "bytes": 4877,
+      "sha256": "6b481d4e21ea00f436e9317bc72fcf175a4cbdcc10f2d2555bddfae30aa2a840"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-mobile-dark.png",
+      "bytes": 40792,
+      "sha256": "582a331f118e68a83f706af67d0b14efc63e909d5563d8a112950956908cc754"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-mobile-dark.svg",
+      "bytes": 4759,
+      "sha256": "dafe184113ca491c9547deca4bacf502a0ac260b84a1af55dd7550601b5a1924"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-mobile-light.png",
+      "bytes": 40697,
+      "sha256": "32f4ea4da012ae20879292b5acb027472573b73996005c97f11962ae615d62d9"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/settings-mobile-light.svg",
+      "bytes": 4760,
+      "sha256": "bf8bc08e93c479e694996b87225fc079b3a60cd752336ef508ee55289c4b3e7a"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-desktop-dark.png",
+      "bytes": 50761,
+      "sha256": "ec876522c0386c8bfe6a41a35e05ddc426afba1075b6429e9079c1b4e68fc388"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-desktop-dark.svg",
+      "bytes": 4641,
+      "sha256": "f6668a60f22cfa3b0e14207684ca8414c05cee45118d3ad42d86dedd9638e471"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-desktop-light.png",
+      "bytes": 51035,
+      "sha256": "e84e3adc799d4b32719e748caea2a4438fd5f329c6c059224ed4d489375c8ff0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-desktop-light.svg",
+      "bytes": 4642,
+      "sha256": "0450ce5a379e918bbb23a5a01779d798edcc4e936814b68f09a77f96eb0ad744"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-mobile-dark.png",
+      "bytes": 39098,
+      "sha256": "68343ddc83e6f93280164ae77e0bf05280409c7d3c3210d4492d8f8acad862ea"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-mobile-dark.svg",
+      "bytes": 4533,
+      "sha256": "6b491ab57aaf90359b0c529a64e2a2375d2b530ed28ca2fe25b23d09f6a24a9d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-mobile-light.png",
+      "bytes": 38799,
+      "sha256": "ae051383ba0fb5c1c67a55a00a648f603e84fc687b6e327be585e2c511e70c68"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/sources-mobile-light.svg",
+      "bytes": 4534,
+      "sha256": "b9014bda3e24470340bdb49f9bd2f6eb18ba1dabe3fd03932bb08099d139cc7d"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-desktop-dark.png",
+      "bytes": 52413,
+      "sha256": "2fe98085607af51e39893555afedd9593bcf01b9b01ded80c5e4bf7385cd5da0"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-desktop-dark.svg",
+      "bytes": 6881,
+      "sha256": "d6de274396f58741b37d9e2396926b44d4b68a985265d679a805c68537fd7d68"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-desktop-light.png",
+      "bytes": 52733,
+      "sha256": "31aee578582be015415e4e25af9438b47b0882b561342d5725715005cabe4fe4"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-desktop-light.svg",
+      "bytes": 6882,
+      "sha256": "964615ed7c901c674d61c7eb9512915ebe9e43dc3c58b95206f2e51c25d11b5c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-mobile-dark.png",
+      "bytes": 31063,
+      "sha256": "fed43cf57e58c590c8db7896acbd2842ace0b820c8c1d75c98c7bd0f9b69ef8b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-mobile-dark.svg",
+      "bytes": 4068,
+      "sha256": "2ca250646da597e62b640d1d1aea960fd9f55414c9ececf02952afc2017cd20c"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-mobile-light.png",
+      "bytes": 31252,
+      "sha256": "43de8d2d9c6dd8b59006723b960e34b6a260bfa250c447228a4921f0e827eb5b"
+    },
+    {
+      "path": "docs/design/unified-product-20261015/wireframes/studio-mobile-light.svg",
+      "bytes": 4069,
+      "sha256": "a9b2e0b837c2b76941753bcd32f735251396768fd28b20f99e29339342c96ba1"
+    },
+    {
+      "path": "docs/product/resume-studio-integration-handoff.md",
+      "bytes": 17067,
+      "sha256": "a33f0ba3ea121ac84fc4a82d0a9d63bc2754bcc1abc06817ac1d8c69888a725e"
+    },
+    {
+      "path": "docs/product/resume-studio-local-visual-testing.md",
+      "bytes": 7225,
+      "sha256": "2faaa49014b5fcfa4780b2140e985b58ef7a6b1c9617eb6d50c599f13ce4eba3"
+    },
+    {
+      "path": "docs/product/unified-ui-milestone-1-handoff.md",
+      "bytes": 9903,
+      "sha256": "088cdea1df475a48ff53eae24ac1b4fa27bc20126bc481d7f9968fa1df443a81"
+    },
+    {
+      "path": "output/resume-studio/dense-spacing-diagnostic.verification.json",
+      "bytes": 383,
+      "sha256": "25bbaa3243bc8e788604f41fe2d88953af586190cff565dc3e5e91ab453a03a8"
+    },
+    {
+      "path": "output/resume-studio/experienced.verification.json",
+      "bytes": 383,
+      "sha256": "44a5b492c72afb086b08e29b73c226658fd1e3850b0fd8395949b1a6c5d94b44"
+    },
+    {
+      "path": "output/resume-studio/junior.verification.json",
+      "bytes": 383,
+      "sha256": "44a5b492c72afb086b08e29b73c226658fd1e3850b0fd8395949b1a6c5d94b44"
+    },
+    {
+      "path": "output/resume-studio/mid-level.verification.json",
+      "bytes": 383,
+      "sha256": "44a5b492c72afb086b08e29b73c226658fd1e3850b0fd8395949b1a6c5d94b44"
+    },
+    {
+      "path": "output/resume-studio/screenshots/desktop-viewport.png",
+      "bytes": 189689,
+      "sha256": "e1a6ebb67aa5096f2c45b0483f29ab7febcce55741c3c75fb2c08b5414251f1a"
+    },
+    {
+      "path": "output/resume-studio/screenshots/desktop.png",
+      "bytes": 341500,
+      "sha256": "2abd052052e162dd6e1a1cea3634529cb88f357be12e8e87bb68ea5221778061"
+    },
+    {
+      "path": "output/resume-studio/screenshots/experienced.png",
+      "bytes": 628631,
+      "sha256": "fbd5a679c68b189ef09eeff135a3a58bd4f10e5bca6ff7eaa6e2222a7975cb82"
+    },
+    {
+      "path": "output/resume-studio/screenshots/junior.png",
+      "bytes": 267029,
+      "sha256": "094e638c3bdbdde5e4840edf8d608c8cfc23646dc6c9a3975531fd3bc15cbfe4"
+    },
+    {
+      "path": "output/resume-studio/screenshots/laptop-viewport.png",
+      "bytes": 165775,
+      "sha256": "78d3715d4dec39921b083fcc81c1204276c658655858db28436cf0d9d1d3dcf5"
+    },
+    {
+      "path": "output/resume-studio/screenshots/laptop.png",
+      "bytes": 330651,
+      "sha256": "a8c24fbe082ffded62627fe241ab68113016bcf5fd62768e0cb53c5cc9667aff"
+    },
+    {
+      "path": "output/resume-studio/screenshots/mobile-viewport.png",
+      "bytes": 54628,
+      "sha256": "cd30abdf9fcaac3e7a2076dc9ea507a3de9b165a8d3ad828dfc605dd15137ec4"
+    },
+    {
+      "path": "output/resume-studio/screenshots/mobile.png",
+      "bytes": 264603,
+      "sha256": "f5ecc8590597f323f24852652a7020c1045f6f5142e365080e26bf67c7bb1276"
+    },
+    {
+      "path": "output/resume-studio/screenshots/tablet-viewport.png",
+      "bytes": 72773,
+      "sha256": "84ad8bc7387e0ac42200265c5c18ef9c5c3130a3eb7aeebd079ee7d98b50449e"
+    },
+    {
+      "path": "output/resume-studio/screenshots/tablet.png",
+      "bytes": 339335,
+      "sha256": "9b17849b951c2398f0e3bfe1b343583e2f9deceaa652336a2b9fb2bd9ca731d9"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/desktop-viewport.png",
+      "bytes": 190144,
+      "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/desktop.png",
+      "bytes": 413207,
+      "sha256": "1b7c819eab9c6d21eaf4753b6850f8eaee377ff2281b5511c53b771f67544a6e"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/diagnostics.png",
+      "bytes": 248129,
+      "sha256": "b0daffa4d7980c9766525a3b08e4666e20bf980fe7a63572fb82ca082cb2309d"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/evidence.png",
+      "bytes": 227954,
+      "sha256": "88c1acd0725ea44d38cce2841b198d4a98a0be5a4d8bfb9f14439da84d3afbef"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/laptop-viewport.png",
+      "bytes": 169357,
+      "sha256": "bf471c75909823280ee1b6123a3bce262a55e9e2f7bd5d81b9d61db146118469"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/laptop.png",
+      "bytes": 400490,
+      "sha256": "bb052090227a931a4ac48c2ce58c14fb0c3b29a4d046e64ef308c0b2d83b19a9"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/mobile-viewport.png",
+      "bytes": 54523,
+      "sha256": "bba8c214ff8d0736e0ea1fb8300aadb7bc85fe746d4f43538c60d7101178b667"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/mobile.png",
+      "bytes": 321782,
+      "sha256": "438c9f7811b8895c418e7614ffceb97f8ce48176454a90671c3b96db871fe949"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/proposal.png",
+      "bytes": 183868,
+      "sha256": "2ec4ebecfcdf619756dbb9eb1d515b619edc39d4553bce7233aaf92c08f2bd9f"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/tablet-viewport.png",
+      "bytes": 75792,
+      "sha256": "1c971620e0574290d7ffda9428f3ab9f28f0dc9c919319d43ce394de7c924d0e"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/tablet.png",
+      "bytes": 402922,
+      "sha256": "5fc1e4f80f1ad323270dad0636a7f9d46a98cf96967ae18fee3c4410f1b030c9"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792035162376/verification.json",
+      "bytes": 1624,
+      "sha256": "d6b2d9899059ccc2f31d18cb11fdfb65351bc9344fda832269edf2a1764b1795"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/desktop-viewport.png",
+      "bytes": 191113,
+      "sha256": "3417c521d9fde84596f600095c9f0742e47eaaa3ecb9e1a475c37e6e2521da3a"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/desktop.png",
+      "bytes": 383537,
+      "sha256": "10bf4996d059d3a65842143c44b2c30c540f470aa82c4839f9bd99170b049e8f"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/diagnostics.png",
+      "bytes": 255853,
+      "sha256": "43d8bec684c89a1ba3908dbaa183b7f523d7561b502317181c001740de8dedda"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/evidence.png",
+      "bytes": 193286,
+      "sha256": "6a54711f0fa925d2cd082582f1c8cf0bb8522ee74c7b9f1829f3385c5aefff60"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/laptop-viewport.png",
+      "bytes": 167120,
+      "sha256": "6660e5aa980b2d535ffb56cc6d593d14fe8ff161f3b0af38d75844e8885888cc"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/laptop.png",
+      "bytes": 372069,
+      "sha256": "e374da4a0f58ef8f0163ba98b164c214fd0cf341073193c28c2860e355e9e475"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/mobile-viewport.png",
+      "bytes": 54474,
+      "sha256": "321a6a30314fd6bf0f0fc5845ba0c78353770ac34badce451cf17601ab166739"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/mobile.png",
+      "bytes": 305266,
+      "sha256": "8588d7999284c9dda54f06f9d6f0afd8782520921e6b8a054598a204838d701c"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/proposal.png",
+      "bytes": 155466,
+      "sha256": "9a3ee2f6f5b943b295e95ffaa44c98f2645f1a041afd99b3468973036580dd16"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/tablet-viewport.png",
+      "bytes": 72669,
+      "sha256": "f701ce6b8db84c1b0caad8ce3a81985150fabb2e57678ec28ea5d6ef93e6998c"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/tablet.png",
+      "bytes": 376330,
+      "sha256": "4a1c02cb4ebb3419f56cd643083b5360fcec02e6d085e1d0256ea33e894108e6"
+    },
+    {
+      "path": "output/resume-studio/visual-local-1792036247918/verification.json",
+      "bytes": 1624,
+      "sha256": "0397ce14fa33c5ee0650f6390108866199d106a524eed32cc7e52322c8888d4a"
+    },
+    {
+      "path": "output/unified-workspace/acceptance-592.txt",
+      "bytes": 66090,
+      "sha256": "5f5a62a94ce7afa10afadb8a91247022e9d552242097140186236d89984a5dc5"
+    },
+    {
+      "path": "output/unified-workspace/contrast-checks.json",
+      "bytes": 1976,
+      "sha256": "cd6be4fb5afe22349900978291d663014934dde99420ab4cbdcc6df960502535"
+    },
+    {
+      "path": "output/unified-workspace/desktop-dark-overview.png",
+      "bytes": 104092,
+      "sha256": "f99a0358f2f1b992c9818e2adbd0496222fdb23b74b848c8e42234ab599ed9ad"
+    },
+    {
+      "path": "output/unified-workspace/desktop-dark-resumes.png",
+      "bytes": 121377,
+      "sha256": "5a38f60a5355548b5a6b05c034b54585945b9107e0be3c86ad5f8e0e75c0f6e1"
+    },
+    {
+      "path": "output/unified-workspace/desktop-dark-studio.png",
+      "bytes": 201327,
+      "sha256": "a6f723ed000612e4af14026adb68b0f9a7e19ca3f7b713fe83dc1362fa0648f2"
+    },
+    {
+      "path": "output/unified-workspace/desktop-light-overview.png",
+      "bytes": 103800,
+      "sha256": "bb2c43d91494110fde73bb563550137a3677ebe2d339056bcc9cbc67a1e42301"
+    },
+    {
+      "path": "output/unified-workspace/desktop-light-resumes.png",
+      "bytes": 121071,
+      "sha256": "f3ff0c3397d3884bb59043886da8c96114e2b039ea820e8c44749da7cd867bad"
+    },
+    {
+      "path": "output/unified-workspace/desktop-light-studio.png",
+      "bytes": 204263,
+      "sha256": "f9605aae3dcb5b2be3442d8c759ae98bde0c0faf062aad1bbbb2adc3cea0678a"
+    },
+    {
+      "path": "output/unified-workspace/laptop-dark-overview.png",
+      "bytes": 102528,
+      "sha256": "d2b0ec2d455fc0b41bb776e0a97b9c1667a4afac435e0fb04f2b275cc07a24ff"
+    },
+    {
+      "path": "output/unified-workspace/laptop-dark-resumes.png",
+      "bytes": 119913,
+      "sha256": "840679e547d10cb46ae1d08cee751c78d0f25b487f7b88b2d3c557ef65239167"
+    },
+    {
+      "path": "output/unified-workspace/laptop-light-overview.png",
+      "bytes": 102265,
+      "sha256": "85609a8852a5a3243d6c14a7b237ef5b10bfa4329f813ee92e57f0c9e11895b0"
+    },
+    {
+      "path": "output/unified-workspace/laptop-light-resumes.png",
+      "bytes": 119676,
+      "sha256": "242ea201a034d1044cdcf0ded7ffd1a7d3d786d64d24c4dab73533fbcdcbc02e"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-overview-viewport.png",
+      "bytes": 94196,
+      "sha256": "dac8586bc894e439441ff44136016a8fec7d23fcd96e910d20b385b0546f45a2"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-overview.png",
+      "bytes": 94205,
+      "sha256": "52678ded4a8f58a7167b06074cdf102ca19d74ae7ff026c521f2358634f11811"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-resumes-viewport.png",
+      "bytes": 106673,
+      "sha256": "51039918e937008b2b2d86fd691f4be91ec22ce2be7aed66671420b0453b577e"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-resumes.png",
+      "bytes": 112973,
+      "sha256": "23b56d5a5eaa5c7aee99f42ce6262061f96fbb159e1250a22bc1b55e34e703ee"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-studio-viewport.png",
+      "bytes": 189679,
+      "sha256": "6b163f2c2d38edb857f590ce4caa5ef3a07fa3603fc85ab91fa2173a30fccd07"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-dark-studio.png",
+      "bytes": 382459,
+      "sha256": "740bfeb201145d6f5862e2f8255f59001d5cbbb21b74c4d4f85b4c17b43e0144"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-overview-viewport.png",
+      "bytes": 94445,
+      "sha256": "fbfe7300285ce17f553757a050faa760d898979eab1691633c5e379bb1e46ec0"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-overview.png",
+      "bytes": 94454,
+      "sha256": "25fef9157de493de2172fcbaf314cc0900c2df955a2b15a37428ebbfcad64dcc"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-resumes-viewport.png",
+      "bytes": 106957,
+      "sha256": "ff219be005afa776293e1479a3b004797e6c5b5aeee7da811b35bcfcf55337c4"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-resumes.png",
+      "bytes": 113295,
+      "sha256": "a43c29d23f25d2f4eb99cb68d51d84e11a53666d705eabcfc92166175a41457c"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-studio-viewport.png",
+      "bytes": 188905,
+      "sha256": "cbfec3e49db07bd799b2304a0f7c591a193cfc7dc0cecb275203edd7af2e434e"
+    },
+    {
+      "path": "output/unified-workspace/local-main/desktop-light-studio.png",
+      "bytes": 379721,
+      "sha256": "34bab3014eb67933d7e3b560243e5d9b21f1c53b37465411562b9f482030563c"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-overview-viewport.png",
+      "bytes": 47441,
+      "sha256": "2c0c807373b1fb2ca11663c24cd4dd3fffe256eb4b08154a642dbdb7fc26f890"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-overview.png",
+      "bytes": 81557,
+      "sha256": "8a853cc9d09ec6c3ea709b86b8bb13ab072cc004169850ec035fa2a0e4e348c8"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-resumes-viewport.png",
+      "bytes": 51157,
+      "sha256": "3afd002df9e6f79a11b2b8e7290a4b3d4da124abb2979a8c93c8394449df23df"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-resumes.png",
+      "bytes": 97733,
+      "sha256": "ad184abda758607af0baaffe3290ed7ce785da576748d1f2d8ed7f1b8c8e53ad"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-studio-viewport.png",
+      "bytes": 56351,
+      "sha256": "ddf972696a2b5df871912894e06090d364c15bdee88951997789c26bd65f349c"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-dark-studio.png",
+      "bytes": 309709,
+      "sha256": "030835c4ca7b2250cb27d15434514de4f1a37deea7ce31166b04dd98228edbe1"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-overview-viewport.png",
+      "bytes": 47238,
+      "sha256": "8b22c0a5967cc8ef012eae43062d37132516aab83500d75ac067e589adc90ff2"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-overview.png",
+      "bytes": 81539,
+      "sha256": "740f2e3afe90eaeef832b1b4162d3757f17b098415a4d709e1222a15bead1b53"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-resumes-viewport.png",
+      "bytes": 51075,
+      "sha256": "6ff985707bd5a755f21c001857ee753bfd79433011e6dc78e8c2c616580dd46f"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-resumes.png",
+      "bytes": 97944,
+      "sha256": "0b8ced3ec5a75232d7355c00d07e7b8c8ce35c03c543ee7109d7a53e697ee5fb"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-studio-viewport.png",
+      "bytes": 56719,
+      "sha256": "ca0975c525411938a900557bd8776efe478a4819f9d9c03af3a2ec74eb6044d7"
+    },
+    {
+      "path": "output/unified-workspace/local-main/mobile-light-studio.png",
+      "bytes": 307493,
+      "sha256": "628e27a6c8f64aa55fd284622a8c23d64d19a5a2ca3656cf60738317a7a1c3d2"
+    },
+    {
+      "path": "output/unified-workspace/local-main/server.json",
+      "bytes": 609,
+      "sha256": "26cf3729f007dbd0f0387f4d9f8abbfc1e781fc291011d22623f6b4d44ea07b9"
+    },
+    {
+      "path": "output/unified-workspace/local-main/verification.json",
+      "bytes": 1952,
+      "sha256": "eb754ac10800a9ee24b3658c2413a1a75785f24f5aad1d7f80a33963b2677f87"
+    },
+    {
+      "path": "output/unified-workspace/migration-state.json",
+      "bytes": 154,
+      "sha256": "57a3e4b4b933a8f0a65de470bfee73c2bc1952c7c75754fe98ace755648a0292"
+    },
+    {
+      "path": "output/unified-workspace/mobile-dark-overview.png",
+      "bytes": 91923,
+      "sha256": "09a08569fe03a5977dbc18d233f16a83c991332bb389bcceedd43f5c3b9412e9"
+    },
+    {
+      "path": "output/unified-workspace/mobile-dark-resumes.png",
+      "bytes": 106307,
+      "sha256": "fdbc1cbc2a20cf41864740397386e35ccd1b12baa51d76fc7418577707513505"
+    },
+    {
+      "path": "output/unified-workspace/mobile-dark-studio.png",
+      "bytes": 270520,
+      "sha256": "9b82ba78834565d1a8bf9d6ff54f093493f4ef47f060cfd5a999f9ae4baaa824"
+    },
+    {
+      "path": "output/unified-workspace/mobile-light-overview.png",
+      "bytes": 92010,
+      "sha256": "f640d22df68502a59cf5d0e324d9f7201f13d76aac46a2283ac0bc3ffa9dc292"
+    },
+    {
+      "path": "output/unified-workspace/mobile-light-resumes.png",
+      "bytes": 106552,
+      "sha256": "87cc973b20954b4095574f99eee8586be1d9c6b52918c0995206a9ca63b24dac"
+    },
+    {
+      "path": "output/unified-workspace/mobile-light-studio.png",
+      "bytes": 258578,
+      "sha256": "19d771319368fe88859a5649b4ca8edd59e1c21883461864d40909352cfd4fbf"
+    },
+    {
+      "path": "output/unified-workspace/personas.txt",
+      "bytes": 1445,
+      "sha256": "dce3ecf5d774b8b14aba402461d2a519691f3c40ff0220d96eb00c105640d6d0"
+    },
+    {
+      "path": "output/unified-workspace/preservation-check.json",
+      "bytes": 352,
+      "sha256": "9973272ca87efd3a3926df5fb9085ddd37f57a548cc34622291e8c1973956dcc"
+    },
+    {
+      "path": "output/unified-workspace/quality.json",
+      "bytes": 291,
+      "sha256": "dc1d6031ea34d46103a2ee4f0b8b030d0f583102e0f96dfa8735ee2af716419f"
+    },
+    {
+      "path": "output/unified-workspace/review.html",
+      "bytes": 4562,
+      "sha256": "19b8daf93fdc3b1f4108d0d2935bd78fa44050df4a3b848770f97e8530119e8d"
+    },
+    {
+      "path": "output/unified-workspace/tablet-dark-overview.png",
+      "bytes": 93177,
+      "sha256": "244a0c55d6cf78ad9c3448f40099ac3e5312f3f35b68d6adc75c3684af04ce3f"
+    },
+    {
+      "path": "output/unified-workspace/tablet-dark-resumes.png",
+      "bytes": 108305,
+      "sha256": "f5739c4341dab10854d90e04c57c79aee98a7d05f97fbb8aa04a227e7082ae9a"
+    },
+    {
+      "path": "output/unified-workspace/tablet-light-overview.png",
+      "bytes": 93181,
+      "sha256": "05edf7c8bf44e9f8d26e09025ca3a8bd5849037590c5d61c0dbae70639f5c189"
+    },
+    {
+      "path": "output/unified-workspace/tablet-light-resumes.png",
+      "bytes": 109148,
+      "sha256": "e5753ac7d49361ac74b27ce2aff3b14a06aa1f0642a19895e5851e03ff9b9a7e"
+    },
+    {
+      "path": "output/unified-workspace/test-results.json",
+      "bytes": 3082,
+      "sha256": "b339e11d38b921fb86b5a28f67952055de2aa50ff1cd92f863c11df2e507c8fc"
+    },
+    {
+      "path": "project.md",
+      "bytes": 2170106,
+      "sha256": "4dd8fb2bd1c85a65743923cc02d1d63b29b74a7c5288be63c74ccb51e0cac405"
+    },
+    {
+      "path": "public/css/resume-studio.css",
+      "bytes": 33330,
+      "sha256": "3abaa902ced4ecd0a87410ed3d26536d0fb4811a542d220598266297860c2ca7"
+    },
+    {
+      "path": "public/css/workspace.css",
+      "bytes": 14839,
+      "sha256": "a60f2ba910f05be15f4db42f833cda96fd48f4bf27f59330fcd27f915e119bd1"
+    },
+    {
+      "path": "public/js/resume-studio-documents.client.js",
+      "bytes": 12243,
+      "sha256": "0b95043af5eac5984fd77f3858ec09df4053d3f5443e90f49430d1e15a2f377e"
+    },
+    {
+      "path": "public/js/resume-studio.client.js",
+      "bytes": 84525,
+      "sha256": "ae98a667bea04bc1ec1fd01ab358d76b2c9783d58ce3a3290704deae44b48144"
+    },
+    {
+      "path": "public/js/workspace-theme-init.js",
+      "bytes": 503,
+      "sha256": "e3beb39bf1b6cb560aeff115f806f2b9d269e2ecd9fa5ac395c2d725d12c2ad8"
+    },
+    {
+      "path": "public/js/workspace.js",
+      "bytes": 1916,
+      "sha256": "9d40756f79275cb5cf2f3dc32b05b22695b01d52294080488ae3df23408456cb"
+    },
+    {
+      "path": "scripts/serve-studio-visual.mjs",
+      "bytes": 4064,
+      "sha256": "ff46854d31217cca5dff1fcebad9542991d3ebcfdafaada2fbb8fcff930d4d22"
+    },
+    {
+      "path": "scripts/start-studio-visual.ps1",
+      "bytes": 2284,
+      "sha256": "366a0832207c0c9ee9f86edad3a088c8c4036f6cf4bd5d4c9c01645d80e722fe"
+    },
+    {
+      "path": "scripts/verify-unified-local.mjs",
+      "bytes": 3271,
+      "sha256": "c7f02fc68b7be9516ee0e9d6524776f49afdde939ef143248fd92c032afb9e06"
+    },
+    {
+      "path": "src/db/repositories/resume-studio.repository.js",
+      "bytes": 3265,
+      "sha256": "092ededc040a3e261f860dee9a5160664b9cd9db4e564c2db1fa1b6ba6a4248b"
+    },
+    {
+      "path": "src/domain/career/resume-studio-library.schemas.js",
+      "bytes": 797,
+      "sha256": "77a10ebc1fd71b035c67693d10a670320964047e9ee02f3c5039a5b5a010d459"
+    },
+    {
+      "path": "src/routes/resume-studio.routes.js",
+      "bytes": 8655,
+      "sha256": "00a9e3b4037790d2c7e40af3a0224dd2f8cb3e988112221bed76f450c47ca8d7"
+    },
+    {
+      "path": "src/routes/web.routes.js",
+      "bytes": 217629,
+      "sha256": "af867851cff620dcf31d1b780529860328d4a499c4aa25046d43774ef25102c4"
+    },
+    {
+      "path": "src/services/resume-studio-draft.service.js",
+      "bytes": 11332,
+      "sha256": "307380083df7cb7f33fc0f63fd6a4a5fbc13554406a4254c02bf20106018856e"
+    },
+    {
+      "path": "src/views/apply.page.js",
+      "bytes": 34436,
+      "sha256": "b7a02960c7e918828c5dddd5d8c6fa8f91e456e9b90a265da83745136cc23516"
+    },
+    {
+      "path": "src/views/components/icons.js",
+      "bytes": 7370,
+      "sha256": "e15bbcdd2f54afbf204512767b78aa7698c0c933424be4a7ae5df8892e3b99cc"
+    },
+    {
+      "path": "src/views/components/workspace-shell.js",
+      "bytes": 4586,
+      "sha256": "9afe756753af2f9b89f953e0360774e5d822e4cfa06d863c31e04f4eff537817"
+    },
+    {
+      "path": "src/views/components/workspace.js",
+      "bytes": 1831,
+      "sha256": "6f23dbe5aef4ba59095fbff7eced89c44e25ea41ea570639be8f449671af3b66"
+    },
+    {
+      "path": "src/views/dashboard.page.js",
+      "bytes": 4848,
+      "sha256": "ab4e2aa11f2ce264626b96bcc0f5d9a7dce3d2c3fad7d8e4861c227518fda678"
+    },
+    {
+      "path": "src/views/layout.js",
+      "bytes": 16848,
+      "sha256": "304eec36ce4db204b12b5b519a6dd3b278b5233eebd33e01340160bf8781d227"
+    },
+    {
+      "path": "src/views/radar.page.js",
+      "bytes": 56541,
+      "sha256": "8251ce71a1c5c3b95bc8bc8033f40c901f93fce1b5f1c6587c5454bfd4efaec7"
+    },
+    {
+      "path": "src/views/resume-studio.page.js",
+      "bytes": 21678,
+      "sha256": "103a36daea2d65754ddb611f183ae77788a07eb66f3de34ed9a59b76a8644649"
+    },
+    {
+      "path": "src/views/resumes.page.js",
+      "bytes": 27995,
+      "sha256": "69b4b65fd6281fb7ffd03c73153af4f506a2b46d83dd415ef193b55dda5b4b6f"
+    },
+    {
+      "path": "tests/fixtures/resume-studio-library.json",
+      "bytes": 509,
+      "sha256": "cb1ab1f8025b67c9dea1d702eff1611a74f5c0e5637c69ce1848edccef517984"
+    },
+    {
+      "path": "tests/integration/resume-studio-documents.test.js",
+      "bytes": 14114,
+      "sha256": "8d03c1da7e3e6fc08b27bc693d568d3e673c02173cb18ddcaef4cdd3d0ee9044"
+    },
+    {
+      "path": "tests/integration/resume-studio-real-browser.test.js",
+      "bytes": 21507,
+      "sha256": "1bbf3866f5f1b7c51a321b8a7d1a81a3b3f5ca8704240d6396a510efeca57626"
+    },
+    {
+      "path": "tests/integration/source-resume-ingestion.test.js",
+      "bytes": 17925,
+      "sha256": "2177b03adc453bbc9f6e3d7c0c363d0d8d955a3e5eaeb91fbd0dc71f76a91467"
+    },
+    {
+      "path": "tests/integration/unified-workspace.test.js",
+      "bytes": 11150,
+      "sha256": "7e494ad28cc4092f0100d6f0f9ba09cd8ddb76d9d1095811cf4234376d4e2c6b"
+    },
+    {
+      "path": "tests/setup/studio-isolated-env.js",
+      "bytes": 442,
+      "sha256": "9700b292ff4e053ce4ad1b7eb8dbd6b2f934d4251b458d29f9cb5c1c667279d9"
+    },
+    {
+      "path": "tests/unit/p86-user-facing-state-system.test.js",
+      "bytes": 16044,
+      "sha256": "7e0226184a8cf1be72bfebfb3f00364fa2ab48537936e0055eaf7d83de96e501"
+    },
+    {
+      "path": "tests/unit/p87-profile-sources-ux-hardening.test.js",
+      "bytes": 19709,
+      "sha256": "cecfa5402b9cb9bd54e4c00d6d1e54a1715141d57686b530e35eb22a99593943"
+    },
+    {
+      "path": "tests/unit/p89-candidate-workspace.test.js",
+      "bytes": 16767,
+      "sha256": "9f6a4ef8b4eb059183f8efc18d5e4cba2d635e785be974f7b96c3d943c9408a3"
+    },
+    {
+      "path": "tests/unit/p90-sources-profile-integrity.test.js",
+      "bytes": 15387,
+      "sha256": "86d2fb2cdad44c8acee00db64106b3a19029fda02f1839a9ca629bb05d4fb0d6"
+    }
+  ],
+  "applicationCheckpoint": "9a4830dfed7475ab8c657d0c853cd4dafb8d40fe",
+  "finalEvidenceRefresh": "Committed-source actual-main12state browser capture; no application code changes."
+}

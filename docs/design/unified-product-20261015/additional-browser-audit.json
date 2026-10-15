@@ -1,0 +1,37 @@
+[
+  {
+    "name": "jobs-saved",
+    "url": "/apps/radar?tab=saved",
+    "status": 200
+  },
+  {
+    "name": "jobs-analysis",
+    "url": "/apps/radar?tab=analyze",
+    "status": 200
+  },
+  {
+    "name": "profile-professional",
+    "url": "/profile?section=professional",
+    "status": 200
+  },
+  {
+    "name": "profile-skills",
+    "url": "/profile?section=skills",
+    "status": 200
+  },
+  {
+    "name": "profile-preferences",
+    "url": "/profile?section=preferences",
+    "status": 200
+  },
+  {
+    "name": "profile-eligibility",
+    "url": "/profile?section=eligibility",
+    "status": 200
+  },
+  {
+    "name": "profile-contact",
+    "url": "/profile?section=contact",
+    "status": 200
+  }
+]

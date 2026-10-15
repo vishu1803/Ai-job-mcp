@@ -83,7 +83,10 @@ export function getPoolConfig(overrides = {}) {
 
   let sslConfig = false;
   if (useSsl) {
-    if (config.NODE_ENV === 'production') {
+    if (
+      config.NODE_ENV === 'production' ||
+      process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true'
+    ) {
       sslConfig = {
         rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
         ca: process.env.DATABASE_CA_CERT || undefined,

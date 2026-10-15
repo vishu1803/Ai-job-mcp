@@ -1,0 +1,117 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+S
+Synthetic Studio Candidate
+JUNIOR
+Delhi
+
+Complete your professional identity to begin applying
+
+All changes saved
+Save changes
+Overview
+Professional
+Skills & Projects
+Job Preferences
+Application & Eligibility
+5
+Contact & Links
+Career Skills (2)
+
+Evidence-verified skills grounded in your repositories, alongside self-declared technical capabilities.
+
+Primary Technical Skills (2)
+React
+Claimed
+PostgreSQL
+Claimed
+Additional Libraries & Tools (1)
+Writing
+Signal
+Show secondary technology signals (1)
+Highlighted Projects (5)
+
+Real-world technical projects demonstrating applied architecture, engineering rigor, and code quality.
+
+Source project 0
+Claimed
+
+Technical project application.
+
+React
+Source project 1
+Claimed
+
+Technical project application.
+
+React
+Source project 2
+Claimed
+
+Technical project application.
+
+React
+Source project 3
+Claimed
+
+Technical project application.
+
+React
+Source project 4
+Claimed
+
+Technical project application.
+
+React
+Certifications & Spoken Languages
+
+Industry credentials, professional licenses, and spoken languages.
+
+Certifications (1)
+Source Credential
+Source Board • 2023-01
+Spoken Languages (0)
+
+No languages specified.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What's missing from my profile?
+Fix my profile gaps
+What evidence is missing?
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

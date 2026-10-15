@@ -607,9 +607,10 @@ export class LatexCompilerService {
           (!headlineMatch || !l.includes(headlineMatch[0]))
       );
     if (contactLines.length > 0) {
-      const rawContact = contactLines.join(' ');
       // Preserve selectable link text and actual URL annotations in the PDF.
-      contactHtml = cleanLatexText(rawContact);
+      // Distinguish the TeX contact/profile paragraphs when the compact Chrome
+      // header flows across lines; never glue the email to the first profile URL.
+      contactHtml = contactLines.map(cleanLatexText).filter(Boolean).join(' · ');
     }
 
     let match;

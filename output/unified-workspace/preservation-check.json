@@ -1,0 +1,14 @@
+{
+  "backend": {
+    "checkpoint": "47c1cf95d45e07dc589f5fb1b52624e9062dbca5",
+    "originalFileCount": 138,
+    "byteChanges": []
+  },
+  "frontend": {
+    "checkpoint": "6318484dabee613be9e073b5d65127901d2cf649",
+    "originalFileCount": 26,
+    "byteChanges": []
+  },
+  "unrelatedMainFilePreserved": true,
+  "planningBrokenLinks": []
+}

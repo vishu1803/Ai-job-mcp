@@ -43,7 +43,10 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
       if (lower.includes('icims.com') || lower.includes('/icims/')) {
@@ -76,9 +79,16 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     // iCIMS commonly uses an iframe container: iframe#icims_content_iframe
-    const iframeResult = this.locateIframe(context, 'iframe#icims_content_iframe, iframe.iCIMS_iframe');
-    const doc = iframeResult.isAccessible && iframeResult.doc ? iframeResult.doc : (context.doc || context.document);
-    const destinationUrl = context.destinationUrl || context.url || 'https://careers-company.icims.com/jobs/1000/apply';
+    const iframeResult = this.locateIframe(
+      context,
+      'iframe#icims_content_iframe, iframe.iCIMS_iframe'
+    );
+    const doc =
+      iframeResult.isAccessible && iframeResult.doc
+        ? iframeResult.doc
+        : context.doc || context.document;
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://careers-company.icims.com/jobs/1000/apply';
     const formId = 'icims-application-form';
 
     const fields = [];
@@ -87,8 +97,24 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
     const isMultiStep = false;
     const steps = [];
 
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -100,7 +126,8 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
           source: 'ICIMS_DOM',
           customQuestion,
           verified: false,
-          requiresUserReview: isSensitive || customQuestion || type === 'UNKNOWN' || iframeResult.isBlocked,
+          requiresUserReview:
+            isSensitive || customQuestion || type === 'UNKNOWN' || iframeResult.isBlocked,
           metadata: {
             isSensitive,
             icimsId: id,
@@ -123,14 +150,30 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
       });
     } else if (doc && typeof doc.querySelector === 'function') {
       // 1. Personal details inside iCIMS document
-      const firstNameEl = doc.querySelector('#firstName, input[name="firstName"], input[id*="FirstName"]');
+      const firstNameEl = doc.querySelector(
+        '#firstName, input[name="firstName"], input[id*="FirstName"]'
+      );
       if (firstNameEl) {
-        addField({ name: 'firstName', id: 'firstName', label: 'First Name', type: 'text', required: true });
+        addField({
+          name: 'firstName',
+          id: 'firstName',
+          label: 'First Name',
+          type: 'text',
+          required: true,
+        });
       }
 
-      const lastNameEl = doc.querySelector('#lastName, input[name="lastName"], input[id*="LastName"]');
+      const lastNameEl = doc.querySelector(
+        '#lastName, input[name="lastName"], input[id*="LastName"]'
+      );
       if (lastNameEl) {
-        addField({ name: 'lastName', id: 'lastName', label: 'Last Name', type: 'text', required: true });
+        addField({
+          name: 'lastName',
+          id: 'lastName',
+          label: 'Last Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const emailEl = doc.querySelector('#email, input[name="email"], input[type="email"]');
@@ -146,7 +189,13 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
       // 2. Attachments
       const resumeEl = doc.querySelector('#resume, input[type="file"], [data-qa="resume"]');
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'resume',
+          label: 'Resume',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -160,13 +209,17 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
       }
 
       // 3. Custom Questions & Dynamic blocks
-      const questionBlocks = doc.querySelectorAll ? doc.querySelectorAll('.iCIMS_QuestionBlock, .question-row') : [];
+      const questionBlocks = doc.querySelectorAll
+        ? doc.querySelectorAll('.iCIMS_QuestionBlock, .question-row')
+        : [];
       for (const qEl of questionBlocks) {
         const input = qEl.querySelector('input, select, textarea');
         if (input) {
           const qName = input.name || input.id || 'question';
           const qLabel = (qEl.textContent || qName).trim().slice(0, 100);
-          const isSensitive = /authorization|visa|sponsor|salary|veteran|disability/i.test(qName + ' ' + qLabel);
+          const isSensitive = /authorization|visa|sponsor|salary|veteran|disability/i.test(
+            qName + ' ' + qLabel
+          );
           addField({
             name: qName,
             id: input.id || qName,
@@ -180,7 +233,9 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
       }
 
       // 4. Nonstandard / Unknown widgets
-      const unknownWidgets = doc.querySelectorAll ? doc.querySelectorAll('[data-custom-widget], .icims-special-widget') : [];
+      const unknownWidgets = doc.querySelectorAll
+        ? doc.querySelectorAll('[data-custom-widget], .icims-special-widget')
+        : [];
       for (const uEl of unknownWidgets) {
         const uId = uEl.id || 'unknown_widget';
         addField({
@@ -195,12 +250,30 @@ export class IcimsPortalAdapter extends BasePortalAdapter {
       }
     } else {
       // Default canonical iCIMS structure
-      addField({ name: 'firstName', id: 'firstName', label: 'First Name', type: 'text', required: true });
-      addField({ name: 'lastName', id: 'lastName', label: 'Last Name', type: 'text', required: true });
+      addField({
+        name: 'firstName',
+        id: 'firstName',
+        label: 'First Name',
+        type: 'text',
+        required: true,
+      });
+      addField({
+        name: 'lastName',
+        id: 'lastName',
+        label: 'Last Name',
+        type: 'text',
+        required: true,
+      });
       addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
       addField({ name: 'phone', id: 'phone', label: 'Phone', type: 'tel', required: false });
 
-      const resId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'resume',
+        label: 'Resume',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,

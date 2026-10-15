@@ -705,7 +705,13 @@ export class JobApplicationFlowService {
    * @param {string} [params.approvalTicketId]
    * @returns {Promise<object>} Result
    */
-  async submitApplication({ tenantId, candidateId, applicationId, declarations = {}, approvalTicketId = null }) {
+  async submitApplication({
+    tenantId,
+    candidateId,
+    applicationId,
+    declarations = {},
+    approvalTicketId = null,
+  }) {
     if (!approvalTicketId) {
       throw new AuthorizationError(
         'APPLICATION_APPROVAL_REQUIRED: External job submission requires a valid, pre-approved application ticket. Declarations alone do not authorize submission.',

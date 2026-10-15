@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "reviewPages": [
+    {
+      "file": "review.html",
+      "links": 131,
+      "brokenImages": 0,
+      "desktopOverflow": false,
+      "mobileOverflow": false
+    },
+    {
+      "file": "plan.html",
+      "links": 12,
+      "brokenImages": 0,
+      "desktopOverflow": false,
+      "mobileOverflow": false
+    }
+  ],
+  "wireframesRendered": 52,
+  "scope": "Planning artifacts only; not application or accessibility acceptance"
+}

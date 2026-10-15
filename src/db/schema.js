@@ -1136,10 +1136,14 @@ export const applicationPackages = pgTable(
 // 20c. Application Approval Tickets Table (Phase 9.4 Persistent Approvals)
 // ---------------------------------------------------------------------------
 
-export const applicationApprovalTicketStatusEnum = pgEnum(
-  'application_approval_ticket_status',
-  ['ISSUED', 'PENDING', 'APPROVED', 'CONSUMED', 'EXPIRED', 'REVOKED']
-);
+export const applicationApprovalTicketStatusEnum = pgEnum('application_approval_ticket_status', [
+  'ISSUED',
+  'PENDING',
+  'APPROVED',
+  'CONSUMED',
+  'EXPIRED',
+  'REVOKED',
+]);
 
 export const applicationApprovalTickets = pgTable(
   'application_approval_tickets',
@@ -1217,6 +1221,9 @@ export const applicationExecutions = pgTable(
   (table) => [
     uniqueIndex('uq_application_execution_approval').on(table.approvalId),
     index('idx_application_execution_tenant_status').on(table.tenantId, table.status),
+    index('idx_application_execution_tenant_user').on(table.tenantId, table.userId),
+    index('idx_application_execution_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_application_execution_tenant_application').on(table.tenantId, table.applicationId),
     check(
       'application_execution_status_check',
       sql`${table.status} IN ('CLAIMED', 'STARTED', 'SUCCEEDED', 'FAILED', 'UNKNOWN')`

@@ -1,0 +1,99 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+S
+Synthetic Studio Candidate
+JUNIOR
+Delhi
+
+Complete your professional identity to begin applying
+
+All changes saved
+Save changes
+Overview
+Professional
+Skills & Projects
+Job Preferences
+Application & Eligibility
+5
+Contact & Links
+Professional Identity
+
+Your core professional identity shown on applications, resumes, and matched against job requirements.
+
+Full Name *
+Legal or preferred professional name used in applications.
+Professional Headline (optional)
+Brief headline summarizing your domain expertise.
+Current Role Title (optional)
+Career Stage *
+Early Career / Fresher (0–2 yrs)
+Mid-Level Engineer (3–5 yrs)
+Senior Engineer (5–8 yrs)
+Staff / Lead / Principal (8+ yrs)
+Engineering Leadership / Manager
+Location / City (optional)
+Used to evaluate location match and commute compatibility.
+Timezone (optional)
+Used to coordinate interview availability across distributed teams.
+Executive Summary (optional)
+Used to introduce your application to hiring managers.
+Work Experience
+
+Document your professional employment history. Verified code contributions are linked automatically.
+
++ Add Position
+Developer
+Source Company • Remote
+2023-01 — 2024-06
+Implemented React views with the use of component interfaces in order to support internal workflows.
+Documented PostgreSQL query behavior.
+Education History
+
+Your academic qualifications, degrees, and institutions.
+
++ Add Education
+BSc
+Source University • Computing
+2019 - 2022
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What's missing from my profile?
+Fix my profile gaps
+What evidence is missing?
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

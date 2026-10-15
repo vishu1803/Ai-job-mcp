@@ -1,0 +1,522 @@
+[
+  {
+    "screen": "overview",
+    "title": "Overview",
+    "theme": "light",
+    "size": "desktop",
+    "file": "overview-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "onboarding",
+    "title": "Your career profile",
+    "theme": "light",
+    "size": "desktop",
+    "file": "onboarding-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "profile",
+    "title": "Career profile",
+    "theme": "light",
+    "size": "desktop",
+    "file": "profile-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "sources",
+    "title": "Sources and evidence",
+    "theme": "light",
+    "size": "desktop",
+    "file": "sources-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "jobs",
+    "title": "Jobs",
+    "theme": "light",
+    "size": "desktop",
+    "file": "jobs-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "job-detail",
+    "title": "Frontend Engineer",
+    "theme": "light",
+    "size": "desktop",
+    "file": "job-detail-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "library",
+    "title": "Resumes",
+    "theme": "light",
+    "size": "desktop",
+    "file": "library-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "studio",
+    "title": "Resume Studio",
+    "theme": "light",
+    "size": "desktop",
+    "file": "studio-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "proposal",
+    "title": "Review wording",
+    "theme": "light",
+    "size": "desktop",
+    "file": "proposal-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "applications",
+    "title": "Applications",
+    "theme": "light",
+    "size": "desktop",
+    "file": "applications-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "review",
+    "title": "Application review",
+    "theme": "light",
+    "size": "desktop",
+    "file": "review-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "handoff",
+    "title": "Application handoff",
+    "theme": "light",
+    "size": "desktop",
+    "file": "handoff-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "settings",
+    "title": "Account and integrations",
+    "theme": "light",
+    "size": "desktop",
+    "file": "settings-desktop-light.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "overview",
+    "title": "Overview",
+    "theme": "light",
+    "size": "mobile",
+    "file": "overview-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "onboarding",
+    "title": "Your career profile",
+    "theme": "light",
+    "size": "mobile",
+    "file": "onboarding-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "profile",
+    "title": "Career profile",
+    "theme": "light",
+    "size": "mobile",
+    "file": "profile-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "sources",
+    "title": "Sources and evidence",
+    "theme": "light",
+    "size": "mobile",
+    "file": "sources-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "jobs",
+    "title": "Jobs",
+    "theme": "light",
+    "size": "mobile",
+    "file": "jobs-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "job-detail",
+    "title": "Frontend Engineer",
+    "theme": "light",
+    "size": "mobile",
+    "file": "job-detail-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "library",
+    "title": "Resumes",
+    "theme": "light",
+    "size": "mobile",
+    "file": "library-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "studio",
+    "title": "Resume Studio",
+    "theme": "light",
+    "size": "mobile",
+    "file": "studio-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "proposal",
+    "title": "Review wording",
+    "theme": "light",
+    "size": "mobile",
+    "file": "proposal-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "applications",
+    "title": "Applications",
+    "theme": "light",
+    "size": "mobile",
+    "file": "applications-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "review",
+    "title": "Application review",
+    "theme": "light",
+    "size": "mobile",
+    "file": "review-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "handoff",
+    "title": "Application handoff",
+    "theme": "light",
+    "size": "mobile",
+    "file": "handoff-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "settings",
+    "title": "Account and integrations",
+    "theme": "light",
+    "size": "mobile",
+    "file": "settings-mobile-light.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "overview",
+    "title": "Overview",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "overview-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "onboarding",
+    "title": "Your career profile",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "onboarding-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "profile",
+    "title": "Career profile",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "profile-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "sources",
+    "title": "Sources and evidence",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "sources-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "jobs",
+    "title": "Jobs",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "jobs-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "job-detail",
+    "title": "Frontend Engineer",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "job-detail-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "library",
+    "title": "Resumes",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "library-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "studio",
+    "title": "Resume Studio",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "studio-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "proposal",
+    "title": "Review wording",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "proposal-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "applications",
+    "title": "Applications",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "applications-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "review",
+    "title": "Application review",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "review-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "handoff",
+    "title": "Application handoff",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "handoff-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "settings",
+    "title": "Account and integrations",
+    "theme": "dark",
+    "size": "desktop",
+    "file": "settings-desktop-dark.svg",
+    "width": 1440,
+    "height": 1000,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "overview",
+    "title": "Overview",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "overview-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "onboarding",
+    "title": "Your career profile",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "onboarding-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "profile",
+    "title": "Career profile",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "profile-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "sources",
+    "title": "Sources and evidence",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "sources-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "jobs",
+    "title": "Jobs",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "jobs-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "job-detail",
+    "title": "Frontend Engineer",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "job-detail-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "library",
+    "title": "Resumes",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "library-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "studio",
+    "title": "Resume Studio",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "studio-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "proposal",
+    "title": "Review wording",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "proposal-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "applications",
+    "title": "Applications",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "applications-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "review",
+    "title": "Application review",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "review-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "handoff",
+    "title": "Application handoff",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "handoff-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  },
+  {
+    "screen": "settings",
+    "title": "Account and integrations",
+    "theme": "dark",
+    "size": "mobile",
+    "file": "settings-mobile-dark.svg",
+    "width": 390,
+    "height": 920,
+    "status": "PROPOSED_NOT_IMPLEMENTED"
+  }
+]

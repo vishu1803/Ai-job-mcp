@@ -1,0 +1,91 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+Resumes
+RESUME MANAGEMENT
+Private & Secure
+Resumes & Career Documents
+
+Upload your resume (PDF, DOCX, TXT) to establish your baseline narrative and extract your work history, education, and skills.
+
+S
+Synthetic Studio Candidate
+CANDIDATE
+Candidate Profile • 534baf9c-b216-495e-8090-833c61a4ee6b@example.test
+1 version indexed
+CANDIDATE NARRATIVE
+Authentic Resume History
+
+Uploaded resume statements, experience, and skills establish your candidate-authored career narrative. Technical skills corroborated by your connected GitHub repositories are verified with code evidence.
+
+synthetic-master.txt
+ACTIVE BASE RESUME
+Version 1 • 27 B • Uploaded Oct 15, 2026
+Review Claims
+Download Original
+Upload Source Resume Version
+
+Supported formats: PDF (.pdf), Microsoft Word (.docx), Plain Text (.txt, .md). Maximum file size: 10 MB.
+
+Upload & Parse Resume
+Security & storage specifications
+Resume Version History
+
+Chronological record of candidate resume snapshots and parsing states.
+
+1 version
+VERSION	ORIGINAL FILENAME	SIZE	LIFECYCLE STATE	UPLOADED	ACTIONS
+v1	
+synthetic-master.txt
+text/plain • c832d10e2b…
+	27 B	
+BASE RESUME
+	Oct 15, 2026	
+Review Claims
+Download
+Delete
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+Review my active resume
+What claims lack evidence?
+Tailor my resume
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

@@ -1,0 +1,122 @@
+[
+  {
+    "fixture": "experienced-backend-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "experienced-backend-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "experienced-full-stack-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "experienced-full-stack-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "junior-backend-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "junior-backend-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "junior-full-stack-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "junior-full-stack-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "mid-backend-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "mid-backend-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "mid-full-stack-after",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  },
+  {
+    "fixture": "mid-full-stack-before",
+    "pages": 1,
+    "minFontPt": 9.997499465942383,
+    "missingText": [],
+    "outsideSpans": [],
+    "overlappingSpans": [],
+    "brokenLinks": [],
+    "replacementGlyphs": false
+  }
+]

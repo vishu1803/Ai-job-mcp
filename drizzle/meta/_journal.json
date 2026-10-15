@@ -155,6 +155,34 @@
       "when": 1791417600001,
       "tag": "0021_evidence_verification_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791936000000,
+      "tag": "0022_resume_studio_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791936000001,
+      "tag": "0023_resume_studio_proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791936000002,
+      "tag": "0024_resume_studio_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792055000000,
+      "tag": "0025_application_execution_covering_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -40,9 +40,15 @@ export function runDbLifecycleAudit(testDir = INTEGRATION_DIR) {
     const content = fs.readFileSync(file, 'utf8');
 
     // Check if file imports from src/db (creating or accessing the singleton pool)
-    const importsDbModule = /from\s+['"][^'"]*src\/db(\/index(\.js)?)?['"]/.test(content);
-    const importsDb = /import\s+[\s\S]*?\bdb\b[\s\S]*?from\s+['"][^'"]*src\/db/.test(content);
-    const importsPool = /import\s+[\s\S]*?\bpool\b[\s\S]*?from\s+['"][^'"]*src\/db/.test(content);
+    const importsDbModule = /from\s+['"][^'"]*src\/db(?:\/index(?:\.js)?)?['"]/.test(content);
+    const importsDb =
+      /import\s+(?:\{[^}]*\bdb\b[^}]*\}|\bdb\b)\s+from\s+['"][^'"]*src\/db(?:\/index(?:\.js)?)?['"]/.test(
+        content
+      );
+    const importsPool =
+      /import\s+(?:\{[^}]*\bpool\b[^}]*\}|\bpool\b)\s+from\s+['"][^'"]*src\/db(?:\/index(?:\.js)?)?['"]/.test(
+        content
+      );
 
     const isDbUser = importsDbModule || importsDb || importsPool;
 

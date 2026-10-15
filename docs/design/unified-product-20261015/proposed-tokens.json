@@ -1,0 +1,108 @@
+{
+  "themes": {
+    "light": {
+      "canvas": "#F5F6F8",
+      "surface": "#FFFFFF",
+      "elevated": "#EEF1F5",
+      "border": "#D4DAE3",
+      "control": "#7A8799",
+      "text": "#18212E",
+      "secondary": "#536276",
+      "accent": "#315B93",
+      "onaccent": "#FFFFFF",
+      "good": "#176A49",
+      "goodbg": "#E9F4EE",
+      "warn": "#805700",
+      "warnbg": "#FFF3D9"
+    },
+    "dark": {
+      "canvas": "#11151C",
+      "surface": "#191F28",
+      "elevated": "#232B36",
+      "border": "#35404D",
+      "control": "#7D8DA3",
+      "text": "#EEF2F7",
+      "secondary": "#ADBACB",
+      "accent": "#AEC7ED",
+      "onaccent": "#14181F",
+      "good": "#85D2AE",
+      "goodbg": "#1E382F",
+      "warn": "#E8C17A",
+      "warnbg": "#3B311F"
+    }
+  },
+  "contrastChecks": [
+    {
+      "theme": "light",
+      "foreground": "text",
+      "background": "canvas",
+      "ratio": 14.99
+    },
+    {
+      "theme": "light",
+      "foreground": "secondary",
+      "background": "surface",
+      "ratio": 6.22
+    },
+    {
+      "theme": "light",
+      "foreground": "onaccent",
+      "background": "accent",
+      "ratio": 6.89
+    },
+    {
+      "theme": "light",
+      "foreground": "good",
+      "background": "goodbg",
+      "ratio": 5.84
+    },
+    {
+      "theme": "light",
+      "foreground": "warn",
+      "background": "warnbg",
+      "ratio": 5.81
+    },
+    {
+      "theme": "light",
+      "foreground": "control",
+      "background": "surface",
+      "ratio": 3.65
+    },
+    {
+      "theme": "dark",
+      "foreground": "text",
+      "background": "canvas",
+      "ratio": 16.27
+    },
+    {
+      "theme": "dark",
+      "foreground": "secondary",
+      "background": "surface",
+      "ratio": 8.41
+    },
+    {
+      "theme": "dark",
+      "foreground": "onaccent",
+      "background": "accent",
+      "ratio": 10.33
+    },
+    {
+      "theme": "dark",
+      "foreground": "good",
+      "background": "goodbg",
+      "ratio": 7.12
+    },
+    {
+      "theme": "dark",
+      "foreground": "warn",
+      "background": "warnbg",
+      "ratio": 7.5
+    },
+    {
+      "theme": "dark",
+      "foreground": "control",
+      "background": "surface",
+      "ratio": 4.9
+    }
+  ]
+}

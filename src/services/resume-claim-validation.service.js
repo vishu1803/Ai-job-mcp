@@ -75,6 +75,30 @@ const ACTIVE_OPENER_VERBS = new Set([
   'created',
   'resolved',
   'monitored',
+  'added',
+  'wrote',
+  'programmed',
+  'executed',
+  'tested',
+  'tuned',
+  'delivered',
+  'achieved',
+  'expanded',
+  'improved',
+  'introduced',
+  'provided',
+  'increased',
+  'decreased',
+  'saved',
+  'pioneered',
+  'devised',
+  'modeled',
+  'produced',
+  'led',
+  'coordinated',
+  'championed',
+  'collaborated',
+  'facilitated',
 ]);
 
 const WEAK_OPENERS = [
@@ -638,7 +662,8 @@ export class ResumeClaimValidationService {
         .replace(/[^a-z]/g, '');
       const startsWithActionVerb =
         ACTIVE_OPENER_VERBS.has(firstWord) ||
-        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed|benchmarked|orchestrated|spearheaded|debugged|streamlined)\b/i.test(
+        ACTIVE_OPENER_VERBS.has(firstWord?.replace(/ed$/, '')) ||
+        /^(?:added|wrote|engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed|benchmarked|orchestrated|spearheaded|debugged|streamlined|programmed|executed|tested|tuned|pioneered|devised|modeled|produced|led|coordinated)\b/i.test(
           trimmed
         ) ||
         /^designed\s+and\s+implemented\b/i.test(trimmed) ||

@@ -33,7 +33,13 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { db, closeDatabase } from '../../src/db/index.js';
-import { tenants, users, candidates, jobApplications, candidateSkills } from '../../src/db/schema.js';
+import {
+  tenants,
+  users,
+  candidates,
+  jobApplications,
+  candidateSkills,
+} from '../../src/db/schema.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import {
   ACTION_TAXONOMY,
@@ -48,7 +54,12 @@ import {
   UNAVAILABLE_IN_VERIFIED_PROFILE_MESSAGE,
 } from '../../src/domain/extension/extension-assistant.schemas.js';
 import { ExtensionAssistantService } from '../../src/services/extension-assistant.service.js';
-import { AuthorizationError, ConflictError, ValidationError, NotFoundError } from '../../src/errors/index.js';
+import {
+  AuthorizationError,
+  ConflictError,
+  ValidationError,
+  NotFoundError,
+} from '../../src/errors/index.js';
 
 describe('Phase 7 — Application Adaptation, Action Services & Human-in-the-Loop Safety', () => {
   let tenantId;
@@ -116,7 +127,8 @@ describe('Phase 7 — Application Adaptation, Action Services & Human-in-the-Loo
       company: 'Acme Systems',
       title: 'Senior Backend Engineer',
       location: 'Remote',
-      description: 'Looking for a Senior Backend Engineer proficient in Node.js, TypeScript, and distributed systems.',
+      description:
+        'Looking for a Senior Backend Engineer proficient in Node.js, TypeScript, and distributed systems.',
       source: 'GREENHOUSE',
       applicationUrl: 'https://job-boards.greenhouse.io/acmesystems/jobs/998877',
       sourceUrl: 'https://boards.greenhouse.io/acmesystems',
@@ -650,25 +662,43 @@ describe('Phase 7 — Application Adaptation, Action Services & Human-in-the-Loo
       jobId: 'job-12345',
       url: 'https://job-boards.greenhouse.io/acmesystems/jobs/12345',
     };
-    assert.deepEqual(JobApplicationWorkflowService.validateExternalPageMatch({ approvedJob, currentPage: validPage }), {
-      matched: true,
-    });
+    assert.deepEqual(
+      JobApplicationWorkflowService.validateExternalPageMatch({
+        approvedJob,
+        currentPage: validPage,
+      }),
+      {
+        matched: true,
+      }
+    );
 
     // Case B: Company mismatch
     const badCompany = { ...validPage, company: 'EvilCorp' };
-    const compResult = JobApplicationWorkflowService.validateExternalPageMatch({ approvedJob, currentPage: badCompany });
+    const compResult = JobApplicationWorkflowService.validateExternalPageMatch({
+      approvedJob,
+      currentPage: badCompany,
+    });
     assert.equal(compResult.matched, false);
     assert.ok(compResult.reason.includes('Target company mismatch'));
 
     // Case C: Title mismatch
     const badTitle = { ...validPage, title: 'Lead Frontend Developer' };
-    const titleResult = JobApplicationWorkflowService.validateExternalPageMatch({ approvedJob, currentPage: badTitle });
+    const titleResult = JobApplicationWorkflowService.validateExternalPageMatch({
+      approvedJob,
+      currentPage: badTitle,
+    });
     assert.equal(titleResult.matched, false);
     assert.ok(titleResult.reason.includes('Target title mismatch'));
 
     // Case D: Host mismatch
-    const badHost = { ...validPage, url: 'https://phishing-site.example.com/acmesystems/jobs/12345' };
-    const hostResult = JobApplicationWorkflowService.validateExternalPageMatch({ approvedJob, currentPage: badHost });
+    const badHost = {
+      ...validPage,
+      url: 'https://phishing-site.example.com/acmesystems/jobs/12345',
+    };
+    const hostResult = JobApplicationWorkflowService.validateExternalPageMatch({
+      approvedJob,
+      currentPage: badHost,
+    });
     assert.equal(hostResult.matched, false);
     assert.ok(hostResult.reason.includes('Target host mismatch'));
   });
@@ -773,21 +803,31 @@ describe('Phase 7 — Application Adaptation, Action Services & Human-in-the-Loo
   it('22. Retry safety: resolveSubmissionRetryState distinguishes SENT_UNKNOWN, NOT_SENT, and FAILED', () => {
     // Pre-flight / DNS errors are NOT_SENT
     assert.equal(
-      JobApplicationWorkflowService.resolveSubmissionRetryState(new Error('getaddrinfo ENOTFOUND boards.greenhouse.io')),
+      JobApplicationWorkflowService.resolveSubmissionRetryState(
+        new Error('getaddrinfo ENOTFOUND boards.greenhouse.io')
+      ),
       'NOT_SENT'
     );
     assert.equal(
-      JobApplicationWorkflowService.resolveSubmissionRetryState({ code: 'APPROVAL_TICKET_REQUIRED', message: 'ticket required' }),
+      JobApplicationWorkflowService.resolveSubmissionRetryState({
+        code: 'APPROVAL_TICKET_REQUIRED',
+        message: 'ticket required',
+      }),
       'NOT_SENT'
     );
 
     // Network timeout / connection reset mid-flight is SENT_UNKNOWN
     assert.equal(
-      JobApplicationWorkflowService.resolveSubmissionRetryState(new Error('Connection timed out after 30000ms')),
+      JobApplicationWorkflowService.resolveSubmissionRetryState(
+        new Error('Connection timed out after 30000ms')
+      ),
       'SENT_UNKNOWN'
     );
     assert.equal(
-      JobApplicationWorkflowService.resolveSubmissionRetryState({ code: 'ECONNRESET', message: 'socket hang up' }),
+      JobApplicationWorkflowService.resolveSubmissionRetryState({
+        code: 'ECONNRESET',
+        message: 'socket hang up',
+      }),
       'SENT_UNKNOWN'
     );
     assert.equal(
@@ -797,7 +837,9 @@ describe('Phase 7 — Application Adaptation, Action Services & Human-in-the-Loo
 
     // Definitive rejection is FAILED
     assert.equal(
-      JobApplicationWorkflowService.resolveSubmissionRetryState(new Error('HTTP 400: Job posting closed')),
+      JobApplicationWorkflowService.resolveSubmissionRetryState(
+        new Error('HTTP 400: Job posting closed')
+      ),
       'FAILED'
     );
 

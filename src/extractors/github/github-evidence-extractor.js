@@ -183,6 +183,7 @@ export class GitHubEvidenceExtractorService {
       .update(resources)
       .set({
         metadata: sql`${resources.metadata} || ${JSON.stringify({ evidenceEpoch: epoch, ingestionAttempt: attempt })}::jsonb`,
+        updatedAt: new Date(),
       })
       .where(and(eq(resources.id, resourceId), eq(resources.tenantId, tenantId)));
     try {
@@ -1008,6 +1009,7 @@ export class GitHubEvidenceExtractorService {
         .update(resources)
         .set({
           metadata: sql`${resources.metadata} || ${JSON.stringify({ ingestionAttempt: { ...attempt, status: 'INCOMPLETE', completedAt: new Date().toISOString(), reason: error.details?.reason || error.code || 'EXTRACTION_FAILED', ...budget.stats() } })}::jsonb`,
+          updatedAt: new Date(),
         })
         .where(
           and(

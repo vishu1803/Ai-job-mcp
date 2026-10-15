@@ -184,7 +184,14 @@ export const MappedPortalFieldSchema = z.object({
   rawValue: z.any().optional(),
   sanitizedValue: z.any().optional(),
   provenance: z
-    .enum(['USER_PROVIDED', 'VERIFIED_PROFILE', 'VERIFIED_EVIDENCE', 'INFERRED', 'GENERATED', 'UNKNOWN'])
+    .enum([
+      'USER_PROVIDED',
+      'VERIFIED_PROFILE',
+      'VERIFIED_EVIDENCE',
+      'INFERRED',
+      'GENERATED',
+      'UNKNOWN',
+    ])
     .default('UNKNOWN'),
   confidence: z.number().min(0).max(1).default(1),
   requiresUserReview: z.boolean().default(false),
@@ -208,7 +215,8 @@ export function mapCanonicalApplicationToForm(applicationSnapshot, formSchema) {
     return [];
   }
 
-  const rawCandidate = applicationSnapshot?.candidate || applicationSnapshot?.candidateProfile || {};
+  const rawCandidate =
+    applicationSnapshot?.candidate || applicationSnapshot?.candidateProfile || {};
   const rawArtifacts = applicationSnapshot?.artifacts || {};
   const answers = applicationSnapshot?.answers || {};
 
@@ -342,21 +350,27 @@ export function mapCanonicalApplicationToForm(applicationSnapshot, formSchema) {
       confidence = 0;
       requiresUserReview = true;
     } else if (/first[\s_-]?name/i.test(descriptor)) {
-      rawValue = candidate.firstName || (candidate.fullName ? candidate.fullName.split(' ')[0] : null);
+      rawValue =
+        candidate.firstName || (candidate.fullName ? candidate.fullName.split(' ')[0] : null);
       if (rawValue) {
         provenance = 'VERIFIED_PROFILE';
         confidence = 1;
         mappedFrom = 'candidate.firstName';
       }
     } else if (/last[\s_-]?name/i.test(descriptor)) {
-      rawValue = candidate.lastName || (candidate.fullName ? candidate.fullName.split(' ').slice(1).join(' ') : null);
+      rawValue =
+        candidate.lastName ||
+        (candidate.fullName ? candidate.fullName.split(' ').slice(1).join(' ') : null);
       if (rawValue) {
         provenance = 'VERIFIED_PROFILE';
         confidence = 1;
         mappedFrom = 'candidate.lastName';
       }
     } else if (/full[\s_-]?name|your\s+name|^name$/i.test(descriptor)) {
-      rawValue = candidate.fullName || `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || null;
+      rawValue =
+        candidate.fullName ||
+        `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() ||
+        null;
       if (rawValue) {
         provenance = 'VERIFIED_PROFILE';
         confidence = 1;
@@ -376,8 +390,12 @@ export function mapCanonicalApplicationToForm(applicationSnapshot, formSchema) {
         confidence = 1;
         mappedFrom = 'candidate.phone';
       }
-    } else if (/resume|cv/i.test(descriptor) || (type === 'file' && /resume|cv/i.test(descriptor))) {
-      rawValue = artifacts.resume?.url || artifacts.resume?.filename || artifacts.resume?.text || null;
+    } else if (
+      /resume|cv/i.test(descriptor) ||
+      (type === 'file' && /resume|cv/i.test(descriptor))
+    ) {
+      rawValue =
+        artifacts.resume?.url || artifacts.resume?.filename || artifacts.resume?.text || null;
       if (rawValue) {
         provenance = 'VERIFIED_EVIDENCE';
         confidence = 1;
@@ -439,7 +457,11 @@ export function mapCanonicalApplicationToForm(applicationSnapshot, formSchema) {
         confidence = 1;
         mappedFrom = 'candidate.contact.address';
       }
-    } else if (/authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship/i.test(descriptor)) {
+    } else if (
+      /authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship/i.test(
+        descriptor
+      )
+    ) {
       // ONLY map if explicitly present in candidate data - NEVER FABRICATE!
       if (preferences.workAuthorization !== undefined && preferences.workAuthorization !== null) {
         rawValue = preferences.workAuthorization;
@@ -448,7 +470,10 @@ export function mapCanonicalApplicationToForm(applicationSnapshot, formSchema) {
         mappedFrom = 'candidate.careerPreferences.workAuthorization';
       }
     } else if (/sponsor/i.test(descriptor)) {
-      if (preferences.visaSponsorshipRequired !== undefined && preferences.visaSponsorshipRequired !== null) {
+      if (
+        preferences.visaSponsorshipRequired !== undefined &&
+        preferences.visaSponsorshipRequired !== null
+      ) {
         rawValue = preferences.visaSponsorshipRequired;
         provenance = 'VERIFIED_PROFILE';
         confidence = 1;
@@ -706,7 +731,9 @@ export class PortalAdapterContract {
    */
   constructor(identity) {
     if (new.target === PortalAdapterContract) {
-      throw new TypeError('Cannot construct PortalAdapterContract instances directly; extend it instead.');
+      throw new TypeError(
+        'Cannot construct PortalAdapterContract instances directly; extend it instead.'
+      );
     }
     const validatedIdentity = PortalAdapterIdentitySchema.safeParse(identity);
     if (!validatedIdentity.success) {
@@ -790,7 +817,12 @@ export class PortalAdapterContract {
     for (const formField of formSchema.fields || []) {
       if (formField.required) {
         const mapped = fieldsById.get(formField.fieldId);
-        if (!mapped || mapped.sanitizedValue === undefined || mapped.sanitizedValue === null || mapped.sanitizedValue === '') {
+        if (
+          !mapped ||
+          mapped.sanitizedValue === undefined ||
+          mapped.sanitizedValue === null ||
+          mapped.sanitizedValue === ''
+        ) {
           missing.push(formField.fieldId);
         }
       }

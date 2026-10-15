@@ -14,6 +14,8 @@ for filename in sorted(root.glob('*.pdf')):
     filename.with_suffix('.txt').write_text(text, encoding='utf-8')
     wanted = [view['candidateIdentity']['displayName'], view['candidateIdentity']['email'], view['candidateIdentity']['headline'], view['summary']['text']]
     links = []
+    for category in view.get('skills', {}).get('categories', []):
+        wanted.extend(skill['name'] for skill in category.get('skills', []))
     for entry in view['candidateIdentity'].get('links', []):
         links.append(entry['url'])
     for key in ['experience', 'projects', 'education', 'certifications']:

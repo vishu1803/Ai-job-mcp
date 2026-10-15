@@ -1,0 +1,124 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+Settings
+WORKSPACE SETTINGS
+Account & Privacy Settings
+
+Manage your candidate profile identity, active browser sessions, connected integrations, data portability, and GDPR Article 17 data sovereignty.
+
+Candidate Identity & Workspace
+
+Authenticated user credentials and multi-tenant workspace context.
+
+Edit Full Profile →
+SS
+Synthetic Studio Candidate
+534baf9c-b216-495e-8090-833c61a4ee6b@example.test
+TIER: FREE
+DISPLAY NAME
+Synthetic Studio Candidate
+CANONICAL EMAIL
+534baf9c-b216-495e-8090-833c61a4ee6b@example.test
+TENANT WORKSPACE
+FREE
+ACCOUNT STATUS
+● ACTIVE
+Security & Active Browser Session
+
+Authentication tokens and session lifecycle on this device.
+
+Your session is secured with an HTTP-only partitioned cookie and isolated within your tenant boundary. Sign out to terminate your active browser session on this device. You can sign in again via GitHub OAuth at any time.
+
+Current Session: Active
+Authenticated via GitHub OAuth (AES-256-GCM token storage)
+Sign Out Session
+Connected Integrations & AI Clients
+
+Manage code sources, repository synchronization, and external AI provider tokens.
+
+Inspect connected code repositories, synchronization pipelines, external AI client configurations, and developer documentation.
+
+Code Sources
+GitHub App installation, repository selections, and AST indexing triggers.
+Manage Sources →
+AI Connect Center
+Claude, ChatGPT, Gemini connections and Personal MCP API Tokens.
+AI Connectors →
+Developer MCP Docs
+26-tool catalog, 8 resources, 4 prompts, parameters, and JSON-RPC specs.
+MCP Documentation →
+Data Portability & Inspection
+
+Inspect, verify, and manage your sovereign career records and evidence graphs.
+
+You maintain 100% sovereign ownership over your career data. Career Hub operates with zero-hallucination truth verification, and all claims remain strictly tied to verified AST code evidence or self-declared provenance. You can directly inspect or export your indexed career records:
+
+Resumes & Documents
+Uploaded PDF/DOCX resumes, parsed claim sections, and tailored documents.
+Inspect Resumes →
+Verified Skills Graph
+5-tier evidence classifications, confidence scores, and AST code citations.
+Explore Skills →
+Self-Service Data Deletion
+Detailed guide on selective data purging, unlinking sources, and GDPR rights.
+Deletion Guide →
+GDPR ARTICLE 17
+Data Sovereignty & Account Erasure
+Irreversible Action: Deleting your account permanently purges your profile, tenant records, indexed AST evidence, tailored documents, OAuth credentials, and MCP tokens across all database tables in a single atomic operation.
+
+You maintain 100% sovereign ownership of your data under GDPR Article 17 (Right to Erasure). This erasure cascades across all 18+ database tables and cannot be undone.
+
+Data permanently erased during hard deletion:
+Candidate profile, headline, career status, and job search preferences
+Verified skills, AST syntax extracts, confidence scores, and code evidence items
+GitHub App installation links, webhook subscriptions, and repository sync caches
+AI provider OAuth tokens (Claude, ChatGPT) and Personal MCP API Tokens
+Job application tracking pipeline records, tailored resumes, and cover letters
+Delete Account & All Data
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What should I do next?
+What's blocking me from applying?
+Improve my profile
+Find matching jobs
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

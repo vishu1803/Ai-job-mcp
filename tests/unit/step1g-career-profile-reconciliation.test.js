@@ -274,8 +274,8 @@ describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
 
     const corroborated = profile.highlightedProjects.find((p) => p.name === 'AI Career MCP Hub');
     assert.ok(corroborated, 'AI Career MCP Hub project should exist');
-    assert.equal(corroborated.provenanceStatus, 'CORROBORATED');
-    assert.equal(corroborated.verifiedSignalCount, 2);
+    assert.equal(corroborated.provenanceStatus, 'CLAIMED');
+    assert.equal(corroborated.verifiedSignalCount, 0);
     assert.ok(corroborated.technologies.includes('Node.js'));
 
     const unverified = profile.highlightedProjects.find((p) => p.name === 'Distributed Task Queue');
@@ -325,19 +325,19 @@ describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
 
     const profile = await service.getCareerProfile(contextA, candidateIdA);
 
-    // Python is in both GitHub (VERIFIED) and resume claims
+    // Python is in both GitHub and resume claims -> CLAIMED
     const pythonSkill = profile.topSkills.find((s) => s.slug === 'python');
     assert.ok(pythonSkill);
     assert.equal(pythonSkill.githubEvidence, true);
     assert.equal(pythonSkill.resumeClaim, true);
-    assert.equal(pythonSkill.truthStatus, 'VERIFIED');
+    assert.equal(pythonSkill.truthStatus, 'CLAIMED');
 
-    // Rust is in GitHub (VERIFIED) only
+    // Rust is in GitHub only -> INFERRED
     const rustSkill = profile.topSkills.find((s) => s.slug === 'rust');
     assert.ok(rustSkill);
     assert.equal(rustSkill.githubEvidence, true);
     assert.equal(rustSkill.resumeClaim, false);
-    assert.equal(rustSkill.truthStatus, 'VERIFIED');
+    assert.equal(rustSkill.truthStatus, 'INFERRED');
 
     // FastAPI is in resume claims only
     const fastapiSkill = profile.topSkills.find((s) => s.slug === 'fastapi');
@@ -346,8 +346,7 @@ describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
     assert.equal(fastapiSkill.resumeClaim, true);
     assert.equal(fastapiSkill.truthStatus, 'CLAIMED');
 
-    assert.ok(profile.verifiedSkillsSummary.includes('Python'));
-    assert.ok(profile.verifiedSkillsSummary.includes('Rust'));
+    assert.ok(!profile.verifiedSkillsSummary.includes('Python'));
     assert.ok(!profile.verifiedSkillsSummary.includes('FastAPI'));
   });
 

@@ -9,3 +9,4 @@ package-lock.json
 scratch/
 *.log
 *.sql
+output/

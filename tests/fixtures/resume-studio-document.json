@@ -1,0 +1,85 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.3.0",
+    "id": "893819dc-9652-4e89-8694-d34dc6484cd3",
+    "draftId": "41792ef6-cf83-4323-9d80-9ab92fc7c304",
+    "revision": 3,
+    "contentHash": "c50ad5b41759895b6c81e39ee05fc736defdca2093847f1ffc6f8e3059f806e0",
+    "pdfHash": "325a7b9482d1f26977ae6cb57bdc4d71d13b63dc701d24ec2f1ed5265348edb1",
+    "status": "READY",
+    "createdAt": "2026-10-14T18:10:16.522Z",
+    "verification": {
+      "pageCount": 1,
+      "a4": true,
+      "minimumFontPt": 9.997499465942383,
+      "fontsEmbedded": true,
+      "unicodeMaps": true,
+      "wordSpacing": true,
+      "textPreserved": true,
+      "readingOrder": true,
+      "noClipping": true,
+      "noOverlaps": true,
+      "glyphsSafe": true,
+      "docxTextPreserved": true,
+      "marginIn": 0.6,
+      "lineHeight": 1.24,
+      "compiler": "chrome_headless",
+      "failedChecks": []
+    },
+    "pageMap": [
+      {
+        "nodeId": "0ea2b769-b2ea-4344-98df-3bd5272c7881",
+        "pageIndex": 0,
+        "bounds": {
+          "top": 102.46168518066406,
+          "left": 43.5,
+          "width": 266.3755187988281,
+          "height": 13.297454833984375
+        }
+      },
+      {
+        "nodeId": "0e81f9d9-8d49-4b90-8eb2-92c5bf46b084",
+        "pageIndex": 0,
+        "bounds": {
+          "top": 193.21168518066406,
+          "left": 57.4921875,
+          "width": 450.8945617675781,
+          "height": 13.297454833984375
+        }
+      },
+      {
+        "nodeId": "9ed26375-608f-4808-96d0-d6a44f181d60",
+        "pageIndex": 0,
+        "bounds": {
+          "top": 207.46168518066406,
+          "left": 57.4921875,
+          "width": 181.87042236328125,
+          "height": 13.297454833984375
+        }
+      },
+      {
+        "nodeId": "65636588-bd63-4c3e-8255-eaad7d9f5683",
+        "pageIndex": 0,
+        "bounds": {
+          "top": 283.961669921875,
+          "left": 57.4921875,
+          "width": 134.84608459472656,
+          "height": 13.297454833984375
+        }
+      },
+      {
+        "nodeId": "f5fbd30b-b7af-4097-924c-54803c67f54a",
+        "pageIndex": 0,
+        "bounds": {
+          "top": 342.461669921875,
+          "left": 57.4921875,
+          "width": 134.84608459472656,
+          "height": 13.297454833984375
+        }
+      }
+    ],
+    "previewPdfUrl": "/api/v1/resume-studio/drafts/41792ef6-cf83-4323-9d80-9ab92fc7c304/documents/893819dc-9652-4e89-8694-d34dc6484cd3/pdf",
+    "previewImageUrl": "/api/v1/resume-studio/drafts/41792ef6-cf83-4323-9d80-9ab92fc7c304/documents/893819dc-9652-4e89-8694-d34dc6484cd3/png"
+  }
+}

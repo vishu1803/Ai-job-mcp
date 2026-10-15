@@ -84,7 +84,12 @@ export class PortalAdapterRegistry {
         if (typeof adapter.canHandle === 'function' && adapter.canHandle(normalizedDest)) {
           return adapter;
         }
-        if (typeof adapter.canSubmit === 'function' && adapter.canSubmit(typeof normalizedDest === 'string' ? normalizedDest : normalizedDest.url)) {
+        if (
+          typeof adapter.canSubmit === 'function' &&
+          adapter.canSubmit(
+            typeof normalizedDest === 'string' ? normalizedDest : normalizedDest.url
+          )
+        ) {
           return adapter;
         }
       } catch {

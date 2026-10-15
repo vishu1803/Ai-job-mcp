@@ -157,16 +157,8 @@ describe('Overview / Root Route — Authenticated & Public States', () => {
     assert.equal(response.statusCode, 200);
     assert.match(response.headers['content-type'], /text\/html/);
 
-    // Stable semantic dashboard contract: the workspace shell intentionally and
-    // unconditionally renders (a) the authenticated identity greeting,
-    // (b) the canonical "Application Readiness" summary used to drive the
-    // candidate's next action, and (c) the workspace document title. The
-    // candidate headline (when one exists) replaces the generic "Candidate
-    // Workspace" fallback label, so the fallback copy is incidental and must not
-    // be asserted on.
-    assert.match(response.payload, /Good (?:morning|afternoon|evening),\s*[^<]*/i);
-    assert.match(response.payload, /Application Readiness/i);
-    assert.match(response.payload, /<title>Candidate Dashboard \| AI Careers Hub<\/title>/i);
+    assert.match(response.payload, /<title>Overview \| Career Hub<\/title>/i);
+    assert.match(response.payload, /Pick up where you left off/i);
   });
 
   test('6. Unauthenticated GET /dashboard redirects to /login?returnTo=/dashboard', async () => {

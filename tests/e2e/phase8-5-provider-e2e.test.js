@@ -29,9 +29,7 @@ import {
   IcimsPortalAdapter,
   registerAllPortalAdapters,
 } from '../../src/domain/portal/adapters/index.js';
-import {
-  PortalAdapterRegistry,
-} from '../../src/domain/portal/portal-adapter-registry.js';
+import { PortalAdapterRegistry } from '../../src/domain/portal/portal-adapter-registry.js';
 import {
   GenericAutofillEngine,
   genericAutofillEngine,
@@ -45,7 +43,10 @@ import { ValidationError, AuthorizationError } from '../../src/errors/index.js';
 // DOM Mock Helpers with robust CSS selector matching
 function matchesSelector(el, selector) {
   if (!el || !selector) return false;
-  const parts = selector.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = selector
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   for (const part of parts) {
     if (matchesSingleSelector(el, part)) return true;
   }
@@ -58,22 +59,28 @@ function matchesSingleSelector(el, sel) {
   const tagIdMatch = sel.match(/^([a-zA-Z0-9_-]+)?#([a-zA-Z0-9_-]+)$/);
   if (tagIdMatch) {
     const [, requiredTag, id] = tagIdMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     return el.id === id;
   }
 
   const tagClassMatch = sel.match(/^([a-zA-Z0-9_-]+)?\.([a-zA-Z0-9_-]+)$/);
   if (tagClassMatch) {
     const [, requiredTag, cls] = tagClassMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
-    const actualCls = el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
+    const actualCls =
+      el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
     return actualCls.split(/\s+/).includes(cls);
   }
 
-  const quotedAttrMatch = sel.match(/^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/);
+  const quotedAttrMatch = sel.match(
+    /^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/
+  );
   if (quotedAttrMatch) {
     const [, requiredTag, attrName, op, expectedVal] = quotedAttrMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     let actualVal = null;
     if (attrName === 'id') actualVal = el.id;
     else if (attrName === 'name') actualVal = el.name;
@@ -92,7 +99,8 @@ function matchesSingleSelector(el, sel) {
   const multiAttrMatch = sel.match(/^([a-zA-Z0-9_-]+)?((?:\[[^\]]+\])+)$/);
   if (multiAttrMatch) {
     const [, requiredTag, brackets] = multiAttrMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     const singleAttrRegex = /\[([a-zA-Z0-9_:-]+)(?:([\^$*]?=)["']?([^"']*)["']?)?\]/g;
     let match;
     while ((match = singleAttrRegex.exec(brackets)) !== null) {
@@ -256,7 +264,8 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         company: 'CloudScale Networks',
         startDate: '2020-03',
         endDate: 'Present',
-        description: 'Led distributed storage, high-throughput RPC pipelines, and Kubernetes multi-cluster routing.',
+        description:
+          'Led distributed storage, high-throughput RPC pipelines, and Kubernetes multi-cluster routing.',
       },
     ],
   };
@@ -266,7 +275,8 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
     title: 'Lead Platform Reliability Architect',
     company: 'Nexus Cloud Systems',
     location: 'San Francisco, CA / Remote',
-    description: 'Architect mission-critical distributed systems, site reliability engineering, and cloud platforms.',
+    description:
+      'Architect mission-critical distributed systems, site reliability engineering, and cloud platforms.',
     applicationUrl: 'https://boards.greenhouse.io/nexuscloud/jobs/9921',
     source: 'GREENHOUSE',
   };
@@ -340,8 +350,14 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         },
       },
       artifacts: {
-        resume: { filename: 'Elena_Rostova_Resume.pdf', url: 'https://cdn.example.com/resumes/elena.pdf' },
-        coverLetter: { filename: 'Elena_Rostova_CoverLetter.pdf', url: 'https://cdn.example.com/letters/elena.pdf' },
+        resume: {
+          filename: 'Elena_Rostova_Resume.pdf',
+          url: 'https://cdn.example.com/resumes/elena.pdf',
+        },
+        coverLetter: {
+          filename: 'Elena_Rostova_CoverLetter.pdf',
+          url: 'https://cdn.example.com/letters/elena.pdf',
+        },
       },
       answers: {
         custom_why_join: {
@@ -386,18 +402,31 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         createMockDomElement({ id: 'phone', name: 'phone', type: 'tel' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
         createMockDomElement({ id: 'custom_why_join', name: 'custom_why_join' }),
-        createMockDomElement({ id: 'submit_app', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_app',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
 
-      const { formSchema, fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
+      const { formSchema, fillPlan } = await adapter.prepareAutofill(
+        { doc: mockDoc },
+        canonicalPackage
+      );
       assert.strictEqual(formSchema.portalId, 'greenhouse');
       assert.ok(fillPlan.actions.length >= 5);
 
-      const { executionResult, verificationResult } = await adapter.executeAutofill(fillPlan, { doc: mockDoc });
+      const { executionResult, verificationResult } = await adapter.executeAutofill(fillPlan, {
+        doc: mockDoc,
+      });
       assert.ok(executionResult.summary.executed >= 4);
       assert.strictEqual(verificationResult.mismatches.length, 0);
 
-      const handoff = await adapter.submitOrHandoff({ doc: mockDoc, destinationUrl: targetJob.applicationUrl });
+      const handoff = await adapter.submitOrHandoff({
+        doc: mockDoc,
+        destinationUrl: targetJob.applicationUrl,
+      });
       assert.strictEqual(handoff.status, 'HANDOFF_READY');
       assert.strictEqual(handoff.handoffKit.finalSubmitBlocked, true);
       assert.strictEqual(handoff.handoffKit.status, 'READY_FOR_REVIEW');
@@ -415,13 +444,20 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
         createMockDomElement({ id: 'urls_linkedin', name: 'urls[LinkedIn]' }),
         createMockDomElement({ id: 'urls_github', name: 'urls[GitHub]' }),
-        createMockDomElement({ id: 'btn_apply', tagName: 'BUTTON', type: 'submit', textContent: 'Submit application' }),
+        createMockDomElement({
+          id: 'btn_apply',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit application',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
       assert.ok(fillPlan.actions.some((a) => a.name === 'urls[LinkedIn]'));
 
-      const { executionResult, verificationResult } = await adapter.executeAutofill(fillPlan, { doc: mockDoc });
+      const { executionResult, verificationResult } = await adapter.executeAutofill(fillPlan, {
+        doc: mockDoc,
+      });
       assert.ok(executionResult.summary.executed >= 4);
       assert.strictEqual(verificationResult.mismatches.length, 0);
 
@@ -436,11 +472,20 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
       assert.strictEqual(adapter.canHandle(ashbyUrl), true);
 
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'name', name: 'name', attributes: { 'data-testid': 'field-name' } }),
+        createMockDomElement({
+          id: 'name',
+          name: 'name',
+          attributes: { 'data-testid': 'field-name' },
+        }),
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
         createMockDomElement({ id: 'phone', name: 'phoneNumber', type: 'tel' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
-        createMockDomElement({ id: 'submit', tagName: 'BUTTON', type: 'submit', textContent: 'Submit' }),
+        createMockDomElement({
+          id: 'submit',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
@@ -462,11 +507,34 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
       assert.strictEqual(steps[0].name, 'My Information');
 
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'firstName', name: 'firstName', attributes: { 'data-automation-id': 'legalNameSection_firstName' } }),
-        createMockDomElement({ id: 'lastName', name: 'lastName', attributes: { 'data-automation-id': 'legalNameSection_lastName' } }),
-        createMockDomElement({ id: 'email', name: 'email', type: 'email', attributes: { 'data-automation-id': 'email' } }),
-        createMockDomElement({ id: 'phone', name: 'phone', type: 'tel', attributes: { 'data-automation-id': 'phone-number' } }),
-        createMockDomElement({ id: 'submit_wd', tagName: 'BUTTON', type: 'submit', textContent: 'Submit' }),
+        createMockDomElement({
+          id: 'firstName',
+          name: 'firstName',
+          attributes: { 'data-automation-id': 'legalNameSection_firstName' },
+        }),
+        createMockDomElement({
+          id: 'lastName',
+          name: 'lastName',
+          attributes: { 'data-automation-id': 'legalNameSection_lastName' },
+        }),
+        createMockDomElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          attributes: { 'data-automation-id': 'email' },
+        }),
+        createMockDomElement({
+          id: 'phone',
+          name: 'phone',
+          type: 'tel',
+          attributes: { 'data-automation-id': 'phone-number' },
+        }),
+        createMockDomElement({
+          id: 'submit_wd',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
@@ -488,7 +556,12 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
         createMockDomElement({ id: 'phoneNumber', name: 'phoneNumber', type: 'tel' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
-        createMockDomElement({ id: 'submit_sr', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_sr',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
@@ -509,7 +582,12 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
         createMockDomElement({ id: 'lastName', name: 'lastName' }),
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
-        createMockDomElement({ id: 'submit_icims', tagName: 'BUTTON', type: 'submit', textContent: 'Submit' }),
+        createMockDomElement({
+          id: 'submit_icims',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, canonicalPackage);
@@ -592,9 +670,17 @@ describe('Phase 8.5 — Provider Application E2E Pipeline', () => {
     it('TEST 12 — Final State Invariant: State machine transitions to READY_FOR_REVIEW and halts', async () => {
       const adapter = new GreenhousePortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'submit_app', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_app',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
-      const handoff = await adapter.submitOrHandoff({ doc: mockDoc, destinationUrl: targetJob.applicationUrl });
+      const handoff = await adapter.submitOrHandoff({
+        doc: mockDoc,
+        destinationUrl: targetJob.applicationUrl,
+      });
       assert.strictEqual(handoff.status, 'HANDOFF_READY');
       assert.strictEqual(handoff.handoffKit.status, 'READY_FOR_REVIEW');
       assert.strictEqual(handoff.handoffKit.finalSubmitBlocked, true);

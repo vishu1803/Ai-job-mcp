@@ -317,7 +317,11 @@ JavaScript and React experience required.`;
 
     // 1. Direct JobDescriptionParser
     const parsed = await JobDescriptionParser.parse({ rawText: input });
-    assert.equal(parsed.requirements.length, 3, 'JobDescriptionParser must extract exactly 3 requirements');
+    assert.equal(
+      parsed.requirements.length,
+      3,
+      'JobDescriptionParser must extract exactly 3 requirements'
+    );
 
     const eduReq = parsed.requirements.find((r) => r.category === 'EDUCATION');
     assert.ok(eduReq, 'Education must be extracted');

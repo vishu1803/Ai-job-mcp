@@ -16,10 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { handleAnalyzeJobFit } from '../../src/mcp/tools/career-read-tools.js';
-import {
-  BASELINE_JD,
-  createTestCandidateContext,
-} from './phase9-baseline.test.js';
+import { BASELINE_JD, createTestCandidateContext } from './phase9-baseline.test.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,9 +65,21 @@ describe('Phase 9.8 — Anti-Tautological ATS Scoring Invariants', () => {
 
     const breakdown = fitResult.overallFit.scoreBreakdown;
     assert.strictEqual(breakdown.rawScore, 69.25, 'Raw score must be exactly 69.25');
-    assert.strictEqual(breakdown.requiredSkillsScore, 35.0, 'Required skills component matches 35.0');
-    assert.strictEqual(breakdown.preferredSkillsScore, 8.44, 'Preferred skills component matches 8.44');
-    assert.strictEqual(breakdown.isCapped, false, 'Candidate with zero critical missing required skills is uncapped');
+    assert.strictEqual(
+      breakdown.requiredSkillsScore,
+      35.0,
+      'Required skills component matches 35.0'
+    );
+    assert.strictEqual(
+      breakdown.preferredSkillsScore,
+      8.44,
+      'Preferred skills component matches 8.44'
+    );
+    assert.strictEqual(
+      breakdown.isCapped,
+      false,
+      'Candidate with zero critical missing required skills is uncapped'
+    );
     assert.strictEqual(fitResult.overallFit.atsScore, 69.25, 'ATS score equals 69.25');
   });
 
@@ -118,7 +127,11 @@ Terraform, Kafka, Raft Protocol.`;
     const score = fitResult.overallFit.atsScore;
     assert.ok(score < 50.0, `Candidate with 0 skills must score < 50.0, got ${score}`);
     assert.strictEqual(score, 18.0, 'Candidate with 0 skills scores exactly 18.0');
-    assert.strictEqual(fitResult.overallFit.scoreBreakdown.requiredSkillsScore, 0.0, 'Required skills score must be 0');
+    assert.strictEqual(
+      fitResult.overallFit.scoreBreakdown.requiredSkillsScore,
+      0.0,
+      'Required skills score must be 0'
+    );
   });
 
   it('TEST 5 — Static codebase gate: Zero tautological assertions across all test suites', () => {
@@ -138,7 +151,8 @@ Terraform, Kafka, Raft Protocol.`;
     const testFiles = walkDir(path.join(REPO_ROOT, 'tests'));
     assert.ok(testFiles.length > 20, 'Expected at least 20 test files in tests/ directory');
 
-    const tautologicalRegex = /assert\.(strictEqual|equal|deepStrictEqual|deepEqual)\(\s*([0-9.]+)\s*,\s*\2\s*(?:,\s*.*?)?\)/g;
+    const tautologicalRegex =
+      /assert\.(strictEqual|equal|deepStrictEqual|deepEqual)\(\s*([0-9.]+)\s*,\s*\2\s*(?:,\s*.*?)?\)/g;
     const violations = [];
 
     for (const file of testFiles) {

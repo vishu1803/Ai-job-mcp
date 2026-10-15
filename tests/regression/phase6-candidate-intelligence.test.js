@@ -79,7 +79,10 @@ function makeCandidateProfile(overrides = {}) {
     resources: overrides.resources || [{ id: MOCK_REPO_ID, name: 'web-repo' }],
     identities: [],
     profileMetadata: overrides.profileMetadata || {},
-    tenureMetrics: 'tenureMetrics' in overrides ? overrides.tenureMetrics : { professionalTenureYears: 3, professionalTenureMonths: 36 },
+    tenureMetrics:
+      'tenureMetrics' in overrides
+        ? overrides.tenureMetrics
+        : { professionalTenureYears: 3, professionalTenureMonths: 36 },
     workHistory: overrides.workHistory || [],
     education: overrides.education || [],
     jobPreferences: overrides.jobPreferences || {},
@@ -249,7 +252,14 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
       projects: [
         {
           id: randomUUID(),
-          evidenceItems: [{ id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_USAGE', filePath: 'src/App.jsx' }],
+          evidenceItems: [
+            {
+              id: randomUUID(),
+              skillSlug: 'react',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/App.jsx',
+            },
+          ],
         },
       ],
     });
@@ -286,7 +296,14 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
         {
           id: randomUUID(),
           metadata: { domain: 'fintech' },
-          evidenceItems: [{ id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_USAGE', filePath: 'src/App.jsx' }],
+          evidenceItems: [
+            {
+              id: randomUUID(),
+              skillSlug: 'react',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/App.jsx',
+            },
+          ],
         },
       ],
       tenureMetrics: { professionalTenureYears: 0, professionalTenureMonths: 0 },
@@ -321,14 +338,29 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
         {
           id: randomUUID(),
           evidenceItems: [
-            { id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_USAGE', filePath: 'src/App.jsx' },
-            { id: randomUUID(), skillSlug: 'react', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'package.json' },
+            {
+              id: randomUUID(),
+              skillSlug: 'react',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/App.jsx',
+            },
+            {
+              id: randomUUID(),
+              skillSlug: 'react',
+              evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+              filePath: 'package.json',
+            },
           ],
         },
         {
           id: randomUUID(),
           evidenceItems: [
-            { id: randomUUID(), skillSlug: 'react', evidenceType: 'CODE_USAGE', filePath: 'src/components/Header.jsx' },
+            {
+              id: randomUUID(),
+              skillSlug: 'react',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/components/Header.jsx',
+            },
           ],
         },
       ],
@@ -381,7 +413,10 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
   // TEST 8 — Generated-code boundaries (__generated__, dist, build, lockfiles) are blocked
   // ---------------------------------------------------------------------------
   it('TEST 8 — Generated-code boundaries (__generated__, .next, dist) are blocked from high trust', () => {
-    const lockfileEv = { filePath: 'package-lock.json', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY' };
+    const lockfileEv = {
+      filePath: 'package-lock.json',
+      evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+    };
     const distEv = { filePath: 'dist/bundle.js', evidenceType: 'CODE_USAGE' };
     const nextEv = { filePath: '.next/server/pages/index.js', evidenceType: 'CODE_USAGE' };
     const genEv = { filePath: 'src/__generated__/types.ts', evidenceType: 'CODE_USAGE' };
@@ -518,7 +553,11 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
     };
 
     const resAuth = ProjectRelevanceService.computeProjectRelevance(context, jd, authenticProject);
-    const resSuperficial = ProjectRelevanceService.computeProjectRelevance(context, jd, superficialProject);
+    const resSuperficial = ProjectRelevanceService.computeProjectRelevance(
+      context,
+      jd,
+      superficialProject
+    );
 
     assert.ok(resAuth.relevanceScore > resSuperficial.relevanceScore);
     assert.ok(
@@ -533,14 +572,18 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
   it('TEST 12 — Education isolation: Academic degree does not fabricate technical skill matches', () => {
     const context = makeContext();
     const jd = makeJobDescription([
-      { name: "Bachelor's degree in Computer Science", category: 'EDUCATION', importance: 'REQUIRED' },
+      {
+        name: "Bachelor's degree in Computer Science",
+        category: 'EDUCATION',
+        importance: 'REQUIRED',
+      },
       { name: 'Kubernetes', skillSlug: 'kubernetes', category: 'SKILL', importance: 'REQUIRED' },
     ]);
 
     const candidate = makeCandidateProfile({
       skills: [], // No Kubernetes
       profileMetadata: {
-        education: [{ degree: "Bachelor of Science in Computer Science", level: 'BACHELOR' }],
+        education: [{ degree: 'Bachelor of Science in Computer Science', level: 'BACHELOR' }],
       },
     });
 
@@ -563,7 +606,19 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
 
     const candidate = makeCandidateProfile({
       skills: [{ id: randomUUID(), slug: 'aws', name: 'AWS', provenanceStatus: 'VERIFIED' }],
-      projects: [{ id: randomUUID(), evidenceItems: [{ id: randomUUID(), skillSlug: 'aws', evidenceType: 'CODE_USAGE', filePath: 'infra/aws.tf' }] }],
+      projects: [
+        {
+          id: randomUUID(),
+          evidenceItems: [
+            {
+              id: randomUUID(),
+              skillSlug: 'aws',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'infra/aws.tf',
+            },
+          ],
+        },
+      ],
       profileMetadata: { certifications: [] },
     });
 
@@ -581,7 +636,12 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
   it('TEST 14 — Location vs authorization isolation: Geographic residency does not infer legal work authorization', () => {
     const context = makeContext();
     const jd = makeJobDescription([
-      { name: 'Authorized to work in India', category: 'ELIGIBILITY', importance: 'REQUIRED', normalizedCriteria: { acceptedCountries: ['India'] } },
+      {
+        name: 'Authorized to work in India',
+        category: 'ELIGIBILITY',
+        importance: 'REQUIRED',
+        normalizedCriteria: { acceptedCountries: ['India'] },
+      },
     ]);
 
     // Candidate has location = 'India', but work authorization record is null/unstated
@@ -604,7 +664,12 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
   it('TEST 15 — Domain evidence grounds in authentic project metadata and repository domain topics', () => {
     const context = makeContext();
     const jd = makeJobDescription([
-      { name: 'Fintech domain experience', category: 'DOMAIN', extractedValue: 'fintech', importance: 'PREFERRED' },
+      {
+        name: 'Fintech domain experience',
+        category: 'DOMAIN',
+        extractedValue: 'fintech',
+        importance: 'PREFERRED',
+      },
     ]);
 
     const candidate = makeCandidateProfile({
@@ -630,7 +695,12 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
   it('TEST 16 — Negative evidence semantics: Absence of record yields UNKNOWN rather than fabricated rejection', () => {
     const context = makeContext();
     const jd = makeJobDescription([
-      { name: "Master's degree", category: 'EDUCATION', importance: 'REQUIRED', normalizedCriteria: { degreeLevel: 'MASTER' } },
+      {
+        name: "Master's degree",
+        category: 'EDUCATION',
+        importance: 'REQUIRED',
+        normalizedCriteria: { degreeLevel: 'MASTER' },
+      },
     ]);
 
     // Candidate provides 0 education records
@@ -660,8 +730,20 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
     // Candidate has Fastify (implements REST API) and MySQL (peer implements relational database with PostgreSQL)
     const candidate = makeCandidateProfile({
       skills: [
-        { id: randomUUID(), slug: 'fastify', name: 'Fastify', provenanceStatus: 'VERIFIED', confidenceScore: 1.0 },
-        { id: randomUUID(), slug: 'mysql', name: 'MySQL', provenanceStatus: 'VERIFIED', confidenceScore: 1.0 },
+        {
+          id: randomUUID(),
+          slug: 'fastify',
+          name: 'Fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 1.0,
+        },
+        {
+          id: randomUUID(),
+          slug: 'mysql',
+          name: 'MySQL',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 1.0,
+        },
       ],
     });
 
@@ -703,7 +785,12 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
       },
       tenureMetrics: null,
       workHistory: [
-        { company: 'Tech Corp', title: 'Software Engineer', durationYears: 1, employmentType: 'FULL_TIME' },
+        {
+          company: 'Tech Corp',
+          title: 'Software Engineer',
+          durationYears: 1,
+          employmentType: 'FULL_TIME',
+        },
       ],
     });
 
@@ -789,14 +876,24 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
           id: randomUUID(),
           name: 'backend-service',
           evidenceItems: [
-            { id: randomUUID(), skillSlug: 'node-js', evidenceType: 'CODE_USAGE', filePath: 'src/index.js', resourceId: MOCK_REPO_ID },
+            {
+              id: randomUUID(),
+              skillSlug: 'node-js',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/index.js',
+              resourceId: MOCK_REPO_ID,
+            },
           ],
         },
       ],
     });
 
     // 1. Direct canonical matching service
-    const directAnalysis = EvidenceMatchingService.matchJobToCandidate(makeContext(), jd, candidate);
+    const directAnalysis = EvidenceMatchingService.matchJobToCandidate(
+      makeContext(),
+      jd,
+      candidate
+    );
 
     // 2. Extension serialization
     const extensionSerialized = serializeRequirementMatchesForExtension(directAnalysis);
@@ -844,7 +941,8 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
       { tenantId: MOCK_TENANT_ID },
       {
         candidateId: candidate.id,
-        jobDescriptionText: 'We are seeking a backend engineer.\n\nRequired:\n- Node.js\n- Docker\n\nYou will build backend microservices.',
+        jobDescriptionText:
+          'We are seeking a backend engineer.\n\nRequired:\n- Node.js\n- Docker\n\nYou will build backend microservices.',
         jobTitle: 'Backend Engineer',
       },
       mockDeps
@@ -853,7 +951,9 @@ describe('Phase 6 — Candidate Intelligence & Evidence Graph', () => {
     assert.ok(mcpResult);
     assert.equal(mcpResult.overallFit.analysisStatus, 'COMPLETE');
     assert.ok(mcpResult.requirementMatches.length >= 2);
-    const mcpNodeMatch = mcpResult.requirementMatches.find((m) => m.skillSlug === 'node-js' || m.normalizedRequirement === 'Node.js');
+    const mcpNodeMatch = mcpResult.requirementMatches.find(
+      (m) => m.skillSlug === 'node-js' || m.normalizedRequirement === 'Node.js'
+    );
     assert.ok(mcpNodeMatch);
     assert.equal(mcpNodeMatch.matchStatus, 'MATCHED');
   });

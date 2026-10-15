@@ -161,7 +161,9 @@ export function resolveRequirementImportance(raw, text, sectionContext = null) {
   if (/\b(must|required|requirements?|minimum|essential|need to)\b/i.test(text)) {
     return { label: 'REQUIRED', weight: 1.0 };
   }
-  if (/\b(preferred|ideally|nice to have|bonus|plus|desired|desirable|advantageous)\b/i.test(text)) {
+  if (
+    /\b(preferred|ideally|nice to have|bonus|plus|desired|desirable|advantageous)\b/i.test(text)
+  ) {
     return { label: 'PREFERRED', weight: 0.7 };
   }
 
@@ -204,10 +206,7 @@ const RESPONSIBILITY_ALT_HEADER_RE =
 function isResponsibilityHeaderOrProse(line) {
   if (!line || typeof line !== 'string') return false;
   const trimmed = line.trim();
-  return (
-    RESPONSIBILITY_HEADER_RE.test(trimmed) ||
-    RESPONSIBILITY_ALT_HEADER_RE.test(trimmed)
-  );
+  return RESPONSIBILITY_HEADER_RE.test(trimmed) || RESPONSIBILITY_ALT_HEADER_RE.test(trimmed);
 }
 
 function isArtificialProseFragment(text, raw) {
@@ -258,10 +257,11 @@ export function parseJobDescriptionSections(description) {
   const items = [];
   let currentSection = null;
 
-  const hasSectionHeaders = lines.some((l) =>
-    /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?|preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):?/i.test(
-      l
-    ) || isResponsibilityHeaderOrProse(l)
+  const hasSectionHeaders = lines.some(
+    (l) =>
+      /^(?:required(?:\s+(?:qualifications?|skills?|experience|requirements?))?|requirements?|qualifications?|(?:you\s+)?must[\s-]haves?|you\s+must\s+have|skills?|preferred(?:\s+(?:qualifications?|skills?|experience|requirements?))?|nice[\s-]to[\s-]have|bonus|pluses|additional|desired|good[\s-]to[\s-]have|optional):?/i.test(
+        l
+      ) || isResponsibilityHeaderOrProse(l)
   );
   const hasBullets = lines.some((l) => /^[-*•]\s*/.test(l));
 
@@ -382,7 +382,6 @@ export function parseJobDescriptionSections(description) {
       continue;
     }
 
-
     // Non-requirement section headers (Company overview, culture, values, EEO/diversity, compensation/benefits)
     if (
       /^(?:#{1,6}\s*)?(?:about\s+(?:the\s+)?(?:company|us|our\s+mission)|about\s+(?!the\s+(?:role|position|job)|you\b)[a-zA-Z0-9_-]+|who\s+we\s+are|why\s+[a-zA-Z0-9_-]+|company\s+overview|company\s+description|our\s+mission|our\s+story|our\s+culture|life\s+at\s+[a-zA-Z0-9_-]+|employer\s+brand|our\s+values?|core\s+values?|company\s+values?|our\s+culture)[:\s-]*/i.test(
@@ -442,7 +441,9 @@ export function parseJobDescriptionSections(description) {
       .trim();
     if (!cleanLine) continue;
 
-    const isEdu = /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree\s+in)\b/i.test(cleanLine);
+    const isEdu = /\b(?:bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|doctorate|degree\s+in)\b/i.test(
+      cleanLine
+    );
     if (isEdu) {
       const nextLine = lineIdx + 1 < lines.length ? lines[lineIdx + 1].trim() : '';
       const isContinuation =

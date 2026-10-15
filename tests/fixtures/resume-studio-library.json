@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": {
+    "contractVersion": "1.4.0",
+    "drafts": [
+      {
+        "id": "a58b3bda-c835-4357-b54c-3a98d4a10a72",
+        "revision": 1,
+        "sourceResumeId": "f49189d1-2f56-474a-a572-5c300e0c081b",
+        "sourceVersion": 1,
+        "title": "Frontend Engineer",
+        "company": "Synthetic Systems",
+        "updatedAt": "2026-10-15T04:04:12.247Z",
+        "href": "/resume-studio?draftId=a58b3bda-c835-4357-b54c-3a98d4a10a72"
+      }
+    ],
+    "nextOffset": null
+  }
+}

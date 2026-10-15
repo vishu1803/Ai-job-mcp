@@ -1,0 +1,15 @@
+{
+  "pid": 25916,
+  "worktree": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-backend",
+  "branch": "backend/resume-studio-20261014",
+  "baseUrl": "http://127.0.0.1:4317",
+  "studioUrl": "http://127.0.0.1:4317/resume-studio?draftId=ac572b4d-5fad-4d01-9732-fa50cf50a1ae",
+  "loginUrl": "http://127.0.0.1:4317/auth/dev-login?e2e=1&returnTo=%2Fresume-studio%3FdraftId%3Dac572b4d-5fad-4d01-9732-fa50cf50a1ae",
+  "migrations": 25,
+  "database": "product_audit_resume_studio",
+  "databasePort": 55447,
+  "tenantIds": ["ddc7804b-f83e-46cc-9fba-d537a4b4ca0d", "79c5b46d-6e86-41b5-bcdf-331f563985bf"],
+  "draftId": "ac572b4d-5fad-4d01-9732-fa50cf50a1ae",
+  "provider": "Deterministic synthetic fixture; no live AI requests",
+  "startedAt": "2026-10-14T20:15:19.671Z"
+}

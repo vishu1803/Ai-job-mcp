@@ -1,0 +1,93 @@
+{
+  "contractVersion": "1.4.0",
+  "query": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50,
+        "default": 20
+      },
+      "offset": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10000,
+        "default": 0
+      }
+    },
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  },
+  "responseData": {
+    "type": "object",
+    "properties": {
+      "contractVersion": {
+        "type": "string",
+        "const": "1.4.0"
+      },
+      "drafts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "revision": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "sourceResumeId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sourceVersion": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "title": {
+              "type": "string"
+            },
+            "company": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "href": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "revision",
+            "sourceResumeId",
+            "sourceVersion",
+            "title",
+            "company",
+            "updatedAt",
+            "href"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "nextOffset": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": ["contractVersion", "drafts", "nextOffset"],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

@@ -79,7 +79,8 @@ describe('MCP <-> Extension Unified Pipeline Parity Integration Suite', () => {
   // Canonical Job Fixture
   const jobTitle = 'Junior Full Stack Engineer';
   const companyName = 'TechCorp Inc';
-  const jobPostingUrl = 'https://boards.greenhouse.io/techcorp/jobs/987654321?utm_source=linkedin&ref=board';
+  const jobPostingUrl =
+    'https://boards.greenhouse.io/techcorp/jobs/987654321?utm_source=linkedin&ref=board';
 
   const jobDescription = `About the Role:
 We are seeking a talented Junior Full Stack Engineer to join our growing engineering team at TechCorp Inc.
@@ -187,7 +188,16 @@ Responsibilities:
           systemInferred: { onboardingState: 'COMPLETED' },
           resumeData: {
             identity: { fullName: 'Devon Fullstack', email: user.email, phone: '+1-555-0199' },
-            skills: ['JavaScript', 'React', 'PostgreSQL', 'Git', 'Next.js', 'FastAPI', 'Node.js', 'Docker'],
+            skills: [
+              'JavaScript',
+              'React',
+              'PostgreSQL',
+              'Git',
+              'Next.js',
+              'FastAPI',
+              'Node.js',
+              'Docker',
+            ],
           },
         },
       })
@@ -242,16 +252,46 @@ Responsibilities:
     // Verified skills: JavaScript, React, PostgreSQL, Git, Next.js, FastAPI
     // Self-declared skills (NO repository evidence): Node.js, Docker
     const skillSpecs = [
-      { name: 'JavaScript', slug: 'javascript', category: 'LANGUAGE', provenance: 'VERIFIED', conf: 0.95 },
+      {
+        name: 'JavaScript',
+        slug: 'javascript',
+        category: 'LANGUAGE',
+        provenance: 'VERIFIED',
+        conf: 0.95,
+      },
       { name: 'React', slug: 'react', category: 'FRAMEWORK', provenance: 'VERIFIED', conf: 0.95 },
-      { name: 'PostgreSQL', slug: 'postgresql', category: 'DATABASE', provenance: 'VERIFIED', conf: 0.90 },
-      { name: 'Git', slug: 'git', category: 'TOOL', provenance: 'VERIFIED', conf: 0.90 },
-      { name: 'Next.js', slug: 'next-js', category: 'FRAMEWORK', provenance: 'VERIFIED', conf: 0.90 },
-      { name: 'FastAPI', slug: 'fastapi', category: 'FRAMEWORK', provenance: 'VERIFIED', conf: 0.90 },
+      {
+        name: 'PostgreSQL',
+        slug: 'postgresql',
+        category: 'DATABASE',
+        provenance: 'VERIFIED',
+        conf: 0.9,
+      },
+      { name: 'Git', slug: 'git', category: 'TOOL', provenance: 'VERIFIED', conf: 0.9 },
+      {
+        name: 'Next.js',
+        slug: 'next-js',
+        category: 'FRAMEWORK',
+        provenance: 'VERIFIED',
+        conf: 0.9,
+      },
+      {
+        name: 'FastAPI',
+        slug: 'fastapi',
+        category: 'FRAMEWORK',
+        provenance: 'VERIFIED',
+        conf: 0.9,
+      },
       // Node.js: Candidate self-declared skill (no repository evidence)
-      { name: 'Node.js', slug: 'node-js', category: 'FRAMEWORK', provenance: 'SELF_DECLARED', conf: 0.85 },
+      {
+        name: 'Node.js',
+        slug: 'node-js',
+        category: 'FRAMEWORK',
+        provenance: 'SELF_DECLARED',
+        conf: 0.85,
+      },
       // Docker: Candidate self-declared skill (no repository evidence)
-      { name: 'Docker', slug: 'docker', category: 'TOOL', provenance: 'SELF_DECLARED', conf: 0.80 },
+      { name: 'Docker', slug: 'docker', category: 'TOOL', provenance: 'SELF_DECLARED', conf: 0.8 },
     ];
 
     for (const spec of skillSpecs) {
@@ -283,7 +323,10 @@ Responsibilities:
         confidenceScore: spec.conf,
         provenanceStatus: spec.provenance,
         evidenceCount: spec.provenance === 'VERIFIED' ? 1 : 0,
-        metadata: spec.provenance === 'SELF_DECLARED' ? { isUserClaim: true, userClaimNote: 'Self-reported' } : {},
+        metadata:
+          spec.provenance === 'SELF_DECLARED'
+            ? { isUserClaim: true, userClaimNote: 'Self-reported' }
+            : {},
       });
     }
   });
@@ -423,12 +466,20 @@ Responsibilities:
       const mcpMatch = mcpMatchesMap.get(skill);
       assert.ok(mcpMatch, `MCP must contain match for required skill '${skill}'`);
       assert.equal(mcpMatch.required, true, `MCP '${skill}' must have required: true`);
-      assert.equal(mcpMatch.importance, 'REQUIRED', `MCP '${skill}' must have importance: REQUIRED`);
+      assert.equal(
+        mcpMatch.importance,
+        'REQUIRED',
+        `MCP '${skill}' must have importance: REQUIRED`
+      );
 
       const extMatch = extMatchesMap.get(skill);
       assert.ok(extMatch, `Extension must contain match for required skill '${skill}'`);
       assert.equal(extMatch.required, true, `Extension '${skill}' must have required: true`);
-      assert.equal(extMatch.importance, 'REQUIRED', `Extension '${skill}' must have importance: REQUIRED`);
+      assert.equal(
+        extMatch.importance,
+        'REQUIRED',
+        `Extension '${skill}' must have importance: REQUIRED`
+      );
     }
 
     // B. All 4 preferred skills must have required: false and importance: 'PREFERRED' across both
@@ -436,12 +487,20 @@ Responsibilities:
       const mcpMatch = mcpMatchesMap.get(skill);
       assert.ok(mcpMatch, `MCP must contain match for preferred skill '${skill}'`);
       assert.equal(mcpMatch.required, false, `MCP '${skill}' must have required: false`);
-      assert.equal(mcpMatch.importance, 'PREFERRED', `MCP '${skill}' must have importance: PREFERRED`);
+      assert.equal(
+        mcpMatch.importance,
+        'PREFERRED',
+        `MCP '${skill}' must have importance: PREFERRED`
+      );
 
       const extMatch = extMatchesMap.get(skill);
       assert.ok(extMatch, `Extension must contain match for preferred skill '${skill}'`);
       assert.equal(extMatch.required, false, `Extension '${skill}' must have required: false`);
-      assert.equal(extMatch.importance, 'PREFERRED', `Extension '${skill}' must have importance: PREFERRED`);
+      assert.equal(
+        extMatch.importance,
+        'PREFERRED',
+        `Extension '${skill}' must have importance: PREFERRED`
+      );
     }
 
     // C. Required skills score must be strictly > 0 (proving Bug A is permanently solved)
@@ -523,7 +582,9 @@ Responsibilities:
 
     assert.ok(resumeResult.structuredResume);
     // Find Node.js and Docker in structuredResume skills
-    const allResumeSkills = resumeResult.structuredResume.skills.categories.flatMap((c) => c.skills);
+    const allResumeSkills = resumeResult.structuredResume.skills.categories.flatMap(
+      (c) => c.skills
+    );
     const nodeInResume = allResumeSkills.find((s) => s.slug === 'node-js' || s.name === 'Node.js');
     if (nodeInResume) {
       assert.notEqual(
@@ -556,7 +617,9 @@ Responsibilities:
     assert.ok(coverLetterResult.paragraphs);
     for (const p of coverLetterResult.paragraphs) {
       assert.notEqual(p.status, 'SELF_DECLARED', 'Must not emit legacy SELF_DECLARED');
-      assert.ok(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING_EVIDENCE', 'UNKNOWN'].includes(p.status));
+      assert.ok(
+        ['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING_EVIDENCE', 'UNKNOWN'].includes(p.status)
+      );
     }
   });
 
@@ -580,7 +643,12 @@ Responsibilities:
       url: '/api/extension/analyze-job',
       headers: { authorization: `Bearer ${session.rawToken}` },
       payload: {
-        job: { title: jobTitle, company: companyName, sourceUrl: jobPostingUrl, description: jobDescription },
+        job: {
+          title: jobTitle,
+          company: companyName,
+          sourceUrl: jobPostingUrl,
+          description: jobDescription,
+        },
       },
     });
     const extResult = JSON.parse(extRes.payload);
@@ -606,13 +674,29 @@ Responsibilities:
     const mcpBd = mcpResult.overallFit.scoreBreakdown;
     const extBd = extResult.fitAnalysis.overallFit.scoreBreakdown;
 
-    assert.equal(mcpBd.requiredSkillsScore, extBd.requiredSkillsScore, 'requiredSkillsScore parity');
-    assert.equal(mcpBd.preferredSkillsScore, extBd.preferredSkillsScore, 'preferredSkillsScore parity');
+    assert.equal(
+      mcpBd.requiredSkillsScore,
+      extBd.requiredSkillsScore,
+      'requiredSkillsScore parity'
+    );
+    assert.equal(
+      mcpBd.preferredSkillsScore,
+      extBd.preferredSkillsScore,
+      'preferredSkillsScore parity'
+    );
     assert.equal(mcpBd.experienceFitScore, extBd.experienceFitScore, 'experienceFitScore parity');
     assert.equal(mcpBd.seniorityFitScore, extBd.seniorityFitScore, 'seniorityFitScore parity');
-    assert.equal(mcpBd.semanticSimilarityScore, extBd.semanticSimilarityScore, 'semanticSimilarityScore parity');
+    assert.equal(
+      mcpBd.semanticSimilarityScore,
+      extBd.semanticSimilarityScore,
+      'semanticSimilarityScore parity'
+    );
     assert.equal(mcpBd.qualityScore, extBd.qualityScore, 'qualityScore parity');
-    assert.equal(mcpBd.bonusDeductionScore, extBd.bonusDeductionScore, 'bonusDeductionScore parity');
+    assert.equal(
+      mcpBd.bonusDeductionScore,
+      extBd.bonusDeductionScore,
+      'bonusDeductionScore parity'
+    );
   });
 
   // ---------------------------------------------------------------------------

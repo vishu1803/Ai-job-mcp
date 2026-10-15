@@ -1,0 +1,858 @@
+{
+  "source": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-hub-unified-design-20261015-f06b23c1-ce84-4580-a21d-109e64ab573f",
+  "copiedFiles": [
+    {
+      "path": "plan.html",
+      "sha256": "5388232f546ea624c83f33205ff7c6a8ba9aef697c9d1eacbcbec424f62971bd"
+    },
+    {
+      "path": "review.html",
+      "sha256": "c99fb69d5828ed74c297d63ec9200f8d10ce66f86f12b662425b69bf83c374bb"
+    },
+    {
+      "path": "UNIFIED-PRODUCT-PLAN.md",
+      "sha256": "a3cba2f55758e4981fb538ae914f8b199b5afb88a76ffe2871b1c618c3f88286"
+    },
+    {
+      "path": "navigation-map.svg",
+      "sha256": "ecdeed0208a3783a01a63a45cea48287fdf1600efb942d82c8bd4cd35a76120d"
+    },
+    {
+      "path": "candidate-journeys.svg",
+      "sha256": "051df916ea92d8c789e5dace7a72938bd0f8b9055eea8d149291463b790a3a95"
+    },
+    {
+      "path": "proposed-tokens.json",
+      "sha256": "f87713604b50c409f372b937e44288e1d58bc4f2b0d6c15fc1bdc0578bc4e7df"
+    },
+    {
+      "path": "wireframe-manifest.json",
+      "sha256": "23e27d95ab9944038de7af7a72d5796469f680db56f80e1780fcdaa77f26d480"
+    },
+    {
+      "path": "browser-audit.json",
+      "sha256": "dec86ce8d5a01b9547aade52c8bf4bb39a79bf15097f396765dfa2593d1b5f97"
+    },
+    {
+      "path": "additional-browser-audit.json",
+      "sha256": "5fedfdeef74c4906d04622b0df9f88a3428dba82aea263a6d331e816b693eb5c"
+    },
+    {
+      "path": "artifact-verification.json",
+      "sha256": "41f7585148a54d6b04983aa905b34770dceb583ac73201f84dcc2c796ec7b61e"
+    },
+    {
+      "path": "source-state-before.json",
+      "sha256": "7f999b13e6b29c0ad99c611a80ca8f677194bcaafac70da77f3e0a4c74c95013"
+    },
+    {
+      "path": "source-state-after.json",
+      "sha256": "285a379b2c5df75514afff4285882863fbf24586450469910ba23d5772f57258"
+    },
+    {
+      "path": "wireframes\\applications-desktop-dark.png",
+      "sha256": "2342f82c75c8840498b3be4da7101c64611c33045f931fc16cbb007bdae32c67"
+    },
+    {
+      "path": "wireframes\\applications-desktop-dark.svg",
+      "sha256": "1198bf57c88572b6af9237f2a252ec78dd50a949407f178f378bf9504990258e"
+    },
+    {
+      "path": "wireframes\\applications-desktop-light.png",
+      "sha256": "24153a0bbffed6552e97d530eb2de11ad77bab820aa3dd6cd5e8e525eaaa55f8"
+    },
+    {
+      "path": "wireframes\\applications-desktop-light.svg",
+      "sha256": "c410e0e11bc12b6822a0124fed82cc1a431799ddee850911db14fa52a87e42da"
+    },
+    {
+      "path": "wireframes\\applications-mobile-dark.png",
+      "sha256": "6fe09a8ee7dafbc3066b9d14bde155a4035855d2aa4976b72ea67fa2ad73fb2b"
+    },
+    {
+      "path": "wireframes\\applications-mobile-dark.svg",
+      "sha256": "801e335dcf0f6779758cd72caa86ab1e30351454f2e7b9712c0d206780c2284e"
+    },
+    {
+      "path": "wireframes\\applications-mobile-light.png",
+      "sha256": "1f3e52cf6cfc9bd3c64e9a74d32078c9d80b887cb4020f33cd3141e917c939cb"
+    },
+    {
+      "path": "wireframes\\applications-mobile-light.svg",
+      "sha256": "82f645fdfc521d566fcb91cc31ef2bf19f6a7e94256ef69ced069ed70e10a745"
+    },
+    {
+      "path": "wireframes\\handoff-desktop-dark.png",
+      "sha256": "efd7ab57c708375e4bccbed03492ff78a262ba94b0a25db91f3141c60e096b01"
+    },
+    {
+      "path": "wireframes\\handoff-desktop-dark.svg",
+      "sha256": "c0a1dfe31b19de0c76ca028163a4dad0349c8cbb6e6e6d4f6505f85dd0a3546f"
+    },
+    {
+      "path": "wireframes\\handoff-desktop-light.png",
+      "sha256": "23b7c50681140232ed72873fc0cde3c3d07797d5b2a3e442faeca6fcaa238523"
+    },
+    {
+      "path": "wireframes\\handoff-desktop-light.svg",
+      "sha256": "717f261f75f2f406c54fb83979348c6c2ffc2edb8b330a064f7198872dbe945a"
+    },
+    {
+      "path": "wireframes\\handoff-mobile-dark.png",
+      "sha256": "978c8580f829b42aaca4e30162d2c00c9338fb264eec83d03eef936765d7c858"
+    },
+    {
+      "path": "wireframes\\handoff-mobile-dark.svg",
+      "sha256": "b73a92f6a248a7bc1c9c157e7145d9f9906bad945c0e02524e41d673d4db5036"
+    },
+    {
+      "path": "wireframes\\handoff-mobile-light.png",
+      "sha256": "c002f242da051e0c7d626efbbd36c66eaef8fb0474b4ff9650f159acada367de"
+    },
+    {
+      "path": "wireframes\\handoff-mobile-light.svg",
+      "sha256": "b734ba2167e0b5396f02e94488a33518b3ccc3881510c3f6c7b7b5edc1c39465"
+    },
+    {
+      "path": "wireframes\\job-detail-desktop-dark.png",
+      "sha256": "47b1db23641a0930676cb1ac6fcb611683474f8ba51c1f8e54c51e4bb9b0b7aa"
+    },
+    {
+      "path": "wireframes\\job-detail-desktop-dark.svg",
+      "sha256": "d3e2eeb399783eaadd81d2fa733358543d38fa109135a0e97f412ae2fbbb1745"
+    },
+    {
+      "path": "wireframes\\job-detail-desktop-light.png",
+      "sha256": "e70156b882c2f256fb7597c9d0869ba76b7b193cfd985f9317027d4f4422b147"
+    },
+    {
+      "path": "wireframes\\job-detail-desktop-light.svg",
+      "sha256": "bb3b272db4101fad6cbeb5a93d637da4de611eb76fc3f2512f7afeeb709d8ae5"
+    },
+    {
+      "path": "wireframes\\job-detail-mobile-dark.png",
+      "sha256": "dc20de1cdec9d2b188727730da793bb3349a11b8abfda1013878ae1de843567f"
+    },
+    {
+      "path": "wireframes\\job-detail-mobile-dark.svg",
+      "sha256": "cc80f8a768e24fe2f725341f44e61f71c7b8b77d39c951c2436f1cc49a0d38be"
+    },
+    {
+      "path": "wireframes\\job-detail-mobile-light.png",
+      "sha256": "8745e2716ebe50afd6c39703a060ca448813c55dc0941f6e914f94dd50e53819"
+    },
+    {
+      "path": "wireframes\\job-detail-mobile-light.svg",
+      "sha256": "9509acf482ac43feafb22d8b0844f2ef7ee1ac202da968e20409a90f76d06772"
+    },
+    {
+      "path": "wireframes\\jobs-desktop-dark.png",
+      "sha256": "f65cce7cc5c6edcad10ea8d8fbfabd291e0f4dd7c241b99013c2110bf8abbc08"
+    },
+    {
+      "path": "wireframes\\jobs-desktop-dark.svg",
+      "sha256": "b0043c4ae591be1a1080ccb736b2e32cb8e3f480d755045c6ca9451c46dc77a0"
+    },
+    {
+      "path": "wireframes\\jobs-desktop-light.png",
+      "sha256": "2772ee4ab29c8dd6a5cf278effcaa6687e409b515f9a427ff546d660417a6f57"
+    },
+    {
+      "path": "wireframes\\jobs-desktop-light.svg",
+      "sha256": "587714dc6d58e0678a0d7a5e0c400c65b2bddfd31301f10779609c28c224e87b"
+    },
+    {
+      "path": "wireframes\\jobs-mobile-dark.png",
+      "sha256": "1adf864dd62d484c65c4bbe1031ae87d8987dcc5fa3913437fcb19ef34f6670e"
+    },
+    {
+      "path": "wireframes\\jobs-mobile-dark.svg",
+      "sha256": "63495651b7bc9d3b7cb59eeabc62a61bbe6d1957e043d91fc3744203ac1ce253"
+    },
+    {
+      "path": "wireframes\\jobs-mobile-light.png",
+      "sha256": "2494351ad1eafa322e03a69c96ed9906a430962ae0a199c9cb40602ae076c970"
+    },
+    {
+      "path": "wireframes\\jobs-mobile-light.svg",
+      "sha256": "55541c188b9df5f5aed619b13bd29cd8df9be809717a2c46211500e8f9d277ea"
+    },
+    {
+      "path": "wireframes\\library-desktop-dark.png",
+      "sha256": "c870a71685fa64c71b7e7938a9bd6c1b013899d32a868122da048905b7770e11"
+    },
+    {
+      "path": "wireframes\\library-desktop-dark.svg",
+      "sha256": "95b008c98fd3c689a204edcf20615116a4aa64ed692085781fd37a0a64bcb950"
+    },
+    {
+      "path": "wireframes\\library-desktop-light.png",
+      "sha256": "d2613bc4d3b895abe07b582724d7b8d21763a0b68bfc1241cbf29041cf825fd6"
+    },
+    {
+      "path": "wireframes\\library-desktop-light.svg",
+      "sha256": "64007835be18b1f5e1658b1ebccfe32b68a8aeb77bbdbf673c2de0023559827e"
+    },
+    {
+      "path": "wireframes\\library-mobile-dark.png",
+      "sha256": "905001f25884b915fbb3ca1e59630ba4c0991c74b093c56f0bad394625b21f86"
+    },
+    {
+      "path": "wireframes\\library-mobile-dark.svg",
+      "sha256": "1291c224cf1eb3b20a9bdb98c5c06661ca05e77d936eb4e8fc774e5b191add83"
+    },
+    {
+      "path": "wireframes\\library-mobile-light.png",
+      "sha256": "13ee26612d329374deecd748f57947d6ce471b97fbc082090680833608d53aae"
+    },
+    {
+      "path": "wireframes\\library-mobile-light.svg",
+      "sha256": "cd829ebff4cba631b5731f389a6e551ed71269712d493eab879b531d4efd0de1"
+    },
+    {
+      "path": "wireframes\\onboarding-desktop-dark.png",
+      "sha256": "71460d0078475ebe6c55e1f55e94bb2eccc044e89cf5416df0329ed670039a09"
+    },
+    {
+      "path": "wireframes\\onboarding-desktop-dark.svg",
+      "sha256": "1e827e7b728a2368ba2ab4e266074ba0e5bab21cd0e4b350b9b9f061173547e4"
+    },
+    {
+      "path": "wireframes\\onboarding-desktop-light.png",
+      "sha256": "5336302e49b8b66ea9e4e749c8777f3e473f62e50dd85e34c2b5d9dd4eafd9be"
+    },
+    {
+      "path": "wireframes\\onboarding-desktop-light.svg",
+      "sha256": "d58d9afb6972430f80f9176cb558654823379bd4f5d6a4d13f5488a3dfa689f8"
+    },
+    {
+      "path": "wireframes\\onboarding-mobile-dark.png",
+      "sha256": "b64e015d7aa9e0aa7d6d81eb03a6538cb34110f2176a8d6b60df808fc40bb3a3"
+    },
+    {
+      "path": "wireframes\\onboarding-mobile-dark.svg",
+      "sha256": "5b9d3d8bf047dd0fa0f60ce78eb7ad79de6ac0b5c544259e9e41157871c6b417"
+    },
+    {
+      "path": "wireframes\\onboarding-mobile-light.png",
+      "sha256": "91299f0621b985ace1b713c5e024fcde21e8873592d051ff8b5752d08093e343"
+    },
+    {
+      "path": "wireframes\\onboarding-mobile-light.svg",
+      "sha256": "80481d5ddc4ac41a4d1f5c6ed654fb878887021115e942ea840f93b7c89c57dd"
+    },
+    {
+      "path": "wireframes\\overview-desktop-dark.png",
+      "sha256": "d886079cee7ff1d0e974627f33f3211f8cdc671fcd1453f958e96eb53dc1013b"
+    },
+    {
+      "path": "wireframes\\overview-desktop-dark.svg",
+      "sha256": "fcb16896ef336f85e1a78b62ad6ebb36318afd5448bac6bde4b9d4c369fb7329"
+    },
+    {
+      "path": "wireframes\\overview-desktop-light.png",
+      "sha256": "ff515c7ee0e2232d4bf68934c0c506dc4a09b8b8a5c90262d087feb3041461ce"
+    },
+    {
+      "path": "wireframes\\overview-desktop-light.svg",
+      "sha256": "f10592228c24220338777975aa4e8a43c4d0c7c9fac4206f883a42fb29b2707d"
+    },
+    {
+      "path": "wireframes\\overview-mobile-dark.png",
+      "sha256": "4b45f39089006bce0039b8d1e48490a3a893fcd7e9d0f2b9307212909c54be78"
+    },
+    {
+      "path": "wireframes\\overview-mobile-dark.svg",
+      "sha256": "543f58901ce8c9af992f61eeb74be3690a2d1f2773ff812ad5926e4d41f756f7"
+    },
+    {
+      "path": "wireframes\\overview-mobile-light.png",
+      "sha256": "da8c364cde5beae0e1d68138f741c3fb8373c70cc5fc27af9ae1990d2e983004"
+    },
+    {
+      "path": "wireframes\\overview-mobile-light.svg",
+      "sha256": "1691476f533fa71b8ba940e15bd97edafeccd71320186d81873841a74c2d321c"
+    },
+    {
+      "path": "wireframes\\profile-desktop-dark.png",
+      "sha256": "f7a0a4fc44b9990bd2408850bd2ad440e6295bd4f4a40bbc3a1f0ea78a9773a0"
+    },
+    {
+      "path": "wireframes\\profile-desktop-dark.svg",
+      "sha256": "29a513d02120aca562f7e503281e909f3701da337d3021052e66fbbd1a6d30e9"
+    },
+    {
+      "path": "wireframes\\profile-desktop-light.png",
+      "sha256": "e1558e2835f26099fe7b83740ffec7b3f14543b530c767353eaadcd827d93f56"
+    },
+    {
+      "path": "wireframes\\profile-desktop-light.svg",
+      "sha256": "40f00de2d9402a4abae1e82241b374c78eb3be135ac80898275b3bb0544c0336"
+    },
+    {
+      "path": "wireframes\\profile-mobile-dark.png",
+      "sha256": "7556ac2350bb15385817a1573383264d710e940207a3af03cbfd5b6018498c7f"
+    },
+    {
+      "path": "wireframes\\profile-mobile-dark.svg",
+      "sha256": "5325c6aab35a6fde11094a114476919466f4f88a820086fcd649958f7494d484"
+    },
+    {
+      "path": "wireframes\\profile-mobile-light.png",
+      "sha256": "08add9158567436dbd25a0cdf870c02cacab51c3f0670e23b6f4f6e0a79717a6"
+    },
+    {
+      "path": "wireframes\\profile-mobile-light.svg",
+      "sha256": "16025ed30d93cdb9f8d83cc7a28b7ba9a0cbcdca817cb878edc40fb14cbf3b64"
+    },
+    {
+      "path": "wireframes\\proposal-desktop-dark.png",
+      "sha256": "048860a84213c372896427dbdb2020eda58c846724b36c3fb91d9d2a607600ce"
+    },
+    {
+      "path": "wireframes\\proposal-desktop-dark.svg",
+      "sha256": "94dd9fceba52f53a2db2e386f16e16ab42b26744872700dc5e242a7712e48fed"
+    },
+    {
+      "path": "wireframes\\proposal-desktop-light.png",
+      "sha256": "7a3efdadb1694f578db42b47652062b24aadc7ee90a288292f7e60d651c33bb8"
+    },
+    {
+      "path": "wireframes\\proposal-desktop-light.svg",
+      "sha256": "6600f075be74e12c11dea5d7aeedaaed4cb80904ea8c69ac6d2ca3239ff5a6a4"
+    },
+    {
+      "path": "wireframes\\proposal-mobile-dark.png",
+      "sha256": "46064c3bd565b54c027295e49e32c8be3a6fadad867be98f795a0c1199bf8ebb"
+    },
+    {
+      "path": "wireframes\\proposal-mobile-dark.svg",
+      "sha256": "5d97596083f3a7c3a18f76d0710e0776ac15b586cfece513f600550fcdf55c30"
+    },
+    {
+      "path": "wireframes\\proposal-mobile-light.png",
+      "sha256": "b8aba0ed6239e8459bc31659e938e3c2a5ed05dc5486ca8c88d0b1fdcfacca0f"
+    },
+    {
+      "path": "wireframes\\proposal-mobile-light.svg",
+      "sha256": "fb02a39ab0add611c81c570418b9400199faef4802185c26fb7d44f820c28193"
+    },
+    {
+      "path": "wireframes\\review-desktop-dark.png",
+      "sha256": "b69943fd1eb48fa552ea5e48a48ab961e5cee702c25ebbe02edcfa981a20ca6f"
+    },
+    {
+      "path": "wireframes\\review-desktop-dark.svg",
+      "sha256": "e711f1526d1b4e2a21634d5c71d72e39bc1abf56a3592b7d3757a1b43a5b0a4d"
+    },
+    {
+      "path": "wireframes\\review-desktop-light.png",
+      "sha256": "a3fa42cba02686d8fb3fef40d5525775e9472e4bf18837afe6a86e448006d33e"
+    },
+    {
+      "path": "wireframes\\review-desktop-light.svg",
+      "sha256": "effbcaeac1155b05e8345bada325356371f61d344328a63b030abe6a34c98b0a"
+    },
+    {
+      "path": "wireframes\\review-mobile-dark.png",
+      "sha256": "84cb10a281e3d15f0672dc7d848ee051ffb2f7a1cac0e8579aa335f22711ea7a"
+    },
+    {
+      "path": "wireframes\\review-mobile-dark.svg",
+      "sha256": "d2b8396fbeda790115a0a13d86d3d2497c453ab61d834a237acb076d2aff9834"
+    },
+    {
+      "path": "wireframes\\review-mobile-light.png",
+      "sha256": "dbf35f66f062f547d23058205fe887c963b4e9fc87add9e8ba8b01cf1dab0fa9"
+    },
+    {
+      "path": "wireframes\\review-mobile-light.svg",
+      "sha256": "9af6a07e24deee66a98374dd360a307e8823e67835b1573b6566917ef47b1a0d"
+    },
+    {
+      "path": "wireframes\\settings-desktop-dark.png",
+      "sha256": "5d242aaa7bfc7e835a50f9ffe6209a2182a319e7f3b03916795113eaed064adf"
+    },
+    {
+      "path": "wireframes\\settings-desktop-dark.svg",
+      "sha256": "c30e293fd7c3c23a9746e066029257bbb8cfdd943cdc240e4f88c84fc2cc5068"
+    },
+    {
+      "path": "wireframes\\settings-desktop-light.png",
+      "sha256": "42dc459e9f4886b5e251aee8eaf52fb7160dfd9d8913b9d7fd096c9d5b884546"
+    },
+    {
+      "path": "wireframes\\settings-desktop-light.svg",
+      "sha256": "6b481d4e21ea00f436e9317bc72fcf175a4cbdcc10f2d2555bddfae30aa2a840"
+    },
+    {
+      "path": "wireframes\\settings-mobile-dark.png",
+      "sha256": "582a331f118e68a83f706af67d0b14efc63e909d5563d8a112950956908cc754"
+    },
+    {
+      "path": "wireframes\\settings-mobile-dark.svg",
+      "sha256": "dafe184113ca491c9547deca4bacf502a0ac260b84a1af55dd7550601b5a1924"
+    },
+    {
+      "path": "wireframes\\settings-mobile-light.png",
+      "sha256": "32f4ea4da012ae20879292b5acb027472573b73996005c97f11962ae615d62d9"
+    },
+    {
+      "path": "wireframes\\settings-mobile-light.svg",
+      "sha256": "bf8bc08e93c479e694996b87225fc079b3a60cd752336ef508ee55289c4b3e7a"
+    },
+    {
+      "path": "wireframes\\sources-desktop-dark.png",
+      "sha256": "ec876522c0386c8bfe6a41a35e05ddc426afba1075b6429e9079c1b4e68fc388"
+    },
+    {
+      "path": "wireframes\\sources-desktop-dark.svg",
+      "sha256": "f6668a60f22cfa3b0e14207684ca8414c05cee45118d3ad42d86dedd9638e471"
+    },
+    {
+      "path": "wireframes\\sources-desktop-light.png",
+      "sha256": "e84e3adc799d4b32719e748caea2a4438fd5f329c6c059224ed4d489375c8ff0"
+    },
+    {
+      "path": "wireframes\\sources-desktop-light.svg",
+      "sha256": "0450ce5a379e918bbb23a5a01779d798edcc4e936814b68f09a77f96eb0ad744"
+    },
+    {
+      "path": "wireframes\\sources-mobile-dark.png",
+      "sha256": "68343ddc83e6f93280164ae77e0bf05280409c7d3c3210d4492d8f8acad862ea"
+    },
+    {
+      "path": "wireframes\\sources-mobile-dark.svg",
+      "sha256": "6b491ab57aaf90359b0c529a64e2a2375d2b530ed28ca2fe25b23d09f6a24a9d"
+    },
+    {
+      "path": "wireframes\\sources-mobile-light.png",
+      "sha256": "ae051383ba0fb5c1c67a55a00a648f603e84fc687b6e327be585e2c511e70c68"
+    },
+    {
+      "path": "wireframes\\sources-mobile-light.svg",
+      "sha256": "b9014bda3e24470340bdb49f9bd2f6eb18ba1dabe3fd03932bb08099d139cc7d"
+    },
+    {
+      "path": "wireframes\\studio-desktop-dark.png",
+      "sha256": "2fe98085607af51e39893555afedd9593bcf01b9b01ded80c5e4bf7385cd5da0"
+    },
+    {
+      "path": "wireframes\\studio-desktop-dark.svg",
+      "sha256": "d6de274396f58741b37d9e2396926b44d4b68a985265d679a805c68537fd7d68"
+    },
+    {
+      "path": "wireframes\\studio-desktop-light.png",
+      "sha256": "31aee578582be015415e4e25af9438b47b0882b561342d5725715005cabe4fe4"
+    },
+    {
+      "path": "wireframes\\studio-desktop-light.svg",
+      "sha256": "964615ed7c901c674d61c7eb9512915ebe9e43dc3c58b95206f2e51c25d11b5c"
+    },
+    {
+      "path": "wireframes\\studio-mobile-dark.png",
+      "sha256": "fed43cf57e58c590c8db7896acbd2842ace0b820c8c1d75c98c7bd0f9b69ef8b"
+    },
+    {
+      "path": "wireframes\\studio-mobile-dark.svg",
+      "sha256": "2ca250646da597e62b640d1d1aea960fd9f55414c9ececf02952afc2017cd20c"
+    },
+    {
+      "path": "wireframes\\studio-mobile-light.png",
+      "sha256": "43de8d2d9c6dd8b59006723b960e34b6a260bfa250c447228a4921f0e827eb5b"
+    },
+    {
+      "path": "wireframes\\studio-mobile-light.svg",
+      "sha256": "a9b2e0b837c2b76941753bcd32f735251396768fd28b20f99e29339342c96ba1"
+    },
+    {
+      "path": "current-screens\\account-navigation.png",
+      "sha256": "d8868ac18618d8b74e85738622bbf12397d2ff968702a4c44ad09e3553a79cfa"
+    },
+    {
+      "path": "current-screens\\applications-desktop-viewport.png",
+      "sha256": "34bf77431429561fbef811117c14bf22361a4f56b752c4c1ea07adadbda15ede"
+    },
+    {
+      "path": "current-screens\\applications-desktop.png",
+      "sha256": "d9f16f1e174d92bca6a91202569b7cda97f5ea445ee753c69e703fd4a8dc396e"
+    },
+    {
+      "path": "current-screens\\applications-mobile-viewport.png",
+      "sha256": "51ed481fe0f91a345b7b950d4328c5b24431ece72db2847e5d4a554b0c5e2889"
+    },
+    {
+      "path": "current-screens\\applications-mobile.png",
+      "sha256": "c56ba1340ce6bdceb34f2cedaebf68b57e88e883634388bf6692b6ba801eb6ea"
+    },
+    {
+      "path": "current-screens\\applications.txt",
+      "sha256": "4f316e2e41822b2a6b77a1ee912c268b147a034ac0ce51f5a3866eca459ab2db"
+    },
+    {
+      "path": "current-screens\\connect-desktop-viewport.png",
+      "sha256": "a7b2fc396b279d2b2dc790cf4f9387be74c885fc25b6fabc5fcf65310b65ea25"
+    },
+    {
+      "path": "current-screens\\connect-desktop.png",
+      "sha256": "1321dd2a4151cdaeada3e8fc2fa305f47b88b7e95954fd87c8a8c1497e1f8806"
+    },
+    {
+      "path": "current-screens\\connect-mobile-viewport.png",
+      "sha256": "008659b7bb750f6c7473b6a3bedc1e703ea786ef1bc8c8c11858b8903869ed39"
+    },
+    {
+      "path": "current-screens\\connect-mobile.png",
+      "sha256": "2d31db2ac2e6e4902a68a934167db426e3d9aaf69acafa09e83dfdf8676ffb15"
+    },
+    {
+      "path": "current-screens\\connect.txt",
+      "sha256": "254386fc028e3a261c92d89f4441219e5aa8a24b115224e012c8f78766a913ca"
+    },
+    {
+      "path": "current-screens\\jobs-analysis.png",
+      "sha256": "b233321c07671a0fd903ca724b8c16a56ad572bfb4bbfc7cac6ff4978e0132a3"
+    },
+    {
+      "path": "current-screens\\jobs-analysis.txt",
+      "sha256": "5fa823f82ab20f823e016d66204b844c32077c09c98b664ed11e91c4acd1e05d"
+    },
+    {
+      "path": "current-screens\\jobs-desktop-viewport.png",
+      "sha256": "862fee482a4b11a28096294754c0f13d3a1df4aebbec471afc054bdd005f47d6"
+    },
+    {
+      "path": "current-screens\\jobs-desktop.png",
+      "sha256": "cab86869bfe7711a8d4060b4582094b71a00c065dcdcfa42a9eda0760aff8766"
+    },
+    {
+      "path": "current-screens\\jobs-mobile-viewport.png",
+      "sha256": "f0d532f3c55d4be2538225065387a00d5467816321e58ed669cf8959530151b0"
+    },
+    {
+      "path": "current-screens\\jobs-mobile.png",
+      "sha256": "6353ee35efb296110aa504a67e1008a72f354b64f3e98e1b59f3be8d58e54169"
+    },
+    {
+      "path": "current-screens\\jobs-saved.png",
+      "sha256": "bca99f0825052089fe33861519e83816dc7685c3e02c4a6a93bb596dae564646"
+    },
+    {
+      "path": "current-screens\\jobs-saved.txt",
+      "sha256": "9f792265233f812e9628255873ac77140fd51571cf7c30ee0724a2f49083d9cd"
+    },
+    {
+      "path": "current-screens\\jobs.txt",
+      "sha256": "6d697522329271eccae0a15ea049ae15d57f2a1cbd5bed787ecbbd7bc3470797"
+    },
+    {
+      "path": "current-screens\\library-desktop-viewport.png",
+      "sha256": "108259ae3f86c6b789537f7bc5e9b780c07834be337b2969a3430e6e112076ed"
+    },
+    {
+      "path": "current-screens\\library-desktop.png",
+      "sha256": "96df0e064d24a33ede62d9c6b68d335db6311d20964e08ef769e67c23f98ecc0"
+    },
+    {
+      "path": "current-screens\\library-detail-0-desktop.png",
+      "sha256": "ff2424aa6918c05dca47f5f285bfa938d5b67df0504b4e73b7e4b0276d04aa37"
+    },
+    {
+      "path": "current-screens\\library-detail-0.txt",
+      "sha256": "70814987e3b40e102a8c79ffb9c229720f5c9d9d3d4c6334caac23dcbd19cfdd"
+    },
+    {
+      "path": "current-screens\\library-detail-1-desktop.png",
+      "sha256": "ff2424aa6918c05dca47f5f285bfa938d5b67df0504b4e73b7e4b0276d04aa37"
+    },
+    {
+      "path": "current-screens\\library-detail-1.txt",
+      "sha256": "70814987e3b40e102a8c79ffb9c229720f5c9d9d3d4c6334caac23dcbd19cfdd"
+    },
+    {
+      "path": "current-screens\\library-mobile-viewport.png",
+      "sha256": "c987833a6a6356c605ce8b287acb20ee8c8c91eaa5f8831f3b71df0752646473"
+    },
+    {
+      "path": "current-screens\\library-mobile.png",
+      "sha256": "d66a58baae577fc6a29542c1cd57f56df288a0e9fd0b0904c6c5c8d4f2bc13d7"
+    },
+    {
+      "path": "current-screens\\library.txt",
+      "sha256": "1e9b4a300a6ed0196da64ae44584458790b3303b55306e721339a889e806f0af"
+    },
+    {
+      "path": "current-screens\\mobile-navigation.png",
+      "sha256": "819abd33f5f6b43b901f8dd1c057d575f68c5ca6bd7a4ae597ca5cc8ac63321c"
+    },
+    {
+      "path": "current-screens\\onboarding-desktop-viewport.png",
+      "sha256": "5f16b747ac09862935ee56192171d9fc53c91ae1ba634cda1bdcd768a4021ddb"
+    },
+    {
+      "path": "current-screens\\onboarding-desktop.png",
+      "sha256": "828728f8caf58e25a98939dfdc2f557de35230a575ecd5aae7188e81cffd2587"
+    },
+    {
+      "path": "current-screens\\onboarding-mobile-viewport.png",
+      "sha256": "d5a429f235ee164cd19a3151f184cb22b91e0586602cc7b46304d5151df9dea0"
+    },
+    {
+      "path": "current-screens\\onboarding-mobile.png",
+      "sha256": "c232fef472269855294c5fb71dd891744276d8ca90a7063861c177f5939a4095"
+    },
+    {
+      "path": "current-screens\\onboarding.txt",
+      "sha256": "ae136739d3a1ce5e983766bdbe20e983e2a48566d7310294df6cc0e97821f83b"
+    },
+    {
+      "path": "current-screens\\overview-desktop-viewport.png",
+      "sha256": "ecb53c9171025ac50573200001bf78c3430c02a3304143d5d8765ab0533dd0e6"
+    },
+    {
+      "path": "current-screens\\overview-desktop.png",
+      "sha256": "92be7dda8d28a5492ec8e28bfd189643b873d9173a1712bbfa2e4746b9ddb3a5"
+    },
+    {
+      "path": "current-screens\\overview-mobile-viewport.png",
+      "sha256": "d26cd7902635c993c83c333c384b9ffede7bf0f011cc4f955b48b43edb5d0c17"
+    },
+    {
+      "path": "current-screens\\overview-mobile.png",
+      "sha256": "6efcb88aa80902575699500df4f609a59260e3470f2bb63b9cf42503462df685"
+    },
+    {
+      "path": "current-screens\\overview.txt",
+      "sha256": "c19a6e28a3b18f472ec46ab49192ee0a9b053efb9943fc3175aee70b1707ef10"
+    },
+    {
+      "path": "current-screens\\profile-contact.png",
+      "sha256": "dea1127c80667c531e8e8becefd30c8f345f785f0cdd4760bec2edcf15c608e7"
+    },
+    {
+      "path": "current-screens\\profile-contact.txt",
+      "sha256": "d180f653e088c6224c69b42dbe5f5e2ae58d9c53dc91ff261ac4a87b4832dff3"
+    },
+    {
+      "path": "current-screens\\profile-desktop-viewport.png",
+      "sha256": "74b9c3b61d6255321895d4cf95b227a12ebffe1b6d608af2c981829734dcd7c8"
+    },
+    {
+      "path": "current-screens\\profile-desktop.png",
+      "sha256": "3a113e1cb11294eea932427bd01e016a29b0c428d66bf7c740c1c07ebfefd2f4"
+    },
+    {
+      "path": "current-screens\\profile-eligibility.png",
+      "sha256": "c2592a89eb1c0ce800bc7a7da6368b2cf486c0ec33ecb784907ae29c47f5f7eb"
+    },
+    {
+      "path": "current-screens\\profile-eligibility.txt",
+      "sha256": "8521ad67ee6c406db3a16b2bc5114aef7216f434cceea2c558775896fed2a29d"
+    },
+    {
+      "path": "current-screens\\profile-mobile-viewport.png",
+      "sha256": "e932b1913281a47ac428ae9c06c2f056d16a1e40559c10e2a94c87cb4fb3861f"
+    },
+    {
+      "path": "current-screens\\profile-mobile.png",
+      "sha256": "2a6a2cff8754ac092bbdba7b0a62838f16b11c8b87926c8f859662da24dd9a7f"
+    },
+    {
+      "path": "current-screens\\profile-preferences.png",
+      "sha256": "7c994815a3bf85564a08b694337da730c6bac9d6371c5132bb25efca609d80bf"
+    },
+    {
+      "path": "current-screens\\profile-preferences.txt",
+      "sha256": "5c3872a6c509ff9150ad5e07b39ba376b9db9a3e04617b7a1cd5fd183c37eb28"
+    },
+    {
+      "path": "current-screens\\profile-professional.png",
+      "sha256": "19d1e8a487e2281b2ec6b6ebafa92c8fb989fab7400f3cb087dcaab9fcc98a35"
+    },
+    {
+      "path": "current-screens\\profile-professional.txt",
+      "sha256": "54173f250b846fee28c5ee17112947e5fa9ac6da9a9c9a7e8088f9103ac74855"
+    },
+    {
+      "path": "current-screens\\profile-skills.png",
+      "sha256": "db5b6ad3ef07efba67c052327a5cc35d3576c494073c6fe3577ced4fa51b6e0d"
+    },
+    {
+      "path": "current-screens\\profile-skills.txt",
+      "sha256": "dbfff5a6a10069d15ad136bb84b30bdf25648c1ef9e093d32af9a5ae574c0f33"
+    },
+    {
+      "path": "current-screens\\profile.txt",
+      "sha256": "a05374cdd644b509769ce0ebf87b89d310ab491d71e0725f25dc71fb3d59108a"
+    },
+    {
+      "path": "current-screens\\projects-desktop-viewport.png",
+      "sha256": "71f541ca552341eac181cba0d625445e3c109de737719b0641ed0694f517e0ba"
+    },
+    {
+      "path": "current-screens\\projects-desktop.png",
+      "sha256": "d5d6f8f4efb8138dee2cf41aa295d96e99da2922a78c09296e23fdc047a7812e"
+    },
+    {
+      "path": "current-screens\\projects-mobile-viewport.png",
+      "sha256": "961431e11573ef8baedb79c0ee532656da2b12f6188072aec65814c9d4314cf1"
+    },
+    {
+      "path": "current-screens\\projects-mobile.png",
+      "sha256": "9c6a2ee4daf8fc0c48dcec8b93d2cee0ae3a85b8011c2c688475bc91279ef8d9"
+    },
+    {
+      "path": "current-screens\\projects.txt",
+      "sha256": "32d0f3e4619287f04fc9f8996b8257520717e8fe69f0a7d7093f348e847714c8"
+    },
+    {
+      "path": "current-screens\\settings-desktop-viewport.png",
+      "sha256": "a1797235e7fb7bf4b789b1ab098e713c25f10660ff032278bbc3adc6ba638a62"
+    },
+    {
+      "path": "current-screens\\settings-desktop.png",
+      "sha256": "9e073b603052962213374a2adf263f59fd45f66cb6004eab83941c87a4232422"
+    },
+    {
+      "path": "current-screens\\settings-mobile-viewport.png",
+      "sha256": "116250047a2e517c8a1726d698266f54fa748ec55a793137841969f6a19e6365"
+    },
+    {
+      "path": "current-screens\\settings-mobile.png",
+      "sha256": "23b19d6fc81cc1730a7e8fbbea5f2324e04bc28f9e93160cbfdad22e1eeed712"
+    },
+    {
+      "path": "current-screens\\settings.txt",
+      "sha256": "8e75522a22b3022d9cb28363b3decf1a082cd6c6491354d20789f35138aab8c1"
+    },
+    {
+      "path": "current-screens\\skills-desktop-viewport.png",
+      "sha256": "fd060509d561b8ad3f4c7447c1c1ec83ed4ec2f1051d8fac7e83ba5655d9588d"
+    },
+    {
+      "path": "current-screens\\skills-desktop.png",
+      "sha256": "da3a7fea7bfac84d35f3de91c425883f187fe6a78228662440192181824fb432"
+    },
+    {
+      "path": "current-screens\\skills-mobile-viewport.png",
+      "sha256": "badd81f2c6c05d11e9bc0d94c5f172adaaa5c429e2f9280918048c044a56f192"
+    },
+    {
+      "path": "current-screens\\skills-mobile.png",
+      "sha256": "a199f253d2bd4cc1f907fd143d553d38228e5b1498a45d5d20afd49b615d2714"
+    },
+    {
+      "path": "current-screens\\skills.txt",
+      "sha256": "02d10f3b1f1ab72f557a52380953ffaeb90bb6de13d1ba27c2dd625c9d7e190e"
+    },
+    {
+      "path": "current-screens\\sources-desktop-viewport.png",
+      "sha256": "b8703bcc94da6e508d25b2b147472958afb3b6da425e8af49b1a5c745f4d0906"
+    },
+    {
+      "path": "current-screens\\sources-desktop.png",
+      "sha256": "b2e23abba81b020fdcd525f18b27cfefad6fce78d7cc152a6a7ab353cc32b1e4"
+    },
+    {
+      "path": "current-screens\\sources-mobile-viewport.png",
+      "sha256": "43d0a47ff7ce53e8ca4938981d886a3eab37fadf7dabf58c43d94c36f854dd0b"
+    },
+    {
+      "path": "current-screens\\sources-mobile.png",
+      "sha256": "73e19ac12793d06fdb85a3ac7d0c158ef7ed792242a1d7292b529293f34bce2f"
+    },
+    {
+      "path": "current-screens\\sources.txt",
+      "sha256": "7571a30770b26775fafc8aa3e31616f8aee72443146b50ec55240ca7840c955e"
+    },
+    {
+      "path": "current-screens\\studio-desktop-viewport.png",
+      "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+    },
+    {
+      "path": "current-screens\\studio-desktop.png",
+      "sha256": "0cbdf4b01e7a3d4dc59b7e72b28413286f025743b5ba581d7378f5b3807effb9"
+    },
+    {
+      "path": "current-screens\\studio-diagnostics.png",
+      "sha256": "0e97a995881b417026676eaf621f7afc157712136cd220db535c8dfc015237a0"
+    },
+    {
+      "path": "current-screens\\studio-diagnostics.txt",
+      "sha256": "eac3a9f8a9527ae3d88bd5077b06952ce67542046836251b500aa4740ac1828f"
+    },
+    {
+      "path": "current-screens\\studio-evidence.png",
+      "sha256": "b8c147bef5226730ad64b687d2d89321b64406dfe662a407c4461a0bc3e54365"
+    },
+    {
+      "path": "current-screens\\studio-evidence.txt",
+      "sha256": "2cdf6f3883dab30fbd3c916ba860556fbdd6ac65ea6c4d007a2bb0e0387b2df6"
+    },
+    {
+      "path": "current-screens\\studio-history.png",
+      "sha256": "3c8b99fbaa77158a4d0a6e84cf3e335a8db9d9cafee2c11b888bb142756f294a"
+    },
+    {
+      "path": "current-screens\\studio-mobile-viewport.png",
+      "sha256": "05716d09e368b4201d127c620c9e1d6311fa059b88c54f46bc1cb5f7fa644166"
+    },
+    {
+      "path": "current-screens\\studio-mobile.png",
+      "sha256": "1b38cf9e9dc5b36eb45fe4fa48b28a9627643e06b4de695e41bfb6f882369233"
+    },
+    {
+      "path": "current-screens\\studio-os-dark.png",
+      "sha256": "bedca920e9c0b4f1774fe905277fedc1fdb1a0b8836693ee80a311106cfa7435"
+    },
+    {
+      "path": "current-screens\\studio-os-light.png",
+      "sha256": "1d3744b843f5802ae40be6afcccca53462fd814be176d3c40272b26596d32748"
+    },
+    {
+      "path": "current-screens\\studio-projects.png",
+      "sha256": "a1fa7cf105daafc0937b3af2478e8de34adf9b73cf3cbfb85c3130b5bddafa93"
+    },
+    {
+      "path": "current-screens\\studio-projects.txt",
+      "sha256": "533cde226368237beafc1fa67a338bd12de1634afc3a6530850661c708441473"
+    },
+    {
+      "path": "current-screens\\studio-proposal-source.png",
+      "sha256": "2c000aeed92a0546ae75d2bf0b1af8dd11891b4f3304ce32579f55641ca4a5f8"
+    },
+    {
+      "path": "current-screens\\studio-proposal.png",
+      "sha256": "27e043f2b1d5bcb872a31d2dad6207dc320f7cf9ea173b5d2c4835cc45187e0c"
+    },
+    {
+      "path": "current-screens\\studio-requirements.png",
+      "sha256": "c573eebf65a1530ff36350d0956e47803562ed20d1ef1749815637d8d3ccfe8c"
+    },
+    {
+      "path": "current-screens\\studio-requirements.txt",
+      "sha256": "ef81652164689d8f1510aefed6e89af5e0ab2dd4164b6e82d0d6348f0628c8c2"
+    },
+    {
+      "path": "current-screens\\studio-selection.png",
+      "sha256": "7bc8197cd4778809a5f111208c1bfc85bee9b6f0e05ba5193b1dc8763451ff27"
+    },
+    {
+      "path": "current-screens\\studio-selection.txt",
+      "sha256": "666152385a5bf707a6773b344a32cb82766ae1d4477513605fa1f309a81fa166"
+    },
+    {
+      "path": "current-screens\\studio-writing.png",
+      "sha256": "ec4eaef3473896d812c399c276f0ceaa7040d694a6946424d8f23045fcafbc5a"
+    },
+    {
+      "path": "current-screens\\studio-writing.txt",
+      "sha256": "8351e29166bc61fe7fed59b8240e4ed1e1d154011d94b08e67ce1d06e2ee2226"
+    },
+    {
+      "path": "current-screens\\studio.txt",
+      "sha256": "33366aa261906f78d225fa9250c83297ef1ccb32d8498f592ff8d24a5b455b62"
+    }
+  ],
+  "scope": "Historical proposal retained unchanged; first milestone authorized2026-10-15; future screens remain proposed."
+}

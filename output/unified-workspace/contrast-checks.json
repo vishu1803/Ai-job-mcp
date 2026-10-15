@@ -1,0 +1,89 @@
+{
+  "checks": [
+    {
+      "theme": "light",
+      "foreground": "text",
+      "background": "canvas",
+      "ratio": 14.99,
+      "normalTextAA": true
+    },
+    {
+      "theme": "light",
+      "foreground": "secondary",
+      "background": "surface",
+      "ratio": 6.22,
+      "normalTextAA": true
+    },
+    {
+      "theme": "light",
+      "foreground": "onaccent",
+      "background": "accent",
+      "ratio": 6.89,
+      "normalTextAA": true
+    },
+    {
+      "theme": "light",
+      "foreground": "good",
+      "background": "goodbg",
+      "ratio": 5.84,
+      "normalTextAA": true
+    },
+    {
+      "theme": "light",
+      "foreground": "warn",
+      "background": "warnbg",
+      "ratio": 5.81,
+      "normalTextAA": true
+    },
+    {
+      "theme": "light",
+      "foreground": "danger",
+      "background": "dangerbg",
+      "ratio": 4.98,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "text",
+      "background": "canvas",
+      "ratio": 16.27,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "secondary",
+      "background": "surface",
+      "ratio": 8.41,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "onaccent",
+      "background": "accent",
+      "ratio": 10.33,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "good",
+      "background": "goodbg",
+      "ratio": 7.12,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "warn",
+      "background": "warnbg",
+      "ratio": 7.5,
+      "normalTextAA": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "danger",
+      "background": "dangerbg",
+      "ratio": 6.93,
+      "normalTextAA": true
+    }
+  ],
+  "limitation": "Token pair calculations only, not full WCAG conformance or an audit of deferred legacy page inline styles."
+}

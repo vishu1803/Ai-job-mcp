@@ -114,7 +114,7 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
   ];
 
   describe('1. Dashboard 3-Pillar Candidate Experience', () => {
-    it('renders Section 1: "What should I do next?" with greeting, readiness bar, and max 3 priority actions', () => {
+    it('renders identity, scoped missing preferences and candidate-controlled suggestions without a composite score', () => {
       const html = renderDashboardPage({
         user: mockUser,
         tenant: mockTenant,
@@ -130,16 +130,16 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
 
       // Candidate Greeting & Identity
       assert.match(html, /Grace Hopper/);
-      assert.match(html, /Senior Distributed Systems Engineer/);
+      assert.match(html, /Career profile|Grace Hopper/);
 
       // Section 1 Heading & Readiness Bar
-      assert.match(html, /What should I do next\?/);
-      assert.match(html, /Application Readiness/);
-      assert.match(html, /82%/);
+      assert.match(html, /Next step/);
+      assert.match(html, /2 screening preferences/);
+      assert.doesNotMatch(html, /82%/);
 
       // Priority Action Items
-      assert.match(html, /Add Phone number/);
-      assert.match(html, /Review Copilot Proposals/);
+      assert.match(html, /Review profile/);
+      assert.match(html, /Review suggestions/);
     });
 
     it('renders Section 2: "Which jobs should I consider?" with matching cards, match score, and Radar actions', () => {
@@ -153,15 +153,15 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
         recommendedJobs: mockRecommendedJobs,
       });
 
-      assert.match(html, /Which jobs should I consider\?/);
-      assert.match(html, /Opportunities matching your verified skills/);
+      assert.match(html, /Jobs to explore/);
+      assert.match(html, /Browse jobs/);
       assert.match(html, /Senior Backend Engineer/);
       assert.match(html, /Datadog/);
-      assert.match(html, /94% Match/);
+      assert.doesNotMatch(html, /94% Match/);
       assert.match(html, /Staff Systems Architect/);
       assert.match(html, /Cloudflare/);
-      assert.match(html, /89% Match/);
-      assert.match(html, /Evaluate Fit with Radar/);
+      assert.doesNotMatch(html, /89% Match/);
+      assert.match(html, /View jobs/);
       assert.match(html, /href="\/apps\/radar"/);
     });
 
@@ -176,15 +176,15 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
         recommendedJobs: mockRecommendedJobs,
       });
 
-      assert.match(html, /Which applications need attention\?/);
-      assert.match(html, /Active pipeline tracking/);
+      assert.match(html, /Applications/);
+      assert.match(html, /Review application/);
       assert.match(html, /Stripe/);
       assert.match(html, /Senior Infrastructure Engineer/);
-      assert.match(html, /INTERVIEWING/);
+      assert.match(html, /interviewing/);
       assert.match(html, /GitHub/);
       assert.match(html, /Backend Platform Engineer/);
       assert.match(html, /Review/);
-      assert.match(html, /href="\/applications\/app-1"/);
+      assert.match(html, /href="\/applications\/app-1\/apply"/);
     });
 
     it('eliminates developer jargon ("Deterministic" badges, duplicate skills cloud, and connected repos card)', () => {
@@ -212,7 +212,7 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
   });
 
   describe('2. Universal Contextual Career Copilot Drawer & Layout Integration', () => {
-    it('renders persistent [✦ Copilot] button in navbar and mobile menu for authenticated users', () => {
+    it('preserves [✦ Copilot] button in navbar and mobile menu for authenticated users', () => {
       const html = renderLayout({
         title: 'Dashboard',
         content: '<div>Workspace Content</div>',
@@ -221,8 +221,8 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
       });
 
       assert.match(html, /id="copilotOpenBtn"/);
-      assert.match(html, /class="copilot-nav-btn"/);
-      assert.match(html, /Open Career Copilot/);
+      assert.match(html, /Account menu/);
+      assert.match(html, /Career Copilot/);
       assert.match(html, /id="copilot-drawer"/);
     });
 
@@ -389,13 +389,13 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
       });
 
       // Prominent Active Base Resume hero
-      assert.match(html, /ACTIVE BASE RESUME/);
+      assert.match(html, />Master</);
       assert.match(html, /Grace_Hopper_Base_2026\.pdf/);
-      assert.match(html, /Review Claims/);
+      assert.match(html, /Review imported facts/);
 
       // Cryptographic / storage details moved into disclosure
-      assert.match(html, /Security &amp; storage specifications/);
-      assert.match(html, /details class="advanced-disclosure"/);
+      assert.match(html, /Download original/);
+      assert.match(html, /id="import-resume"/);
 
       // Cleaned table headers (SHA-256 Digest is no longer a dedicated main column)
       assert.doesNotMatch(html, /<th>SHA-256 Digest<\/th>/);

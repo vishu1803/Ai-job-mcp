@@ -414,7 +414,10 @@ Requirements:
       id: MOCK_CANDIDATE_ID,
       profileMetadata: { certifications: [] },
     };
-    const resNoCert = EvidenceMatchingService._evaluateCertificationRequirement(certReq, candNoCert);
+    const resNoCert = EvidenceMatchingService._evaluateCertificationRequirement(
+      certReq,
+      candNoCert
+    );
     assert.equal(resNoCert.match.matchStatus, 'UNKNOWN');
   });
 
@@ -683,7 +686,9 @@ Candidates should be eligible to work in India.`;
     assert.ok(fitResult);
     assert.equal(fitResult.overallFit.analysisStatus, 'COMPLETE');
     assert.ok(fitResult.requirementMatches.length >= 10);
-    const reqMatch = fitResult.requirementMatches.find((m) => m.normalizedRequirement === 'JavaScript');
+    const reqMatch = fitResult.requirementMatches.find(
+      (m) => m.normalizedRequirement === 'JavaScript'
+    );
     assert.ok(reqMatch, 'Requirement match for JavaScript must exist in MCP output');
     assert.equal(reqMatch.matchStatus, 'MATCHED');
   });

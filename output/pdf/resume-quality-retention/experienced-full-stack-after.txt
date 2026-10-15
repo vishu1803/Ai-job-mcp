@@ -1,0 +1,41 @@
+Synthetic experienced Candidate
+Target role: Full-stack Developer
+candidate@example.test · portfolio.example.test/candidate
+Professional Summary
+Builds TypeScript and Node.js APIs with PostgreSQL and Docker. Maintains NestJS and Python Flask services with
+request validation and integration tests.
+Professional Experience
+Backend Engineer — Synthetic Software Company 1
+Jan 2021
+Remote | Full time
+Implemented Node.js API validation and documented error responses.
+Added PostgreSQL transaction tests and investigated failed requests.
+Maintained Docker development workflows and reviewed deployment checks.
+Backend Engineer — Synthetic Software Company 2
+Jan 2016 – Jan 2021
+Remote | Full time
+Implemented Node.js API validation and documented error responses.
+Added PostgreSQL transaction tests and investigated failed requests.
+Maintained Docker development workflows and reviewed deployment checks.
+Backend Engineer — Synthetic Software Company 3
+Jan 2011 – Jan 2016
+Remote | Full time
+Implemented Node.js API validation and documented error responses.
+Added PostgreSQL transaction tests and investigated failed requests.
+Maintained Docker development workflows and reviewed deployment checks.
+Technical Projects
+Library API
+GitHub
+An API for a library lending workflow.
+TypeScript, PostgreSQL, Node.js
+Implemented lending endpoints with TypeScript and Node.js, and wrote integration tests for checkout validation
+and error responses.
+Technical Skills
+Backend & APIs: Node.js, NestJS, Flask
+Languages: TypeScript, Python
+Databases & ORMs: PostgreSQL
+Cloud, DevOps & Systems: Docker
+Education
+BSc in Computer Science
+Sep 2007 – Jun 2011
+Synthetic University

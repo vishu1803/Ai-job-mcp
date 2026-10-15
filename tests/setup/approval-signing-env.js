@@ -21,3 +21,15 @@ config.ACTION_APPROVAL_HMAC_SECRET ??= TEST_ACTION_APPROVAL_SECRET;
 config.CAREER_HUB_APPROVAL_SECRET ??= TEST_APPLICATION_APPROVAL_SECRET;
 process.env.ACTION_APPROVAL_HMAC_SECRET ??= config.ACTION_APPROVAL_HMAC_SECRET;
 process.env.CAREER_HUB_APPROVAL_SECRET ??= config.CAREER_HUB_APPROVAL_SECRET;
+
+export const TEST_ENCRYPTION_MASTER_KEY = crypto
+  .createHash('sha256')
+  .update('TEST ONLY: nonproduction test encryption master key, never deploy')
+  .digest('hex');
+
+if (!config.ENCRYPTION_MASTER_KEY) {
+  config.ENCRYPTION_MASTER_KEY = TEST_ENCRYPTION_MASTER_KEY;
+}
+if (!process.env.ENCRYPTION_MASTER_KEY) {
+  process.env.ENCRYPTION_MASTER_KEY = config.ENCRYPTION_MASTER_KEY;
+}

@@ -1,0 +1,99 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+S
+Synthetic Studio Candidate
+JUNIOR
+Delhi
+
+Complete your professional identity to begin applying
+
+All changes saved
+Save changes
+Overview
+Professional
+Skills & Projects
+Job Preferences
+Application & Eligibility
+5
+Contact & Links
+Job Search Intent & Preferences
+
+Configure your target roles, locations, compensation floor, and workplace model.
+
+Target Roles * Required for matching
+Comma-separated job titles you are actively seeking.
+Preferred Locations (optional)
+Cities, regions, or "Remote" where you are open to working.
+Workplace Model (optional)
+No preference (Not Set)
+Remote Only
+Remote First
+Hybrid
+Onsite
+Flexible
+Relocation Preference (optional)
+Not Set
+Willing to Relocate
+Remote Only (No Relocation)
+Open to Relocation
+Not Willing to Relocate
+Minimum Compensation (Floor) (optional)
+Minimum acceptable rate or annual base salary.
+Target Compensation (optional)
+Desired target compensation.
+Currency (optional)
+Not Set
+USD ($)
+EUR (€)
+GBP (£)
+CAD ($)
+AUD ($)
+INR (₹)
+Pay Period (optional)
+Not Set
+Annual (per year)
+Monthly
+Hourly rate
+Weekly
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What's missing from my profile?
+Fix my profile gaps
+What evidence is missing?
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

@@ -42,7 +42,10 @@ export class LeverPortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
       if (lower.includes('lever.co') || lower.includes('/lever/')) {
@@ -74,7 +77,8 @@ export class LeverPortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     const doc = context.doc || context.document;
-    const destinationUrl = context.destinationUrl || context.url || 'https://jobs.lever.co/company/job/apply';
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://jobs.lever.co/company/job/apply';
     const formId = 'lever-application-form';
 
     const fields = [];
@@ -83,8 +87,24 @@ export class LeverPortalAdapter extends BasePortalAdapter {
     let isMultiStep = false;
     const steps = [];
 
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -125,13 +145,25 @@ export class LeverPortalAdapter extends BasePortalAdapter {
 
       const orgEl = doc.querySelector('input[name="org"]');
       if (orgEl) {
-        addField({ name: 'org', id: 'org', label: 'Current Company', type: 'text', required: false });
+        addField({
+          name: 'org',
+          id: 'org',
+          label: 'Current Company',
+          type: 'text',
+          required: false,
+        });
       }
 
       // 2. Attachments
       const resumeEl = doc.querySelector('input[name="resume"], [data-qa="resume-upload"]');
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'resume', label: 'Resume/CV', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'resume',
+          label: 'Resume/CV',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -145,32 +177,66 @@ export class LeverPortalAdapter extends BasePortalAdapter {
       }
 
       // 3. Social and Portfolio Links
-      const linkedinEl = doc.querySelector('input[name="urls[LinkedIn]"], #urls_linkedin, [name*="LinkedIn"], [name*="linkedin"]');
+      const linkedinEl = doc.querySelector(
+        'input[name="urls[LinkedIn]"], #urls_linkedin, [name*="LinkedIn"], [name*="linkedin"]'
+      );
       if (linkedinEl) {
-        addField({ name: 'urls[LinkedIn]', id: 'urls_linkedin', label: 'LinkedIn URL', type: 'url', required: false });
+        addField({
+          name: 'urls[LinkedIn]',
+          id: 'urls_linkedin',
+          label: 'LinkedIn URL',
+          type: 'url',
+          required: false,
+        });
       }
 
-      const githubEl = doc.querySelector('input[name="urls[GitHub]"], #urls_github, [name*="GitHub"], [name*="github"]');
+      const githubEl = doc.querySelector(
+        'input[name="urls[GitHub]"], #urls_github, [name*="GitHub"], [name*="github"]'
+      );
       if (githubEl) {
-        addField({ name: 'urls[GitHub]', id: 'urls_github', label: 'GitHub URL', type: 'url', required: false });
+        addField({
+          name: 'urls[GitHub]',
+          id: 'urls_github',
+          label: 'GitHub URL',
+          type: 'url',
+          required: false,
+        });
       }
 
-      const portfolioEl = doc.querySelector('input[name="urls[Portfolio]"], #urls_portfolio, [name*="Portfolio"], [name*="portfolio"]');
+      const portfolioEl = doc.querySelector(
+        'input[name="urls[Portfolio]"], #urls_portfolio, [name*="Portfolio"], [name*="portfolio"]'
+      );
       if (portfolioEl) {
-        addField({ name: 'urls[Portfolio]', id: 'urls_portfolio', label: 'Portfolio URL', type: 'url', required: false });
+        addField({
+          name: 'urls[Portfolio]',
+          id: 'urls_portfolio',
+          label: 'Portfolio URL',
+          type: 'url',
+          required: false,
+        });
       }
 
       const otherUrlEl = doc.querySelector('input[name="urls[Other]"]');
       if (otherUrlEl) {
-        addField({ name: 'urls[Other]', id: 'urls_other', label: 'Other URL', type: 'url', required: false });
+        addField({
+          name: 'urls[Other]',
+          id: 'urls_other',
+          label: 'Other URL',
+          type: 'url',
+          required: false,
+        });
       }
 
       // 4. Custom Cards & Screening Questions
-      const cardEls = doc.querySelectorAll ? doc.querySelectorAll('.application-question, [name^="cards["]') : [];
+      const cardEls = doc.querySelectorAll
+        ? doc.querySelectorAll('.application-question, [name^="cards["]')
+        : [];
       for (const cardEl of cardEls) {
         const cName = cardEl.name || cardEl.id || '';
         const cLabel = (cardEl.getAttribute('aria-label') || cardEl.placeholder || cName).trim();
-        const isSensitive = /authorization|visa|sponsor|salary|veteran|disability|gender/i.test(cName + ' ' + cLabel);
+        const isSensitive = /authorization|visa|sponsor|salary|veteran|disability|gender/i.test(
+          cName + ' ' + cLabel
+        );
         addField({
           name: cName,
           id: cardEl.id || cName,
@@ -195,7 +261,13 @@ export class LeverPortalAdapter extends BasePortalAdapter {
       addField({ name: 'phone', id: 'phone', label: 'Phone', type: 'tel', required: false });
       addField({ name: 'org', id: 'org', label: 'Current Company', type: 'text', required: false });
 
-      const resId = addField({ name: 'resume', id: 'resume', label: 'Resume/CV', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'resume',
+        label: 'Resume/CV',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,
@@ -207,9 +279,27 @@ export class LeverPortalAdapter extends BasePortalAdapter {
         })
       );
 
-      addField({ name: 'urls[LinkedIn]', id: 'urls_linkedin', label: 'LinkedIn URL', type: 'url', required: false });
-      addField({ name: 'urls[GitHub]', id: 'urls_github', label: 'GitHub URL', type: 'url', required: false });
-      addField({ name: 'urls[Portfolio]', id: 'urls_portfolio', label: 'Portfolio URL', type: 'url', required: false });
+      addField({
+        name: 'urls[LinkedIn]',
+        id: 'urls_linkedin',
+        label: 'LinkedIn URL',
+        type: 'url',
+        required: false,
+      });
+      addField({
+        name: 'urls[GitHub]',
+        id: 'urls_github',
+        label: 'GitHub URL',
+        type: 'url',
+        required: false,
+      });
+      addField({
+        name: 'urls[Portfolio]',
+        id: 'urls_portfolio',
+        label: 'Portfolio URL',
+        type: 'url',
+        required: false,
+      });
     }
 
     return PortalFormSchema.parse({

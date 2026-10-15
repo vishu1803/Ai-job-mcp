@@ -249,9 +249,7 @@ describe('Phase 9.9 — Dynamic DOM / SPA Recovery (Real Browser E2E)', () => {
     assert.ok(connected, 'CDP remote debugging port must be reachable');
 
     // Deterministic extension ID derived from extension manifest key
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8')
-    );
+    const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8'));
     const buf = Buffer.from(manifest.key, 'base64');
     const hash = crypto.createHash('sha256').update(buf).digest();
     extensionId = Array.from(hash.slice(0, 16))
@@ -264,7 +262,9 @@ describe('Phase 9.9 — Dynamic DOM / SPA Recovery (Real Browser E2E)', () => {
 
     // Open target page
     formPage = await context.newPage();
-    await formPage.goto(`${serverBaseUrl}/jobs/platform-engineer`, { waitUntil: 'domcontentloaded' });
+    await formPage.goto(`${serverBaseUrl}/jobs/platform-engineer`, {
+      waitUntil: 'domcontentloaded',
+    });
     await new Promise((r) => setTimeout(r, 1000));
 
     // Open extension sidebar
@@ -341,13 +341,21 @@ describe('Phase 9.9 — Dynamic DOM / SPA Recovery (Real Browser E2E)', () => {
       return { beforeId, afterId };
     });
 
-    assert.notStrictEqual(renderIds.beforeId, renderIds.afterId, 'DOM must have been completely torn down and recreated');
+    assert.notStrictEqual(
+      renderIds.beforeId,
+      renderIds.afterId,
+      'DOM must have been completely torn down and recreated'
+    );
 
     // 3. Execute Autofill on the fresh DOM nodes
     const executeResult = await sendTabMessage('EXECUTE_FILL', { plan });
 
     assert.strictEqual(executeResult.success, true);
-    assert.strictEqual(executeResult.finalSubmitBlocked, true, 'Safety invariant: Submit button is never clicked');
+    assert.strictEqual(
+      executeResult.finalSubmitBlocked,
+      true,
+      'Safety invariant: Submit button is never clicked'
+    );
 
     // 4. Verify DOM values in the freshly re-rendered DOM
     const domValues = await formPage.evaluate(() => ({
@@ -360,12 +368,24 @@ describe('Phase 9.9 — Dynamic DOM / SPA Recovery (Real Browser E2E)', () => {
 
     assert.strictEqual(domValues.firstName, 'Jordan', 'First name filled cleanly in fresh DOM');
     assert.strictEqual(domValues.lastName, 'Lee', 'Last name filled cleanly in fresh DOM');
-    assert.strictEqual(domValues.email, 'jordan.lee@example.com', 'Email filled cleanly in fresh DOM');
+    assert.strictEqual(
+      domValues.email,
+      'jordan.lee@example.com',
+      'Email filled cleanly in fresh DOM'
+    );
     assert.strictEqual(domValues.phone, '+1-555-8765', 'Phone filled cleanly in fresh DOM');
-    assert.strictEqual(domValues.company, 'Quantum Software', 'Company filled cleanly in fresh DOM');
+    assert.strictEqual(
+      domValues.company,
+      'Quantum Software',
+      'Company filled cleanly in fresh DOM'
+    );
 
     // 5. Post-fill verification pass
-    assert.strictEqual(executeResult.verificationResult.verified, true, 'Verification must pass on new DOM nodes');
+    assert.strictEqual(
+      executeResult.verificationResult.verified,
+      true,
+      'Verification must pass on new DOM nodes'
+    );
   });
 
   it('TEST 3 — Multi-step SPA navigation: step 1 -> step 2 -> popstate back to step 1 recovers schema cleanly', async () => {
@@ -419,8 +439,14 @@ describe('Phase 9.9 — Dynamic DOM / SPA Recovery (Real Browser E2E)', () => {
     assert.strictEqual(step1RecoveredSchema.step, 1, 'Step number recovered to 1');
 
     const step1RecoveredFields = step1RecoveredSchema.fields.map((f) => f.name || f.id);
-    assert.ok(step1RecoveredFields.includes('first_name'), 'first_name present after back navigation');
-    assert.ok(step1RecoveredFields.includes('last_name'), 'last_name present after back navigation');
+    assert.ok(
+      step1RecoveredFields.includes('first_name'),
+      'first_name present after back navigation'
+    );
+    assert.ok(
+      step1RecoveredFields.includes('last_name'),
+      'last_name present after back navigation'
+    );
     assert.ok(step1RecoveredFields.includes('email'), 'email present after back navigation');
   });
 
