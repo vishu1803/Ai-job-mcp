@@ -83,3 +83,35 @@ test('source projects without UUIDs receive scoped stable identities independent
   assert.ok(first.projects.find((p) => p.name === 'API').metadata.sourceProjectId === 'source-api');
   assert.deepEqual(canonical, original);
 });
+
+test('repository verification labels never upgrade candidate-confirmed skills or invent skill evidence', () => {
+  const candidate = {
+    skills: [
+      {
+        name: 'PostgreSQL',
+        provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
+        evidenceId: 'source-reference',
+        evidenceCount: 4,
+      },
+      { name: 'Go', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
+      { name: 'Redis', provenanceStatus: 'CLAIMED', evidenceCount: 0 },
+    ],
+    projects: [{ name: 'API', technologies: ['Redis'], provenanceStatus: 'VERIFIED' }],
+  };
+  const original = structuredClone(candidate);
+  const result = new CandidateArtifactContentService().selectAndCategorizeSkillsForJob(candidate, {
+    title: 'Backend Engineer',
+    description: 'PostgreSQL, Go and Redis backend APIs.',
+  });
+  assert.equal(
+    result.selectedSkills.find((s) => s.name === 'PostgreSQL').provenanceStatus,
+    'CLAIMED'
+  );
+  assert.ok(!result.selectedSkills.some((s) => s.name === 'Go'));
+  const redis = result.selectedSkills.find((s) => s.name === 'Redis');
+  assert.equal(redis.provenanceStatus, 'CLAIMED');
+  assert.equal(redis.evidenceCount, 0);
+  assert.equal(result.skillAudit.find((s) => s.skill === 'Go').status, 'OMITTED');
+  assert.deepEqual(candidate, original);
+});

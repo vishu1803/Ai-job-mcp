@@ -2243,6 +2243,7 @@ export class CandidateArtifactContentService {
 
     // Build unique skill candidate set (merge candidateSkills and additionalSkills, normalize canonical aliases, prefer VERIFIED)
     const skillMap = new Map();
+    const excludedSkillAudit = [];
     const allCandidateSkillsList = [
       ...(Array.isArray(candidateData.skills) ? candidateData.skills : []),
       ...(Array.isArray(candidateData.additionalSkills) ? candidateData.additionalSkills : []),
@@ -2256,8 +2257,17 @@ export class CandidateArtifactContentService {
         ['MISSING_EVIDENCE', 'UNKNOWN', 'INFERRED'].includes(
           normalizeTruthCategory(skillTrustStatus(s))
         )
-      )
+      ) {
+        excludedSkillAudit.push({
+          skill: s.name || s.skillName,
+          category: s.category || 'Other',
+          provenance: normalizeTruthCategory(skillTrustStatus(s)),
+          score: 0,
+          status: 'OMITTED',
+          reason: 'No candidate-confirmed qualification; source association retained for review',
+        });
         continue;
+      }
       const rawName = typeof s === 'string' ? s : s?.name || s?.skillName;
       if (!rawName) continue;
       const lower = rawName.toLowerCase().trim();
@@ -2270,11 +2280,7 @@ export class CandidateArtifactContentService {
       const evidenceId = s?.evidenceId || s?.primaryEvidenceId || s?.primaryEvidence?.id || null;
       const sourceSkillId = s?.id || s?.skillId || null;
 
-      let rawProvenance = s?.provenanceStatus || s?.provenance;
-      if (!rawProvenance) {
-        rawProvenance =
-          s?.source === 'CANDIDATE_DECLARED' || s?.isUserClaim ? 'CLAIMED' : 'VERIFIED';
-      }
+      const rawProvenance = skillTrustStatus(typeof s === 'object' && s !== null ? s : {});
 
       const existing = skillMap.get(key);
       if (!existing) {
@@ -2299,7 +2305,7 @@ export class CandidateArtifactContentService {
       }
     }
 
-    // Connect verified project technologies to corroborate existing skills and guarantee consistency.
+    // Project stacks affect relevance only; they cannot upgrade proficiency or create evidence.
     // Invariant: finalSkillIds ⊆ verifiedCandidateSkillIds.
     // Project technologies MUST NOT create new candidate skills or expand skill vocabulary.
     const featuredProjectTechs = new Set();
@@ -2309,32 +2315,7 @@ export class CandidateArtifactContentService {
         if (cleaned) {
           const canonical = CANONICAL_ALIAS_MAP[cleaned.toLowerCase()] || cleaned;
           featuredProjectTechs.add(canonical.toLowerCase());
-          const key = canonical.toLowerCase();
 
-          // Lookup existing authorized candidate skill only
-          let item = skillMap.get(key);
-          if (!item) {
-            for (const s of skillMap.values()) {
-              const sName = (s.name || s.skillName || '').toLowerCase().trim();
-              const sSlug = (s.slug || '').toLowerCase().trim();
-              if (sName === key || sSlug === key || CANONICAL_ALIAS_MAP[sName] === canonical) {
-                item = s;
-                break;
-              }
-            }
-          }
-
-          if (item) {
-            if (p.provenanceStatus === 'VERIFIED' || p.provenanceStatus === 'CORROBORATED') {
-              if (
-                item.provenanceStatus === 'CLAIMED' ||
-                item.provenanceStatus === 'SELF_DECLARED'
-              ) {
-                item.provenanceStatus = 'CORROBORATED';
-              }
-              item.evidenceCount = Math.max(item.evidenceCount || 0, 1);
-            }
-          }
           // If the project technology does not match an existing candidate skill,
           // do NOT add it to skillMap. Project technologies must not expand skill vocabulary.
         }
@@ -2342,7 +2323,7 @@ export class CandidateArtifactContentService {
     }
 
     const scoredSkills = [];
-    const skillAudit = [];
+    const skillAudit = [...excludedSkillAudit];
 
     for (const skill of skillMap.values()) {
       const name = skill.name || skill.skillName;
@@ -2717,8 +2698,10 @@ export class CandidateArtifactContentService {
     lines.push('## Professional Summary');
     lines.push('');
     const rawSummary = candidateData.summary || candidateData.headline;
+    const curated = rawSummary
+      ? this.curateProfessionalSummary(rawSummary, candidateData, jobPosting)
+      : '';
     if (rawSummary) {
-      const curated = this.curateProfessionalSummary(rawSummary, candidateData, jobPosting);
       lines.push(curated);
     } else {
       lines.push('*(Professional summary not provided in profile.)*');
@@ -3417,7 +3400,7 @@ export class CandidateArtifactContentService {
     const sectionSnapshots = {};
     if (renderedSections.includes('SUMMARY') || renderedSections.includes('PROFESSIONAL_SUMMARY')) {
       sectionSnapshots.SUMMARY = {
-        text: rawSummary || null,
+        text: curated || null,
         headline: candidateData.headline || null,
         provenance: 'CLAIMED',
       };

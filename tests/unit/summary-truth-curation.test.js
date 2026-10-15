@@ -133,10 +133,11 @@ describe('Evidence-Aware Professional Summary Curation (P14-013)', () => {
       resume.markdownContent.includes('Python (FastAPI)'),
       'Tailored markdown must contain curated summary'
     );
+    assert.equal(resume.skillAudit.find((skill) => skill.skill === 'Django').provenance, 'CLAIMED');
     assert.equal(
-      resume.markdownContent.includes('Django'),
+      resume.sectionSnapshots.SUMMARY.text.includes('Django'),
       false,
-      'Tailored markdown must not expose unevidenced Django'
+      'Curated summary retains its source wording policy; skills may retain truthful candidate claims'
     );
   });
 
