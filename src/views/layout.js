@@ -1,4 +1,3 @@
-import { renderWorkspaceShell } from './components/workspace-shell.js';
 /**
  * @file Base HTML Layout Template for Career Hub Web Application.
  *
@@ -32,8 +31,6 @@ export function renderLayout({
   const safeDesc = escapeHtml(description);
   const userLoggedIn = Boolean(user && user.id);
 
-  if (userLoggedIn) return renderWorkspaceShell({ title, content, activeNav, user, description });
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,11 +60,12 @@ export function renderLayout({
           ${
             userLoggedIn
               ? `
-          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Overview</a></li>
-          <li><a href="/profile" class="nav-link ${['profile', 'sources', 'skills', 'projects'].includes(activeNav) ? 'active' : ''}">Profile</a></li>
+          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
+          <li><a href="/resume-studio" class="nav-link ${activeNav === 'studio' ? 'active' : ''}">Studio</a></li>
           <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
-          <li><a href="/resumes" class="nav-link ${['resumes', 'studio'].includes(activeNav) ? 'active' : ''}">Resumes</a></li>
           <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
+          <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
+          <li><a href="/sources" class="nav-link ${activeNav === 'sources' ? 'active' : ''}">Sources</a></li>
           `
               : `
           <li><a href="/" class="nav-link ${activeNav === 'home' ? 'active' : ''}">Overview</a></li>
@@ -85,14 +83,10 @@ export function renderLayout({
         ${
           userLoggedIn
             ? `
-          ${
-            activeNav === 'studio'
-              ? ''
-              : `<button type="button" class="copilot-nav-btn" id="copilotOpenBtn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" aria-label="Open Career Copilot" title="Open Career Copilot">
+          <button type="button" class="copilot-nav-btn" id="copilotOpenBtn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" aria-label="Open Career Copilot" title="Open Career Copilot">
             ${renderIcon('sparkles', { size: 15 })}
             <span>Copilot</span>
-          </button>`
-          }
+          </button>
           <div class="user-dropdown" id="userDropdown">
             <button class="user-dropdown-btn" aria-haspopup="true" aria-expanded="false" title="Account Menu">
               <div class="user-avatar-badge">${escapeHtml((user.displayName || user.email || 'U').charAt(0).toUpperCase())}</div>
@@ -178,18 +172,15 @@ export function renderLayout({
       userLoggedIn
         ? `
       <div class="mobile-section-label">Workspace</div>
-      ${
-        activeNav === 'studio'
-          ? ''
-          : `<button type="button" class="copilot-nav-btn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this); document.getElementById('mobileNavToggle')?.click();" style="width: calc(100% - 28px); margin: 6px 14px 10px; justify-content: center; padding: 10px 14px;">
+      <button type="button" class="copilot-nav-btn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this); document.getElementById('mobileNavToggle')?.click();" style="width: calc(100% - 28px); margin: 6px 14px 10px; justify-content: center; padding: 10px 14px;">
         ${renderIcon('sparkles', { size: 16 })} <span>Open Career Copilot</span>
-      </button>`
-      }
-      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Overview</span></a>
-      <a href="/profile" class="${['profile', 'sources', 'skills', 'projects'].includes(activeNav) ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
+      </button>
+      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
+      <a href="/resume-studio" class="${activeNav === 'studio' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resume Studio</span></a>
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
-      <a href="/resumes" class="${['resumes', 'studio'].includes(activeNav) ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resumes</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
+      <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
+      <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">${renderIcon('sources', { size: 18 })} <span>Sources</span></a>
       <div class="nav-mobile-divider"></div>
       <div class="mobile-section-label">Account & System</div>
       <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">${renderIcon('tokens', { size: 18 })} <span>API Tokens</span></a>
@@ -262,7 +253,7 @@ export function renderLayout({
   <div class="portal-toast-container" id="portalToastContainer" role="status" aria-live="polite"></div>
 
   <script src="/public/js/app.js" defer></script>
-  ${userLoggedIn && activeNav !== 'studio' ? renderCopilotDrawer({ pageContext: activeNav }) : ''}
+  ${userLoggedIn ? renderCopilotDrawer({ pageContext: activeNav }) : ''}
 </body>
 </html>`;
 }

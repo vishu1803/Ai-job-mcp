@@ -45,10 +45,6 @@ Editable text nodes expose summary, experience/project wording and supported ide
 fields. Supported field paths are determined by the server inventory. Structural ID,
 provenance, evidence, ownership, job target and approval fields cannot be patched.
 Edits are explicit candidate-authored CLAIMED content; source provenance stays intact.
-An explicit experience end-date edit updates the existing current-role flag: Present,
-Current or Ongoing sets it true and normalizes endDate to null; another supplied end date sets it false. Clearing an
-end date retains the flag and does not infer current employment. This prevents an old
-flag masking a candidate-supplied date in the compiled document. Payload shapes stay 1.1.0.
 This endpoint does not independently verify edited metrics/technologies/qualifications
 or make edits eligible for export. All export/approval validation gates remain required.
 Null clears nullable fields; empty strings are accepted only where the source schema
