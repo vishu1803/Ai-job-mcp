@@ -280,7 +280,7 @@ function extractCandidateLinks(profile) {
 
 // Reconcile explicit master assertions with the indexed inventory. Project stack
 // mentions are deliberately not an input: they do not establish candidate skills.
-function resumeSkillInputs(source) {
+export function resumeSkillInputs(source) {
   const meta = source.profileMetadata || {};
   const override = [meta.userCustom, meta].find((entry) => entry && Object.hasOwn(entry, 'skills'));
   const declaredSkills = override ? override.skills : source.skills;
@@ -434,7 +434,30 @@ export function buildStructuredResumeDocument({
   const experience = composeExperienceRecords({
     candidateExperiences: experienceSnapshot,
     jobPosting: canonicalJob,
-  }).map(({ presentationCandidates: _presentationCandidates, ...record }) => record);
+  }).map(({ presentationCandidates: _presentationCandidates, ...record }) => {
+    const proposed = options?.aiContent?.experienceBullets?.[record.id];
+    if (!Array.isArray(proposed) || !proposed.length) return record;
+    const facts = buildCanonicalFactInventory(source, canonicalJob).facts.filter(
+      (f) => (f.ownerId || f.sectionOwnerId || f.association?.experienceId) === record.id
+    );
+    if (
+      !proposed.every(
+        (claim) =>
+          validateClaimEvidenceGrounding(claim, {
+            candidateProfile: source,
+            factInventory: facts,
+            sectionOwnerType: 'EXPERIENCE',
+            sectionOwnerId: record.id,
+          }).valid
+      )
+    )
+      return record;
+    return {
+      ...record,
+      bullets: proposed.map((claim) => claim.text),
+      legacyFields: { ...record.legacyFields, aiTransformations: proposed },
+    };
+  });
 
   // 3. Education Snapshot (Authoritative source facts; no synthetic degrees/universities)
   const education = sourceSections.education;
@@ -912,7 +935,8 @@ export function buildStructuredResumeDocument({
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: canonicalJob?.id || null,
-    targetRoleTitle: tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
+    targetRoleTitle:
+      jobPosting?.title || tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
     targetCompany: canonicalJob?.company || null,
     candidateArchetype: tailoredHeadingInfo.candidateArchetype || 'EXPERIENCED',
     pageTarget: 'ONE_PAGE_STRICT',
@@ -1086,7 +1110,7 @@ export function buildStructuredResumeDocument({
         ? options?.aiContent?.projectBullets?.[slugifyProject(proj.displayName)]
         : null);
 
-    if (Array.isArray(aiBullets) && aiBullets.length >= 3) {
+    if (Array.isArray(aiBullets) && aiBullets.length >= 1) {
       const candidateAiBullets = [];
       for (let bIdx = 0; bIdx < aiBullets.length; bIdx++) {
         const b = aiBullets[bIdx];
@@ -1114,7 +1138,7 @@ export function buildStructuredResumeDocument({
             ? b.matchedRequirementIds
             : [],
           composedFromFactIds: factIds,
-          provenanceStatus: 'VERIFIED',
+          provenanceStatus: b.provenanceStatus || 'CLAIMED',
           ...(b.sourceFact ? { sourceFact: b.sourceFact } : {}),
           ...(b.transformationType ? { transformationType: b.transformationType } : {}),
         };
@@ -1132,7 +1156,7 @@ export function buildStructuredResumeDocument({
         }
       }
 
-      if (candidateAiBullets.length >= 3) {
+      if (candidateAiBullets.length >= 1) {
         pBullets = candidateAiBullets.map((b, bIdx) => {
           factCompositionTrace.push({
             projectId: selectedId,
@@ -1512,7 +1536,10 @@ export function buildStructuredResumeDocument({
     typeof authoredSummary === 'object' && authoredSummary !== null
       ? authoredSummary.text
       : authoredSummary;
-  if (typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
+  const generatedSummary =
+    typeof options?.aiContent?.summary?.text === 'string' &&
+    options.aiContent.summary.text.trim().length > 0;
+  if (!generatedSummary && typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
     summary = {
       text: authoredSummaryText.trim(),
       provenanceStatus: 'CLAIMED',
@@ -1601,12 +1628,13 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
   if (
-    authoredSummary === null ||
-    (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
-    (!authoredSummary &&
-      experience.length === 0 &&
-      rawProjects.length === 0 &&
-      rawSkills.length === 0)
+    !generatedSummary &&
+    (authoredSummary === null ||
+      (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
+      (!authoredSummary &&
+        experience.length === 0 &&
+        rawProjects.length === 0 &&
+        rawSkills.length === 0))
   ) {
     summary = { text: '', composedFromFactIds: [], provenanceStatus: 'CLAIMED' };
   }
@@ -2513,29 +2541,10 @@ export function assertSemanticEquivalence(baseline, current) {
     }
   }
 
-  if (
-    base.projectBullets &&
-    base.projectBullets.length > 0 &&
-    curr.projectBullets &&
-    curr.projectBullets.length > 0
-  ) {
-    for (let i = 0; i < base.projectBullets.length; i++) {
-      const baseList = base.projectBullets[i] || [];
-      const currList = curr.projectBullets[i] || [];
-      if (currList.length < baseList.length) {
-        throw new Error(
-          'Optimizer semantic violation: validated project bullets were deleted or rewritten'
-        );
-      }
-      const currSet = new Set(currList);
-      for (const b of baseList) {
-        if (!currSet.has(b)) {
-          throw new Error(
-            'Optimizer semantic violation: validated project bullets were deleted or rewritten'
-          );
-        }
-      }
-    }
+  if (JSON.stringify(base.projectBullets) !== JSON.stringify(curr.projectBullets)) {
+    throw new Error(
+      'Optimizer semantic violation: validated project bullets were deleted or rewritten or added'
+    );
   }
 
   if (JSON.stringify(base.skillsByCategory) !== JSON.stringify(curr.skillsByCategory)) {

@@ -54,9 +54,9 @@ describe('Content Selection / Optional Section Boundary', () => {
     summary:
       'Experienced backend systems architect specializing in high-throughput distributed microservices.',
     skills: [
-      { name: 'Node.js', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-      { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
+      { name: 'Node.js', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 10 },
+      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+      { name: 'TypeScript', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 6 },
     ],
     experience: [
       {

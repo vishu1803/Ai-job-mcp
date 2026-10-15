@@ -61,17 +61,17 @@ describe('Resume Content Strategy Redesign (P14-007)', () => {
     jobKeywords: ['backend', 'node.js', 'typescript', 'postgresql', 'api', 'rest', 'fastapi'],
     jobPosting: vercelBackendJob,
     skills: [
-      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
-      { name: 'FastAPI', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
-      { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-      { name: 'Node.js', provenanceStatus: 'VERIFIED', evidenceCount: 14 },
-      { name: 'Prisma ORM', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
-      { name: 'Docker', provenanceStatus: 'VERIFIED', evidenceCount: 4 },
-      { name: 'Git', provenanceStatus: 'VERIFIED', evidenceCount: 20 },
-      { name: 'ESLint', provenanceStatus: 'VERIFIED', evidenceCount: 20 },
-      { name: 'Cypress', provenanceStatus: 'VERIFIED', evidenceCount: 18 },
-      { name: 'Vite', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
-      { name: 'Tailwind CSS', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
+      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 15 },
+      { name: 'FastAPI', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 12 },
+      { name: 'TypeScript', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+      { name: 'Node.js', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 14 },
+      { name: 'Prisma ORM', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 6 },
+      { name: 'Docker', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 4 },
+      { name: 'Git', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 20 },
+      { name: 'ESLint', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 20 },
+      { name: 'Cypress', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 18 },
+      { name: 'Vite', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 15 },
+      { name: 'Tailwind CSS', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 12 },
       { name: 'Django', provenanceStatus: 'CLAIMED' },
       { name: 'Flask', provenanceStatus: 'CLAIMED' },
       { name: 'AWS', provenanceStatus: 'SELF_DECLARED' },
@@ -215,7 +215,7 @@ describe('Resume Content Strategy Redesign (P14-007)', () => {
     );
 
     const pg = skillAudit.find((s) => s.skill === 'PostgreSQL');
-    assert.equal(pg.provenance, 'VERIFIED');
+    assert.equal(pg.provenance, 'CLAIMED');
 
     const django = skillAudit.find((s) => s.skill === 'Django');
     assert.equal(django.provenance, 'CLAIMED');
@@ -381,10 +381,14 @@ describe('Resume Content Strategy Redesign (P14-007)', () => {
       content.includes('AI-Powered Code Review Assistant'),
       'Must cite AI-Powered Code Review Assistant'
     );
-    assert.ok(content.includes('verified proficiency in'), 'Must mention verified proficiency');
+    assert.doesNotMatch(
+      content,
+      /verified proficiency in/i,
+      'Repository observations must not become independently verified proficiency'
+    );
     assert.ok(
-      content.includes('practical experience with'),
-      'Must mention claimed practical experience'
+      content.includes('My self-reported skills include'),
+      'Must identify candidate-confirmed skills as self-reported'
     );
     assert.doesNotMatch(content, /Each of these skills is verified/i);
   });

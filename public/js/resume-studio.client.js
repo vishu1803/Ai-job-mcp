@@ -566,6 +566,40 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     }
   }
 
+  async function openGeneratedResume(generationId) {
+    clearAlert();
+    setSaveStatus('saving', 'Opening generated resume...');
+    try {
+      const response = await fetch('/api/v1/resume-studio/drafts', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'x-csrf-token': getCsrfToken(),
+          Origin: window.location.origin,
+        },
+        body: JSON.stringify({ generationId }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.success || !json.data) {
+        showAlert(
+          json?.error?.message || 'Could not open this generated resume. Refresh to retry.'
+        );
+        setSaveStatus('failed', 'Open failed');
+        return;
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('generationId');
+      url.searchParams.set('draftId', json.data.id);
+      window.history.replaceState(null, '', url.toString());
+      initializeDraft(json.data);
+    } catch {
+      showAlert('Could not connect to the resume service. Refresh to retry opening this version.');
+      setSaveStatus('failed', 'Open failed');
+    }
+  }
+
   async function loadDraft(draftId) {
     if (!draftId) return;
     clearAlert();
@@ -2142,6 +2176,8 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
 
   if (initialDraftId) {
     loadDraft(initialDraftId);
+  } else if (urlParams.get('generationId')) {
+    openGeneratedResume(urlParams.get('generationId'));
   }
 
   // =========================================================================

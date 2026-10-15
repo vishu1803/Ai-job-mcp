@@ -4,7 +4,7 @@
  * Tests:
  * 1. Input validation & rejection if application is already submitted.
  * 2. Regeneration scopes: BOTH, RESUME only, COVER_LETTER only.
- * 3. Reason tagging: captures regenerationReason and regenerationScope in package answers.
+ * 3. Reason and parent generation forwarded to the saved operation; no implicit package selection.
  * 4. Fail-closed safety: if pre-exposure QA check fails, the existing CURRENT package
  *    remains completely untouched and no new version is recorded.
  */
@@ -37,6 +37,9 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     candidateId,
     companyName: 'Vercel',
     jobTitle: 'Backend Engineer',
+    jobUrl: 'https://careers.example.test/jobs/backend-engineer',
+    rawJobDescription:
+      'Build Node.js APIs and PostgreSQL database integrations with source-grounded tests.',
     status: 'SAVED',
     appliedAt: null,
     metadata: {
@@ -75,7 +78,10 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     const stubTrackingService = {
       getApplicationDetails: async () => ({
         application: { ...mockApplication, status: 'APPLIED', appliedAt: new Date() },
-        currentPackage: mockCurrentPackage,
+        currentPackage: {
+          ...mockCurrentPackage,
+          packagePayload: { ...mockCurrentPackage, resumeGeneration: { id: applicationId } },
+        },
       }),
     };
 
@@ -106,7 +112,10 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     const stubTrackingService = {
       getApplicationDetails: async () => ({
         application: mockApplication,
-        currentPackage: mockCurrentPackage,
+        currentPackage: {
+          ...mockCurrentPackage,
+          packagePayload: { ...mockCurrentPackage, resumeGeneration: { id: applicationId } },
+        },
         tailoredDocuments: [],
       }),
       attachPackageDocumentSnapshots: async () => {},
@@ -117,28 +126,12 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     };
 
     const stubContentService = {
-      generateApplicationDocuments: async () => ({
-        resume: {
-          title: 'Resume - Vercel',
-          markdownContent:
-            '# Vishwanath Nishad\nvishwanatnishad@gmail.com\n## Experience\nEngineer',
-          contentHash: 'new-res-hash',
-          fitScore: 88,
-        },
-        coverLetter: {
-          title: 'Cover Letter - Vercel',
-          markdownContent: '# Vishwanath Nishad\nvishwanatnishad@gmail.com\nDear Team',
-          contentHash: 'new-cl-hash',
-        },
-        evidence: { projectNamesUsed: [] },
-        candidateData: {
-          ...mockCandidate,
-          skills: [],
-          projects: [],
-          experience: [],
-          education: [],
-        },
-      }),
+      generateApplicationDocuments: async () => {
+        throw new ValidationError(
+          'Generated document requires content or layout review',
+          'DOCUMENT_REVIEW_REQUIRED'
+        );
+      },
     };
 
     // Handoff service returning QA failure
@@ -190,7 +183,7 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
         }),
       (err) => {
         assert.ok(err instanceof ValidationError);
-        assert.ok(err.message.includes('pre-exposure QA check failed'));
+        assert.ok(err.message.includes('requires content or layout review'));
         return true;
       }
     );
@@ -198,14 +191,18 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     assert.equal(recordedCallCount, 0, 'New package must NEVER be recorded when QA fails');
   });
 
-  it('4. regenerates package with reason tagging and promotes new version to CURRENT', async () => {
+  it('4. saves a review alternative with reason and retains CURRENT until explicit approval', async () => {
     let recordedPackage = null;
     let recordedHandoffKit = null;
+    let generationOptions;
 
     const stubTrackingService = {
       getApplicationDetails: async () => ({
         application: mockApplication,
-        currentPackage: mockCurrentPackage,
+        currentPackage: {
+          ...mockCurrentPackage,
+          packagePayload: { ...mockCurrentPackage, resumeGeneration: { id: applicationId } },
+        },
         tailoredDocuments: [],
       }),
       attachPackageDocumentSnapshots: async () => ({
@@ -227,29 +224,37 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
     };
 
     const stubContentService = {
-      generateApplicationDocuments: async () => ({
-        resume: {
-          title: 'Resume - Vercel v2',
-          markdownContent:
-            '# Vishwanath Nishad\nvishwanatnishad@gmail.com\n## Projects\nTask Manager',
-          contentHash: 'new-res-hash-2',
-          fitScore: 92,
-        },
-        coverLetter: {
-          title: 'Cover Letter - Vercel v2',
-          markdownContent:
-            '# Vishwanath Nishad\nvishwanatnishad@gmail.com\nDear Vercel Hiring Team',
-          contentHash: 'new-cl-hash-2',
-        },
-        evidence: { projectNamesUsed: ['Task Manager'] },
-        candidateData: {
-          ...mockCandidate,
-          skills: [],
-          projects: [],
-          experience: [],
-          education: [],
-        },
-      }),
+      generateApplicationDocuments: async ({ options }) => {
+        generationOptions = options;
+        return {
+          generation: {
+            id: userId,
+            parentGenerationId: applicationId,
+            bundle: { structuredResume: { targetRole: 'Backend Engineer' } },
+          },
+          resume: {
+            title: 'Resume - Vercel v2',
+            markdownContent:
+              '# Vishwanath Nishad\nvishwanatnishad@gmail.com\n## Projects\nTask Manager',
+            contentHash: 'new-res-hash-2',
+            fitScore: 92,
+          },
+          coverLetter: {
+            title: 'Cover Letter - Vercel v2',
+            markdownContent:
+              '# Vishwanath Nishad\nvishwanatnishad@gmail.com\nDear Vercel Hiring Team',
+            contentHash: 'new-cl-hash-2',
+          },
+          evidence: { projectNamesUsed: ['Task Manager'] },
+          candidateData: {
+            ...mockCandidate,
+            skills: [],
+            projects: [],
+            experience: [],
+            education: [],
+          },
+        };
+      },
     };
 
     const stubHandoffService = {
@@ -301,13 +306,17 @@ describe('JobApplicationWorkflowService.regenerateApplicationPackage', () => {
       reason: 'Updated GitHub profile link',
     });
 
-    assert.equal(result.package.version, 2);
+    assert.equal(result.generationId, userId);
+    assert.equal(result.parentGenerationId, applicationId);
+    assert.equal(result.reviewRequired, true);
+    assert.equal(result.currentPackageHash, mockCurrentPackage.packageHash);
     assert.equal(result.documentsStatus, 'DOCUMENTS_READY');
     assert.equal(result.artifactsReady, true);
-    assert.ok(recordedPackage, 'Must record the new package in ledger');
-    assert.equal(recordedPackage.answers.regenerationReason, 'Updated GitHub profile link');
-    assert.equal(recordedPackage.answers.regenerationScope, 'BOTH');
-    assert.ok(recordedPackage.answers.regenerationTimestamp);
-    assert.ok(recordedHandoffKit);
+    assert.equal(recordedPackage, null, 'Regeneration must not promote a package');
+    assert.equal(recordedHandoffKit, null, 'Existing handoff kit must be preserved');
+    assert.equal(generationOptions.generationReason, 'Updated GitHub profile link');
+    assert.equal(generationOptions.generationOrigin, 'REGENERATION');
+    assert.equal(generationOptions.parentGenerationId, applicationId);
+    assert.equal(generationOptions.applicationId, applicationId);
   });
 });

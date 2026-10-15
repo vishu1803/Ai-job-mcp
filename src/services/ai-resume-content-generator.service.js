@@ -18,7 +18,8 @@
 
 import { composeSourceGroundedSummary } from './source-grounded-summary.service.js';
 import { validateClaimEvidenceGrounding } from './resume-claim-validation.service.js';
-import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
+import { realizeResumeWriting } from './resume-ai-realization.service.js';
+import { resumeSourceValue } from '../utils/resume-source-normalizer.js';
 import {
   toEvidenceReference,
   sanitizeGroundedAccomplishment,
@@ -26,11 +27,11 @@ import {
 import { buildCanonicalFactInventory } from './candidate-fact-inventory.service.js';
 import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
 import { enforceEvidenceTrust } from './evidence/verification-policy.js';
-import { buildResumeAiContext } from './ai-context-sanitizer.service.js';
 
 // Diagnostics never change the authoritative narrative contract, and cannot
 // leak between concurrent tenant requests on the shared generator singleton.
 const summaryProviderStatuses = new WeakMap();
+const bulletProviderStatuses = new WeakMap();
 
 export class AiResumeContentGeneratorService {
   /**
@@ -39,6 +40,7 @@ export class AiResumeContentGeneratorService {
    */
   constructor(options = {}) {
     this.aiProvider = options.aiProvider !== undefined ? options.aiProvider : undefined;
+    this.writingTimeoutMs = options.writingTimeoutMs || 30000;
   }
 
   /**
@@ -153,6 +155,7 @@ export class AiResumeContentGeneratorService {
 
     // 2. Generate job-conditioned project bullets for each selected project
     const projectBullets = {};
+    const projectWriting = [];
     for (const proj of selectedProjects) {
       const projId = proj.id || proj.projectId;
       const projName = proj.name || proj.title || proj.displayName || '';
@@ -169,6 +172,7 @@ export class AiResumeContentGeneratorService {
         aiProvider: activeProvider,
       });
 
+      projectWriting.push(bulletProviderStatuses.get(bullets) || { status: 'UNAVAILABLE' });
       const slugName = projName
         .toLowerCase()
         .replace(/^https?:\/\/[^/]+\//, '')
@@ -183,15 +187,57 @@ export class AiResumeContentGeneratorService {
       if (slugName) projectBullets[slugName] = bullets;
     }
 
+    const experienceBullets = {};
+    for (const experience of resumeSourceValue(candidateProfile, 'experience', [
+      'workExperience',
+    ]) || []) {
+      const experienceFacts = inventory.filter(
+        (f) =>
+          (f.ownerId || f.sectionOwnerId || f.association?.experienceId) === experience.id &&
+          (f.ownerType === 'EXPERIENCE' || f.surface === 'experience')
+      );
+      if (!experienceFacts.length) continue;
+      const realized = await realizeResumeWriting({
+        provider: activeProvider,
+        taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
+        candidateProfile,
+        job: targetJobPosting,
+        selectedProjects: [
+          {
+            id: experience.id,
+            name: 'Professional contribution',
+            technologies: experience.technologies || [],
+          },
+        ],
+        facts: experienceFacts,
+        timeoutMs: this.writingTimeoutMs,
+        sectionOwnerType: 'EXPERIENCE',
+      });
+      projectWriting.push(realized);
+      if (realized.status === 'ACCEPTED') experienceBullets[experience.id] = realized.claims;
+    }
+    const summaryWriting = summaryProviderStatuses.get(summary) || { status: 'UNAVAILABLE' };
+    const attempts = [summaryWriting, ...projectWriting];
+    const accepted = attempts.filter((entry) => entry.status === 'ACCEPTED');
+    const providerStatus = accepted.length
+      ? 'ACCEPTED'
+      : attempts.some((entry) => entry.status === 'REJECTED')
+        ? 'REJECTED'
+        : attempts.some((entry) => entry.status === 'FAILED')
+          ? 'FAILED'
+          : 'UNAVAILABLE';
     return enforceEvidenceTrust({
       summary,
       projectBullets,
+      experienceBullets,
       writing: {
-        method: 'SOURCE_GROUNDED_DETERMINISTIC',
-        providerUsed: false,
-        providerStatus:
-          summaryProviderStatuses.get(summary) ||
-          (activeProvider ? 'ADVISORY_ONLY' : 'UNAVAILABLE'),
+        method: accepted.length ? 'AI_FACT_BOUND' : 'SOURCE_GROUNDED_DETERMINISTIC',
+        providerUsed: accepted.length > 0,
+        providerStatus,
+        summaryStatus: summaryWriting.status,
+        ...(accepted[0]?.provider ? { provider: accepted[0].provider } : {}),
+        ...(accepted[0]?.modelId ? { modelId: accepted[0].modelId } : {}),
+        sections: attempts.map(({ status, reason }) => ({ status, ...(reason ? { reason } : {}) })),
         missingDataGuidance: summary.text
           ? []
           : ['Add documented responsibilities, education or a factual authored summary.'],
@@ -230,44 +276,53 @@ export class AiResumeContentGeneratorService {
           ? buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []
           : [];
 
-    // AI output is advisory only. Fact IDs/overlap cannot authorize arbitrary prose.
-    // Preserve the privacy-safe provider contract, but render the server synthesizer.
-    let providerStatus = 'UNAVAILABLE';
-    if (activeProvider && typeof activeProvider.generateStructured === 'function') {
-      providerStatus = 'ADVISORY_ONLY';
-      try {
-        const policy = getPromptPolicy('RESUME_SUMMARY_SYNTHESIS');
-        const { context: sanitizedContext } = buildResumeAiContext({
-          job,
-          candidateProfile: candidate,
-          selectedProjects: selectedProjects,
-          factInventory: availableFacts,
-          taskType: 'RESUME_SUMMARY_SYNTHESIS',
-        });
-        await activeProvider.generateStructured({
-          taskType: 'RESUME_SUMMARY_SYNTHESIS',
-          prompt:
-            'Suggest fact selection only. Narrative wording and verification are server controlled.',
-          candidateFacts: sanitizedContext,
-          jobRequirements: sanitizedContext.targetJob,
-          responseSchema: policy.responseSchema,
-        });
-      } catch {
-        providerStatus = 'FAILED';
-        // Malformed output, provider failures and instructions cannot bypass rendering.
-      }
-    }
-
+    const realized = await realizeResumeWriting({
+      provider: activeProvider,
+      taskType: 'RESUME_SUMMARY_SYNTHESIS',
+      candidateProfile: candidate,
+      job,
+      selectedProjects,
+      selectedSkills,
+      facts: availableFacts,
+      timeoutMs: this.writingTimeoutMs,
+    });
+    const proposed = realized.claims[0];
     const summary = enforceEvidenceTrust(
-      composeSourceGroundedSummary({
-        candidateProfile: candidate,
-        jobPosting: job,
-        selectedProjects,
-        selectedSkills,
-        factInventory: availableFacts,
-      })
+      proposed
+        ? {
+            ...proposed,
+            referencedProjectIds: [
+              ...new Set(
+                availableFacts
+                  .filter((f) => proposed.composedFromFactIds.includes(f.factId || f.id))
+                  .map(
+                    (f) =>
+                      f.association?.projectId || (f.ownerType === 'PROJECT' ? f.ownerId : null)
+                  )
+                  .filter(Boolean)
+              ),
+            ],
+            referencedSkillSlugs: [],
+            sentences: [
+              {
+                ...proposed,
+                factIds: proposed.composedFromFactIds,
+                projectIds: [],
+                skillSlugs: [],
+                jobRelevance: 1,
+              },
+            ],
+          }
+        : composeSourceGroundedSummary({
+            candidateProfile: candidate,
+            jobPosting: job,
+            selectedProjects,
+            selectedSkills,
+            factInventory: availableFacts,
+            options: { preserveAuthoredSummary: !job?.title },
+          })
     );
-    summaryProviderStatuses.set(summary, providerStatus);
+    summaryProviderStatuses.set(summary, realized);
     return summary;
   }
 
@@ -411,33 +466,23 @@ export class AiResumeContentGeneratorService {
       jobText
     );
 
-    // AI output is advisory only. Fact IDs/overlap cannot authorize arbitrary prose.
-    // Preserve the privacy-safe provider contract, but render the server synthesizer.
-    if (activeProvider && typeof activeProvider.generateStructured === 'function') {
-      try {
-        const policy = getPromptPolicy('RESUME_ACCOMPLISHMENT_SYNTHESIS');
-        const { context: sanitizedContext } = buildResumeAiContext({
-          job,
-          candidateProfile: candidate,
-          selectedProjects: [proj],
-          factInventory: availableFacts,
-          taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
-        });
-        await activeProvider.generateStructured({
-          taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
-          prompt:
-            'Suggest fact selection only. Narrative wording and verification are server controlled.',
-          candidateFacts: sanitizedContext,
-          jobRequirements: sanitizedContext.targetJob,
-          responseSchema: policy.responseSchema,
-        });
-      } catch {
-        // Malformed output, provider failures and instructions cannot bypass rendering.
-      }
+    const realized = await realizeResumeWriting({
+      provider: activeProvider,
+      taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
+      candidateProfile: candidate,
+      job,
+      selectedProjects: [proj],
+      facts: availableFacts,
+      timeoutMs: this.writingTimeoutMs,
+    });
+    if (realized.status === 'ACCEPTED') {
+      const accepted = enforceEvidenceTrust(realized.claims);
+      bulletProviderStatuses.set(accepted, realized);
+      return accepted;
     }
 
     // High-Fidelity Job-Conditioned Deterministic Bullet Synthesizer
-    return enforceEvidenceTrust(
+    const fallback = enforceEvidenceTrust(
       this._synthesizeJobConditionedProjectBullets({
         proj,
         jobText,
@@ -451,6 +496,8 @@ export class AiResumeContentGeneratorService {
         candidate,
       })
     );
+    bulletProviderStatuses.set(fallback, realized);
+    return fallback;
   }
 
   /**

@@ -32,6 +32,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
   const skillEvidenceIdFlask = 'e3333333-3333-4333-8333-333333333333';
 
   // Comprehensive Candidate Profile Fixture
+  // Synthetic candidate-confirmed resume assertions; legacy VERIFIED labels do not establish independent proficiency.
   const candidateProfile = {
     id: CANDIDATE_ID,
     tenantId: TENANT_ID,
@@ -45,6 +46,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'python',
         category: 'Languages',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 10,
       },
       {
@@ -53,6 +55,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'typescript',
         category: 'Languages',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 12,
       },
       {
@@ -61,6 +64,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'fastapi',
         category: 'Backend & APIs',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 8,
         evidenceId: skillEvidenceIdFastAPI,
       },
@@ -70,6 +74,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'node-js',
         category: 'Backend & APIs',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 6,
       },
       {
@@ -78,6 +83,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'postgresql',
         category: 'Databases & ORMs',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 7,
         evidenceId: skillEvidenceIdPostgres,
       },
@@ -87,6 +93,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'prisma-orm',
         category: 'Databases & ORMs',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 4,
       },
       {
@@ -95,6 +102,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'docker',
         category: 'Cloud, DevOps & Systems',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 5,
       },
       {
@@ -103,6 +111,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'react',
         category: 'Frontend & Web',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 9,
       },
       {
@@ -111,6 +120,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'next-js',
         category: 'Frontend & Web',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 5,
       },
       {
@@ -119,6 +129,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'tailwind-css',
         category: 'Frontend & Web',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 6,
       },
       {
@@ -135,6 +146,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'flask',
         category: 'Backend & APIs',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 4,
         evidenceId: skillEvidenceIdFlask,
       },
@@ -152,6 +164,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'eslint',
         category: 'Developer Tooling',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 15,
       },
       {
@@ -160,6 +173,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'cypress',
         category: 'Developer Tooling',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 3,
       },
       {
@@ -168,6 +182,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         slug: 'vite',
         category: 'Developer Tooling',
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 7,
       },
     ],
@@ -177,6 +192,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         name: 'Distributed Task Processor',
         technologies: ['FastAPI', 'PostgreSQL', 'Docker', 'Python'],
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 4,
       },
       {
@@ -184,6 +200,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
         name: 'Interactive Analytics Dashboard',
         technologies: ['React', 'Next.js', 'Tailwind CSS', 'TypeScript'],
         provenanceStatus: 'VERIFIED',
+        resumeClaim: true,
         evidenceCount: 3,
       },
     ],
@@ -266,7 +283,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     assert.ok(!allPresented.includes('Solidity'));
   });
 
-  it('Test C: VERIFIED/CORROBORATED evidence is preserved', () => {
+  it('Test C: authored claims retain evidence references without falsely independent verification', () => {
     const { selectedSkills, skillAudit } = contentService.selectAndCategorizeSkillsForJob(
       candidateProfile,
       backendJob
@@ -274,12 +291,12 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     const pgSkill = selectedSkills.find((s) => s.name === 'PostgreSQL');
     assert.ok(pgSkill, 'PostgreSQL must be selected');
-    assert.equal(pgSkill.provenanceStatus, 'VERIFIED');
+    assert.equal(pgSkill.provenanceStatus, 'CLAIMED');
     assert.equal(pgSkill.evidenceId, skillEvidenceIdPostgres);
 
     const fastApiAudit = skillAudit.find((s) => s.skill === 'FastAPI');
     assert.ok(fastApiAudit, 'FastAPI must be audited');
-    assert.equal(fastApiAudit.provenance, 'VERIFIED');
+    assert.equal(fastApiAudit.provenance, 'CLAIMED');
     assert.equal(fastApiAudit.status, 'SELECTED');
   });
 
@@ -420,7 +437,7 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
 
     const flaskAudit = skillAudit.find((s) => s.skill === 'Flask');
     assert.ok(flaskAudit, 'Flask must be audited');
-    assert.equal(flaskAudit.provenance, 'VERIFIED');
+    assert.equal(flaskAudit.provenance, 'CLAIMED');
     assert.equal(
       flaskAudit.status,
       'SELECTED',
@@ -436,11 +453,11 @@ describe('P16-001C: Authoritative Job -> Skill Selection', () => {
     const richBackendCandidate = {
       ...candidateProfile,
       skills: [
-        { name: 'FastAPI', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-        { name: 'Node.js', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-        { name: 'Express.js', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
-        { name: 'NestJS', provenanceStatus: 'VERIFIED', evidenceCount: 7 },
-        { name: 'GraphQL', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
+        { name: 'FastAPI', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 10 },
+        { name: 'Node.js', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+        { name: 'Express.js', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 6 },
+        { name: 'NestJS', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 7 },
+        { name: 'GraphQL', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 5 },
       ],
       projects: [],
     };

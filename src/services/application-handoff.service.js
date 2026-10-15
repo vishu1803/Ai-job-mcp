@@ -27,6 +27,8 @@ import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 import { ResumeContentOptimizer } from './resume-content-optimizer.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
+import crypto from 'node:crypto';
+import { StudioDocumentResponseSchema } from '../domain/career/resume-studio-document.schemas.js';
 import { ResumeParserService } from './resume-parser.service.js';
 import {
   RESUME_GENERATION_CONTRACT_VERSION,
@@ -41,6 +43,76 @@ import {
 } from './evidence/artifact-policy.js';
 
 export class ApplicationHandoffService {
+  async resolveBoundResume({ tenantId, userId, candidateId, applicationPackage }) {
+    const context = { tenantId, userId, candidateId, role: 'MEMBER' };
+    if (applicationPackage.resumeStudio) {
+      const { ResumeStudioDocumentService } = await import('./resume-studio-document.service.js');
+      return new ResumeStudioDocumentService({
+        database: this.applicationTrackingService.db,
+      }).approvedArtifact(context, applicationPackage);
+    }
+    const ref = applicationPackage.resumeGeneration;
+    if (!ref) return null; // Historical packages retain their existing renderer contract.
+    await assertCurrentPackage(this.applicationTrackingService.db, context, applicationPackage);
+    const { ResumeGenerationVersionService } =
+      await import('./resume-generation-version.service.js');
+    const { hashStudioContent } = await import('./resume-studio-draft-content.js');
+    const version = await new ResumeGenerationVersionService({
+      database: this.applicationTrackingService.db,
+    }).get(context, ref.id);
+    const structure =
+      applicationPackage.structuredResume || applicationPackage.tailoredResume?.structuredResume;
+    if (
+      version.candidateId !== candidateId ||
+      version.contentHash !== ref.contentHash ||
+      version.sourceResumeId !== ref.sourceResumeId ||
+      version.sourceVersion !== ref.sourceVersion ||
+      hashStudioContent(structure) !== version.contentHash
+    )
+      throw new ValidationError(
+        'Saved generation binding changed',
+        'ARTIFACT_REVALIDATION_REQUIRED'
+      );
+    const measured = StudioDocumentResponseSchema.shape.verification.safeParse(
+      version.bundle.metadata.verification
+    );
+    if (
+      !measured.success ||
+      measured.data.failedChecks.length ||
+      measured.data.pageCount !== 1 ||
+      measured.data.minimumFontPt < 9.95 ||
+      ![
+        'a4',
+        'fontsEmbedded',
+        'unicodeMaps',
+        'wordSpacing',
+        'textPreserved',
+        'readingOrder',
+        'noClipping',
+        'noOverlaps',
+        'glyphsSafe',
+        'docxTextPreserved',
+      ].every((key) => measured.data[key])
+    )
+      throw new ValidationError(
+        'Saved generation requires document review',
+        'DOCUMENT_REVIEW_REQUIRED'
+      );
+    const buffers = {};
+    for (const format of ['pdf', 'docx']) {
+      const artifact = version.bundle.artifacts[format];
+      const bytes = await this.documentStorage.getDecryptedDocument({
+        tenantId,
+        candidateId,
+        storageKey: artifact.storageKey,
+        expectedPackageHash: version.bundle.metadata.artifactPackageHash,
+      });
+      if (crypto.createHash('sha256').update(bytes).digest('hex') !== artifact.contentHash)
+        throw new ValidationError('Saved artifact hash changed', 'ARTIFACT_REVALIDATION_REQUIRED');
+      buffers[format + 'Buffer'] = bytes;
+    }
+    return { ...buffers, verification: version.bundle.metadata.verification };
+  }
   /**
    * @param {object} [dependencies={}]
    * @param {LatexDocumentGenerator} [dependencies.latexGenerator]
@@ -426,7 +498,13 @@ export class ApplicationHandoffService {
       );
     }
 
-    // 2. Artifact generation required: Fetch Candidate Profile for canonical metadata.
+    const boundResume = await this.resolveBoundResume({
+      tenantId,
+      userId,
+      candidateId,
+      applicationPackage,
+    });
+    // 2. Fetch mutable profile only for screening and legacy documents.
     // For legacy packages, without the real candidate profile the generator would fall
     // back to placeholder content, so a profile failure aborts kit generation.
     // For structured packages, the snapshot is authoritative and self-contained;
@@ -438,7 +516,7 @@ export class ApplicationHandoffService {
         candidateId
       );
     } catch (err) {
-      if (!structuredResume) {
+      if (!structuredResume && !boundResume) {
         this.logger.error(
           { error: err.message, candidateId },
           'Canonical candidate profile could not be loaded; aborting handoff kit generation (fail-closed, zero placeholder fallback)'
@@ -454,16 +532,23 @@ export class ApplicationHandoffService {
     }
 
     // 3. Document Generation: ATS Resume
-    const resumeLatexResult = this.latexGenerator.generateTailoredResumeLatex({
-      applicationPackage,
-      candidateProfile,
-    });
+    const resumeLatexResult = boundResume
+      ? { texContent: '' }
+      : this.latexGenerator.generateTailoredResumeLatex({
+          applicationPackage,
+          candidateProfile,
+        });
 
-    const resumePdfResult = await this.latexCompiler.compileLatexToPdf({
-      texContent: resumeLatexResult.texContent,
-      jobName: 'tailored-resume',
-      strictOnePage: canonicalResume?.presentation?.mode === 'ONE_PAGE',
-    });
+    const resumePdfResult = boundResume
+      ? {
+          pdfBuffer: boundResume.pdfBuffer,
+          pageCount: boundResume.verification?.pageCount,
+        }
+      : await this.latexCompiler.compileLatexToPdf({
+          texContent: resumeLatexResult.texContent,
+          jobName: 'tailored-resume',
+          strictOnePage: canonicalResume?.presentation?.mode === 'ONE_PAGE',
+        });
 
     // 3b. Content Audit: real candidate data present, generic placeholders absent
     const realDataTokens = [];
@@ -496,11 +581,12 @@ export class ApplicationHandoffService {
           : [])
       );
     }
-    const resumeContentAudit = LatexDocumentGenerator.auditLatexContent(
-      resumeLatexResult.texContent,
-      { requiredTokens: realDataTokens }
-    );
-    if (!resumeContentAudit.passed) {
+    const resumeContentAudit = boundResume
+      ? null
+      : LatexDocumentGenerator.auditLatexContent(resumeLatexResult.texContent, {
+          requiredTokens: realDataTokens,
+        });
+    if (resumeContentAudit && !resumeContentAudit.passed) {
       this.logger.error(
         { violations: resumeContentAudit.violations },
         'Generated resume LaTeX failed the real-content audit'
@@ -875,18 +961,20 @@ export class ApplicationHandoffService {
       mimeType: 'application/pdf',
     });
 
-    const storedResumeTex = await this.documentStorage.storeEncryptedDocument({
-      tenantId,
-      candidateId,
-      generatedPackage: {
-        receipt: applicationPackage.evidenceTrustReceipt,
-        bodyHash: packageBodyHash(applicationPackage),
-        packageHash,
-      },
-      buffer: Buffer.from(resumeLatexResult.texContent, 'utf8'),
-      originalFileName: resumeTexFilename,
-      mimeType: 'text/x-tex',
-    });
+    const storedResumeTex = boundResume
+      ? null
+      : await this.documentStorage.storeEncryptedDocument({
+          tenantId,
+          candidateId,
+          generatedPackage: {
+            receipt: applicationPackage.evidenceTrustReceipt,
+            bodyHash: packageBodyHash(applicationPackage),
+            packageHash,
+          },
+          buffer: Buffer.from(resumeLatexResult.texContent, 'utf8'),
+          originalFileName: resumeTexFilename,
+          mimeType: 'text/x-tex',
+        });
 
     const storedClPdf = await this.documentStorage.storeEncryptedDocument({
       tenantId,
@@ -936,7 +1024,7 @@ export class ApplicationHandoffService {
         contentHash: storedResumePdf.contentHash,
         fileSizeBytes: storedResumePdf.fileSizeBytes,
         storageKey: storedResumePdf.storageKey,
-        texStorageKey: storedResumeTex.storageKey,
+        ...(storedResumeTex ? { texStorageKey: storedResumeTex.storageKey } : {}),
         viewUrl: `/api/applications/${appRef}/artifacts/resume/view`,
         downloadUrl: `/api/applications/${appRef}/artifacts/resume/download`,
         generationContractVersion: currentContractVersion,

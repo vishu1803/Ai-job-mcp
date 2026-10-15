@@ -1,3 +1,29 @@
+# UNIFIED-RESUME-SELECTION-009 - Review regeneration and retain exact approved bytes (2026-10-15)
+
+Status: IN_PROGRESS. Regeneration now saves a child for Studio review without changing CURRENT or old edits. Explicit Studio approval selects the next version on the same application. Handoff reads exact generation/approved Studio PDF bytes rather than recompiling; historical package behavior retained. Real isolated DB/HTTP/ticket/storage contract 15/15 PASS with controlled compiler/QA; nearby unit gate 57/57 PASS, scoped lint zero errors. Tests prove retries, retained edits/approval bytes, explicit selection, stale rejection and no hidden resume rendering. Comparison/edit transfer, Library, actual fonts, browser/full-suite acceptance remain open. Details and evidence limits in docs/product/unified-resume-implementation.md. No remote changes.
+# UNIFIED-RESUME-ADAPTERS-008 - Shared saved-generation boundary (2026-10-15)
+
+Status: IN_PROGRESS. Web/workflow, MCP, extension, regeneration and Studio now converge on the authorized saved-generation operation; old DTOs are projections, not independent writing. Fixed confirmed skill/requirement loss and MCP claim upgrades. Real isolated DB/HTTP contract 14/14 PASS, focused content/writing 63/63 PASS, source/legacy gate 21/21 PASS. Existing baseline fixture/normalization failures remain; full adapter HTTP parity, immutable regeneration selection, exact handoff, Library, fonts and browser acceptance are still open. See docs/product/unified-resume-implementation.md. No remote changes.
+# UNIFIED-RESUME-ARTIFACTS-007 - Real saved documents and contact retention (2026-10-15)
+
+Status: IN_PROGRESS. Actual shared-operation Backend/Full-Stack PDF and DOCX artifacts generated from one synthetic master with real DB, compiler, independent verification, encrypted storage and exact Studio opening. Both single A4 pages; correct phone/location/links now retained. 14/14 integration PASS, including current explicit contact clears and old-version preservation. Actual fonts still Segoe UI (required Latin Modern FAIL); sparse fixture density, Word pagination, all-entry adapters/Library/compare/handoff/browser/CI acceptance remain open. Detailed artifacts/path and limits in docs/product/unified-resume-implementation.md. No live provider or remote DB calls.
+
+# UNIFIED-RESUME-ENGINE-006 - Authorized saved generation operation (2026-10-15)
+
+Status: IN_PROGRESS. Shared execute operation reuses existing source/ranking/writer/fitter/compiler/evidence/storage, persists before Studio opens, and removes master-clone Studio creation. Canonical master projects/skills reconciled. Fixed parser extractedValue loss and generic master-summary fallback precedence. Focused 81/81 PASS; real DB/HTTP integration 14/14 PASS with controlled compiler fixtures. Existing normalization gate retains the same one baseline provenance mismatch. No real compiler/browser acceptance claim. Other workflow adapters still require execute integration; Library/compare/handoff/fonts/full-suite closure remain. See implementation report. No remote writes, migration, push or deployment.
+
+# UNIFIED-RESUME-STUDIO-005 - Exact saved generation opening (2026-10-15)
+
+Status: IN_PROGRESS. Generated-version Studio adapter and immutable source link implemented. Real PostgreSQL/Fastify/session/CSRF gate 13/13 PASS; existing Studio regression gate 49/49 PASS; fresh 28-migration chain PASS locally. Saved selected summary/skills/projects are retained; edits, reload, history/restore and historical-master opening verified. Frontend deep link implemented but not yet browser-verified. Master-only create and existing generation adapters still require the shared authorized operation; Library/compare/handoff/fonts/browser acceptance incomplete. Migration0027 is local-only; no Aiven migration/push/deployment. See docs/product/unified-resume-implementation.md for evidence and compatibility.
+
+# UNIFIED-RESUME-VERSIONS-004 - Durable generation persistence (2026-10-15)
+
+Status: IN_PROGRESS. Additive generation ledger and internal encrypted version service implemented; 9/9 PostgreSQL contract cases PASS, 27 migrations PASS on fresh disposable local database. Owner/master snapshots, retry identity, parent generations and immutable structured content preserved without changing application selection. Existing APIs/Studio callers not yet connected; no browser/document acceptance claimed. Migration compatibility/rollback analysis and exact evidence in docs/product/unified-resume-implementation.md. No remote migration, push or deployment.
+
+# UNIFIED-RESUME-OPTIMIZER-003 - Semantic freeze regression (2026-10-15)
+
+Status: IN_PROGRESS (bounded fix locally verified). Frozen full suite: 4300 pass/181 fail/4481 total. New optimizer regression fixed: layout trials retain exact selected content, accepted writing and provenance; no post-freeze expansion or pruning. Three new preservation cases pass; existing focused gate 41 pass/2 known baseline failures, including formerly new fingerprint test now passing. Full suite still RED. Report: docs/product/unified-resume-implementation.md. No remote changes, push or deployment.
+
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 ## REMOTE-MAIN-INTEGRATION-001 — Main Branch Synchronization, Conflict Resolution & Pre-Push Quality Verification (2026-10-15)
@@ -102,6 +128,12 @@ Conducted full real-browser end-to-end acceptance audit using Playwright headles
 **Status: COMPLETE — local Git integration only.** At the owner's explicit request, fast-forwarded `main` from `49b4d1a` to repair checkpoint `3bfb76f`, including baseline commit `0477714`. Main checkout remains on `main`; repair branch/worktree retained. Verified repair-branch ancestry and SHA-256 preservation of all 32 preexisting modified/untracked files; none were staged or included.
 
 Verification on merged main: 33/33 focused composition, source-grounded writing and one-page selection tests PASS; merge diff whitespace and strict secret scan PASS (zero findings). Whole-repository strict scan flags 71 preexisting test/documentation patterns outside this merge; no broad strict-scan PASS claimed. Full-suite failures and unfinished UNIFIED-RESUME-001 work remain as recorded below. No push, deployment or remote migration.
+
+## UNIFIED-RESUME-TLS-002 — Trusted existing Aiven connection (2026-10-15)
+
+**Status: COMPLETE — TLS adapter locally tested and read-only remote connectivity verified.** Continued existing repair branch from 3bfb76f. Added validated CA PEM/file configuration and mandatory verified TLS for remote PostgreSQL; retained non-TLS isolated loopback testing. Existing main .env.local credentials plus existing certs/ca.pem successfully completed SELECT 1 with tlsAuthorized=true, hostnameMatches=true and authentication=ACCEPTED. No password rotation requested, secret files copied, remote candidate reads/writes or migrations. Five focused TLS tests and scoped lint PASS. Runtime must explicitly use the intended environment file and CA path. Details and source files: [existing implementation report](docs/product/unified-resume-implementation.md).
+
+Vertex writing checkpoint locally verified: valid provider summary/project/experience prose is accepted after existing factual/privacy/ownership checks and conservative material-source checks; unsupported output retains honest deterministic fallback. Default Vertex provider, ADC/IAM and model registry unchanged; no cross-provider transfer added. New 12-case acceptance suite and combined 119-case focused regression gate PASS. Real Chrome compilation plus independent inspection/visual review proves distinct Backend/Full-Stack summaries and selected bullets survive into two synthetic PDFs. Fixed a discovered fitter omission of the accepted Backend summary. Both PDFs still use Segoe UI; no final layout acceptance claimed. Exploratory full run 4,301 pass/180 fail (source changed during run; final frozen comparison required); one new dependency subprocess timeout passes 74/74 on recheck. Full resume milestone and remaining browser/versioning/font evidence are not complete. Live synthetic Vertex test awaits separate authorization.
 
 ## UNIFIED-RESUME-001 — Authoritative resume engine and Studio repair (2026-10-15)
 

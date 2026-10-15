@@ -33,7 +33,10 @@ export function composeSourceGroundedSummary({
   const profile = candidateProfile || {};
   const authored = resumeSourceValue(profile, 'summary');
   const authoredText = typeof authored === 'object' && authored !== null ? authored.text : authored;
-  if (authored === null || typeof authoredText === 'string') {
+  if (
+    options.preserveAuthoredSummary !== false &&
+    (authored === null || typeof authoredText === 'string')
+  ) {
     const text = clean(authoredText);
     return {
       text,

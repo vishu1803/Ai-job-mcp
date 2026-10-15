@@ -312,11 +312,11 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       };
 
       const mockAnalyzer = new PdfGeometryAnalyzer();
-      // Mock measurePdfBottom: iteration 1 is sparse (120pt whitespace)
+      // Tight first pass requests layout compression; the next pass overflows.
       mockAnalyzer.measurePdfBottom = () => ({
         lowestY: 160,
-        bottomWhitespacePt: 120,
-        pageOccupancyRatio: 0.83,
+        bottomWhitespacePt: 8,
+        pageOccupancyRatio: 0.98,
       });
       mockAnalyzer._detectPageCount = (buf) => (buf.toString().includes('/Count 2') ? 2 : 1);
 
@@ -373,7 +373,7 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
       // Must have executed 2 iterations (1 good, 1 overflow rollback) and stopped!
       assert.equal(result.iterationsRun, 2);
       assert.equal(result.success, true);
-      assert.equal(result.geometry.bottomWhitespacePt, 120);
+      assert.equal(result.geometry.bottomWhitespacePt, 8);
       assert.ok(result.iterationHistory[1].action.includes('ROLLBACK_OVERFLOW'));
     });
 

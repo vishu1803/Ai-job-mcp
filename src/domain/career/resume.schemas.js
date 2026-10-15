@@ -752,9 +752,22 @@ export const StructuredResumeDocumentSchema = z
       .optional(),
     writing: z
       .object({
-        method: z.literal('SOURCE_GROUNDED_DETERMINISTIC'),
-        providerUsed: z.literal(false),
-        providerStatus: z.enum(['UNAVAILABLE', 'ADVISORY_ONLY', 'FAILED']),
+        method: z.enum(['SOURCE_GROUNDED_DETERMINISTIC', 'AI_FACT_BOUND']),
+        providerUsed: z.boolean(),
+        providerStatus: z.enum(['UNAVAILABLE', 'ADVISORY_ONLY', 'FAILED', 'ACCEPTED', 'REJECTED']),
+        summaryStatus: z.enum(['UNAVAILABLE', 'FAILED', 'ACCEPTED', 'REJECTED']).optional(),
+        provider: z.string().optional(),
+        modelId: z.string().optional(),
+        sections: z
+          .array(
+            z
+              .object({
+                status: z.enum(['UNAVAILABLE', 'FAILED', 'ACCEPTED', 'REJECTED']),
+                reason: z.string().optional(),
+              })
+              .strict()
+          )
+          .optional(),
         missingDataGuidance: z.array(z.string()),
       })
       .strict()

@@ -357,6 +357,11 @@ for (const [label, modelOutput] of Object.entries({
     assert.deepEqual(doc.education, build().education);
     assert.deepEqual(doc.certifications, build().certifications);
     assert.deepEqual(doc.optionalSections, build().optionalSections);
-    assert.equal(doc.summary.text, profile.summary);
+    assert.equal(
+      doc.summary.text,
+      'Documented accessible interfaces. Completed coursework in Human Factors.'
+    );
+    assert.equal(profile.summary, 'I study accessible computing.');
+    assert.equal(doc.writing.providerUsed, false);
     assert.ok(!tex(doc).includes('Invented'));
   });

@@ -769,7 +769,11 @@ export function composeStructuredResumeDocument(structuredResumeDocument) {
   const composed = JSON.parse(JSON.stringify(structuredResumeDocument));
 
   // 1. Summary polish
-  if (composed.summary && typeof composed.summary.text === 'string') {
+  if (
+    !composed.writing?.providerUsed &&
+    composed.summary &&
+    typeof composed.summary.text === 'string'
+  ) {
     const polished = polishProfessionalSummary(composed.summary.text);
     if (polished && polished.length > 0 && polished !== composed.summary.text) {
       try {
@@ -784,7 +788,7 @@ export function composeStructuredResumeDocument(structuredResumeDocument) {
   }
 
   // 2. Project bullet compression
-  if (Array.isArray(composed.projects)) {
+  if (!composed.writing?.providerUsed && Array.isArray(composed.projects)) {
     composed.projects = composed.projects.map((project) => ({
       ...project,
       bullets: Array.isArray(project.bullets)

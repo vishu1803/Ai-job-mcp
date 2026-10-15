@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { StudioJobTargetSchema } from './resume-studio.schemas.js';
 import {
+  SourceDsaSnapshotSchema,
   SourceExperienceSnapshotSchema,
   SourceEducationSnapshotSchema,
   SourceCertificationSnapshotSchema,
@@ -18,6 +19,9 @@ export const StudioDraftContentSchema = z
   .object({
     documentId: id,
     schemaVersion: z.literal('studio-draft/1.0.0'),
+    targetRole: z.string().max(255).optional(),
+    sectionOrder: z.array(z.string()).optional(),
+    dsa: SourceDsaSnapshotSchema.nullable().optional(),
     candidateIdentity: z
       .object({
         displayName: nullableText(255),
@@ -63,12 +67,15 @@ export const StudioDraftContentSchema = z
   .strict();
 
 export const StudioDraftParamsSchema = z.object({ id }).strict();
-export const StudioCreateDraftRequestSchema = z
-  .object({
-    source: z.object({ kind: z.literal('RESUME'), resumeId: id }).strict(),
-    jobTarget: StudioJobTargetSchema,
-  })
-  .strict();
+export const StudioCreateDraftRequestSchema = z.union([
+  z.object({ generationId: id }).strict(),
+  z
+    .object({
+      source: z.object({ kind: z.literal('RESUME'), resumeId: id }).strict(),
+      jobTarget: StudioJobTargetSchema,
+    })
+    .strict(),
+]);
 const ids = (max = 10000) =>
   z
     .array(id)
@@ -113,6 +120,10 @@ export const StudioDraftResponseSchema = z
     candidateId: id,
     revision: z.number().int().positive(),
     status: z.literal('DRAFT'),
+    generation: z
+      .object({ id, contentHash: hash, parentGenerationId: id.nullable(), origin: z.string() })
+      .strict()
+      .optional(),
     sourceResumeId: id,
     sourceVersion: z.number().int().positive(),
     sourceContentHash: hash,
@@ -120,7 +131,9 @@ export const StudioDraftResponseSchema = z
     contentHash: hash,
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
-    jobTarget: StudioJobTargetSchema,
+    jobTarget: StudioJobTargetSchema.extend({
+      rawDescription: z.string().trim().min(10).max(250000),
+    }),
     jobDescription: JobDescriptionSchema.extend({ requirements: z.array(JobRequirementSchema) }),
     warnings: z.array(
       z.object({ code: z.literal('JOB_DESCRIPTION_TRUNCATED'), message: z.string() }).strict()

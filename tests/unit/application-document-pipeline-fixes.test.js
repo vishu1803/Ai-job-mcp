@@ -36,11 +36,11 @@ describe('Application Document Pipeline Defect Fixes & Integrity', () => {
     summary: 'Full-stack engineer specializing in robust, scalable backend systems.',
     jobKeywords: new Set(['fullstack', 'react', 'typescript', 'python', 'backend']),
     skills: [
-      { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-      { name: 'React', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
-      { name: 'FastAPI', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
-      { name: 'Docker', provenanceStatus: 'VERIFIED', evidenceCount: 6 },
+      { name: 'TypeScript', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 10 },
+      { name: 'React', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 15 },
+      { name: 'FastAPI', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+      { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 12 },
+      { name: 'Docker', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 6 },
       { name: 'Flask', provenanceStatus: 'CLAIMED', evidenceCount: 0 },
     ],
     experience: [
@@ -623,13 +623,13 @@ Full-stack engineer.
       };
 
       const candidateSkills = [
-        { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-        { name: 'React', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
+        { name: 'TypeScript', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 10 },
+        { name: 'React', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 15 },
         { name: 'React.js', provenanceStatus: 'CLAIMED', evidenceCount: 0 }, // Alias overwrite trap
-        { name: 'Python', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-        { name: 'NestJS', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
-        { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
-        { name: 'Redis', provenanceStatus: 'VERIFIED', evidenceCount: 4 },
+        { name: 'Python', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+        { name: 'NestJS', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 5 },
+        { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 12 },
+        { name: 'Redis', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 4 },
       ];
 
       const featuredProjects = [
@@ -993,11 +993,21 @@ Full-stack engineer.
       const candidateWithSelfDeclared = {
         ...dummyCandidateData,
         skills: [
-          { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
-          { name: 'Python', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
-          { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
-          { name: 'NestJS', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
-          { name: 'Docker', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
+          {
+            name: 'TypeScript',
+            provenanceStatus: 'VERIFIED',
+            resumeClaim: true,
+            evidenceCount: 10,
+          },
+          { name: 'Python', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 8 },
+          {
+            name: 'PostgreSQL',
+            provenanceStatus: 'VERIFIED',
+            resumeClaim: true,
+            evidenceCount: 12,
+          },
+          { name: 'NestJS', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 15 },
+          { name: 'Docker', provenanceStatus: 'VERIFIED', resumeClaim: true, evidenceCount: 5 },
           { name: 'AWS', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
           { name: 'Microsoft Azure', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
           { name: 'Google Cloud Platform', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },

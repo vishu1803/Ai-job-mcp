@@ -159,14 +159,7 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
   const listValue = (values) =>
     Array.isArray(values) ? values.map(textValue).filter(Boolean) : [];
 
-  const rawReqs = Array.isArray(jobPosting?.requirements)
-    ? jobPosting.requirements.filter(
-        (r) =>
-          !r ||
-          typeof r === 'string' ||
-          (r.category !== 'EXPERIENCE' && r.class !== 'RESPONSIBILITY')
-      )
-    : [];
+  const rawReqs = Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : [];
 
   return {
     ...jobPosting,
@@ -178,7 +171,7 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
     skills: listValue(jobPosting?.skills),
     responsibilities: listValue(jobPosting?.responsibilities),
     normalizedRequirements: Array.isArray(jobPosting?.normalizedRequirements)
-      ? jobPosting.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY')
+      ? jobPosting.normalizedRequirements
       : jobPosting?.normalizedRequirements,
     jobFingerprint: jobPosting?.jobFingerprint,
     role: jobPosting?.role,
@@ -891,6 +884,9 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
     });
   const prepared = await workflowService.prepareJobApplication({
     tenantId: context.tenantId,
+    generationOrigin: 'MCP',
+    userId: context.userId,
+    role: context.role,
     candidateId,
     jobPosting: normalizeWorkflowJobPosting(jobDescription, args),
     answers: {},
@@ -927,21 +923,33 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
 
   const output = {
     resumeId: structured.documentId,
+    generationId: prepared.generationId || prepared.resumeGeneration?.id,
+    studioUrl:
+      prepared.studioUrl ||
+      (prepared.resumeGeneration?.id
+        ? '/resume-studio?generationId=' + prepared.resumeGeneration.id
+        : undefined),
     candidateId,
     jobTitle: structured.targetRole,
     presentationMode: args.presentationMode,
     templateId: args.templateId,
     presentationAudit: {
-      status: 'PASS',
+      status: args.presentationMode === 'PRESERVE_EXISTING' ? 'UNSUPPORTED_PRESERVATION' : 'PASS',
       preservedAttributes: {},
-      modifiedAttributes: {},
-      warnings: [],
+      modifiedAttributes: { template: 'CLASSIC_LATIN_MODERN_A4' },
+      warnings:
+        args.presentationMode === 'PRESERVE_EXISTING'
+          ? [
+              'Generated with the shared engineering template; original source styling is not preserved.',
+            ]
+          : [],
     },
     integrityReport: {
       overallStatus: receipt.overallStatus === 'PASS' ? 'PASS' : 'PARTIAL',
       verifiedAssertionsCount: receipt.verifiedClaimsCount || 0,
       inferredAssertionsCount: receipt.inferredClaimsCount || 0,
-      claimedAssertionsCount: receipt.userProvidedClaimsCount || 0,
+      claimedAssertionsCount:
+        (receipt.userProvidedClaimsCount || 0) + (receipt.claimedClaimsCount || 0),
       evidenceItemsCitedCount: projectBullets.reduce(
         (sum, bullet) => sum + (bullet.evidenceRefs?.length || 0),
         0
@@ -1038,19 +1046,18 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         endDate: experience.endDate ? String(experience.endDate) : null,
         isCurrent: Boolean(experience.isCurrent),
         bullets: (experience.bullets || [])
+          .map((bullet) =>
+            typeof bullet === 'string' ? { text: bullet, status: 'CLAIMED' } : bullet
+          )
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
           .map((bullet) => {
-            const st = bullet.status;
-            const hasEvidence =
-              Array.isArray(bullet.evidenceRefs) && bullet.evidenceRefs.length > 0;
+            const st = bullet.provenanceStatus || bullet.status;
             const mappedStatus =
               st === 'USER_PROVIDED' || st === 'CLAIMED' || st === 'SELF_DECLARED'
                 ? 'CLAIMED'
                 : ['VERIFIED', 'INFERRED'].includes(st)
                   ? st
-                  : hasEvidence
-                    ? 'VERIFIED'
-                    : 'CLAIMED';
+                  : 'CLAIMED';
             const defaultConfidence =
               mappedStatus === 'VERIFIED' ? 1.0 : mappedStatus === 'INFERRED' ? 0.75 : 0.5;
             return {
@@ -1071,23 +1078,19 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         projectId: project.projectId,
         name: project.name,
         displayName: project.displayName,
-        description: null,
+        description: project.description || null,
         relevanceScore: project.relevanceScore || 0,
         relevanceBand: undefined,
         bullets: (project.bullets || [])
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
           .map((bullet) => {
-            const st = bullet.status;
-            const hasEvidence =
-              Array.isArray(bullet.evidenceRefs) && bullet.evidenceRefs.length > 0;
+            const st = bullet.provenanceStatus || bullet.status;
             const mappedStatus =
               st === 'USER_PROVIDED' || st === 'CLAIMED' || st === 'SELF_DECLARED'
                 ? 'CLAIMED'
                 : ['VERIFIED', 'INFERRED'].includes(st)
                   ? st
-                  : hasEvidence
-                    ? 'VERIFIED'
-                    : 'CLAIMED';
+                  : 'CLAIMED';
             const defaultConfidence =
               mappedStatus === 'VERIFIED' ? 1.0 : mappedStatus === 'INFERRED' ? 0.75 : 0.5;
             return {

@@ -491,6 +491,8 @@ export const ResumeProjectEntryOutputSchema = z
 export const GenerateTailoredResumeOutputSchema = z
   .object({
     resumeId: z.string().uuid(),
+    generationId: z.string().uuid().optional(),
+    studioUrl: z.string().startsWith('/resume-studio?generationId=').optional(),
     candidateId: z.string().uuid(),
     jobTitle: z.string(),
     presentationMode: ResumePresentationModeEnum,

@@ -1,4 +1,14 @@
-import { pgTable, uuid, text, integer, timestamp, index, primaryKey } from 'drizzle-orm/pg-core';
+import { resumeGenerations } from './resume-generation.schema.js';
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  timestamp,
+  index,
+  primaryKey,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { tenants, users, candidates } from './schema.js';
 
 // Separate schema keeps draft persistence isolated from source/approval repair code.
@@ -16,6 +26,7 @@ export const resumeStudioDrafts = pgTable(
     candidateId: uuid('candidate_id')
       .notNull()
       .references(() => candidates.id, { onDelete: 'cascade' }),
+    generationId: uuid('generation_id').references(() => resumeGenerations.id),
     sourceResumeId: uuid('source_resume_id').notNull(),
     sourceVersion: integer('source_version').notNull(),
     sourceContentHash: text('source_content_hash').notNull(),
@@ -27,7 +38,10 @@ export const resumeStudioDrafts = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_studio_drafts_owner').on(table.tenantId, table.userId, table.candidateId)]
+  (table) => [
+    index('idx_studio_drafts_owner').on(table.tenantId, table.userId, table.candidateId),
+    uniqueIndex('studio_drafts_generation_unique').on(table.generationId),
+  ]
 );
 
 export const resumeStudioRevisions = pgTable(
