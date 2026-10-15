@@ -32,7 +32,7 @@ export const ResumeAccomplishmentBulletSchema = z.object({
  * Zod response schema contract for Gemini accomplishment synthesis (bullets array).
  */
 export const ResumeAccomplishmentResponseSchema = z.object({
-  bullets: z.array(ResumeAccomplishmentBulletSchema).min(3),
+  bullets: z.array(ResumeAccomplishmentBulletSchema).min(1).max(3),
   writingRationale: z.string().trim().default(''),
   confidence: z.number().min(0).max(1).default(1.0),
 });
@@ -57,7 +57,7 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
   getTaskSpecificConstraints() {
     return `=== RESUME ACCOMPLISHMENT REALIZATION CONSTRAINTS ===
 1. PRIMARY WRITING OBJECTIVE & PRIVACY BOUNDARY:
-   Synthesize at least 3 concise, powerful engineering accomplishment bullets for the project, returned in { bullets: [...] }.
+   Synthesize 1 to 3 concise engineering accomplishment bullets, returned in { bullets: [...] }. Use only as many distinct bullets as the supplied facts support. Never invent padding to reach three.
    Every single bullet MUST be a complete sentence ending with a period (.), adhering strictly to:
    [ACTION VERB] + [ENGINEERING OBJECT / SYSTEM] + [TECHNICAL METHOD / MECHANISM] + [PURPOSE / OUTCOME (if supported)]
    - NEVER mention candidate personal name, contact information, or personal identifiers.
@@ -66,8 +66,8 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
    - "Engineered asynchronous webhook pipelines with FastAPI to process external event payloads reliably."
    - "Implemented JWT-based authentication and role-based access control (RBAC) to ensure secure multi-tenant isolation."
 
-2. THREE DIVERSE TECHNICAL ASPECTS:
-   Across the 3 synthesized bullets, you must cover 3 distinct, complementary aspects of the project:
+2. DISTINCT SUPPORTED TECHNICAL ASPECTS:
+   Across the synthesized bullets, cover distinct, complementary aspects only when supported:
    - Aspect 1: Core application architecture, platform design, or full-stack delivery.
    - Aspect 2: Backend APIs, data persistence, database optimization, or schema modeling.
    - Aspect 3: Integration, performance, asynchronous workflows, automation, or security.

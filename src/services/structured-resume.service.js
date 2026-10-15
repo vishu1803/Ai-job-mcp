@@ -434,7 +434,30 @@ export function buildStructuredResumeDocument({
   const experience = composeExperienceRecords({
     candidateExperiences: experienceSnapshot,
     jobPosting: canonicalJob,
-  }).map(({ presentationCandidates: _presentationCandidates, ...record }) => record);
+  }).map(({ presentationCandidates: _presentationCandidates, ...record }) => {
+    const proposed = options?.aiContent?.experienceBullets?.[record.id];
+    if (!Array.isArray(proposed) || !proposed.length) return record;
+    const facts = buildCanonicalFactInventory(source, canonicalJob).facts.filter(
+      (f) => (f.ownerId || f.sectionOwnerId || f.association?.experienceId) === record.id
+    );
+    if (
+      !proposed.every(
+        (claim) =>
+          validateClaimEvidenceGrounding(claim, {
+            candidateProfile: source,
+            factInventory: facts,
+            sectionOwnerType: 'EXPERIENCE',
+            sectionOwnerId: record.id,
+          }).valid
+      )
+    )
+      return record;
+    return {
+      ...record,
+      bullets: proposed.map((claim) => claim.text),
+      legacyFields: { ...record.legacyFields, aiTransformations: proposed },
+    };
+  });
 
   // 3. Education Snapshot (Authoritative source facts; no synthetic degrees/universities)
   const education = sourceSections.education;
@@ -1086,7 +1109,7 @@ export function buildStructuredResumeDocument({
         ? options?.aiContent?.projectBullets?.[slugifyProject(proj.displayName)]
         : null);
 
-    if (Array.isArray(aiBullets) && aiBullets.length >= 3) {
+    if (Array.isArray(aiBullets) && aiBullets.length >= 1) {
       const candidateAiBullets = [];
       for (let bIdx = 0; bIdx < aiBullets.length; bIdx++) {
         const b = aiBullets[bIdx];
@@ -1114,7 +1137,7 @@ export function buildStructuredResumeDocument({
             ? b.matchedRequirementIds
             : [],
           composedFromFactIds: factIds,
-          provenanceStatus: 'VERIFIED',
+          provenanceStatus: b.provenanceStatus || 'CLAIMED',
           ...(b.sourceFact ? { sourceFact: b.sourceFact } : {}),
           ...(b.transformationType ? { transformationType: b.transformationType } : {}),
         };
@@ -1132,7 +1155,7 @@ export function buildStructuredResumeDocument({
         }
       }
 
-      if (candidateAiBullets.length >= 3) {
+      if (candidateAiBullets.length >= 1) {
         pBullets = candidateAiBullets.map((b, bIdx) => {
           factCompositionTrace.push({
             projectId: selectedId,
@@ -1512,7 +1535,8 @@ export function buildStructuredResumeDocument({
     typeof authoredSummary === 'object' && authoredSummary !== null
       ? authoredSummary.text
       : authoredSummary;
-  if (typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
+  const acceptedAiSummary = options?.aiContent?.writing?.summaryStatus === 'ACCEPTED';
+  if (!acceptedAiSummary && typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
     summary = {
       text: authoredSummaryText.trim(),
       provenanceStatus: 'CLAIMED',
@@ -1601,12 +1625,13 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
   if (
-    authoredSummary === null ||
-    (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
-    (!authoredSummary &&
-      experience.length === 0 &&
-      rawProjects.length === 0 &&
-      rawSkills.length === 0)
+    !acceptedAiSummary &&
+    (authoredSummary === null ||
+      (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
+      (!authoredSummary &&
+        experience.length === 0 &&
+        rawProjects.length === 0 &&
+        rawSkills.length === 0))
   ) {
     summary = { text: '', composedFromFactIds: [], provenanceStatus: 'CLAIMED' };
   }

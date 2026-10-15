@@ -363,6 +363,7 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     .filter((item) => !displayedBullets.includes(item.text))
     .map((item) => item.index);
   if (
+    source.writing?.summaryStatus !== 'ACCEPTED' &&
     summary &&
     summarySentences.length &&
     (!nonRepeated.length || generatedAccomplishmentSummary)
@@ -375,6 +376,7 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
         : 'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
     );
   } else if (
+    source.writing?.summaryStatus !== 'ACCEPTED' &&
     summarySentences.length > 1 &&
     nonRepeated.length < summarySentences.length &&
     nonRepeated.length <= 2

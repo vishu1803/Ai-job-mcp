@@ -40,6 +40,7 @@
  */
 
 import crypto from 'node:crypto';
+import { resumeSourceValue } from '../utils/resume-source-normalizer.js';
 import {
   calculateFactSemanticOverlap,
   countDistinctCanonicalFacts,
@@ -957,11 +958,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
   }
 
   // ── 2. Experience facts ───────────────────────────────────────────────────
-  const rawExperience = meta.experience || profile.experience || profile.workExperience || [];
+  const rawExperience = resumeSourceValue(profile, 'experience', ['workExperience']) || [];
   for (const [idx, exp] of (Array.isArray(rawExperience) ? rawExperience : []).entries()) {
     const expId = exp.id || `exp-${idx + 1}`;
     const association = { experienceId: expId, company: exp.company || '' };
-    for (const b of Array.isArray(exp.bullets) ? exp.bullets : []) {
+    const authoredBullets = exp.bullets ?? exp.highlights ?? exp.responsibilities ?? [];
+    for (const b of Array.isArray(authoredBullets) ? authoredBullets : []) {
       const rawText = typeof b === 'object' && b !== null ? b.text || b.description : b;
       addFact({
         text: rawText,
