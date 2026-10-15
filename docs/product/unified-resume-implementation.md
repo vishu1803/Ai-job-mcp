@@ -1,5 +1,25 @@
 # Unified resume implementation — UNIFIED-RESUME-001
 
+## Continuation 2026-10-15: trusted TLS and Vertex writing
+
+Continued on the existing repair branch at 3bfb76f. Main already contains that checkpoint and a local merge ledger commit 5b8d4dc; its current uncommitted edits, including newer browser-audit documentation, were not copied or overwritten. AGENTS.md and goal.md are ignored/untracked in the main checkout and absent from the repair worktree; read the main originals as operating controls. Scope remains the owner's approved resume repair with Vertex AI primary, explicitly configured Developer adapter optional and deterministic final fallback.
+
+### TLS checkpoint — COMPLETE locally and read-only remote connection verified
+
+Normal main environment files are .env followed by .env.local (the latter overrides). Both contain a DB URL/password, neither configured DATABASE_CA_CERT or DATABASE_CA_FILE. Repair has no private environment file; absent ENV_FILE it uses default local development configuration. Found existing main certs/ca.pem. The prior TLS failure was not an observed password rejection.
+
+Added src/db/tls-config.js and reused it from getPoolConfig. Remote connections always verify certificate chain and hostname. DATABASE_CA_CERT accepts validated PEM or an unambiguous readable certificate path; DATABASE_CA_FILE explicitly accepts a path. Relative paths resolve against the explicit environment file's directory, otherwise cwd. Reject ambiguous dual configuration, private keys, invalid/non-CA/expired certificates, unreadable paths and excessive CA input. Remove URL SSL query options that could replace pg's verified TLS configuration. Loopback non-TLS test DB remains supported. No credentials, private configuration or existing certificates were committed.
+
+Read-only connection command: from repair worktree set ENV_FILE to main .env.local and DATABASE_CA_FILE to main certs/ca.pem, then node scripts/diagnose-database-tls.mjs --connect. Result: connected=true, tlsAuthorized=true, hostnameMatches=true, authentication=ACCEPTED. Executed SELECT 1 only. This proves the currently loaded rotated credential works with the existing service and local CA. No remote candidate reads, mutations, generation or migrations. A normal repair runtime must be launched with those explicit environment/CA paths; no secret file has been copied into repair.
+
+Tests: 5/5 database TLS cases PASS, including file/PEM/escaped-PEM, conflicting URL parameters, spoofed localhost hostname, invalid/private-key CA input and non-TLS loopback. Updated earlier CA test to use an actual public root certificate instead of invalid placeholder content. Scoped lint passed. The primary factory/ADC/IAM/model-selection implementation remains untouched.
+
+### AI writing checkpoint — IN_PROGRESS
+
+Confirmed current Vertex-default provider infrastructure is intact. Existing summary/bullet methods discarded provider output; writing schema only allowed deterministic status, master summary took precedence, and builder ignored AI bullet arrays shorter than three. Implementing narrow shared realization with existing privacy sanitizer/transient fact IDs and factual validators, additional material-source vocabulary/negation checks, honest accepted/rejected/failed/unavailable metadata and bounded timeout. No automatic cross-provider retry. Ten focused cases now pass, including actual accepted fixture prose surviving structured generation with two supported bullets and source immutability. Broader regression and renderer proof still pending; no live provider request has been made. Requested separate permission for a synthetic Vertex live test.
+
+Before AI changes: 54/54 existing composition/writing/fitting, Vertex adapter and provider contract cases PASS. Same 54/54 PASS after initial AI integration. Existing full-suite failure ledger remains unchanged until an equivalent full run is completed. Remaining generation identity, Studio integration, regeneration comparison/carry-forward, typography and browser acceptance are still outstanding.
+
 Status: IN_PROGRESS. Stage A baseline recorded; CI root-cause closure and private-source reproduction remain open. Stage B shared composition extraction locally verified, full authoritative operation incomplete. Stages C–F NOT_STARTED.
 
 ## Scope and safety

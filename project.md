@@ -1,5 +1,11 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
+## UNIFIED-RESUME-TLS-002 — Trusted existing Aiven connection (2026-10-15)
+
+**Status: COMPLETE — TLS adapter locally tested and read-only remote connectivity verified.** Continued existing repair branch from 3bfb76f. Added validated CA PEM/file configuration and mandatory verified TLS for remote PostgreSQL; retained non-TLS isolated loopback testing. Existing main .env.local credentials plus existing certs/ca.pem successfully completed SELECT 1 with tlsAuthorized=true, hostnameMatches=true and authentication=ACCEPTED. No password rotation requested, secret files copied, remote candidate reads/writes or migrations. Five focused TLS tests and scoped lint PASS. Runtime must explicitly use the intended environment file and CA path. Details and source files: [existing implementation report](docs/product/unified-resume-implementation.md).
+
+Vertex writing continuation is IN_PROGRESS. Default Vertex provider, ADC/IAM and model registry unchanged. Ten new fixture-writing cases pass; existing 54-case nearest regression gate passes before/after. Full resume milestone and remaining browser/versioning/font evidence are not complete.
+
 ## UNIFIED-RESUME-001 — Authoritative resume engine and Studio repair (2026-10-15)
 
 **Status: IN_PROGRESS. Stage A baseline recorded; Stage B composition extraction locally verified but authoritative operation incomplete; stages C–F NOT_STARTED.**

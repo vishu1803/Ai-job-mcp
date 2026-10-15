@@ -1,4 +1,6 @@
 import { performance } from 'node:perf_hooks';
+import path from 'node:path';
+import { databaseTlsOptions } from './tls-config.js';
 import dns from 'node:dns';
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -56,51 +58,21 @@ export function parseSanitizedDbUrl(connectionString = config.DATABASE_URL) {
  * @returns {import('pg').PoolConfig} Configured pg Pool options
  */
 export function getPoolConfig(overrides = {}) {
-  const rawUrl = config.DATABASE_URL || '';
-  const urlLower = rawUrl.toLowerCase();
-  const isSslQuery =
-    urlLower.includes('sslmode=require') ||
-    urlLower.includes('sslmode=verify-full') ||
-    urlLower.includes('sslmode=verify-ca') ||
-    urlLower.includes('ssl=true');
-  const isRemoteHost =
-    Boolean(urlLower) &&
-    !urlLower.includes('localhost') &&
-    !urlLower.includes('127.0.0.1') &&
-    !urlLower.includes('host.docker.internal');
-  const useSsl = config.DATABASE_SSL || isSslQuery || isRemoteHost;
-
-  // Strip query-level SSL params from the connection string so pg doesn't conflict with explicit ssl options
-  let cleanConnectionString = rawUrl;
-  try {
-    const parsed = new URL(rawUrl);
-    parsed.searchParams.delete('sslmode');
-    parsed.searchParams.delete('ssl');
-    cleanConnectionString = parsed.toString();
-  } catch {
-    // If URL parsing fails, fallback to rawUrl
-  }
-
-  let sslConfig = false;
-  if (useSsl) {
-    if (
-      config.NODE_ENV === 'production' ||
-      process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true'
-    ) {
-      sslConfig = {
-        rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
-        ca: process.env.DATABASE_CA_CERT || undefined,
-      };
-    } else {
-      sslConfig = { rejectUnauthorized: false };
-    }
-  }
+  const tls = databaseTlsOptions({
+    connectionString: config.DATABASE_URL,
+    ssl: config.DATABASE_SSL,
+    ca: process.env.DATABASE_CA_CERT,
+    caFile: process.env.DATABASE_CA_FILE,
+    baseDir: process.env.ENV_FILE
+      ? path.dirname(path.resolve(process.env.ENV_FILE))
+      : process.cwd(),
+  });
 
   return {
-    connectionString: cleanConnectionString,
+    connectionString: tls.connectionString,
     min: config.DATABASE_POOL_MIN,
     max: config.DATABASE_POOL_MAX,
-    ssl: sslConfig,
+    ssl: tls.ssl,
     statement_timeout: config.DATABASE_STATEMENT_TIMEOUT_MS,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 30000,
