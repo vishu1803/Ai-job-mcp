@@ -63,6 +63,14 @@ export default async function resumeStudioRoutes(fastify, opts = {}) {
     authorize('OWNER', 'MEMBER'),
     createVerifyCsrf({ requireOrigin: true, requireToken: true }),
   ];
+  fastify.get(
+    '/drafts',
+    { preHandler: [authenticate, authorize('OWNER', 'MEMBER', 'READONLY')] },
+    async (request, reply) =>
+      reply
+        .header('cache-control', 'no-store')
+        .send({ success: true, data: await drafts.list(request.auth, request.query) })
+  );
   fastify.post(
     '/drafts',
     { bodyLimit: 1024 * 1024, preHandler: writeHandlers },

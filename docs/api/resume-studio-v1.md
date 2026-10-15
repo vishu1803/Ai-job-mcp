@@ -139,3 +139,8 @@ implementations. PRD-002 is locally complete; PRD-004/005 and live AI
 remain open. The integrated frontend now consumes implemented contracts through real
 session/CSRF HTTP. Native Office rendering remains unverified pending local setup; live
 provider quality is not claimed. No commit/push/merge/deploy authorized.
+
+
+## Local main consolidation and library navigation (2026-10-15)
+
+Local integration/checkpoint commits and main merge are now authorized and completed; earlier no-commit statements describe the historical slices. Remote publication/deployment remain prohibited. Additive1.4 [owned draft library and web context](resume-studio-library-v1.md) and its JSON Schema are implemented.1.0analysis/1.1draft/1.2proposals/1.3document contracts remain compatible. See ../product/unified-ui-milestone-1-handoff.md for current592-case local verification and limits.

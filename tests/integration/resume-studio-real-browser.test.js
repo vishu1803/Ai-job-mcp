@@ -440,7 +440,7 @@ test('shared navigation remains usable on the real resume archive after adding S
       await archive.locator('.nav-inner').evaluate((el) => el.scrollWidth <= el.clientWidth + 1)
     );
     await archive.locator('#mobileNavToggle').click();
-    await archive.locator('#mobileNavMenu.open a[href="/resume-studio"]').waitFor();
+    await archive.locator('#mobileNavMenu.open a[href="/resumes"]').waitFor();
     await archive.locator('#mobileNavToggle').click();
   }
   await archive.close();

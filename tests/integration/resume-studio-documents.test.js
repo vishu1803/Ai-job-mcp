@@ -1,7 +1,7 @@
 import { before, after, test } from 'node:test';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { startStudioHarness } from '../helpers/resume-studio-harness.js';
 import {
   resumes,
@@ -14,6 +14,11 @@ import { resumeStudioDocuments } from '../../src/db/resume-studio.schema.js';
 import { ResumeStudioDocumentService } from '../../src/services/resume-studio-document.service.js';
 
 let h, draft, document, baseline;
+const scopedRows = (table) =>
+  h.db
+    .select()
+    .from(table)
+    .where(inArray(table.tenantId, [...new Set(h.people.map((person) => person.tenantId))]));
 const read = async (suffix) => (await (await h.request('GET', suffix)).json()).data;
 const fixture = async (name, data) => {
   if (process.env.STUDIO_WRITE_FIXTURES === '1')
@@ -26,8 +31,8 @@ before(async () => {
   h = await startStudioHarness();
   draft = await h.create();
   baseline = {
-    resumes: await h.db.select().from(resumes).orderBy(resumes.id),
-    candidates: await h.db.select().from(candidates).orderBy(candidates.id),
+    resumes: await scopedRows(resumes).orderBy(resumes.id),
+    candidates: await scopedRows(candidates).orderBy(candidates.id),
   };
 });
 after(async () => {
@@ -309,9 +314,9 @@ test('approval audit failure rolls back application/package/ticket, then recover
   const body = { expectedRevision: draft.revision, documentId: document.id, reviewed: true };
   const failure = await h.request('POST', '/drafts/' + draft.id + '/approval', body);
   assert.equal(failure.status, 500);
-  assert.equal((await h.db.select().from(applicationPackages)).length, 0);
-  assert.equal((await h.db.select().from(applicationApprovalTickets)).length, 0);
-  assert.equal((await h.db.select().from(jobApplications)).length, 0);
+  assert.equal((await scopedRows(applicationPackages)).length, 0);
+  assert.equal((await scopedRows(applicationApprovalTickets)).length, 0);
+  assert.equal((await scopedRows(jobApplications)).length, 0);
   await h.db.execute(
     sql`DROP TRIGGER studio_document_test_fail ON audit_logs; DROP FUNCTION studio_document_test_fail();`
   );
@@ -320,21 +325,18 @@ test('approval audit failure rolls back application/package/ticket, then recover
   assert.equal(response.status, 200, JSON.stringify(value));
   assert.equal(value.data.status, 'APPROVED');
   await fixture('approval', value.data);
-  const [pkg] = await h.db.select().from(applicationPackages);
-  const [ticket] = await h.db.select().from(applicationApprovalTickets);
+  const [pkg] = await scopedRows(applicationPackages);
+  const [ticket] = await scopedRows(applicationApprovalTickets);
   assert.equal(pkg.packageHash, ticket.packageHash);
   assert.equal(pkg.packagePayload.resumeStudio.pdfHash, document.pdfHash);
-  assert.deepEqual(await h.db.select().from(resumes).orderBy(resumes.id), baseline.resumes);
-  assert.deepEqual(
-    await h.db.select().from(candidates).orderBy(candidates.id),
-    baseline.candidates
-  );
+  assert.deepEqual(await scopedRows(resumes).orderBy(resumes.id), baseline.resumes);
+  assert.deepEqual(await scopedRows(candidates).orderBy(candidates.id), baseline.candidates);
   assert.equal((await h.request('POST', '/drafts/' + draft.id + '/approval', body)).status, 409);
-  assert.equal((await h.db.select().from(applicationPackages)).length, 1);
+  assert.equal((await scopedRows(applicationPackages)).length, 1);
 });
 test('subsequent manual edits invalidate export while preserving old approved package and ticket', async () => {
-  const beforePackages = await h.db.select().from(applicationPackages);
-  const beforeTickets = await h.db.select().from(applicationApprovalTickets);
+  const beforePackages = await scopedRows(applicationPackages);
+  const beforeTickets = await scopedRows(applicationApprovalTickets);
   const node = draft.nodes.find((n) => n.kind === 'BULLET');
   assert.equal(
     (
@@ -365,8 +367,8 @@ test('subsequent manual edits invalidate export while preserving old approved pa
     ).status,
     409
   );
-  assert.deepEqual(await h.db.select().from(applicationPackages), beforePackages);
-  assert.deepEqual(await h.db.select().from(applicationApprovalTickets), beforeTickets);
+  assert.deepEqual(await scopedRows(applicationPackages), beforePackages);
+  assert.deepEqual(await scopedRows(applicationApprovalTickets), beforeTickets);
   await assert.rejects(
     h.db
       .update(resumeStudioDocuments)

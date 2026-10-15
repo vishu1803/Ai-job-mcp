@@ -1,0 +1,174 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+S
+Synthetic Studio Candidate
+JUNIOR
+Delhi
+
+Complete your professional identity to begin applying
+
+All changes saved
+Save changes
+Overview
+Professional
+Skills & Projects
+Job Preferences
+Application & Eligibility
+5
+Contact & Links
+44%
+READY
+Career Profile: 85% Populated
+
+Screening profile is incomplete (missing: workAuthorization, visaSponsorship, linkedin, availability, noticePeriod). HANDOFF_READY does not imply these fields are complete.
+
+5 issue(s) require your attention
+Work Authorization
+Work authorization status not yet documented in Profile or Answers
+Add
+Fix
+Visa Sponsorship
+Visa sponsorship preference not set in Profile
+Add
+Fix
+LinkedIn Profile
+LinkedIn profile link not added to links collection
+Add
+Fix
+Earliest Start Date
+Availability date not specified in Job Search Intent
+Add
+Fix
+Notice Period
+Notice period not documented in Profile or Answers
+Add
+Fix
+Application Readiness Checklist (4)
+Verified
+
+Information populated and ready for employer review.
+
+Candidate Email
+534baf9c-b216-495e-8090-833c61a4ee6b@example.test
+Contact Phone
++91 9876543210
+Candidate GitHub
+https://github.com/source-fixture
+Code / Portfolio
+https://portfolio.example.test
+Needs Attention (5)
+Action Needed
+
+Critical parameters required by employer screening questionnaires.
+
+Work Authorization
+Work authorization status not yet documented in Profile or Answers
+Add →
+Visa Sponsorship
+Visa sponsorship preference not set in Profile
+Add →
+LinkedIn Profile
+LinkedIn profile link not added to links collection
+Add →
+Earliest Start Date
+Availability date not specified in Job Search Intent
+Add →
+Notice Period
+Notice period not documented in Profile or Answers
+Add →
+Professional Identity
+Manage
+
+Role: Not specified
+
+Headline: None
+
+Experience: 1 position(s) documented
+
+Education: 1 qualification(s) documented
+
+Skills & Projects
+Manage
+
+Primary Skills: 2 technical competencies
+
+Highlighted Projects: 5 project(s)
+
+Certifications: 1 credential(s)
+
+React
+PostgreSQL
+Job Preferences
+Edit
+
+Target Roles: Any
+
+Workplace: Not specified
+
+Locations: Flexible
+
+Compensation Floor: Flexible
+
+Application & Eligibility
+Manage
+
+Work Auth: Not set
+
+Visa Sponsorship: Not Set
+
+Notice Period:
+
+Availability: Immediate / Flexible
+
+Contact & Links
+Manage
+
+Email: 534baf9c-b216-495e-8090-833c61a4ee6b@example.test
+
+Phone: +91 9876543210
+
+LinkedIn: Not set
+
+GitHub: Not set
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What's missing from my profile?
+Fix my profile gaps
+What evidence is missing?
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

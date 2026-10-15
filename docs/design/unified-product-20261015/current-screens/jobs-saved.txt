@@ -1,0 +1,65 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+← Back to Dashboard
+Overview
+/
+Jobs
+/
+Market Radar
+CAREER INTELLIGENCE
+Job Radar & Market Fit
+
+Discover authentic opportunities matching your verified skills, track your target pipeline, and evaluate job descriptions with deterministic ATS scoring.
+
+Discover Jobs
+Saved Pipeline
+0
+Custom Analysis
+No Saved Jobs in Pipeline
+
+You have not saved any opportunities yet. Save roles from the Discover feed to prepare tailored application kits.
+
+Discover Matching Jobs
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+How strong is my match?
+What am I missing?
+Should I apply?
+Tailor my resume
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

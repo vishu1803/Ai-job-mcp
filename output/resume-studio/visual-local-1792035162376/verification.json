@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Existing development fixture login creates a real session; unauthenticated Studio redirects",
+    "All Studio assets served byte-identically from the integrated worktree",
+    "Job analysis and actual diagnostics are available over authenticated CSRF HTTP",
+    "Structured editing autosaves a new revision and survives browser reload",
+    "Source-grounded synthetic provider proposal, evidence and explicit accept/reject controls visible; no suggestion applied",
+    "Exact compiled one-A4-page PDF and PDF/DOCX export controls ready; approval requires explicit review",
+    "Persisted version history is available",
+    "Existing split-pane divider actually resizes the editor/preview",
+    "Four responsive viewports, neutral editorial interface and diagnostic drawer; no prototype/slice/debug labels"
+  ],
+  "baseUrl": "http://127.0.0.1:4318",
+  "worktree": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
+  "provider": "Deterministic synthetic fixture; no live AI requests",
+  "documentVerification": {
+    "a4": true,
+    "compiler": "chrome_headless",
+    "docxTextPreserved": true,
+    "failedChecks": [],
+    "fontsEmbedded": true,
+    "glyphsSafe": true,
+    "lineHeight": 1.24,
+    "marginIn": 0.6,
+    "minimumFontPt": 9.997499465942383,
+    "noClipping": true,
+    "noOverlaps": true,
+    "pageCount": 1,
+    "readingOrder": true,
+    "textPreserved": true,
+    "unicodeMaps": true,
+    "wordSpacing": true
+  },
+  "screenshots": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent\\output\\resume-studio\\visual-local-1792035162376\\",
+  "browserErrors": []
+}

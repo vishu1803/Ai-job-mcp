@@ -1,0 +1,88 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Resumes
+Overview
+/
+Resumes
+/
+v1 — synthetic-master.txt
+synthetic-master.txt
+(v1)
+BASE RESUME
+
+Parsed sections and extracted qualifications from your uploaded resume.
+
+Download Original
+FILE SIZE
+27 B
+MIME FORMAT
+text/plain
+PARSED SECTIONS
+0 sections
+EXTRACTED CLAIMS
+0 assertions
+SHA-256 HASH
+c832d10e2b82649f...
+Review & Promote Candidate Claims
+
+Approve parsed claims to integrate them into your candidate profile. Approved skills will be marked with the CLAIMED truth classification and can serve as your active Base Resume narrative.
+
+Set this resume version as my active Base Resume
+Your Base Resume serves as the foundational source narrative for ATS job tailoring.
+Candidate Professional Headline
+Candidate Bio Narrative Summary
+Save & Confirm Claims
+Parsed Resume Sections
+
+Structured document blocks parsed from source file.
+
+0 sections
+Extracted Self-Reported Claims
+0 claims
+
+Atomic facts and skills extracted from your resume. Unverified until corroborated against connected repository source code.
+
+No structured claims were extracted. This can happen when the resume format lacks standard section headings (e.g., "Skills", "Experience", "Education") or when the parser cannot identify structured entries. The raw parsed sections above still contain your resume content. Supported section headings: Skills, Work Experience, Education, Projects, Certifications, Summary.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+Review my active resume
+What claims lack evidence?
+Tailor my resume
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

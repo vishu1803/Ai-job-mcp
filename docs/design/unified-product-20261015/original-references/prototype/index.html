@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Tailored Resume Studio — Career Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========================================================================
+       Top Studio Header: Editorial Breadcrumb & Restrained Controls
+       ======================================================================== -->
+  <header class="studio-header">
+    <div class="brand-section">
+      <div class="app-icon-mark" title="Career Hub Resume Studio">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <nav class="breadcrumb-trail" aria-label="Breadcrumb">
+        <span class="crumb-dim">Applications</span>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-dim" id="jobTargetCompany">CloudScale Systems</span>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-current">
+          <span id="jobTargetTitle">Staff Distributed Systems Engineer</span>
+          <span class="target-badge-pill" id="targetJobPill">Target Tailoring</span>
+        </span>
+      </nav>
+    </div>
+
+    <!-- Center Layout Mode Switcher -->
+    <div class="header-center">
+      <div class="mode-switcher" role="tablist" aria-label="Layout Modes">
+        <button class="mode-btn" id="btnModeEditor" role="tab" title="Focus on Editor only">
+          <span>Editor</span>
+        </button>
+        <button class="mode-btn active" id="btnModeSplit" role="tab" title="Side-by-side Editor & Preview">
+          <span>Split View</span>
+        </button>
+        <button class="mode-btn" id="btnModePreview" role="tab" title="Focus on Document Preview only">
+          <span>Preview</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Right Actions -->
+    <div class="header-actions">
+      <!-- 1-Page Micro-Spacing Solver Trigger -->
+      <button class="btn btn-secondary btn-sm" id="btnAutoFit" title="Run Adaptive Geometry Solver">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        <span id="fitBtnLabel">Fit to 1 Page</span>
+      </button>
+
+      <!-- Diagnostics Drawer Button -->
+      <button class="btn btn-secondary btn-sm" id="btnOpenDiagnostics" title="Open Quality & ATS Diagnostics">
+        <span>Diagnostics</span>
+        <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-emerald); font-weight:600; margin-left:3px;">88</span>
+      </button>
+
+      <!-- Export Dropdown -->
+      <button class="btn btn-primary btn-sm" id="btnExport" title="Export Resume">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       Sub-Bar: Editorial Keyword Inspection Bar (Noise Reduced)
+       ======================================================================== -->
+  <div class="studio-subbar">
+    <div class="subbar-left-wrap">
+      <div class="kw-meta-summary">
+        <span>Target Coverage:</span>
+        <strong id="kwSummaryText">11 Grounded &bull; 3 Gaps</strong>
+      </div>
+      <div class="kw-filter-tabs">
+        <button class="kw-filter-btn active" id="kwFilterAll" onclick="window.filterKeywordChips('all')">All (14)</button>
+        <button class="kw-filter-btn" id="kwFilterMatched" onclick="window.filterKeywordChips('matched')">Matched (8)</button>
+        <button class="kw-filter-btn" id="kwFilterGaps" onclick="window.filterKeywordChips('gaps')">Gaps (3)</button>
+      </div>
+      <div class="keyword-chips-container" id="keywordChipsBar">
+        <!-- Monochrome Editorial Chips injected dynamically via app.js -->
+      </div>
+    </div>
+    <div class="subbar-right-controls">
+      <button class="btn btn-secondary btn-sm" id="btnOpenContentSelector" style="padding:2px 8px; font-size:0.72rem;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Content Selection</span>
+      </button>
+      <div class="save-status-text" id="saveStatusIndicator">
+        <span class="save-status-dot"></span>
+        <span>Autosaved</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Main Resizable Dual-Pane Workbench
+       ======================================================================== -->
+  <main class="studio-workbench" id="workbench">
+    
+    <!-- LEFT PANE: Editorial Structured Document Editor -->
+    <section class="editor-pane" id="editorPane" aria-label="Structured Resume Editor">
+      <div class="editor-inner" id="editorContent">
+        <!-- Rendered by app.js: Summary, Experience, Projects, Skills -->
+      </div>
+    </section>
+
+    <!-- RESIZER GUTTER -->
+    <div class="resizer-gutter" id="resizerGutter" title="Drag to resize panes">
+      <div class="resizer-handle"></div>
+    </div>
+
+    <!-- RIGHT PANE: Live Document Canvas Preview -->
+    <section class="preview-pane" id="previewPane" aria-label="Resume Document Preview">
+      <div class="preview-toolbar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="page-budget-indicator fit" id="pageBudgetBadge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="pageBudgetText">1 Page Target (100% Fit)</span>
+          </div>
+          <span style="font-size:0.72rem; color:var(--text-dim); font-family:var(--font-mono);">Body: 10.0pt class &bull; 0.52in margins</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="btn btn-secondary btn-icon" id="btnZoomOut" title="Zoom Out">−</button>
+          <span id="zoomLevelText" style="font-size:0.72rem; font-family:var(--font-mono); color:var(--text-muted); min-width:34px; text-align:center;">100%</span>
+          <button class="btn btn-secondary btn-icon" id="btnZoomIn" title="Zoom In">+</button>
+        </div>
+      </div>
+
+      <div class="preview-viewport" id="previewViewport">
+        <!-- The White Vector Resume Sheet -->
+        <article class="resume-paper" id="resumePaper" role="document" aria-label="Compiled Resume">
+          <!-- Page Cutoff Dashed Line (Visible only during overflow simulation) -->
+          <div class="page-cutoff-line" id="pageCutoffLine">
+            <span class="page-cutoff-tag">PAGE 2 OVERFLOW (CUTOFF)</span>
+          </div>
+
+          <!-- Document Content rendered by app.js -->
+          <div id="paperInner"></div>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       Slide-Out Diagnostics Drawer
+       ======================================================================== -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer-panel" id="diagnosticsDrawer" aria-label="Diagnostics Drawer">
+    <div class="drawer-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <strong style="color:var(--text-main); font-size:0.9rem; font-weight:600;">Candidate &amp; Job Diagnostics</strong>
+      </div>
+      <button class="btn btn-secondary btn-icon" id="btnCloseDrawer" title="Close Drawer">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <!-- 4 Separate Diagnostic Tabs -->
+      <div class="diagnostic-tab-bar" role="tablist">
+        <button class="diag-tab-btn active" id="tabDiagFit" role="tab">ATS Fit (88)</button>
+        <button class="diag-tab-btn" id="tabDiagWriting" role="tab">Writing Quality</button>
+        <button class="diag-tab-btn" id="tabDiagParse" role="tab">Parseability</button>
+        <button class="diag-tab-btn" id="tabDiagEvidence" role="tab">Evidence (11)</button>
+      </div>
+
+      <!-- Tab Content Injected by app.js -->
+      <div id="diagTabContent"></div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       Modular Content Selection Drawer (Teal Paradigm)
+       ======================================================================== -->
+  <aside class="drawer-panel" id="contentSelectorDrawer" aria-label="Modular Content Selector">
+    <div class="drawer-header">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <strong style="color:var(--text-main); font-size:0.9rem; font-weight:600;">Modular Content Selection</strong>
+      </div>
+      <button class="btn btn-secondary btn-icon" id="btnCloseContentSelector" title="Close Drawer">&times;</button>
+    </div>
+    <div class="drawer-body" id="contentSelectorBody">
+      <!-- Injected by app.js -->
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       Evidence Inspector Modal (Commit & PR Diffs)
+       ======================================================================== -->
+  <div class="evidence-modal" id="evidenceModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <strong id="modalTitle" style="color:var(--text-main); font-size:0.875rem; font-weight:600;">Source Evidence Inspector</strong>
+      </div>
+      <button class="btn btn-secondary btn-icon" id="btnCloseModal" title="Close Modal">&times;</button>
+    </div>
+    <div style="padding:20px;" id="modalBody">
+      <!-- Injected by app.js -->
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Discreet Floating Reviewer Dock (Preserving Production App Aesthetic)
+       ======================================================================== -->
+  <div class="demo-state-dock" id="demoStateBar" role="region" aria-label="Prototype State Switcher">
+    <span class="dock-label">Review States:</span>
+    <button class="demo-state-btn active" id="stateDefault" title="Standard clean draft view">1. Draft</button>
+    <button class="demo-state-btn" id="stateProposal" title="Open AI Google XYZ suggestion card">2. Proposal</button>
+    <button class="demo-state-btn" id="stateStale" title="Simulate user editing text (invalidates proposal)">3. Stale Guard</button>
+    <button class="demo-state-btn" id="stateOverflow" title="Simulate 2-page overflow and 1-page auto-fit">4. Overflow</button>
+    <button class="demo-state-btn" id="stateEvidence" title="Inspect commit diff and evidence provenance">5. Evidence</button>
+    <button class="demo-state-btn" id="stateAudit" title="Open 4-tier diagnostics drawer">6. Audit</button>
+  </div>
+
+  <script src="synthetic-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -435,12 +435,9 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
       });
 
       assert.ok(html.includes('Grace Hopper'), 'Greeting must display candidate name');
+      assert.ok(html.includes('Next step'), 'Greeting must display authoritative readiness bar');
       assert.ok(
-        html.includes('Application Readiness'),
-        'Greeting must display authoritative readiness bar'
-      );
-      assert.ok(
-        html.includes('All key screening fields verified'),
+        html.includes('Review your career profile and preferences'),
         'Must confirm readiness cleanly'
       );
       // Verify no cluttered chip cluster crammed directly under the name
@@ -469,11 +466,11 @@ describe('P87: Product Surface Audit & UX Hardening Suite', () => {
       });
 
       assert.ok(
-        html.includes('CANDIDATE NARRATIVE'),
+        html.includes('Tailor with confidence.'),
         'Must display professional CANDIDATE NARRATIVE badge'
       );
       assert.ok(
-        html.includes('Authentic Resume History'),
+        html.includes('original narrative'),
         'Must describe authentic candidate-authored resume history'
       );
       assert.ok(

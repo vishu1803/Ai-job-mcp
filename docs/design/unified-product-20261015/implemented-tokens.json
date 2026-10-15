@@ -1,0 +1,41 @@
+{
+  "themes": {
+    "light": {
+      "canvas": "#F5F6F8",
+      "surface": "#FFFFFF",
+      "elevated": "#EEF1F5",
+      "border": "#D4DAE3",
+      "control": "#7A8799",
+      "text": "#18212E",
+      "secondary": "#536276",
+      "accent": "#315B93",
+      "onaccent": "#FFFFFF",
+      "good": "#176A49",
+      "goodbg": "#E9F4EE",
+      "warn": "#805700",
+      "warnbg": "#FFF3D9",
+      "danger": "#B33F45",
+      "dangerbg": "#FCEDEF"
+    },
+    "dark": {
+      "canvas": "#11151C",
+      "surface": "#191F28",
+      "elevated": "#232B36",
+      "border": "#35404D",
+      "control": "#7D8DA3",
+      "text": "#EEF2F7",
+      "secondary": "#ADBACB",
+      "accent": "#AEC7ED",
+      "onaccent": "#14181F",
+      "good": "#85D2AE",
+      "goodbg": "#1E382F",
+      "warn": "#E8C17A",
+      "warnbg": "#3B311F",
+      "danger": "#F0A2A6",
+      "dangerbg": "#40242A"
+    }
+  },
+  "source": "public/css/workspace.css",
+  "studioAdapter": "public/css/resume-studio.css",
+  "appearancePreference": "System default; explicit Light/Dark persisted in best-effort browser storage; no business data stored."
+}

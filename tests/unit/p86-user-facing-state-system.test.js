@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+const clientAssets = ['../../public/css/app.css', '../../public/js/app.js']
+  .map((p) => fs.readFileSync(new URL(p, import.meta.url), 'utf8'))
+  .join('\n');
 /**
  * @file P86 Phase 4: Consistent User-Facing State System Test Suite
  *
@@ -50,15 +54,18 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     });
 
     // Verify skeleton CSS tokens exist in the layout
-    assert.ok(layoutHtml.includes('skeleton-pulse'), 'Must contain skeleton-pulse animation token');
-    assert.ok(layoutHtml.includes('skeleton-card'), 'Must contain skeleton-card layout token');
-    assert.ok(layoutHtml.includes('skeleton-text'), 'Must contain skeleton-text layout token');
+    assert.ok(
+      clientAssets.includes('skeleton-pulse'),
+      'Must contain skeleton-pulse animation token'
+    );
+    assert.ok(clientAssets.includes('skeleton-card'), 'Must contain skeleton-card layout token');
+    assert.ok(clientAssets.includes('skeleton-text'), 'Must contain skeleton-text layout token');
 
     // Verify double-submit prevention script exists in layout
-    assert.ok(layoutHtml.includes('is-loading'), 'Must include is-loading button class');
-    assert.ok(layoutHtml.includes('btn-spinner'), 'Must include spinner indicator token');
+    assert.ok(clientAssets.includes('is-loading'), 'Must include is-loading button class');
+    assert.ok(clientAssets.includes('btn-spinner'), 'Must include spinner indicator token');
     assert.ok(
-      layoutHtml.includes('submitBtn.disabled = true'),
+      clientAssets.includes('submitBtn.disabled = true'),
       'Must contain duplicate action prevention script'
     );
   });
@@ -91,15 +98,12 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     // Resumes empty state
     const resumesHtml = renderResumesPage({ user: dummyUser, resumesList: [] });
     assert.ok(
-      resumesHtml.includes('No resumes uploaded yet.'),
+      resumesHtml.includes('No resume imported yet.'),
       'Must explain what is empty in resumes'
     );
+    assert.ok(resumesHtml.includes('review its facts'), 'Must explain why resumes matter');
     assert.ok(
-      resumesHtml.includes('Uploading your resume establishes your baseline candidate narrative'),
-      'Must explain why resumes matter'
-    );
-    assert.ok(
-      resumesHtml.includes('Upload Resume Document'),
+      resumesHtml.includes('Import and review'),
       'Must include upload resume action button'
     );
 
@@ -130,9 +134,9 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
       content: '<p>Done</p>',
     });
     assert.ok(layoutHtml.includes('portal-toast-container'), 'Must render toast container');
-    assert.ok(layoutHtml.includes('portal-toast-success'), 'Must define success toast styling');
+    assert.ok(clientAssets.includes('portal-toast-success'), 'Must define success toast styling');
     assert.ok(
-      layoutHtml.includes('window.UserFacingState'),
+      clientAssets.includes('window.UserFacingState'),
       'Must expose UserFacingState client object'
     );
   });
@@ -166,14 +170,14 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     // Check that layout script includes highlightFieldErrors with focus
     const layoutHtml = renderLayout({ title: 'T', content: '' });
     assert.ok(
-      layoutHtml.includes('highlightFieldErrors'),
+      clientAssets.includes('highlightFieldErrors'),
       'Layout must define highlightFieldErrors'
     );
     assert.ok(
-      layoutHtml.includes('validation-summary-card'),
+      clientAssets.includes('validation-summary-card'),
       'Layout must define validation-summary-card'
     );
-    assert.ok(layoutHtml.includes('firstField.focus()'), 'Must focus first invalid field');
+    assert.ok(clientAssets.includes('firstField.focus()'), 'Must focus first invalid field');
   });
 
   // 5. Authentication Error State
@@ -241,7 +245,7 @@ describe('P86 Phase 4: Consistent User-Facing State System', () => {
     const layoutHtml = renderLayout({ title: 'T', content: '' });
     assert.ok(layoutHtml.includes('portalOfflineBanner'), 'Layout must include offline banner');
     assert.ok(
-      layoutHtml.includes('updateOnlineStatus'),
+      clientAssets.includes('updateOnlineStatus'),
       'Layout must include online status listener'
     );
   });

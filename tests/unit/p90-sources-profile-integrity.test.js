@@ -265,8 +265,11 @@ test('P90 Invariant 6: Dashboard Recommendation Integrity — Zero Fake Jobs, Ho
     recentApplications: [],
   });
 
-  assert.ok(emptyHtml.includes('No matching jobs yet'), 'Must show honest empty state');
-  assert.ok(emptyHtml.includes('Browse jobs'), 'Must provide Browse jobs CTA');
+  assert.ok(
+    emptyHtml.includes('Your application story starts here.'),
+    'Must show honest empty state'
+  );
+  assert.ok(emptyHtml.includes('Find a job'), 'Must provide Browse jobs CTA');
   assert.ok(!emptyHtml.includes('Stripe, Inc.'), 'Must NOT contain fake Stripe job');
   assert.ok(!emptyHtml.includes('GitHub / Microsoft'), 'Must NOT contain fake GitHub job');
   assert.ok(!emptyHtml.includes('Datadog'), 'Must NOT contain fake Datadog job');
@@ -289,7 +292,7 @@ test('P90 Invariant 6: Dashboard Recommendation Integrity — Zero Fake Jobs, Ho
   });
 
   assert.ok(populatedHtml.includes('RealCorp Technologies'), 'Must render real company name');
-  assert.ok(populatedHtml.includes('87% Match'), 'Must render calculated match score');
+  assert.ok(!populatedHtml.includes('87% Match'), 'Overview leaves scoring detail in Jobs');
   assert.ok(
     !populatedHtml.includes('No matching jobs yet'),
     'Must not show empty state when jobs exist'
@@ -326,7 +329,7 @@ test('P90 Invariant 7: Applications UI — No Engineering Badges, Human-Readable
   assert.ok(html.includes('>Draft<') || html.includes('>SAVED<'), 'Must show Draft/Saved stage');
 });
 
-test('P90 Invariant 8: Canonical Navigation — 5 Areas, Sources Replaces Resumes, No Standalone AI Page', () => {
+test('P90 Invariant 8: Canonical Navigation — 5 Areas, Resumes primary and Sources within Profile, No Standalone AI Page', () => {
   const loggedInNav = renderLayout({
     title: 'Candidate Dashboard',
     content: '<div>Workspace Content</div>',
@@ -339,18 +342,22 @@ test('P90 Invariant 8: Canonical Navigation — 5 Areas, Sources Replaces Resume
   assert.ok(loggedInNav.includes('href="/apps/radar"'), 'Must have Jobs link');
   assert.ok(loggedInNav.includes('href="/applications"'), 'Must have Applications link');
   assert.ok(loggedInNav.includes('href="/profile"'), 'Must have Profile link');
-  assert.ok(loggedInNav.includes('href="/sources"'), 'Must have Sources link');
+  assert.ok(loggedInNav.includes('href="/resumes"'), 'Must have Resumes link');
+  const profileNav = renderLayout({
+    title: 'Profile',
+    content: '',
+    activeNav: 'profile',
+    user: { id: 'usr-1' },
+  });
+  assert.ok(profileNav.includes('href="/sources"'), 'Sources remains reachable within Profile');
 
   // Primary desktop nav must not link to /resumes
   const desktopNavSection = loggedInNav.slice(
-    loggedInNav.indexOf('<ul class="nav-links">'),
-    loggedInNav.indexOf('</ul>')
+    loggedInNav.indexOf('<nav class="ch-primary-nav"'),
+    loggedInNav.indexOf('</nav>')
   );
-  assert.ok(
-    !desktopNavSection.includes('href="/resumes"'),
-    'Desktop nav must link to /sources, not /resumes'
-  );
-  assert.ok(desktopNavSection.includes('href="/sources"'), 'Desktop nav must link to /sources');
+  assert.ok(desktopNavSection.includes('href="/resumes"'), 'Desktop nav must expose Resumes');
+  assert.ok(!desktopNavSection.includes('href="/sources"'), 'Sources is contextual within Profile');
 
   // No standalone AI page in primary navigation
   assert.ok(

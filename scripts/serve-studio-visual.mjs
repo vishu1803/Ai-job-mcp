@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 /** Disposable local visual testing. Existing application, session/CSRF and fixture provider. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -80,7 +81,16 @@ try {
       {
         pid: process.pid,
         worktree: process.cwd(),
-        branch: 'backend/resume-studio-20261014',
+        branch: execFileSync(
+          'git',
+          ['-c', 'safe.directory=' + process.cwd(), 'branch', '--show-current'],
+          { encoding: 'utf8', windowsHide: true }
+        ).trim(),
+        commit: execFileSync(
+          'git',
+          ['-c', 'safe.directory=' + process.cwd(), 'rev-parse', 'HEAD'],
+          { encoding: 'utf8', windowsHide: true }
+        ).trim(),
         baseUrl: h.baseUrl,
         studioUrl,
         loginUrl,

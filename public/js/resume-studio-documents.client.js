@@ -213,6 +213,11 @@ export function connectStudioDocuments({
       status.textContent = 'Package approved. No application was submitted.';
       approve.textContent = 'Approved';
       approve.dataset.packageHash = value.packageHash;
+      if (value.applicationId) {
+        const back = document.getElementById('studioReturnLink');
+        back.href = '/applications/' + encodeURIComponent(value.applicationId) + '/apply';
+        back.textContent = 'Back to application';
+      }
     } catch (error) {
       message(error.message);
     } finally {

@@ -1,0 +1,93 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+← Back to Dashboard
+Overview
+/
+Jobs
+/
+Market Radar
+CAREER INTELLIGENCE
+Job Radar & Market Fit
+
+Discover authentic opportunities matching your verified skills, track your target pipeline, and evaluate job descriptions with deterministic ATS scoring.
+
+Discover Jobs
+Saved Pipeline
+0
+Custom Analysis
+Job Description Analysis
+
+Paste any job description to evaluate requirements against your verified code repository evidence.
+
+Job Description *
+Paste the complete job posting for best results. Minimum 50 characters.
+Job Title
+Company Name
+Level
+Auto-detect
+Intern
+Junior
+Mid-Level
+Senior
+Lead
+Principal
+Director
+Max Skill Gaps Shown
+3
+5
+8
+Analyze Job Fit →
+Cancel
+How It Works
+01
+Paste Job Description
+Enter any job posting — requirements are extracted deterministically.
+02
+Evidence Matching
+Your verified GitHub evidence is matched against job requirements.
+03
+Radar Analysis
+6-axis visualization: skills, projects, experience, education, confidence.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+How strong is my match?
+What am I missing?
+Should I apply?
+Tailor my resume
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

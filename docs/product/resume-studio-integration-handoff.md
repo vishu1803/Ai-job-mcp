@@ -1,3 +1,5 @@
+> Current2026-10-15: consolidated actual-main app is available on127.0.0.1:4318. Original4317/backend worktree retained. See [first milestone handoff](unified-ui-milestone-1-handoff.md) for current login,592-case evidence and remaining Office/handoff limits. Historical worktree/cluster lifecycle records below are retained. No shared-database migration/push/deployment occurred.
+
 # Resume Studio integration handoff
 
 Updated 2026-10-15. STUDIO-INTEGRATION-001 is **IN_PROGRESS**. The integrated candidate workflow is implemented locally; final Office rendering acceptance is **BLOCKED** pending manual assistance. This is not a production readiness declaration.

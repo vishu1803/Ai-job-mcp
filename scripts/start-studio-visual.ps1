@@ -3,7 +3,7 @@ param([switch]$Background)
 $ErrorActionPreference = 'Stop'
 $studioRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not (Test-Path -LiteralPath (Join-Path $studioRoot 'public/js/resume-studio-documents.client.js'))) { throw 'Integrated worktree required' }
-if ((Test-Path -LiteralPath (Join-Path $studioRoot '.env')) -or (Test-Path -LiteralPath (Join-Path $studioRoot '.env.local'))) { throw 'Visual launcher refuses private environment files' }
+# Explicit test preloader prevents all private dotenv reads, including base .env in main.
 $studioRuntime = Join-Path ([IO.Path]::GetTempPath()) ('career-studio-visual-' + [Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $studioRuntime | Out-Null
 $env:NODE_ENV = 'test'
@@ -21,7 +21,7 @@ $env:SESSION_COOKIE_NAME = 'career_hub_session'
 foreach ($studioVariable in @('GEMINI_API_KEY','GOOGLE_CLOUD_PROJECT','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET','GITHUB_APP_ID','GITHUB_APP_PRIVATE_KEY','ACTION_APPROVAL_HMAC_SECRET','CAREER_HUB_APPROVAL_SECRET')) {
     Remove-Item -LiteralPath ('Env:' + $studioVariable) -ErrorAction SilentlyContinue
 }
-$studioArguments = @('--import','./tests/setup/approval-signing-env.js','./scripts/serve-studio-visual.mjs')
+$studioArguments = @('--import','./tests/setup/studio-isolated-env.js','--import','./tests/setup/approval-signing-env.js','./scripts/serve-studio-visual.mjs')
 if ($Background) {
     $studioProcess = Start-Process -FilePath (Get-Command node.exe).Source -ArgumentList $studioArguments -WorkingDirectory $studioRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $studioRuntime 'server.log') -RedirectStandardError (Join-Path $studioRuntime 'server-errors.log') -PassThru
     Write-Output ('Visual server process: ' + $studioProcess.Id)

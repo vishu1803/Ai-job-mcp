@@ -1,0 +1,89 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+Job Applications Tracker
+APPLICATION LIFECYCLE
+Multi-Stage Career Pipeline
+Saved Leads
+→
+Applied
+→
+Interviewing
+→
+Offer
+→
+Artifacts
+ACTIVE PIPELINE
+Job Applications Tracker
+
+Manage and track your active career pipeline across companies, interview rounds, tailored artifacts, and compensation offers.
+
+Launch Job Fit Radar →
++ Track Application
+TOTAL PIPELINE
+0
+SAVED & LEADS
+0
+IN SCREENING
+0
+INTERVIEWING
+0
+OFFERS
+0
+All (0)
+Interviewing (0)
+Applied (0)
+Saved (0)
+Offers (0)
+Archived (0)
+No job applications tracked yet.
+
+Tracking applications organizes your interview timeline, compares role readiness against your verified skills, and stores tailored handoff packages.
+
++ Track Application
+Find Matches with Radar →
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+Is this application ready?
+What is missing?
+Improve my match
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

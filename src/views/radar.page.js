@@ -1,3 +1,4 @@
+import { studioTargetForm } from './components/workspace.js';
 /**
  * @file Job Fit Radar Interactive Web Page View (/apps/radar).
  *
@@ -48,6 +49,7 @@ export function renderRadarPage({
   flashError = null,
   initialJobTitle = '',
   initialCompanyName = '',
+  csrfToken = '',
 }) {
   const activeTab = ['discover', 'saved', 'analyze'].includes(tab) ? tab : 'discover';
 
@@ -247,6 +249,7 @@ export function renderRadarPage({
                   }
                 </div>
 
+                ${String(job.description || '').trim().length >= 100 ? studioTargetForm({ title: job.title, company: job.company, sourceUrl: job.url, rawDescription: job.description }, csrfToken) : ''}
                 <!-- Action Controls -->
                 <div style="display:flex; gap:10px; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid var(--border-subtle);">
                   ${
@@ -354,9 +357,9 @@ export function renderRadarPage({
                 </div>
 
                 <div style="display:flex; gap:10px; align-items:center; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle);">
-                  <a href="/applications" class="btn btn-primary btn-sm" style="flex:1; justify-content:center; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                  <a href="/resume-studio?applicationId=${escapeHtml(app.id)}&amp;from=jobs" class="btn btn-primary btn-sm" style="flex:1; justify-content:center; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
                     ${renderIcon('arrowRight', { size: 13 })}
-                    <span>Prepare Application</span>
+                    <span>Tailor resume</span>
                   </a>
                   <form action="/jobs/unsave" method="POST" style="margin:0;">
                     <input type="hidden" name="applicationId" value="${escapeHtml(app.id)}">
@@ -445,7 +448,7 @@ export function renderRadarPage({
             <div style="display: flex; gap: 12px; align-items:center;">
               <button type="submit" id="submitRadarBtn" class="btn btn-primary" data-loading-text="Analyzing Requirements &amp; Evidence..." style="padding:10px 22px;">
                 Analyze Job Fit &rarr;
-              </button>
+              </button><input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}"><button type="submit" formaction="/resume-studio/open?from=jobs" class="btn btn-secondary">Tailor in Studio</button>
               <a href="/apps/radar?tab=discover" class="btn btn-secondary">Cancel</a>
             </div>
           </form>
@@ -519,6 +522,8 @@ export function renderRadarResultPage({
   user = null,
   tenant: _tenant = null,
   analysisData = null,
+  studioTarget = null,
+  csrfToken = '',
   error = null,
 }) {
   const content = `
@@ -545,7 +550,7 @@ export function renderRadarResultPage({
           <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; margin:4px 0 8px 0; color:var(--text-main);">Job Fit Analysis Result</h1>
           <p style="color:var(--text-muted); font-size:0.95rem; margin:0; max-width:640px;">${escapeHtml(analysisData.overallFit?.fitSummary || 'Evidence-grounded fit analysis')}</p>
         </div>
-        <a href="/apps/radar?tab=analyze" class="btn btn-secondary btn-sm">Analyze Another Job</a>
+        <a href="/apps/radar?tab=analyze" class="btn btn-secondary btn-sm">Analyze Another Job</a>${studioTarget ? studioTargetForm(studioTarget, csrfToken) : ''}
       </div>
       `
           : ''

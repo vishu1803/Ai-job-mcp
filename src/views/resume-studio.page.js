@@ -37,6 +37,9 @@ export function renderResumeStudioPage({
   baseResumes = [],
   draftId = null,
   csrfToken = '',
+  initialJobTarget = null,
+  sourceResumeId = null,
+  returnContext = { href: '/resumes', label: 'Back to Resumes', origin: 'Resumes' },
 }) {
   const isReadOnly = user?.role === 'READONLY';
 
@@ -50,6 +53,7 @@ export function renderResumeStudioPage({
          data-draft-id="${escapeHtml(draftId || '')}"
          data-readonly="${isReadOnly ? 'true' : 'false'}">
 
+      <div class="ch-studio-context"><nav aria-label="Breadcrumb"><a href="${escapeHtml(returnContext.href)}">${escapeHtml(returnContext.origin)}</a><span>/</span><span>Resume Studio</span></nav><a id="studioReturnLink" href="${escapeHtml(returnContext.href)}">&larr; ${escapeHtml(returnContext.label)}</a></div>
       <!-- Studio Header / Command Bar -->
       <header class="rs-header">
         <div class="rs-header-title-group">
@@ -147,7 +151,10 @@ export function renderResumeStudioPage({
                             const name = escapeHtml(
                               r.fileName || r.title || `Master Resume (${r.id.slice(0, 8)})`
                             );
-                            const isDefault = r.isDefault || r.isMaster ? 'selected' : '';
+                            const isDefault =
+                              r.id === sourceResumeId || r.isDefault || r.isMaster
+                                ? 'selected'
+                                : '';
                             return `<option value="${escapeHtml(r.id)}" ${isDefault}>${name} · Version ${escapeHtml(r.version || 1)}</option>`;
                           })
                           .join('')
@@ -162,17 +169,17 @@ export function renderResumeStudioPage({
               <div class="rs-form-row">
                 <div class="rs-form-group">
                   <label for="jobTitle" class="rs-label">Job Title</label>
-                  <input type="text" id="jobTitle" class="rs-input" placeholder="e.g. Backend Engineer" maxlength="255">
+                  <input type="text" id="jobTitle" value="${escapeHtml(initialJobTarget?.title || '')}" class="rs-input" placeholder="e.g. Backend Engineer" maxlength="255">
                 </div>
                 <div class="rs-form-group">
                   <label for="jobCompany" class="rs-label">Company Name</label>
-                  <input type="text" id="jobCompany" class="rs-input" placeholder="e.g. Acme Corp" maxlength="255">
+                  <input type="text" id="jobCompany" value="${escapeHtml(initialJobTarget?.company || '')}" class="rs-input" placeholder="e.g. Acme Corp" maxlength="255">
                 </div>
               </div>
 
               <div class="rs-form-group">
                 <label for="jobSourceUrl" class="rs-label">Job Posting URL (Optional)</label>
-                <input type="url" id="jobSourceUrl" class="rs-input" placeholder="https://example.test/jobs/42" maxlength="2048">
+                <input type="url" id="jobSourceUrl" value="${escapeHtml(initialJobTarget?.sourceUrl || '')}" class="rs-input" placeholder="https://example.test/jobs/42" maxlength="2048">
                 <span style="display: block; font-size: 0.7rem; color: var(--rs-text-muted); margin-top: 4px;">
                   Paste the description below. A posting URL is needed to approve an application package.
                 </span>
@@ -180,7 +187,7 @@ export function renderResumeStudioPage({
 
               <div class="rs-form-group">
                 <label for="jobDescription" class="rs-label">Job description</label>
-                <textarea id="jobDescription" class="rs-textarea" placeholder="Paste the complete job description text here... Requirements: Strong practical experience building backend APIs with PostgreSQL and React. Build reliable backend systems and document technical decisions."></textarea>
+                <textarea id="jobDescription" class="rs-textarea" placeholder="Paste the complete job description text here... Requirements: Strong practical experience building backend APIs with PostgreSQL and React. Build reliable backend systems and document technical decisions.">${escapeHtml(initialJobTarget?.rawDescription || '')}</textarea>
                 <div class="rs-textarea-footer">
                   <span class="rs-char-counter" id="charCounter">0 characters (min 100)</span>
                   <span>Character truncation warning at 50,000</span>
@@ -226,7 +233,7 @@ export function renderResumeStudioPage({
         </div>
 
         <!-- Draggable Resizable Divider -->
-        <div class="rs-pane-divider" id="studioDivider" title="Drag to resize panels"></div>
+        <div class="rs-pane-divider" id="studioDivider" role="separator" tabindex="0" aria-label="Resize editor and preview" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="50" title="Drag to resize panels"></div>
 
         <!-- Right Pane: Editing Preview & Intelligence Diagnostics -->
         <div class="rs-pane rs-pane-right" id="studioRightPane">

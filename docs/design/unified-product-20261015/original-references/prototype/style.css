@@ -1,0 +1,1199 @@
+/* ==========================================================================
+   AI Career Hub — AI Tailored Resume Studio Design System (Editorial Edition)
+   ========================================================================== */
+
+:root {
+  /* Surfaces & Architectural Dark Canvas */
+  --bg-canvas: #090A0E;
+  --bg-surface: #101217;
+  --bg-surface-elev: #161922;
+  --bg-surface-active: #1D212D;
+  --bg-card: #12141C;
+  --bg-card-hover: #181B26;
+  --bg-glass: rgba(16, 18, 23, 0.88);
+
+  /* Hairline Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-muted: rgba(255, 255, 255, 0.10);
+  --border-emphasis: rgba(255, 255, 255, 0.18);
+  --border-focus: #818CF8;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-serif: 'Times New Roman', Times, 'Liberation Serif', Georgia, serif;
+
+  --text-main: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #8492A6;
+  --text-dim: #526075;
+
+  /* Restrained Accents (Muted & Editorial) */
+  --accent-indigo: #6366F1;
+  --accent-indigo-soft: rgba(99, 102, 241, 0.12);
+  --accent-emerald: #10B981;
+  --accent-emerald-soft: rgba(16, 185, 129, 0.10);
+  --accent-amber: #F59E0B;
+  --accent-amber-soft: rgba(245, 158, 11, 0.10);
+  --accent-rose: #F43F5E;
+  --accent-rose-soft: rgba(244, 63, 94, 0.10);
+
+  /* Monochrome Editorial Keyword Tokens */
+  --kw-chip-bg: rgba(255, 255, 255, 0.035);
+  --kw-chip-border: rgba(255, 255, 255, 0.07);
+  --kw-chip-text: #CBD5E1;
+
+  /* Geometry & Layout */
+  --header-height: 54px;
+  --subbar-height: 44px;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Sophisticated Soft Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 2px 8px -1px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-drawer: -12px 0 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-paper: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 20px 32px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   Header: Sleek Editorial Breadcrumbs & Balanced Controls
+   ========================================================================== */
+.studio-header {
+  height: var(--header-height);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 40;
+  flex-shrink: 0;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-icon-mark {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+}
+
+.breadcrumb-trail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.825rem;
+}
+
+.crumb-dim {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.crumb-dim:hover {
+  color: var(--text-secondary);
+}
+
+.crumb-sep {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.crumb-current {
+  color: var(--text-main);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.target-badge-pill {
+  font-size: 0.72rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-left: 4px;
+  font-family: var(--font-mono);
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Minimalist Segmented Mode Switcher */
+.mode-switcher {
+  display: flex;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 2px;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.mode-btn:hover {
+  color: var(--text-main);
+}
+
+.mode-btn.active {
+  background: var(--bg-surface-elev);
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-subtle);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   Sub-Bar: Editorial Keyword Inspection Bar (Noise Reduced)
+   ========================================================================== */
+.studio-subbar {
+  height: var(--subbar-height);
+  background: #0B0D12;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  font-size: 0.775rem;
+  z-index: 30;
+  flex-shrink: 0;
+}
+
+.subbar-left-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.kw-meta-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding-right: 12px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.kw-meta-summary strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.kw-filter-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.kw-filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: all 0.15s ease;
+}
+
+.kw-filter-btn.active, .kw-filter-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.keyword-chips-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Restrained Architectural Keyword Tags */
+.kw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--kw-chip-bg);
+  border: 1px solid var(--kw-chip-border);
+  color: var(--kw-chip-text);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.kw-chip:hover {
+  border-color: var(--border-muted);
+  color: #FFFFFF;
+}
+
+.kw-chip .chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kw-chip.matched .chip-dot {
+  background: var(--accent-emerald);
+}
+
+.kw-chip.equiv .chip-dot {
+  background: #38BDF8;
+}
+
+.kw-chip.related .chip-dot {
+  background: #FBBF24;
+}
+
+.kw-chip.missing .chip-dot {
+  background: #F43F5E;
+}
+
+.kw-chip.missing {
+  color: #F87171;
+  border-color: rgba(244, 63, 94, 0.2);
+}
+
+.kw-chip.active-highlight {
+  border-color: var(--border-focus);
+  background: rgba(99, 102, 241, 0.12);
+  color: #FFFFFF;
+}
+
+.subbar-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.save-status-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+}
+
+.save-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+/* ==========================================================================
+   Main Dual-Pane Workbench Layout
+   ========================================================================== */
+.studio-workbench {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - var(--header-height) - var(--subbar-height));
+  position: relative;
+  overflow: hidden;
+}
+
+/* Left Pane: Editorial Document Editor */
+.editor-pane {
+  width: 50%;
+  height: 100%;
+  background: var(--bg-surface);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-inner {
+  padding: 36px 44px 100px;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Resizer Gutter */
+.resizer-gutter {
+  width: 6px;
+  height: 100%;
+  background: var(--bg-canvas);
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: background 0.15s ease;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.resizer-gutter:hover, .resizer-gutter.dragging {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: var(--accent-indigo);
+}
+
+.resizer-handle {
+  width: 2px;
+  height: 24px;
+  background: var(--border-muted);
+  border-radius: var(--radius-full);
+}
+
+/* Right Pane: Live Document Canvas */
+.preview-pane {
+  width: 50%;
+  height: 100%;
+  background: #07080C;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-toolbar {
+  height: 40px;
+  background: rgba(16, 18, 23, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.page-budget-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+}
+
+.page-budget-indicator.fit {
+  background: rgba(16, 185, 129, 0.08);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.page-budget-indicator.overflow {
+  background: rgba(245, 158, 11, 0.10);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.preview-viewport {
+  flex: 1;
+  padding: 36px 32px 80px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+}
+
+/* ==========================================================================
+   Editorial Single-Page Resume Vector Paper Sheet
+   ========================================================================== */
+.resume-paper {
+  width: 680px;
+  min-height: 960px;
+  background: #FFFFFF;
+  color: #111827;
+  padding: 42px 46px; /* ~0.52in margins */
+  border-radius: 2px;
+  box-shadow: var(--shadow-paper);
+  font-family: var(--font-serif);
+  font-size: 10pt;
+  line-height: 1.35;
+  position: relative;
+  transition: padding 0.25s ease, line-height 0.25s ease;
+  user-select: text;
+}
+
+.resume-paper.tight-spacing {
+  padding: 36px 40px;
+  line-height: 1.25;
+}
+
+.page-cutoff-line {
+  display: none;
+  position: absolute;
+  top: 960px;
+  left: 0;
+  right: 0;
+  border-top: 1.5px dashed #F59E0B;
+  z-index: 10;
+}
+
+.resume-paper.overflow-simulated .page-cutoff-line {
+  display: block;
+}
+
+.page-cutoff-tag {
+  position: absolute;
+  right: 14px;
+  top: -10px;
+  background: #F59E0B;
+  color: #000;
+  font-family: var(--font-mono);
+  font-size: 7.5pt;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+}
+
+/* Click-to-edit elements on the resume preview */
+.cv-node {
+  border-radius: 2px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cv-node:hover {
+  background: rgba(99, 102, 241, 0.07);
+}
+
+.cv-node.active-highlight {
+  background: rgba(99, 102, 241, 0.14);
+}
+
+/* Classical Resume Typography */
+.cv-header {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.cv-name {
+  font-size: 17pt;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+
+.cv-contacts {
+  font-size: 9pt;
+  color: #374151;
+}
+
+.cv-section {
+  margin-bottom: 11px;
+}
+
+.cv-section-title {
+  font-size: 11.2pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 0.75pt solid #1F2937;
+  padding-bottom: 2px;
+  margin-bottom: 5px;
+  color: #111827;
+}
+
+.cv-item {
+  margin-bottom: 7px;
+}
+
+.cv-item-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 9.8pt;
+  color: #111827;
+}
+
+.cv-item-subhead {
+  display: flex;
+  justify-content: space-between;
+  font-style: italic;
+  font-size: 9pt;
+  color: #4B5563;
+  margin-bottom: 2px;
+}
+
+.cv-bullets {
+  list-style: disc;
+  margin: 0;
+  padding-left: 17px;
+}
+
+.cv-bullets li {
+  margin-bottom: 2px;
+  color: #1F2937;
+}
+
+/* ==========================================================================
+   Editorial Document Form Editor (Left Pane)
+   ========================================================================== */
+.editor-section {
+  margin-bottom: 32px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.section-meta {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.role-block {
+  margin-bottom: 24px;
+}
+
+.role-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.role-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.role-company {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.role-dates {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* Editorial Bullet List Item (Airy & Uncluttered) */
+.bullet-card {
+  position: relative;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  transition: all 0.15s ease;
+}
+
+.bullet-card:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--border-subtle);
+}
+
+.bullet-card.active-target {
+  background: rgba(99, 102, 241, 0.04);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.bullet-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Quiet Monospace Footnote for Commit Evidence */
+.evidence-tag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-xs);
+  transition: color 0.15s ease;
+}
+
+.evidence-tag-btn:hover {
+  color: #C084FC;
+  text-decoration: underline;
+}
+
+.assertion-note {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-style: italic;
+}
+
+/* Quiet Ghost Action for AI Polish */
+.btn-polish-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bullet-card:hover .btn-polish-ai,
+.btn-polish-ai:hover {
+  border-color: var(--border-muted);
+  color: #A5B4FC;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.bullet-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  padding: 4px 6px;
+  resize: vertical;
+  min-height: 48px;
+  transition: all 0.15s ease;
+}
+
+.bullet-input:hover {
+  border-color: var(--border-subtle);
+}
+
+.bullet-input:focus {
+  outline: none;
+  background: var(--bg-surface-elev);
+  border-color: var(--border-focus);
+  color: var(--text-main);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+/* ==========================================================================
+   Editorial Google XYZ Suggestion Diff Card
+   ========================================================================== */
+.proposal-box {
+  background: #141722;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-top: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.proposal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.proposal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #C7D2FE;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.proposal-stale-banner {
+  background: var(--accent-amber-soft);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #FBBF24;
+  padding: 8px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  margin-bottom: 12px;
+  display: none;
+  line-height: 1.45;
+}
+
+.proposal-box.stale .proposal-stale-banner {
+  display: block;
+}
+
+.proposal-box.stale {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.diff-block {
+  margin-bottom: 12px;
+  font-size: 0.825rem;
+  line-height: 1.5;
+}
+
+.diff-before {
+  background: rgba(244, 63, 94, 0.06);
+  border-left: 2px solid rgba(244, 63, 94, 0.6);
+  color: #FDA4AF;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  text-decoration: line-through;
+}
+
+.diff-after {
+  background: rgba(16, 185, 129, 0.06);
+  border-left: 2px solid var(--accent-emerald);
+  color: #E2E8F0;
+  padding: 6px 12px;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.diff-after strong {
+  color: #34D399;
+  font-weight: 600;
+}
+
+.proposal-formula {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.proposal-formula span {
+  color: var(--text-secondary);
+}
+
+.proposal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   Slide-Out Drawers (Diagnostics & Modular Content Selection)
+   ========================================================================== */
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: none;
+}
+
+.drawer-backdrop.open {
+  display: block;
+}
+
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 440px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-muted);
+  box-shadow: var(--shadow-drawer);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-panel.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 18px 22px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+/* Diagnostics Score Panel */
+.score-circle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: var(--bg-surface-elev);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-bottom: 18px;
+}
+
+.circle-score-val {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--accent-emerald);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.diagnostic-tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 16px;
+  padding-bottom: 2px;
+}
+
+.diag-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.775rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.diag-tab-btn.active {
+  background: rgba(99, 102, 241, 0.1);
+  color: #FFFFFF;
+  border-bottom: 2px solid var(--accent-indigo);
+}
+
+/* Evidence Inspector Modal */
+.evidence-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 620px;
+  max-width: 90vw;
+  background: #11141D;
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: none;
+}
+
+.evidence-modal.open {
+  display: block;
+}
+
+.diff-terminal {
+  background: #080A0F;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: #E2E8F0;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   Restrained Action Buttons
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-primary {
+  background: #F8FAFC;
+  color: #0F172A;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #FFFFFF;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.25);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-muted);
+  color: var(--text-main);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+}
+
+.btn-ghost:hover {
+  color: var(--text-main);
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.btn-icon {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--radius-xs);
+}
+
+/* ==========================================================================
+   Discreet Floating Reviewer Dock (Production Appearance Preservation)
+   ========================================================================== */
+.demo-state-dock {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(16, 20, 29, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-full);
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  z-index: 45;
+}
+
+.dock-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 4px;
+}
+
+.demo-state-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  transition: all 0.15s ease;
+}
+
+.demo-state-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.demo-state-btn.active {
+  background: rgba(99, 102, 241, 0.18);
+  color: #C7D2FE;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* ==========================================================================
+   Responsive Viewport Adaptations
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .studio-workbench {
+    flex-direction: column;
+  }
+  .editor-pane, .preview-pane {
+    width: 100% !important;
+    height: 50%;
+  }
+  .resizer-gutter {
+    width: 100%;
+    height: 6px;
+    cursor: row-resize;
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .resizer-handle {
+    width: 32px;
+    height: 2px;
+  }
+  .drawer-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-height: 50px;
+    --subbar-height: 40px;
+  }
+  .studio-header {
+    padding: 0 14px;
+  }
+  .target-badge-pill {
+    display: none;
+  }
+  .mode-switcher {
+    display: none;
+  }
+  .studio-subbar {
+    padding: 0 14px;
+    overflow-x: auto;
+  }
+  .subbar-right-controls {
+    display: none;
+  }
+  .studio-workbench {
+    flex-direction: column;
+  }
+  .resizer-gutter {
+    display: none;
+  }
+  .editor-pane {
+    width: 100% !important;
+    height: 50%;
+  }
+  .editor-inner {
+    padding: 20px 16px 80px;
+  }
+  .preview-pane {
+    width: 100% !important;
+    height: 50%;
+  }
+  .resume-paper {
+    width: 95%;
+    transform: scale(0.65);
+    transform-origin: top center;
+  }
+  .demo-state-dock {
+    bottom: 10px;
+    width: 92%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+}

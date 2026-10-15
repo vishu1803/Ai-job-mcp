@@ -1,3 +1,4 @@
+import { renderWorkspaceShell } from './components/workspace-shell.js';
 /**
  * @file Base HTML Layout Template for Career Hub Web Application.
  *
@@ -30,6 +31,8 @@ export function renderLayout({
   const safeTitle = escapeHtml(title);
   const safeDesc = escapeHtml(description);
   const userLoggedIn = Boolean(user && user.id);
+
+  if (userLoggedIn) return renderWorkspaceShell({ title, content, activeNav, user, description });
 
   return `<!DOCTYPE html>
 <html lang="en">

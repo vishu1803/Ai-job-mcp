@@ -1,0 +1,84 @@
+{
+  "status": "PASS",
+  "worktree": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
+  "branch": "main",
+  "baseUrl": "http://127.0.0.1:4318",
+  "screens": [
+    {
+      "screen": "overview",
+      "width": 1440,
+      "theme": "light",
+      "file": "desktop-light-overview.png"
+    },
+    {
+      "screen": "resumes",
+      "width": 1440,
+      "theme": "light",
+      "file": "desktop-light-resumes.png"
+    },
+    {
+      "screen": "studio",
+      "width": 1440,
+      "theme": "light",
+      "file": "desktop-light-studio.png"
+    },
+    {
+      "screen": "overview",
+      "width": 1440,
+      "theme": "dark",
+      "file": "desktop-dark-overview.png"
+    },
+    {
+      "screen": "resumes",
+      "width": 1440,
+      "theme": "dark",
+      "file": "desktop-dark-resumes.png"
+    },
+    {
+      "screen": "studio",
+      "width": 1440,
+      "theme": "dark",
+      "file": "desktop-dark-studio.png"
+    },
+    {
+      "screen": "overview",
+      "width": 390,
+      "theme": "light",
+      "file": "mobile-light-overview.png"
+    },
+    {
+      "screen": "resumes",
+      "width": 390,
+      "theme": "light",
+      "file": "mobile-light-resumes.png"
+    },
+    {
+      "screen": "studio",
+      "width": 390,
+      "theme": "light",
+      "file": "mobile-light-studio.png"
+    },
+    {
+      "screen": "overview",
+      "width": 390,
+      "theme": "dark",
+      "file": "mobile-dark-overview.png"
+    },
+    {
+      "screen": "resumes",
+      "width": 390,
+      "theme": "dark",
+      "file": "mobile-dark-resumes.png"
+    },
+    {
+      "screen": "studio",
+      "width": 390,
+      "theme": "dark",
+      "file": "mobile-dark-studio.png"
+    }
+  ],
+  "errors": [],
+  "provider": "Deterministic synthetic fixture; no live AI requests",
+  "database": "product_audit_resume_studio",
+  "note": "Real running main application; normal fixture authentication; no API response mocks. Theme screenshot animations completed before capture."
+}

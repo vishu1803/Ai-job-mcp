@@ -1,0 +1,166 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+AI Connect
+MODEL CONTEXT PROTOCOL (MCP) REMOTE ARCHITECTURE
+JSON-RPC 2.0 • Protocol 2026-07-28
+Verified Knowledge Graph
+→
+OAuth 2.1 PKCE / Bearer Token
+→
+Remote MCP Server (/mcp)
+→
+Claude / ChatGPT / Gemini
+→
+Two-Phase Safe Approval
+AI INTEGRATION HUB
+PROTOCOL 2026-07-28
+AI Connection Center
+
+Connect your trusted AI assistants (Anthropic Claude, OpenAI ChatGPT, Google Gemini) to your sovereign Career Hub knowledge graph over the remote Model Context Protocol (MCP).
+
+S
+Synthetic Studio Candidate
+ACTIVE WORKSPACE
+534baf9c-b216-495e-8090-833c61a4ee6b@example.test • Role: MEMBER
+0 active personal tokens
+Universal Remote MCP Endpoint
+
+Provide this Streamable HTTP URL when adding Career Hub to Claude, ChatGPT, or custom MCP clients.
+
+Streamable HTTP (POST /mcp)
+Copy Endpoint
+Local Development vs Cloud AI Hosts: Career Hub simultaneously supports local development (http://localhost:3000/mcp) and public Cloudflare staging (https://dev.aicareershub.tech/mcp). Cloud AI hosts (Claude.ai, ChatGPT Web) require the public HTTPS endpoint.
+Real-Time AI Provider Status
+Refresh Live Status
+CL
+Anthropic Claude
+Claude.ai • Desktop • Code CLI
+NOT CONNECTED
+
+Connect seamlessly via OAuth 2.1 with PKCE S256 and CIMD Hosted Metadata. Claude discovers scopes and authenticates interactively without sharing API secrets.
+
+Auth Method:
+OAuth 2.1 + PKCE (S256)
+Last Connected:
+Never
+Authorized Scopes:
+career:read career:write
+Setup & Connection Guide
+Connect Claude →
+GPT
+OpenAI ChatGPT
+ChatGPT Web • Desktop • Custom GPTs
+NOT CONNECTED
+
+Connect Custom GPT or Developer Mode actions with RFC 9728 Protected Resource metadata and automatic OAuth 2.1 token exchange.
+
+Auth Method:
+OAuth 2.1 + PKCE (S256)
+Last Connected:
+Never
+Authorized Scopes:
+career:read
+Setup Instructions (Custom GPT Actions)
+Connect ChatGPT →
+GEM
+Google Gemini
+AI Careers Hub SDK • IDE Agents • CLI
+NOT CONNECTED
+
+Integrate with Gemini-powered agent pipelines, IDE extensions, and command-line assistants using high-entropy Personal MCP API Tokens.
+
+Auth Method:
+Personal MCP API Token (SHA-256)
+Active Tokens:
+0 active
+Authorized Scopes:
+career:read
+Setup Instructions (Gemini SDK & Agents)
+Manage Gemini Tokens ↓
+Personal MCP API Tokens
+
+Generate dedicated API tokens for programmatic agents, IDE sidecars, or custom MCP clients. Maximum 10 active tokens per user.
+
+Token Name / Label
+Expiration Period
+30 Days (Recommended)
+60 Days
+90 Days
+No Expiration
+Authorized Scopes
+career:read (Inspect profile, skills, evidence, applications)
+career:write (Generate tailored resumes, cover letters, propose PR improvements)
+Generate Personal Token
+Active Tokens (0)
+KEY
+No Personal MCP Tokens Yet
+
+Generate a token above to connect external tools like Gemini, Cursor, or custom scripts.
+
+SAFETY KERNEL
+Two-Phase Write Safety & Stopping Protocol
+
+AI assistants are strictly prohibited from making direct modifications to your GitHub repositories or publishing unauthorized artifacts. Career Hub enforces a cryptographically signed two-phase approval protocol:
+
+1. Proposal Generation
+
+AI calls propose_project_improvement. Server generates a validated diff and signed Action Approval Ticket.
+
+2. Human Diff Review
+
+You inspect the exact file modifications in your chat interface or web workspace.
+
+3. Explicit Confirmation
+
+Only after your explicit confirmation, AI calls confirm_and_create_pr with your ticket ID.
+
+4. Isolated Draft PR
+
+Server validates HEAD SHA, creates branch feat/career-hub-*, and opens a Draft Pull Request.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What should I do next?
+What's blocking me from applying?
+Improve my profile
+Find matching jobs
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

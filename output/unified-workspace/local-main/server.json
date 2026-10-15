@@ -1,0 +1,13 @@
+{
+  "pid": 26224,
+  "worktree": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
+  "branch": "main",
+  "commit": "22151e93963d52e3150da6d8e1580eca8eeb74c1",
+  "baseUrl": "http://127.0.0.1:4318",
+  "studioUrl": "http://127.0.0.1:4318/resume-studio?draftId=75153c81-f3c3-4834-accc-aa2e77bff0f1",
+  "loginUrl": "http://127.0.0.1:4318/auth/dev-login?e2e=1&returnTo=%2Fresume-studio%3FdraftId%3D75153c81-f3c3-4834-accc-aa2e77bff0f1",
+  "migrations": 25,
+  "database": "product_audit_resume_studio",
+  "databasePort": 55447,
+  "provider": "Deterministic synthetic fixture; no live AI requests"
+}

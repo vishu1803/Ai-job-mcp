@@ -1,0 +1,128 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+←
+Back to Dashboard
+Overview
+/
+Verified Skills Graph
+SKILLS & EVIDENCE TAXONOMY PIPELINE
+5-Tier Truth Classification
+Repository AST
+→
+Verified Skills
+→
+Truth Classification
+→
+Evidence Citations
+→
+AI Context
+PROVENANCE & TAXONOMY
+Verified Skills Graph
+
+Audited technical skill graph strictly classified into Verified Career Facts, Inferences, Unverified Claims, and Technology Signals.
+
+View Evidence Explorer
++ Ingest Repositories
+VERIFIED CAREER SKILLS
+0
+
+Substantial implementation evidence (≥3 citations, framework bootstrap, or corroborated claim).
+
+CLAIMED RESUME SKILLS
+3
+
+User-asserted narrative claims marked with explicit [Unverified User Claim].
+
+INFERRED SKILLS
+0
+
+Derived logically through taxonomy hierarchy (e.g. Next.js implies React).
+
+IMPLEMENTATION SIGNALS
+1
+
+Detected libraries, UI components, utilities, and dev packages from repository AST manifests.
+
+Primary Career Competencies
+
+Core technical skills, languages, frameworks, databases, and platforms evaluated for professional competency.
+
+2 Total Evaluated
+Frontend Frameworks & UI
+1 Competency
+React
+Level 0 Evidence
+CLAIMED
+Evidence: 0 citations
+Confidence: 50%
+[Unverified User Claim] Candidate self-report; repository observations are insufficient for primary verification of competence; 0 source citations
+Inspect Citations & Evidence →
+Databases & Storage
+1 Competency
+PostgreSQL
+Level 0 Evidence
+CLAIMED
+Evidence: 0 citations
+Confidence: 50%
+[Unverified User Claim] Candidate self-report; repository observations are insufficient for primary verification of competence; 0 source citations
+Inspect Citations & Evidence →
+Inferred Skills
+0 Inferences
+
+Logical dependencies derived from parent frameworks via strict taxonomy rules. Inferences are never marked as verified truth.
+
+No speculative inferences active. All skills displayed are grounded directly in authentic repository source code or explicit candidate resume claims under the Zero-Hallucination Integrity Gate.
+
+Evidence Explorer (Technology & Implementation Signals)
+1 Total Signals
+
+Comprehensive inventory of libraries, UI primitives, utilities, and configs detected in repository package manifests.
+
+Expand All
+Collapse All
+Infrastructure & Config Signals
+1 item
+View
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What should I do next?
+What's blocking me from applying?
+Improve my profile
+Find matching jobs
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

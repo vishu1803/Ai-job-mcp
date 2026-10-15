@@ -10,6 +10,7 @@
  * Standard SVG icon paths map.
  */
 const ICON_DEFS = {
+  menu: '<path d="M3 6h18M3 12h18M3 18h18"/>',
   dashboard:
     '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   jobs: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',

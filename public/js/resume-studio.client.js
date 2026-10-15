@@ -356,8 +356,9 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
       const newLeftWidth = e.clientX - workspaceRect.left;
       const totalWidth = workspaceRect.width;
       const pct = (newLeftWidth / totalWidth) * 100;
-      if (pct >= 25 && pct <= 75) {
+      if (pct >= 30 && pct <= 70) {
         leftPane.style.width = `${pct}%`;
+        divider.setAttribute('aria-valuenow', String(Math.round(pct)));
       }
     });
 
@@ -439,16 +440,16 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     }
 
     if (draft.jobTarget) {
-      if (jobTitleInput && !jobTitleInput.value && draft.jobTarget.title) {
+      if (jobTitleInput && draft.jobTarget.title) {
         jobTitleInput.value = draft.jobTarget.title;
       }
-      if (jobCompanyInput && !jobCompanyInput.value && draft.jobTarget.company) {
+      if (jobCompanyInput && draft.jobTarget.company) {
         jobCompanyInput.value = draft.jobTarget.company;
       }
-      if (jobUrlInput && !jobUrlInput.value && draft.jobTarget.sourceUrl) {
+      if (jobUrlInput && draft.jobTarget.sourceUrl) {
         jobUrlInput.value = draft.jobTarget.sourceUrl;
       }
-      if (jobDescTextarea && !jobDescTextarea.value && draft.jobTarget.rawDescription) {
+      if (jobDescTextarea && draft.jobTarget.rawDescription) {
         jobDescTextarea.value = draft.jobTarget.rawDescription;
         updateCharCount();
       }
@@ -459,6 +460,8 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     }
     document.getElementById('rsJobDetails').open = false;
 
+    for (const field of [jobTitleInput, jobCompanyInput, jobUrlInput, jobDescTextarea])
+      if (field) field.readOnly = true;
     renderStructuredEditor(draft);
     renderLiveDocumentPreview(draft);
     renderModularDrawer();
@@ -2084,6 +2087,36 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     }
   }
 
+  document.querySelectorAll('#studioReturnLink,.ch-primary-nav a,.ch-brand').forEach((link) =>
+    link.addEventListener('click', async (event) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !currentDraft) return;
+      event.preventDefault();
+      await saveDraft();
+      if (hasConflict || pendingEdits.size || hasSelectionChanged()) {
+        showAlert(
+          'Save or resolve your changes before leaving. Your local wording is retained.',
+          'warning'
+        );
+        return;
+      }
+      window.location.assign(link.href);
+    })
+  );
+  if (divider && leftPane)
+    divider.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const current = Number(divider.getAttribute('aria-valuenow') || 50);
+      const next =
+        event.key === 'Home'
+          ? 30
+          : event.key === 'End'
+            ? 70
+            : Math.max(30, Math.min(70, current + (event.key === 'ArrowRight' ? 5 : -5)));
+      leftPane.style.width = `${next}%`;
+      divider.setAttribute('aria-valuenow', String(next));
+    });
+
   // Initial Event Bindings & Startup
   // =========================================================================
   if (btnCreateDraft) {
@@ -2104,6 +2137,7 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
   }
 
   const urlParams = new URLSearchParams(window.location.search);
+  updateCharCount();
   const initialDraftId = urlParams.get('draftId') || container?.dataset?.draftId;
 
   if (initialDraftId) {

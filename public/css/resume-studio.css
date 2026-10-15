@@ -14,32 +14,16 @@
  */
 
 :root {
-  --rs-canvas: #101114;
-  --rs-surface: #1B1D22;
-  --rs-elevated: #24272D;
-  --rs-border: #30343B;
-  --rs-border-subtle: rgba(255, 255, 255, 0.06);
-  --rs-accent: #8798BD;
-  --rs-accent-dim: rgba(135, 152, 189, 0.15);
-  --rs-text-primary: #ECEEF1;
-  --rs-text-secondary: #A2A8B3;
-  --rs-text-muted: #6B7280;
-
-  /* Restrained semantic status tokens */
-  --rs-status-verified: #34D399;
-  --rs-status-verified-bg: rgba(52, 211, 153, 0.1);
-  --rs-status-claimed: #FBBF24;
-  --rs-status-claimed-bg: rgba(251, 191, 36, 0.1);
-  --rs-status-inferred: #94A3B8;
-  --rs-status-inferred-bg: rgba(148, 163, 184, 0.1);
-  --rs-status-missing: #F87171;
-  --rs-status-missing-bg: rgba(248, 113, 113, 0.1);
-  --rs-status-unverified: #71717A;
-  --rs-status-unverified-bg: rgba(113, 113, 122, 0.1);
-
-  --rs-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --rs-font-mono: 'JetBrains Mono', monospace;
-  --rs-font-serif: 'EB Garamond', 'Times New Roman', Georgia, serif;
+  --rs-canvas: var(--ch-canvas, #101114); --rs-surface: var(--ch-surface, #1B1D22); --rs-elevated: var(--ch-elevated, #24272D);
+  --rs-border:var(--ch-border, #30343B); --rs-border-subtle:var(--ch-border, #30343B);
+  --rs-accent:var(--ch-accent, #8798BD); --rs-accent-dim:var(--ch-elevated, #24272D);
+  --rs-text-primary:var(--ch-text, #ECEEF1); --rs-text-secondary:var(--ch-secondary, #A2A8B3); --rs-text-muted:var(--ch-secondary, #A2A8B3);
+  --rs-status-verified:var(--ch-good, #85D2AE); --rs-status-verified-bg:var(--ch-goodbg, #1E382F);
+  --rs-status-claimed:var(--ch-warn, #E8C17A); --rs-status-claimed-bg:var(--ch-warnbg, #3B311F);
+  --rs-status-inferred:var(--ch-secondary, #ADBACB); --rs-status-inferred-bg:var(--ch-elevated, #232B36);
+  --rs-status-missing:var(--ch-danger,#b33f45); --rs-status-missing-bg:var(--ch-danger-bg,#fcedef);
+  --rs-status-unverified:var(--ch-secondary, #ADBACB); --rs-status-unverified-bg:var(--ch-elevated, #232B36);
+  --rs-font-sans:var(--font-sans); --rs-font-mono:var(--font-mono); --rs-font-serif:'Times New Roman',Georgia,serif;
 }
 
 /* Studio Shell */
@@ -198,7 +182,7 @@
 }
 
 .rs-pane-left {
-  width: 48%;
+  width: 50%;
   background: var(--rs-canvas);
   border-right: 1px solid var(--rs-border);
   min-width: 340px;
@@ -1531,3 +1515,12 @@
 .rs-drawer.open{display:flex;}
 .rs-selection-jump{display:flex;width:100%;justify-content:flex-start;text-align:left;margin:8px 0;white-space:normal;}
 .rs-container [hidden]{display:none!important;}
+
+/* Shared workspace interaction colors; PDF paper retains actual document colors. */
+.rs-btn-primary,.rs-btn-primary:hover {background:var(--ch-accent,#aec7ed);color:var(--ch-onaccent,#14181f);border-color:var(--ch-accent,#aec7ed);}
+.rs-pane-divider:focus-visible {outline:2px solid var(--ch-accent);outline-offset:-2px;}
+.rs-tab-nav {overflow-x:auto;}
+.rs-input[readonly],.rs-textarea[readonly] {color:var(--rs-text-secondary);}
+
+.rs-alert-error,.rs-save-conflict,.rs-save-failed,.rs-conflict-title {color:var(--rs-status-missing);border-color:var(--rs-status-missing);}
+.rs-conflict-banner {background:var(--rs-status-missing-bg);border-color:var(--rs-status-missing);}

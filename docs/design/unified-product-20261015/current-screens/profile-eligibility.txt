@@ -1,0 +1,90 @@
+AI
+Career Hub
+DEV
+Dashboard
+Studio
+Jobs
+Applications
+Profile
+Sources
+Copilot
+S
+Synthetic Studio Candidate
+S
+Synthetic Studio Candidate
+JUNIOR
+Delhi
+
+Complete your professional identity to begin applying
+
+All changes saved
+Save changes
+Overview
+Professional
+Skills & Projects
+Job Preferences
+Application & Eligibility
+5
+Contact & Links
+Work Authorization & Availability
+
+Explicit legal eligibility and timeline parameters required by employer screening questionnaires.
+
+Work Authorization Status *
+Jurisdictions and legal statuses where you are authorized to work.
+Visa Sponsorship Required *
+Choose answer (Not Set)
+No — I do not require visa sponsorship
+Yes — I require visa sponsorship
+Uncertain / Depends on role
+Critical for screening filter matching; false defaults strictly avoided.
+Notice Period *
+Choose notice period...
+Immediate (Available immediately)
+Less than 1 week
+1 to 2 weeks
+30 days (1 month)
+60 days (2 months)
+90 days (3 months)
+Custom duration...
+Standardized notice period required by application screening.
+Earliest Start Date (optional)
+Specific calendar date you can commence employment.
+Candidate Confirmations
+
+Confirming these answers transitions screening items directly to READY status for automated handoffs.
+
+I confirm my work authorization status is accurate and substantiated.
+I confirm my visa sponsorship requirement answer is accurate.
+
+AI Careers Hub
+
+Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+
+PLATFORM
+Dashboard
+Career Intent
+MCP Protocol
+Health Status
+PRIVACY & LEGAL
+Privacy Notice
+Terms of Service
+Cookie Policy
+Security Architecture
+Data Deletion
+Accessibility
+Subprocessors
+© 2026 AI Careers Hub. Zero-hallucination evidence model.
+GitHub Repository
+Career Copilot
+Contextual career assistance
+Clear
+
+I can help you improve your profile, prepare applications, and decide what to do next.
+
+SUGGESTED ACTIONS
+What's missing from my profile?
+Fix my profile gaps
+What evidence is missing?
+Enter to send • Shift+Enter for newline
+Grounded in verified profile

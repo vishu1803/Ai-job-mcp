@@ -1,3 +1,7 @@
+import {
+  StudioLibraryQuerySchema,
+  StudioLibraryResponseSchema,
+} from '../domain/career/resume-studio-library.schemas.js';
 import crypto from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
@@ -106,6 +110,29 @@ export class ResumeStudioDraftService {
     });
     if (!response.success) throw new InternalServerError('Response contract validation failed');
     return response.data;
+  }
+
+  async list(context, query = {}) {
+    requireContext(context);
+    const options = parseInput(StudioLibraryQuerySchema, query);
+    const rows = await new ResumeStudioRepository(this.db).listOwned(context, options);
+    return StudioLibraryResponseSchema.parse({
+      contractVersion: '1.4.0',
+      drafts: rows.slice(0, options.limit).map(({ draft: row }) => {
+        const { payload } = this._decode(row);
+        return {
+          id: row.id,
+          revision: row.revision,
+          sourceResumeId: row.sourceResumeId,
+          sourceVersion: row.sourceVersion,
+          title: payload.jobTarget.title || 'Tailored resume',
+          company: payload.jobTarget.company || '',
+          updatedAt: new Date(row.updatedAt).toISOString(),
+          href: '/resume-studio?draftId=' + row.id,
+        };
+      }),
+      nextOffset: rows.length > options.limit ? options.offset + options.limit : null,
+    });
   }
 
   async create(context, input) {

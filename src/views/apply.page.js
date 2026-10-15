@@ -246,7 +246,7 @@ export function renderApplyPage({
             </div>
             <h1 style="font-size:1.65rem; font-weight:800; color:var(--text-main); margin:0 0 6px 0;">
               ${escapeHtml(job.title)}
-            </h1>
+            </h1><a class="btn btn-secondary btn-sm" href="/resume-studio?applicationId=${escapeHtml(application.id)}">Tailor resume in Studio</a>
             <div style="display:flex; align-items:center; gap:10px; color:var(--text-muted); font-size:0.875rem;">
               <span style="font-weight:600; color:var(--text-main);">${escapeHtml(job.company)}</span>
               <span>&bull;</span>

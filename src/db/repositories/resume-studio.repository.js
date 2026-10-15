@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 import { candidates, auditLogs } from '../schema.js';
 import { resumeStudioDrafts, resumeStudioRevisions } from '../resume-studio.schema.js';
 import { NotFoundError, ConflictError } from '../../errors/index.js';
@@ -31,6 +31,30 @@ export class ResumeStudioRepository {
     const [row] = await (lock ? query.for('update', { of: resumeStudioDrafts }) : query);
     if (!row) throw new NotFoundError('Draft not found');
     return row.draft;
+  }
+
+  async listOwned(context, { limit, offset }) {
+    return this.db
+      .select({ draft: resumeStudioDrafts })
+      .from(resumeStudioDrafts)
+      .innerJoin(
+        candidates,
+        and(
+          eq(candidates.id, resumeStudioDrafts.candidateId),
+          eq(candidates.tenantId, resumeStudioDrafts.tenantId),
+          eq(candidates.userId, resumeStudioDrafts.userId)
+        )
+      )
+      .where(
+        and(
+          eq(resumeStudioDrafts.tenantId, context.tenantId),
+          eq(resumeStudioDrafts.userId, context.userId),
+          eq(candidates.status, 'ACTIVE')
+        )
+      )
+      .orderBy(desc(resumeStudioDrafts.updatedAt), desc(resumeStudioDrafts.id))
+      .limit(limit + 1)
+      .offset(offset);
   }
 
   async insert(row) {

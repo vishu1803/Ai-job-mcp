@@ -1,3 +1,5 @@
+> Current2026-10-15: consolidated actual-main app is available on127.0.0.1:4318. Original4317/backend worktree retained. See [first milestone handoff](unified-ui-milestone-1-handoff.md) for current login,592-case evidence and remaining Office/handoff limits. Historical worktree/cluster lifecycle records below are retained. No shared-database migration/push/deployment occurred.
+
 # Local Resume Studio visibility
 
 2026-10-15. STUDIO-VISIBILITY-001 **COMPLETE, locally verified**. The isolated server is left running for manual inspection. No feature expansion or redesign.
