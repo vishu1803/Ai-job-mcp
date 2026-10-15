@@ -1512,11 +1512,10 @@ export class JobApplicationWorkflowService {
    * Capabilities:
    * - Supports 'BOTH'; selective requests fail actionably until the renderer
    *   can preserve the exact authoritative counterpart instead of rebuilding it.
-   * - Optional user reason tag stored in package answers for audit and history tracking.
-   * - Monotonically increments version (v_n -> v_{n+1}), archiving the previous version.
-   * - Runs full end-to-end PDF compilation, QA audit, and encrypted storage.
-   * - Fail-closed: If compilation or QA fails, existing CURRENT package remains untouched.
-   * - Never duplicates applications or runs on already submitted applications.
+   * - Saves an immutable generated alternative with the existing package as parent.
+   * - Optional reason is recorded in generation metadata.
+   * - Existing CURRENT package, approved bytes and Studio edits are unchanged.
+   * - Compilation/validation failure never changes application selection.
    *
    * @param {object} params
    * @param {string} params.tenantId Tenant UUID
@@ -1525,7 +1524,7 @@ export class JobApplicationWorkflowService {
    * @param {string} params.applicationId Application UUID
    * @param {'BOTH'|'RESUME'|'COVER_LETTER'} [params.scope='BOTH'] Scope of regeneration
    * @param {string} [params.reason=''] Reason description (e.g. 'Updated portfolio links')
-   * @returns {Promise<object>} Regenerated package result and handoff kit
+   * @returns {Promise<object>} Saved generation reference requiring explicit Studio review
    */
   async regenerateApplicationPackage({
     tenantId,
@@ -1630,24 +1629,6 @@ export class JobApplicationWorkflowService {
     const userEmail = candRow.userEmail || null;
     const candidateEmail = resolveCandidateEmail(cand, userEmail);
 
-    // 3. Fetch candidate skills & verified evidence
-    const candidateSkillsList = await this.db
-      .select({
-        skillName: skills.name,
-        candidateSkillId: candidateSkills.id,
-        metadata: candidateSkills.metadata,
-        provenanceStatus: candidateSkills.provenanceStatus,
-        evidenceId: candidateSkills.primaryEvidenceId,
-      })
-      .from(candidateSkills)
-      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
-      .where(
-        and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
-      );
-
-    const { verifiedSkills, claimedSkills, skillGaps } =
-      projectApplicationSkills(candidateSkillsList);
-
     // 4. Construct normalized job posting
     // P16-001F-5: accept provider sources detected by the extension's
     // job-board adapters; unknown sources fall back to MANUAL.
@@ -1677,10 +1658,15 @@ export class JobApplicationWorkflowService {
       description:
         application.rawJobDescription ||
         application.metadata?.jobDescription ||
+        currentPkg?.targetJob?.description ||
         application.jobTitle,
-      responsibilities: application.parsedJobDescription?.responsibilities || [],
-      requirements: application.parsedJobDescription?.requirements || [],
-      skills: application.parsedJobDescription?.skills || [],
+      responsibilities:
+        application.parsedJobDescription?.responsibilities ||
+        currentPkg?.targetJob?.responsibilities ||
+        [],
+      requirements:
+        application.parsedJobDescription?.requirements || currentPkg?.targetJob?.requirements || [],
+      skills: application.parsedJobDescription?.skills || currentPkg?.targetJob?.skills || [],
       applicationUrl: application.jobUrl || application.metadata?.destinationUrl,
       retrievedAt: new Date().toISOString(),
     };
@@ -1690,36 +1676,6 @@ export class JobApplicationWorkflowService {
       throw new ValidationError(
         'Saved job data is invalid. Correct the job title, company, description and application URL before regenerating.',
         'INVALID_REGENERATION_JOB'
-      );
-    }
-
-    // 4b. Authoritative project rankings from ProjectRelevanceService for current job
-    try {
-      const profileView = await this.candidateProfileService.getProfile(context, candidateId);
-      if (profileView && Array.isArray(profileView.projects) && profileView.projects.length > 0) {
-        const projAnalysis = ProjectRelevanceService.computeProjectsRelevance(
-          context,
-          {
-            id:
-              jobPosting.id &&
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobPosting.id)
-                ? jobPosting.id
-                : crypto.randomUUID(),
-            tenantId,
-            title: jobPosting.title || 'Target Role',
-            requirements: jobPosting.requirements || [],
-            skills: jobPosting.skills || [],
-            description: jobPosting.description || '',
-          },
-          profileView.projects,
-          { candidateId, skills: profileView.skills }
-        );
-        jobPosting.projectRankings = projAnalysis.projectRankings || [];
-      }
-    } catch (err) {
-      this.logger.debug(
-        { error: err.message },
-        'Failed to compute fresh project rankings during package regeneration'
       );
     }
 
@@ -1733,6 +1689,9 @@ export class JobApplicationWorkflowService {
         candidateEmail,
         options: {
           generationOrigin: 'REGENERATION',
+          generationReason: String(reason || '')
+            .trim()
+            .slice(0, 1000),
           requestRole: role || 'MEMBER',
           applicationId: application.id,
           aiProvider: this.aiProvider,
@@ -1745,6 +1704,15 @@ export class JobApplicationWorkflowService {
                 currentPkg.packageHash,
                 cand.profileMetadata?.resumeData?.sourceResumeId,
                 cand.profileMetadata?.resumeData?.sourceVersion,
+                crypto
+                  .createHash('sha256')
+                  .update(
+                    String(reason || '')
+                      .trim()
+                      .slice(0, 1000)
+                  )
+                  .digest('hex')
+                  .slice(0, 16),
               ].join(':')
             : undefined,
         },
@@ -1757,323 +1725,21 @@ export class JobApplicationWorkflowService {
       }
     );
 
-    const generatedIdentity =
-      documentContent.generation?.bundle?.structuredResume?.candidateIdentity;
-
-    // 6. Handle scope: allow selective reuse if scope is RESUME or COVER_LETTER
-    const currentSnapshots = appDetails.tailoredDocuments || [];
-
-    let tailoredResumeResult = documentContent.resume;
-    let coverLetterResult = documentContent.coverLetter;
-
-    if (scope === 'COVER_LETTER') {
-      const existingResumeDoc = currentSnapshots.find(
-        (d) =>
-          d.documentType === 'TAILORED_RESUME' &&
-          (!currentPkg ||
-            d.metadata?.packageHash === currentPkg.packageHash ||
-            d.metadata?.artifact?.packageHash === currentPkg.packageHash)
-      );
-      if (existingResumeDoc?.renderedMarkdown || currentPkg?.resumeContentHash) {
-        tailoredResumeResult = {
-          title:
-            existingResumeDoc?.title ||
-            currentPkg?.tailoredResume?.title ||
-            documentContent.resume.title,
-          markdownContent:
-            existingResumeDoc?.renderedMarkdown ||
-            existingResumeDoc?.content?.markdownContent ||
-            documentContent.resume.markdownContent,
-          contentHash:
-            existingResumeDoc?.metadata?.markdownContentHash ||
-            currentPkg?.resumeContentHash ||
-            documentContent.resume.contentHash,
-          fitScore:
-            existingResumeDoc?.atsFitScore ??
-            currentPkg?.fitScore ??
-            documentContent.resume.fitScore,
-        };
-      }
-    } else if (scope === 'RESUME') {
-      const existingClDoc = currentSnapshots.find(
-        (d) =>
-          d.documentType === 'TAILORED_COVER_LETTER' &&
-          (!currentPkg ||
-            d.metadata?.packageHash === currentPkg.packageHash ||
-            d.metadata?.artifact?.packageHash === currentPkg.packageHash)
-      );
-      if (existingClDoc?.renderedMarkdown || currentPkg?.coverLetterContentHash) {
-        coverLetterResult = {
-          title:
-            existingClDoc?.title ||
-            currentPkg?.coverLetter?.title ||
-            documentContent.coverLetter.title,
-          markdownContent:
-            existingClDoc?.renderedMarkdown ||
-            existingClDoc?.content?.markdownContent ||
-            documentContent.coverLetter.markdownContent,
-          contentHash:
-            existingClDoc?.metadata?.markdownContentHash ||
-            currentPkg?.coverLetterContentHash ||
-            documentContent.coverLetter.contentHash,
-        };
-      }
-    }
-
-    // Portfolio links
-    const selectedProjectsList =
-      documentContent.resume?.selectedProjects || documentContent.selectedProjects || [];
-
-    const portfolioLinks = (
-      selectedProjectsList.length > 0
-        ? selectedProjectsList
-        : (documentContent.evidence.projectNamesUsed || []).map((name) => ({
-            name,
-            bullets: [],
-          }))
-    ).map((project) => {
-      const projName = project.name || project.projectName;
-      const stored =
-        documentContent.projectUrlByName?.[projName] || project.repositoryUrl || project.url;
-      const rawHighlights =
-        Array.isArray(project.bullets) && project.bullets.length > 0
-          ? project.bullets
-          : project.summary
-            ? [project.summary]
-            : [];
-      const cleanHighlights = rawHighlights.filter(
-        (h) => !/Evidence-backed project referenced in tailored documents/i.test(h)
-      );
-      return {
-        projectName: projName,
-        repositoryUrl: stored || undefined,
-        highlights: cleanHighlights,
-      };
-    });
-
-    // Final content audit
-    const contentAudit = CandidateArtifactContentService.auditDocumentContent(
-      tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
-      {
-        requiredTokens: [
-          generatedIdentity?.displayName || cand.displayName,
-          generatedIdentity?.email || candidateEmail,
-        ].filter(Boolean),
-        forbiddenTokens: [
-          /Dedicated software engineer with verified technical skills/i,
-          /Software Development Experience Verified/i,
-          /Independent \/ Open Source Engineering/i,
-          /Academic \/ Technical Foundation/i,
-          /Accredited Institution/i,
-          /Evidence-backed project referenced in tailored documents/i,
-        ],
-      }
-    );
-    if (!contentAudit.passed) {
-      throw new ValidationError(
-        `Application document content audit failed during regeneration: ${contentAudit.violations.join('; ')}`
-      );
-    }
-
-    // 7. Build package with regeneration metadata in answers
-    const previousAnswers =
-      currentPkg?.answers && typeof currentPkg.answers === 'object' ? currentPkg.answers : {};
-    const answers = {
-      ...previousAnswers,
-      ...(reason ? { regenerationReason: String(reason).trim() } : {}),
-      ...(scope ? { regenerationScope: scope } : {}),
-      regenerationTimestamp: new Date().toISOString(),
-    };
-
     const generation = documentContent.generation;
     if (!generation?.bundle?.structuredResume)
       throw new ValidationError(
         'Authoritative saved generation is required',
         'GENERATION_NOT_SAVED'
       );
-    if (generation.bundle.metadata?.projectRanking)
-      jobPosting.projectRankings = generation.bundle.metadata.projectRanking.projectRankings;
-    const {
-      structuredResume: safeStructuredResume,
-      tailoringPlan: safeTailoringPlan,
-      evidenceValidationReceipt: safeEvidenceReceipt,
-    } = generation.bundle;
 
-    const preparedPackage = {
-      resumeGeneration: {
-        id: generation.id,
-        contentHash: generation.contentHash,
-        sourceResumeId: generation.sourceResumeId,
-        sourceVersion: generation.sourceVersion,
-      },
-      candidateId,
-      candidateName: generatedIdentity.displayName,
-      candidateEmail: generatedIdentity.email,
-      candidatePhone: generatedIdentity.phone || undefined,
-      targetJob: jobPosting,
-      tailoredResume: {
-        documentId: tailoredResumeResult.documentId || undefined,
-        title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
-        markdownContent: onePageResumeMarkdown(safeStructuredResume),
-        contentHash: crypto
-          .createHash('sha256')
-          .update(onePageResumeMarkdown(safeStructuredResume))
-          .digest('hex'),
-        fitScore: tailoredResumeResult.fitScore ?? 0,
-        selectedProjects: selectedProjectsList,
-        selectedSections:
-          tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
-        sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
-        structuredResume: safeStructuredResume,
-        tailoringPlan: safeTailoringPlan,
-        evidenceValidationReceipt: safeEvidenceReceipt,
-        generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
-        structuredResumeSchemaVersion:
-          safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
-      },
-      coverLetter: {
-        documentId: coverLetterResult.documentId || undefined,
-        title: coverLetterResult.title || `Cover Letter - ${jobPosting.company}`,
-        markdownContent:
-          coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
-        contentHash: coverLetterResult.contentHash || crypto.randomBytes(16).toString('hex'),
-      },
-      verifiedSkills,
-      claimedSkills,
-      skillGaps,
-      portfolioLinks,
-      candidate: {
-        id: candidateId,
-        firstName:
-          cand.firstName || (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
-        lastName:
-          cand.lastName || (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
-        fullName: cand.displayName || 'Candidate',
-        displayName: cand.displayName || 'Candidate',
-        email: candidateEmail,
-        canonicalEmail: candidateEmail,
-        phone: cand.phone || undefined,
-        location: cand.location || undefined,
-        contact: {
-          email: candidateEmail,
-          phone: cand.phone || undefined,
-          address: cand.location || undefined,
-        },
-      },
-      artifacts: {
-        resume: {
-          filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text: onePageResumeMarkdown(safeStructuredResume),
-          ready: false,
-        },
-        coverLetter: {
-          filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
-          text: coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
-          ready: false,
-        },
-      },
-      selectedSections:
-        tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
-      sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
-      answers,
-      structuredResume: safeStructuredResume,
-      tailoringPlan: safeTailoringPlan,
-      evidenceValidationReceipt: safeEvidenceReceipt,
-      generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
-      structuredResumeSchemaVersion:
-        safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
-      packageHash: '',
-      preparedAt: new Date().toISOString(),
-    };
-
-    preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
-    const validatedPackage = await sealGeneratedPackage(
-      this.db,
-      { tenantId, candidateId },
-      ApplicationPackageSchema.parse(preparedPackage)
-    );
-
-    // 8. Pre-Exposure PDF Compilation and QA Audit BEFORE Ledger Mutation (Fail-Closed)
-    const handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
-      tenantId,
-      userId: cand.userId,
-      candidateId,
-      applicationPackage: validatedPackage,
-      applicationId: application.id,
-      destinationUrl: jobPosting.applicationUrl,
-      persist: false,
-    });
-
-    const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);
-    const clQaPassed = Boolean(handoffKit?.coverLetter?.qaAudit?.passed);
-    const hasStorageKeys = Boolean(
-      handoffKit?.resume?.storageKey && handoffKit?.coverLetter?.storageKey
-    );
-
-    if (!resumeQaPassed || !clQaPassed || !hasStorageKeys) {
-      const failureReason = [
-        !resumeQaPassed
-          ? `Resume QA failed: ${handoffKit?.resume?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
-          : null,
-        !clQaPassed
-          ? `Cover letter QA failed: ${handoffKit?.coverLetter?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
-          : null,
-        !hasStorageKeys ? 'Encrypted artifact storage keys missing' : null,
-      ]
-        .filter(Boolean)
-        .join('; ');
-
-      throw new ValidationError(
-        `Regeneration aborted: pre-exposure QA check failed (${failureReason}). Current package preserved.`,
-        'PRE_EXPOSURE_QA_FAILED'
-      );
-    }
-
-    // 9. Attach snapshots and commit the new package version as CURRENT
-    const current = await this.db.transaction(async (tx) => {
-      // Serialize the entire promotion, including encrypted-artifact snapshots
-      // and kit metadata. A failed write cannot leave a partially exposed kit.
-      await tx
-        .select({ id: jobApplications.id })
-        .from(jobApplications)
-        .where(and(eq(jobApplications.id, application.id), eq(jobApplications.tenantId, tenantId)))
-        .for('update');
-      const tracking = new ApplicationTrackingService({ database: tx });
-      const packageRow = await tracking.recordApplicationPackage(
-        context,
-        application.id,
-        validatedPackage,
-        { source: 'REGENERATE_PACKAGE' }
-      );
-      await this.applicationHandoffService._attachTailoredDocumentSnapshots({
-        tenantId,
-        userId: cand.userId,
-        applicationId: application.id,
-        applicationPackage: validatedPackage,
-        handoffKit,
-        trackingService: tracking,
-      });
-      await tracking.setApplicationHandoffKit(context, application.id, handoffKit);
-      return packageRow;
-    });
-
-    this.logger.info(
-      {
-        tenantId,
-        applicationId: application.id,
-        newPackageVersion: current.version,
-        newPackageHash: current.packageHash,
-        scope,
-        reason,
-      },
-      'Application package regenerated and promoted as CURRENT version'
-    );
-
+    // Regeneration is a saved alternative. Only explicit Studio review/approval may
+    // bind it to the application. No package promotion, kit mutation or edit transfer.
     return {
-      package: current,
       generationId: generation.id,
+      parentGenerationId: generation.parentGenerationId,
       studioUrl: '/resume-studio?generationId=' + generation.id,
-      handoffKit,
+      reviewRequired: true,
+      currentPackageHash: appDetails.currentPackage?.packageHash || null,
       documentsStatus: 'DOCUMENTS_READY',
       artifactsReady: true,
     };

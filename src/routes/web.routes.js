@@ -4488,7 +4488,7 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     try {
-      await jobApplicationWorkflowService.regenerateApplicationPackage({
+      const regenerated = await jobApplicationWorkflowService.regenerateApplicationPackage({
         tenantId: tenant.id,
         userId: user.id,
         candidateId: candidate.id,
@@ -4498,9 +4498,7 @@ export default async function webRoutes(app, opts = {}) {
         role: user.role || 'MEMBER',
       });
 
-      return reply.redirect(
-        `/applications/${appId}/handoff?success=Package+regenerated+successfully`
-      );
+      return reply.redirect(regenerated.studioUrl);
     } catch (err) {
       if (err.name === 'NotFoundError') {
         req.log.warn({ err, appId }, 'Package regeneration resource not found');

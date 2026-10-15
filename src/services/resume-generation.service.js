@@ -52,6 +52,7 @@ const inputSchema = z
     parentGenerationId: z.string().uuid().nullable().default(null),
     applicationId: z.string().uuid().nullable().default(null),
     idempotencyKey: z.string().trim().min(1).max(200).optional(),
+    reason: z.string().trim().max(1000).optional(),
     template: z.literal('CLASSIC_LATIN_MODERN_A4').default('CLASSIC_LATIN_MODERN_A4'),
   })
   .strict();
@@ -372,6 +373,7 @@ export class ResumeGenerationService {
           artifacts,
           metadata: json({
             inputHash,
+            generationReason: body.reason || null,
             template: body.template,
             verification: compiled.verification,
             artifactPackageHash: sealed.packageHash,

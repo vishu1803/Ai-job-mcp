@@ -3811,6 +3811,7 @@ export class CandidateArtifactContentService {
         origin: options.generationOrigin || 'WEB',
         parentGenerationId: options.parentGenerationId || null,
         applicationId: options.applicationId || null,
+        ...(options.generationReason ? { reason: options.generationReason } : {}),
         ...(options.generationIdempotencyKey
           ? { idempotencyKey: options.generationIdempotencyKey }
           : {}),

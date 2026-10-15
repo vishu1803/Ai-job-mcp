@@ -1,3 +1,8 @@
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
+import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
+import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
+import { ResumeStudioDocumentService } from '../../src/services/resume-studio-document.service.js';
+import { ApplicationHandoffService } from '../../src/services/application-handoff.service.js';
 import { ResumeGenerationService } from '../../src/services/resume-generation.service.js';
 import { DocumentStorageService } from '../../src/services/document-storage.service.js';
 import { fixtureProvider } from '../fixtures/resume-writing-provider.js';
@@ -407,7 +412,7 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
     );
     await t.test(
       'authorized operation uses shared writer, real source selection and encrypted persistence',
-      async () => {
+      async (sub) => {
         let compileCalls = 0,
           failCompilation = false;
         const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'unified-generation-contract-'));
@@ -459,6 +464,8 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
             idempotencyKey: 'operation',
             jobTarget: {
               title: 'Backend Engineer',
+              company: 'Synthetic Engineering',
+              sourceUrl: 'https://jobs.example.test/backend-engineer',
               rawDescription:
                 'Requirements: Node.js API development and PostgreSQL database migrations. Implement supported API endpoints and write integration tests for validation and error responses.',
             },
@@ -481,6 +488,33 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
           const throughMcp = await engine.execute(contexts[0], { ...input, origin: 'MCP' });
           assert.equal(throughMcp.id, generated.id);
           assert.equal(compileCalls, 1);
+          const uneditedPackage = await sealGeneratedPackage(db, contexts[0], {
+            candidateId: contexts[0].candidateId,
+            structuredResume: generated.bundle.structuredResume,
+            resumeGeneration: {
+              id: generated.id,
+              contentHash: generated.contentHash,
+              sourceResumeId: generated.sourceResumeId,
+              sourceVersion: generated.sourceVersion,
+            },
+          });
+          const generationHandoff = new ApplicationHandoffService({
+            applicationTrackingService: new ApplicationTrackingService({ database: db }),
+            documentStorage: storage,
+          });
+          const sourceBytes = await generationHandoff.resolveBoundResume({
+            ...contexts[0],
+            applicationPackage: uneditedPackage,
+          });
+          assert.equal(sourceBytes.pdfBuffer.toString(), 'Persistence fixture PDF bytes');
+          const forged = await sealGeneratedPackage(db, contexts[0], {
+            ...uneditedPackage,
+            resumeGeneration: { ...uneditedPackage.resumeGeneration, contentHash: '0'.repeat(64) },
+          });
+          await assert.rejects(
+            generationHandoff.resolveBoundResume({ ...contexts[0], applicationPackage: forged }),
+            /binding changed/i
+          );
           const draftService = new ResumeStudioDraftService({
             database: db,
             generationService: engine,
@@ -495,6 +529,203 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
             jobTarget: input.jobTarget,
           });
           assert.equal(retryMaster.id, fromMaster.id);
+          await sub.test(
+            'regeneration preserves approved package and exact historical Studio bytes',
+            async () => {
+              const documents = new ResumeStudioDocumentService({
+                database: db,
+                compiler: async (snapshot) => {
+                  const model = studioDocumentContent(snapshot);
+                  return {
+                    ...(await engine.compileDocument(snapshot)),
+                    pageMap: [],
+                    png: '',
+                    text: model.expected.join('\n'),
+                    selectedResume: model.content,
+                  };
+                },
+              });
+              const original = await draftService.create(contexts[0], {
+                generationId: generated.id,
+              });
+              const preview = await documents.preview(contexts[0], original.id, {
+                expectedRevision: 1,
+              });
+              const approval = await documents.approve(contexts[0], original.id, {
+                expectedRevision: 1,
+                documentId: preview.id,
+                reviewed: true,
+              });
+              const tracker = new ApplicationTrackingService({ database: db });
+              const before = await tracker.getApplicationDetails(
+                contexts[0],
+                approval.applicationId
+              );
+              assert.equal(before.currentPackage.packageHash, approval.packageHash);
+              assert.equal(
+                before.currentPackage.packagePayload.resumeStudio.generationId,
+                generated.id
+              );
+              const summary = original.nodes.find((n) => n.kind === 'SUMMARY');
+              await draftService.update(contexts[0], original.id, {
+                expectedRevision: 1,
+                edits: [
+                  {
+                    nodeId: summary.nodeId,
+                    text: 'Candidate edit retained in the older generation.',
+                  },
+                ],
+              });
+              const approvedBytes = await documents.approvedArtifact(
+                contexts[0],
+                before.currentPackage.packagePayload
+              );
+              assert.equal(
+                crypto.createHash('sha256').update(approvedBytes.pdfBuffer).digest('hex'),
+                preview.pdfHash
+              );
+              await assert.rejects(
+                documents.export(contexts[0], original.id, {
+                  expectedRevision: 1,
+                  documentId: preview.id,
+                  format: 'PDF',
+                }),
+                /revision/i
+              );
+              const workflow = new JobApplicationWorkflowService({
+                database: db,
+                resumeGenerationService: engine,
+              });
+              workflow.applicationHandoffService.buildApplicationHandoffKit = async () => {
+                throw Error('Regeneration must not mutate or regenerate a handoff');
+              };
+              const request = { ...contexts[0], applicationId: approval.applicationId };
+              const alternative = await workflow.regenerateApplicationPackage(request);
+              assert.equal(alternative.reviewRequired, true);
+              assert.equal(alternative.parentGenerationId, generated.id);
+              assert.notEqual(alternative.generationId, generated.id);
+              assert.equal(
+                (await workflow.regenerateApplicationPackage(request)).generationId,
+                alternative.generationId
+              );
+              const after = await tracker.getApplicationDetails(
+                contexts[0],
+                approval.applicationId
+              );
+              assert.equal(after.currentPackage.packageHash, approval.packageHash);
+              assert.deepEqual(
+                after.currentPackage.packagePayload,
+                before.currentPackage.packagePayload
+              );
+              assert.equal(
+                (await draftService.get(contexts[0], original.id)).structuredResume.summary.text,
+                'Candidate edit retained in the older generation.'
+              );
+              const alternativeDraft = await draftService.create(contexts[0], {
+                generationId: alternative.generationId,
+              });
+              assert.equal(
+                alternativeDraft.structuredResume.summary.text,
+                generated.bundle.structuredResume.summary.text
+              );
+              const bound = await new ApplicationHandoffService({
+                applicationTrackingService: tracker,
+              }).resolveBoundResume({
+                ...contexts[0],
+                applicationPackage: before.currentPackage.packagePayload,
+              });
+              assert.deepEqual(bound.pdfBuffer, approvedBytes.pdfBuffer);
+              let compilerCalls = 0;
+              const realStorageHandoff = new ApplicationHandoffService({
+                applicationTrackingService: tracker,
+                documentStorage: storage,
+                latexGenerator: {
+                  generateTailoredResumeLatex: () => {
+                    throw Error('Approved resume must never be re-rendered');
+                  },
+                  generateTailoredCoverLetterLatex: () => ({
+                    texContent: 'Controlled cover letter compilation fixture',
+                  }),
+                },
+                latexCompiler: {
+                  compileLatexToPdf: async ({ jobName }) => {
+                    assert.equal(jobName, 'tailored-cover-letter');
+                    compilerCalls++;
+                    return { pdfBuffer: Buffer.from('Controlled cover letter bytes') };
+                  },
+                },
+                qaValidator: {
+                  validatePdf: async ({ pdfBuffer, documentType }) => {
+                    if (documentType === 'RESUME')
+                      assert.deepEqual(pdfBuffer, approvedBytes.pdfBuffer);
+                    return { passed: true, score: 100, findings: [] };
+                  },
+                },
+                resumeParser: { extractRawText: () => 'Controlled QA text fixture' },
+                geometryAnalyzer: { analyze: () => ({ layoutDiagnostics: null }) },
+                resumeQualityAssessment: { assessResumeQuality: () => null },
+              });
+              const kit = await realStorageHandoff.buildApplicationHandoffKit({
+                ...contexts[0],
+                applicationId: approval.applicationId,
+                applicationPackage: before.currentPackage.packagePayload,
+                persist: false,
+              });
+              assert.equal(compilerCalls, 1);
+              assert.equal(kit.resume.contentHash, preview.pdfHash);
+              assert.equal(kit.resume.texStorageKey, undefined);
+              assert.deepEqual(
+                await storage.getDecryptedDocument({
+                  tenantId: contexts[0].tenantId,
+                  candidateId: contexts[0].candidateId,
+                  storageKey: kit.resume.storageKey,
+                  expectedPackageHash: approval.packageHash,
+                }),
+                approvedBytes.pdfBuffer
+              );
+
+              const newPreview = await documents.preview(contexts[0], alternativeDraft.id, {
+                expectedRevision: 1,
+              });
+              const selected = await documents.approve(contexts[0], alternativeDraft.id, {
+                expectedRevision: 1,
+                documentId: newPreview.id,
+                reviewed: true,
+              });
+              assert.equal(selected.applicationId, approval.applicationId);
+              assert.equal(selected.packageVersion, approval.packageVersion + 1);
+              const selectedApp = await tracker.getApplicationDetails(
+                contexts[0],
+                approval.applicationId
+              );
+              assert.equal(selectedApp.currentPackage.packageHash, selected.packageHash);
+              assert.equal(
+                selectedApp.currentPackage.packagePayload.resumeStudio.generationId,
+                alternative.generationId
+              );
+              assert.deepEqual(
+                (
+                  await documents.approvedArtifact(
+                    contexts[0],
+                    before.currentPackage.packagePayload
+                  )
+                ).pdfBuffer,
+                approvedBytes.pdfBuffer
+              );
+              await assert.rejects(
+                documents.approve(contexts[0], original.id, {
+                  expectedRevision: 1,
+                  documentId: preview.id,
+                  reviewed: true,
+                }),
+                /revision/i
+              );
+
+              await assert.rejects(
+                documents.approvedArtifact(contexts[1], before.currentPackage.packagePayload)
+              );
+            }
+          );
           await db
             .update(candidates)
             .set({
@@ -543,7 +774,7 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
           });
           assert.equal(
             draft.structuredResume.summary.text,
-            generated.bundle.structuredResume.summary.text
+            'Candidate edit retained in the older generation.'
           );
           await assert.rejects(engine.execute(contexts[1], input), /master/i);
         } finally {

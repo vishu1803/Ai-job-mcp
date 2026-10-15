@@ -26,8 +26,9 @@ import {
   AppError,
 } from '../errors/index.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
+import { ResumeGenerationVersionService } from './resume-generation-version.service.js';
 import { JobApplicationWorkflowService } from './job-application-workflow.service.js';
-import { sealGeneratedPackage } from './evidence/artifact-policy.js';
+import { assertCurrentPackage, sealGeneratedPackage } from './evidence/artifact-policy.js';
 
 const checksum = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const parse = (schema, input) => {
@@ -217,6 +218,9 @@ export class ResumeStudioDocumentService {
       throw new ConflictError('Recompile the current draft before export', [
         { reason: 'STALE_DOCUMENT' },
       ]);
+    this.verified(owned);
+  }
+  verified(owned) {
     const verified = owned.metadata.verification;
     if (
       owned.metadata.status !== 'READY' ||
@@ -239,6 +243,33 @@ export class ResumeStudioDocumentService {
         422,
         'DOCUMENT_REVIEW_REQUIRED'
       );
+  }
+  // An approved package names a historical immutable document, not the mutable
+  // draft head. Current-revision CAS remains mandatory for new exports/approvals.
+  async approvedArtifact(context, applicationPackage) {
+    const ref = applicationPackage?.resumeStudio;
+    if (!ref) throw new ValidationError('Approved Studio document reference required');
+    await assertCurrentPackage(this.db, context, applicationPackage);
+    const owned = await this.owned(this.db, context, ref.draftId, ref.documentId);
+    if (
+      owned.draft.candidateId !== context.candidateId ||
+      owned.row.revision !== ref.revision ||
+      owned.row.contentHash !== ref.contentHash ||
+      owned.row.sourceSnapshotHash !== ref.sourceSnapshotHash ||
+      owned.metadata.pdfHash !== ref.pdfHash ||
+      checksum(Buffer.from(owned.payload.docx, 'base64')) !== ref.docxHash ||
+      (ref.generationId && owned.draft.generationId !== ref.generationId)
+    )
+      throw new ValidationError(
+        'Approved document binding changed',
+        'ARTIFACT_REVALIDATION_REQUIRED'
+      );
+    this.verified(owned);
+    return {
+      pdfBuffer: Buffer.from(owned.payload.pdf, 'base64'),
+      docxBuffer: Buffer.from(owned.payload.docx, 'base64'),
+      verification: owned.metadata.verification,
+    };
   }
   async export(context, id, input) {
     write(context);
@@ -289,7 +320,14 @@ export class ResumeStudioDocumentService {
         );
       const scope = { ...context, candidateId: owned.draft.candidateId };
       const tracker = new ApplicationTrackingService({ database: tx });
+      const generation = owned.draft.generationId
+        ? await new ResumeGenerationVersionService({ database: tx }).get(
+            context,
+            owned.draft.generationId
+          )
+        : null;
       const application = await tracker.resolveOrCreateApplication(scope, scope.candidateId, {
+        ...(generation?.applicationId ? { applicationId: generation.applicationId } : {}),
         title: job.title,
         company: job.company,
         applicationUrl: job.sourceUrl,
@@ -297,6 +335,9 @@ export class ResumeStudioDocumentService {
       });
       const pkg = await sealGeneratedPackage(tx, scope, {
         candidateId: scope.candidateId,
+        candidateName: owned.payload.selectedResume.candidateIdentity.displayName,
+        candidateEmail: owned.payload.selectedResume.candidateIdentity.email,
+        candidatePhone: owned.payload.selectedResume.candidateIdentity.phone || undefined,
         targetJob: {
           id: application.id,
           title: job.title,
@@ -315,6 +356,7 @@ export class ResumeStudioDocumentService {
         portfolioLinks: [],
         answers: {},
         resumeStudio: {
+          ...(owned.draft.generationId ? { generationId: owned.draft.generationId } : {}),
           draftId: owned.draft.id,
           revision: draft.revision,
           documentId: owned.row.id,
