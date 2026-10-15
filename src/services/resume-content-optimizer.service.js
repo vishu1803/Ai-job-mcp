@@ -122,9 +122,6 @@ export class ResumeContentOptimizer {
 
     // Track per-project bullet count overrides: { [projectId | projectName]: count }
     const projectBulletOverrides = { ...(options.projectBulletOverrides || {}) };
-    let selectedProjectIds = Array.isArray(options.selectedProjectIds)
-      ? [...options.selectedProjectIds]
-      : null;
 
     // Build authoritative canonical fact inventory
     const factInventory = candidateProfile
@@ -156,7 +153,7 @@ export class ResumeContentOptimizer {
 
     // Deep copy structured resume if provided, otherwise build initial snapshot
     let currentStructuredResume = null;
-    let initialTailoringPlan =
+    const initialTailoringPlan =
       applicationPackage?.tailoringPlan ||
       applicationPackage?.tailoredResume?.tailoringPlan ||
       options?.tailoringPlan ||
@@ -176,85 +173,18 @@ export class ResumeContentOptimizer {
       currentStructuredResume = snap.structuredResume || snap;
     }
 
-    if (!initialOptions.matchAnalysis && applicationPackage?.jobFitAnalysis?.matchAnalysis) {
-      initialOptions.matchAnalysis = applicationPackage.jobFitAnalysis.matchAnalysis;
-    }
-
-    // Preserve AI summary and project bullets across optimizer iterations for semantic freeze
-    if (!initialOptions.aiContent && currentStructuredResume) {
-      const projBullets = {};
-      if (Array.isArray(currentStructuredResume.projects)) {
-        for (const p of currentStructuredResume.projects) {
-          if (p.projectId) projBullets[p.projectId] = p.bullets;
-          if (p.name) projBullets[p.name] = p.bullets;
-        }
-      }
-      initialOptions.aiContent = {
-        summary: currentStructuredResume.summary,
-        projectBullets: projBullets,
-      };
-    }
-
-    // Preserve skills across optimizer iterations for semantic freeze
-    if (!initialTailoringPlan && currentStructuredResume?.skills) {
-      const rawCats = Array.isArray(currentStructuredResume.skills?.categories)
-        ? currentStructuredResume.skills.categories
-        : Array.isArray(currentStructuredResume.skills)
-          ? currentStructuredResume.skills
-          : [];
-      const extractedSelectedSkills = rawCats.flatMap((cat) =>
-        (cat.skills || []).map((s, idx) => ({
-          slug: s.slug || s.name,
-          name: s.name || s.slug,
-          category: cat.categoryName || cat.category || 'Core Competencies',
-          provenanceStatus: s.provenanceStatus || 'VERIFIED',
-          evidenceId: s.evidenceId || null,
-          relevanceScore: s.relevanceScore ?? 50,
-          matchedRequirementId: s.matchedRequirementId || null,
-          confidenceScore: s.confidenceScore ?? 1.0,
-          order: idx + 1,
-        }))
-      );
-      const extractedCategoryOrder = rawCats
-        .map((cat) => cat.categoryName || cat.category)
-        .filter(Boolean);
-      const extractedSkillSlugs = extractedSelectedSkills
-        .map((s) => s.slug || s.name)
-        .filter(Boolean);
-
-      if (extractedSelectedSkills.length > 0) {
-        initialTailoringPlan = {
-          selectedSkills: extractedSelectedSkills,
-          selectedSkillSlugs: extractedSkillSlugs,
-          skillCategoryOrder: extractedCategoryOrder,
-        };
-      }
-    }
-
     // Step 0: Introduce explicit semantic-freeze boundary (Issue 2 Contract)
     // The semantic resume is frozen; optimizer may only perform presentation/layout transformations.
     const baselineSemantic = freezeSemanticResume(currentStructuredResume);
 
-    let currentLayoutOverrides = { ...(options.layoutOverrides || {}) };
+    const currentLayoutOverrides = { ...(options.layoutOverrides || {}) };
 
     for (let iteration = 1; iteration <= maxIterations; iteration++) {
       this.logger.debug({ iteration }, 'Starting resume content optimizer iteration');
 
-      // 1. Build or re-select structured resume if we have modified overrides
-      if (iteration > 1 && candidateProfile && jobPosting) {
-        const snap = buildStructuredResumeSnapshot({
-          candidateProfile,
-          jobPosting,
-          tailoringPlan: initialTailoringPlan,
-          options: {
-            ...initialOptions,
-            projectBulletOverrides,
-            layoutOverrides: currentLayoutOverrides,
-            selectedProjectIds: baselineSemantic.projectIds,
-          },
-        });
-        currentStructuredResume = snap.structuredResume || snap;
-      }
+      // Content is already selected and validated. Rebuilding from the master here
+      // can replace accepted wording or add facts after the semantic freeze.
+      // Subsequent passes change only the renderer's layout options.
 
       // Assert runtime semantic equivalence: optimizer operation cannot change
       // project IDs, project ordering, project count, skill IDs, summary, DSA, experience, education, section order
@@ -372,31 +302,13 @@ export class ResumeContentOptimizer {
           jobPosting,
           candidateProfile,
           availableSpacePt,
-        });
+        }).filter((move) => move.type === OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT);
 
         if (candidateMoves.length > 0) {
           // Select highest expected value move
           const bestMove = candidateMoves[0];
 
-          if (bestMove.type === 'BULLETS') {
-            const currentCount = projectBulletOverrides[bestMove.id] ?? bestMove.currentCount;
-            const maxBulletLimit = (currentStructuredResume?.projects || []).length === 1 ? 4 : 3;
-            const targetCount = Math.min(maxBulletLimit, currentCount + 1);
-            projectBulletOverrides[bestMove.id] = targetCount;
-            if (bestMove.name) {
-              projectBulletOverrides[bestMove.name] = targetCount;
-            }
-            iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${bestMove.name} (${currentCount} -> ${targetCount})`;
-            this.logger.info(
-              {
-                project: bestMove.name,
-                newCount: targetCount,
-                iteration,
-                expectedValue: bestMove.expectedValue,
-              },
-              'Optimizer expanding project bullets from canonical fact inventory'
-            );
-          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT) {
+          if (bestMove.type === OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT) {
             currentLayoutOverrides.profile = 'COMPACT';
             iterationRecord.action = 'COMPRESS_LAYOUT: Tightened layout profile to COMPACT';
           } else {
@@ -707,20 +619,8 @@ export class ResumeContentOptimizer {
       return { description: 'Tightened layout profile to COMPACT' };
     }
 
-    const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
-
-    // Note: Project bullets cannot be pruned below 3 per the 3-bullet contract,
-    // and validated bullets cannot be deleted or rewritten by the optimizer.
-    for (let i = projects.length - 1; i >= 0; i--) {
-      const p = projects[i];
-      if (Array.isArray(p.bullets) && p.bullets.length > 3) {
-        p.bullets.pop();
-        return {
-          description: `Removed lowest-ranked bullet from project ${p.name}`,
-        };
-      }
-    }
-
+    // Selected facts and accepted writing cannot be pruned in a layout pass.
+    // If compact spacing still overflows, return the unsuccessful fit for review.
     return null;
   }
 }

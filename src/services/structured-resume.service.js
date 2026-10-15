@@ -2538,29 +2538,10 @@ export function assertSemanticEquivalence(baseline, current) {
     }
   }
 
-  if (
-    base.projectBullets &&
-    base.projectBullets.length > 0 &&
-    curr.projectBullets &&
-    curr.projectBullets.length > 0
-  ) {
-    for (let i = 0; i < base.projectBullets.length; i++) {
-      const baseList = base.projectBullets[i] || [];
-      const currList = curr.projectBullets[i] || [];
-      if (currList.length < baseList.length) {
-        throw new Error(
-          'Optimizer semantic violation: validated project bullets were deleted or rewritten'
-        );
-      }
-      const currSet = new Set(currList);
-      for (const b of baseList) {
-        if (!currSet.has(b)) {
-          throw new Error(
-            'Optimizer semantic violation: validated project bullets were deleted or rewritten'
-          );
-        }
-      }
-    }
+  if (JSON.stringify(base.projectBullets) !== JSON.stringify(curr.projectBullets)) {
+    throw new Error(
+      'Optimizer semantic violation: validated project bullets were deleted or rewritten or added'
+    );
   }
 
   if (JSON.stringify(base.skillsByCategory) !== JSON.stringify(curr.skillsByCategory)) {

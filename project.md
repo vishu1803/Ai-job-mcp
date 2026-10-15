@@ -1,3 +1,7 @@
+# UNIFIED-RESUME-OPTIMIZER-003 - Semantic freeze regression (2026-10-15)
+
+Status: IN_PROGRESS (bounded fix locally verified). Frozen full suite: 4300 pass/181 fail/4481 total. New optimizer regression fixed: layout trials retain exact selected content, accepted writing and provenance; no post-freeze expansion or pruning. Three new preservation cases pass; existing focused gate 41 pass/2 known baseline failures, including formerly new fingerprint test now passing. Full suite still RED. Report: docs/product/unified-resume-implementation.md. No remote changes, push or deployment.
+
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 ## UNIFIED-RESUME-TLS-002 — Trusted existing Aiven connection (2026-10-15)
