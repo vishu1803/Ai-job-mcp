@@ -202,6 +202,10 @@ export const ACTIVE_OPENER_VERBS = new Set([
   'debugged',
   'streamlined',
   'published',
+  'added',
+  'achieved',
+  'expanded',
+  'provided',
 ]);
 
 /**
@@ -353,7 +357,6 @@ export function assertRenderedCandidateAgencyInvariant(renderedBullets, factInve
  */
 export function determineFactAgency(text, metadata = {}) {
   const norm = String(text || '').trim();
-  const lower = norm.toLowerCase();
   const actionEvidence = extractActionEvidence(norm);
 
   // 1. Explicit agency metadata on fact
@@ -613,7 +616,7 @@ export function classifyContributionClass(
 
   // 5. Candidate Implementation (Active engineering verbs)
   if (
-    /^(?:engineered|implemented|built|developed|created|refactored|automated|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|authored|wrote|programmed|executed|delivered|pioneered|introduced|formulated|devised|synthesized)\b/i.test(
+    /^(?:added|engineered|implemented|built|developed|created|refactored|automated|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|authored|wrote|programmed|executed|delivered|pioneered|introduced|formulated|devised|synthesized)\b/i.test(
       norm
     ) ||
     /\b(?:designed and implemented|architected and deployed)\b/i.test(lower)

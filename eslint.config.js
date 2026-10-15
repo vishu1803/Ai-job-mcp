@@ -84,6 +84,7 @@ export default [
         trustedTypes: 'readonly',
         Event: 'readonly',
         CustomEvent: 'readonly',
+        MouseEvent: 'readonly',
       },
     },
     rules: {
@@ -116,6 +117,15 @@ export default [
       globals: {
         global: 'readonly',
         globalThis: 'readonly',
+        chrome: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        Event: 'readonly',
+        CustomEvent: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
       },
     },
     rules: {
@@ -134,6 +144,8 @@ export default [
       '.git/',
       'scratch/',
       'chrome/',
+      'output/',
+      'docs/design/**',
       '**/*.bundle.js',
     ],
   },

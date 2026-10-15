@@ -63,12 +63,11 @@ export function renderLayout({
           ${
             userLoggedIn
               ? `
-          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
-          <li><a href="/resume-studio" class="nav-link ${activeNav === 'studio' ? 'active' : ''}">Studio</a></li>
+          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Overview</a></li>
+          <li><a href="/profile" class="nav-link ${['profile', 'sources', 'skills', 'projects'].includes(activeNav) ? 'active' : ''}">Profile</a></li>
           <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
+          <li><a href="/resumes" class="nav-link ${['resumes', 'studio'].includes(activeNav) ? 'active' : ''}">Resumes</a></li>
           <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
-          <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
-          <li><a href="/sources" class="nav-link ${activeNav === 'sources' ? 'active' : ''}">Sources</a></li>
           `
               : `
           <li><a href="/" class="nav-link ${activeNav === 'home' ? 'active' : ''}">Overview</a></li>
@@ -186,12 +185,11 @@ export function renderLayout({
         ${renderIcon('sparkles', { size: 16 })} <span>Open Career Copilot</span>
       </button>`
       }
-      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
-      <a href="/resume-studio" class="${activeNav === 'studio' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resume Studio</span></a>
+      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Overview</span></a>
+      <a href="/profile" class="${['profile', 'sources', 'skills', 'projects'].includes(activeNav) ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
+      <a href="/resumes" class="${['resumes', 'studio'].includes(activeNav) ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resumes</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
-      <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
-      <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">${renderIcon('sources', { size: 18 })} <span>Sources</span></a>
       <div class="nav-mobile-divider"></div>
       <div class="mobile-section-label">Account & System</div>
       <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">${renderIcon('tokens', { size: 18 })} <span>API Tokens</span></a>

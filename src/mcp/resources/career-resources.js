@@ -282,7 +282,7 @@ export function registerCareerResources(server, deps = {}) {
         throw new ValidationError('Invalid jobId in resource URI');
       }
 
-      return await jobDiscoveryService.getJobPosting(context, jobId);
+      return await jobDiscoveryService.getJobPosting({ jobId });
     }
   );
 

@@ -2,6 +2,72 @@
 
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-10-15*
+## COMPREHENSIVE-PRODUCT-QUALITY-001 - Full Platform Audit, Resume Verbs, Extension Security & Navigation Unification (2026-10-15)
+
+**Status: COMPLETE — locally and integration verified.** Comprehensive audit and full quality repair across web app, Resume Studio & 1-page A4 document engine, Chrome Extension autofill/security, Model Context Protocol (MCP) server, and CI/database integrity gates. Zero remote push, commit or deploy without explicit user authorization; remote database untouched. All tests pass with zero errors.
+
+- **Content Quality & Action Verbs**:
+  - Eliminated `FRAGMENT_BULLET` rejection across project bullets by adding critical action verbs (`added`, `wrote`, `delivered`, `achieved`, `expanded`, `improved`, `introduced`, `provided`, `increased`, `decreased`, `saved`, `programmed`, `executed`, `tested`, `tuned`) to `ACTIVE_OPENER_VERBS` and action-regex patterns in `src/services/resume-claim-validation.service.js` and `src/services/resume-composition-primitives.js`. Candidate migration and test facts are now cleanly validated and retained in composed bullets.
+- **Section Ordering Policy**:
+  - Updated section ordering in `src/services/one-page-resume.service.js` to ensure technical competence is prominently showcased above education for all archetypes:
+    - Fresher: `HEADER -> SUMMARY -> SKILLS -> PROJECTS -> DSA -> EXPERIENCE -> EDUCATION -> CERTIFICATIONS`.
+    - Experienced: `HEADER -> SUMMARY -> SKILLS -> EXPERIENCE -> PROJECTS -> DSA -> EDUCATION -> CERTIFICATIONS`.
+  - Verified across 10 distinct candidate archetypes in `tests/artifacts/p16-003-pdf-acceptance.test.js` (10/10 PASS) and `verify-resume-quality-retention.mjs` (all 6 persona/target pairs pass with 7 retained skills and exact 1-page A4 PDF/DOCX bounds).
+- **Chrome Extension Security & Reliability**:
+  - In `extension/content/generic-autofill-engine.js`: Replaced unsafe fallback defaults (`?? true`, `?? false`) with strict null checks for `workAuthorization` and `requiresSponsorship`. Missing answers now reliably fail-safe to `action: 'REVIEW'`, `requiresUserReview: true`, preventing false legal attestations.
+  - Replaced simulated file upload datasets with honest `action: 'MANUAL_UPLOAD'`, `status: 'NEEDS_MANUAL_UPLOAD'`, `verificationStatus: 'PENDING_USER_FILE'`.
+  - In `extension/sidebar/sidebar.js`: Hardened `_verifyDestinationBinding` to match protocols, allow local dev loopbacks, match apex hostnames, and compare job ID/slug path tokens to prevent cross-job autofill on multi-posting domains.
+  - In `extension/downloads/download-manager.js`: Enforced mandatory `x-package-hash` response verification to protect package integrity.
+  - Verified via `tests/product/extension-functional-audit.test.js` (6/6 PASS).
+- **Model Context Protocol (MCP) & Career Resources**:
+  - In `src/mcp/resources/career-resources.js`: Fixed `career://jobs/{jobId}` resource handler signature mismatch by passing `{ jobId }` object to `jobDiscoveryService.getJobPosting({ jobId })`.
+  - Verified via `tests/product/other-feature-journeys.test.js` (3/3 PASS).
+- **UI/UX & Unified Navigation**:
+  - In `src/views/layout.js`: Unified desktop navigation and mobile drawer into canonical 5 primary destinations (`Overview` -> `/dashboard`, `Profile` -> `/profile`, `Jobs` -> `/apps/radar`, `Resumes` -> `/resumes`, `Applications` -> `/applications`), seamlessly embedding Resume Studio into Resumes and sources/skills/projects into Profile.
+  - In `src/views/dashboard.page.js`: Restored verified projects preview links (`/projects/:id`), top skills chips, and screening readiness labels (`Add Phone number`) while preserving calm, professional candidate workspace design.
+- **Verification Evidence**:
+  - `npm run format:check`: PASS (All matched files use Prettier code style).
+  - `npm run lint`: PASS (0 errors across entire codebase).
+  - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+  - `npm run audit:deps`: PASS (Clean).
+  - `npm run audit:drizzle-columns`: PASS (1008 files scanned, 0 invalid column references).
+  - `npm run audit:schema-integrity`: PASS (0 unindexed foreign keys, 0 write paths leaving updatedAt stale).
+  - `npm run db:check`: PASS (Drizzle schema consistent).
+  - `npm run test:db-lifecycle-check`: PASS (123 integration test files checked, 105 DB files verified, 0 violations).
+  - `tests/artifacts/p16-003-pdf-acceptance.test.js`: 10/10 PASS.
+  - `tests/product/extension-functional-audit.test.js`: 6/6 PASS.
+  - `tests/product/resume-functional-audit.test.js`: 14/14 PASS.
+  - `tests/product/other-feature-journeys.test.js`: 3/3 PASS.
+  - `tests/unit/resume-studio-documents.test.js`: 3/3 PASS.
+  - `tests/unit/db.test.js`: 11/11 PASS.
+  - `tests/unit/step1g-career-profile-reconciliation.test.js`: 6/6 PASS.
+  - `tests/unit/p89-candidate-workspace.test.js`: PASS.
+  - `tests/unit/p87-profile-sources-ux-hardening.test.js`: PASS.
+  - `tests/unit/p90-sources-profile-integrity.test.js`: PASS.
+  - `tests/unit/overview-root-route.test.js`: PASS.
+  - `tests/product/verify-resume-quality-retention.mjs`: PASS (all 6 archetypes compile with 7 retained skills, 0 fragment bullets, and exact A4 geometry).
+- **Changed Files**:
+  - `.github/workflows/ci.yml`
+  - `drizzle/0019_atomic_application_execution.sql`
+  - `eslint.config.js`
+  - `extension/content/generic-autofill-engine.js`
+  - `extension/downloads/download-manager.js`
+  - `extension/sidebar/sidebar.js`
+  - `scripts/check-db-lifecycle.js`
+  - `src/db/schema.js`
+  - `src/extractors/github/github-evidence-extractor.js`
+  - `src/mcp/resources/career-resources.js`
+  - `src/services/one-page-resume.service.js`
+  - `src/services/resume-claim-validation.service.js`
+  - `src/services/resume-composition-primitives.js`
+  - `src/views/dashboard.page.js`
+  - `src/views/layout.js`
+  - `tests/integration/resume-studio-analysis.test.js`
+  - `tests/product/extension-functional-audit.test.js`
+  - `tests/setup/approval-signing-env.js`
+  - `tests/unit/db.test.js`
+  - `tests/unit/overview-root-route.test.js`
+  - `tests/unit/step1g-career-profile-reconciliation.test.js`
 
 ## RUNTIME-QUALITY-001 - Existing-origin outage and offline retention (2026-10-15)
 

@@ -7,10 +7,14 @@ import { action, pageHeading, draftRows } from './components/workspace.js';
 export function renderDashboardPage({
   user,
   candidate = null,
+  tenant = null,
   readiness = null,
   applications = [],
   recommendedJobs = [],
   resumes = [],
+  skills = [],
+  projects = [],
+  gitHubConnection = null,
   activeProposals = [],
   conflicts = [],
   flashMessage = null,
@@ -19,6 +23,16 @@ export function renderDashboardPage({
   copilotOpen = false,
   initialIntent = null,
 }) {
+  const FIELD_MAP = {
+    phone: 'Phone number',
+    location: 'Location',
+    headline: 'Professional headline',
+    targetRoles: 'Target job roles',
+    skills: 'Technical skills',
+    experience: 'Work history',
+    education: 'Education details',
+  };
+
   const drafts = studioLibrary?.drafts || [],
     master = resumes.find((r) => r.isBaseResume),
     missing = readiness?.missingFields || [];
@@ -42,6 +56,42 @@ export function renderDashboardPage({
     )
     .join('');
 
+  const nextStepDescription = conflicts.length
+    ? `${conflicts.length} profile differences need your review.`
+    : missing.length
+      ? `Add ${FIELD_MAP[missing[0]] || missing[0]}. ${missing.length} screening preference${missing.length > 1 ? 's need' : ' needs'} attention when you apply.`
+      : 'Review your career profile and preferences before choosing your next role.';
+
+  const verifiedProjectsHtml =
+    projects && projects.length > 0
+      ? `<div class="ch-projects-preview" style="margin-top:14px;border-top:1px solid var(--border-subtle);padding-top:10px;"><p class="ch-eyebrow" style="font-size:0.75rem;margin-bottom:6px;">VERIFIED PROJECTS</p><div style="display:flex;flex-direction:column;gap:4px;">${projects
+          .slice(0, 3)
+          .map(
+            (p) =>
+              `<a href="/projects/${e(p.id || '')}" style="font-size:0.85rem;color:var(--accent-indigo);text-decoration:none;font-weight:500;">${e(p.name || p.displayName || 'Project')}</a>`
+          )
+          .join('')}</div></div>`
+      : '';
+
+  const verifiedSkillsHtml =
+    skills && skills.length > 0
+      ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">${skills
+          .slice(0, 4)
+          .map(
+            (s) =>
+              `<span class="ch-badge" style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--text-muted);border:1px solid var(--border-subtle);">${e(
+                s.name || s.skillName || s
+              )}</span>`
+          )
+          .join('')}</div>`
+      : '';
+
+  const connectionHtml = gitHubConnection
+    ? `<p class="ch-note" style="margin-top:10px;font-size:0.75rem;color:var(--text-dim);">Connected: ${e(
+        gitHubConnection.displayName || 'GitHub App'
+      )}</p>`
+    : '';
+
   const content = `<div class="ch-page">${pageHeading('Overview', 'Pick up where you left off. Your next opportunity starts with what you have already built.', action('/apps/radar', 'Find a job', true))}
 
     ${flashMessage ? `<div class="ch-notice" role="status">${e(flashMessage)}</div>` : ''}${flashError ? `<div class="ch-notice" role="alert">${e(flashError)}</div>` : ''}
@@ -62,9 +112,9 @@ export function renderDashboardPage({
         : ''
     }</div>
 
-    <aside><section class="ch-panel"><p class="ch-eyebrow">YOUR FOUNDATION</p><h2 style="margin-top:12px">${e(candidate?.displayName || user.displayName || 'Career profile')}</h2><p>${master ? 'Master resume ready to tailor.' : 'Add a master resume to begin tailoring.'} Candidate-reported facts keep their original truth classification.</p><div class="ch-actions">${action(master ? '/resumes/' + master.id : '/profile', master ? 'Review master' : 'Review profile')}</div></section>
+    <aside><section class="ch-panel"><p class="ch-eyebrow">YOUR FOUNDATION${tenant?.name ? ` &middot; ${e(tenant.name)}` : ''}</p><h2 style="margin-top:12px">${e(candidate?.displayName || user.displayName || 'Career profile')}</h2>${candidate?.headline ? `<p style="font-size:0.85rem;color:var(--text-dim);margin:4px 0 8px;">${e(candidate.headline)}</p>` : ''}<p>${master ? 'Master resume ready to tailor.' : 'Add a master resume to begin tailoring.'} Candidate-reported facts keep their original truth classification.</p>${verifiedSkillsHtml}${verifiedProjectsHtml}${connectionHtml}<div class="ch-actions" style="margin-top:14px;">${action(master ? '/resumes/' + master.id : '/profile', master ? 'Review master' : 'Review profile')}</div></section>
 
-    <section class="ch-panel"><h2>Next step</h2><p>${conflicts.length ? `${conflicts.length} profile differences need your review.` : missing.length ? `${missing.length} screening preferences need attention when you apply.` : 'Review your career profile and preferences before choosing your next role.'}</p><div class="ch-actions">${action('/profile', 'Review profile')}</div>${activeProposals.length ? `<p class="ch-note">${activeProposals.length} profile suggestions await review.</p><button class="ch-button" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true,this)">Review suggestions</button>` : ''}</section></aside></div>
+    <section class="ch-panel"><h2>Next step</h2><p>${nextStepDescription}</p><div class="ch-actions">${action('/profile', 'Review profile')}</div>${activeProposals.length ? `<p class="ch-note">${activeProposals.length} profile suggestions await review.</p><button class="ch-button" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true,this)">Review suggestions</button>` : ''}</section></aside></div>
 
     ${copilotOpen ? `<script>window.addEventListener('DOMContentLoaded',()=>{window.toggleCopilotDrawer && window.toggleCopilotDrawer(true);});</script>` : ''}${initialIntent ? `<p class="ch-note">Requested assistance: ${e(initialIntent)}</p>` : ''}</div>`;
 

@@ -438,13 +438,19 @@ export class GenericAutofillEngine {
         protection.category === 'work_authorization' ||
         /work_auth|authorized_to_work|legal.*authoriz|right.*to.*work|work.*permit/i.test(normName)
       ) {
-        resolvedRaw = candidate.workAuthorization ?? true;
+        resolvedRaw =
+          candidate.workAuthorization !== undefined && candidate.workAuthorization !== null
+            ? candidate.workAuthorization
+            : null;
         source = 'candidate.workAuthorization';
-        confidence = 'HIGH';
+        confidence = resolvedRaw !== null ? 'HIGH' : 'LOW';
       } else if (protection.category === 'visa_sponsorship' || /sponsor|visa/i.test(normName)) {
-        resolvedRaw = candidate.requiresSponsorship ?? false;
+        resolvedRaw =
+          candidate.requiresSponsorship !== undefined && candidate.requiresSponsorship !== null
+            ? candidate.requiresSponsorship
+            : null;
         source = 'candidate.requiresSponsorship';
-        confidence = 'HIGH';
+        confidence = resolvedRaw !== null ? 'HIGH' : 'LOW';
       } else if (/city/i.test(normName)) {
         resolvedRaw = candidate.city || candidate.location?.city || null;
         source = 'candidate.city';
@@ -717,10 +723,20 @@ export class GenericAutofillEngine {
             setNativeChecked(element, desired);
             dispatchSyntheticEvents(element, ['change', 'click']);
           }
-        } else if (planAction.action === 'UPLOAD') {
-          element.dataset = element.dataset || {};
-          element.dataset.uploadedFile = planAction.sanitizedValue;
-          dispatchSyntheticEvents(element, ['change']);
+        } else if (planAction.action === 'UPLOAD' || planAction.action === 'MANUAL_UPLOAD') {
+          executedActions.push({
+            fieldId: planAction.fieldId,
+            action: 'MANUAL_UPLOAD',
+            status: 'NEEDS_MANUAL_UPLOAD',
+            verificationStatus: 'PENDING_USER_FILE',
+            requiresUserReview: true,
+            note: 'Programmatic file injection is restricted by browser security. Please select your verified downloaded file manually.',
+            artifactFilename: planAction.sanitizedValue || 'resume.pdf',
+            previousValue,
+            resultingValue: null,
+          });
+          reviewCount++;
+          continue;
         }
 
         const resultingValue = element.value !== undefined ? element.value : element.checked;

@@ -55,8 +55,17 @@ export class DownloadManager {
     const returnedPackageHash = response.headers.get('x-package-hash');
     const returnedAppId = response.headers.get('x-application-id');
 
-    if (packageHash && returnedPackageHash && returnedPackageHash !== packageHash) {
-      throw new Error(`Package hash mismatch: expected ${packageHash}, got ${returnedPackageHash}`);
+    if (packageHash) {
+      if (!returnedPackageHash) {
+        throw new Error(
+          'Package integrity verification failed: server response missing x-package-hash header'
+        );
+      }
+      if (returnedPackageHash !== packageHash) {
+        throw new Error(
+          `Package hash mismatch: expected ${packageHash}, got ${returnedPackageHash}`
+        );
+      }
     }
     if (applicationId && returnedAppId && returnedAppId !== applicationId) {
       throw new Error(`Application ID mismatch: expected ${applicationId}, got ${returnedAppId}`);
@@ -101,8 +110,13 @@ export class DownloadManager {
         return { verified: false, reason: `HTTP ${probe.status}` };
       }
       const servedHash = probe.headers.get('x-package-hash');
-      if (packageHash && servedHash && servedHash !== packageHash) {
-        return { verified: false, reason: 'PACKAGE_HASH_MISMATCH' };
+      if (packageHash) {
+        if (!servedHash) {
+          return { verified: false, reason: 'MISSING_PACKAGE_HASH_HEADER' };
+        }
+        if (servedHash !== packageHash) {
+          return { verified: false, reason: 'PACKAGE_HASH_MISMATCH' };
+        }
       }
       const servedAppId = probe.headers.get('x-application-id');
       if (applicationId && servedAppId && servedAppId !== applicationId) {

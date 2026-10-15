@@ -1081,13 +1081,21 @@ class SidebarController {
   // Sidebar does not maintain a second independent hydration loop.
 
   async _handleFormDetectedEvent(formData) {
-    if (!this.cachedState) return;
+    if (!formData) return;
 
-    this.cachedState.formData = formData;
-    this.cachedState.workflowState = WORKFLOW_STATES.FORM_DETECTED;
-    await this.store.saveTabState(this.activeTabId, this.cachedState);
+    this.detectedFormData = formData;
+    if (this.cachedState) {
+      this.cachedState.formData = formData;
+      this.cachedState.detectedFormFields = formData.fields || formData.mappedFields || [];
+      this.cachedState.workflowState = WORKFLOW_STATES.FORM_DETECTED;
+      await this.store.saveTabState(this.activeTabId, this.cachedState);
+    }
 
     this._renderFormCard(formData);
+    const fields = formData.fields || formData.mappedFields || [];
+    if (fields.length > 0 && this.elements.autofillFormBtn) {
+      this.elements.autofillFormBtn.removeAttribute('disabled');
+    }
   }
 
   _renderAllFromState(state = null) {
@@ -1509,17 +1517,8 @@ class SidebarController {
     }
   }
 
-  _handleFormDetectedEvent(formData) {
-    if (!formData) return;
-    this.detectedFormData = formData;
-    this._renderFormCard(formData);
-    const fields = formData.fields || formData.mappedFields || [];
-    if (fields.length > 0 && this.elements.autofillFormBtn) {
-      this.elements.autofillFormBtn.removeAttribute('disabled');
-    }
-  }
-
   /**
+
    * P9.2 Canonical Autofill Execution Handler.
    *
    * Executes the 9-step canonical lifecycle:
@@ -1740,17 +1739,57 @@ class SidebarController {
   }
 
   _verifyDestinationBinding(tabUrl, expectedUrl) {
-    if (!tabUrl || !expectedUrl) return true;
+    if (!tabUrl || !expectedUrl) return false;
     try {
-      const tabOrigin = new URL(tabUrl).origin.toLowerCase();
-      const expectedOrigin = new URL(expectedUrl).origin.toLowerCase();
-      if (tabOrigin === expectedOrigin) return true;
-      if (tabOrigin.includes('localhost') || tabOrigin.includes('127.0.0.1')) return true;
-      const tabHost = new URL(tabUrl).hostname.toLowerCase();
-      const expectedHost = new URL(expectedUrl).hostname.toLowerCase();
-      return tabHost.endsWith(expectedHost) || expectedHost.endsWith(tabHost);
-    } catch {
+      const tab = new URL(tabUrl);
+      const expected = new URL(expectedUrl);
+
+      // Protocols must match
+      if (tab.protocol !== expected.protocol) return false;
+
+      // Allow loopback for local development testing
+      if (
+        (tab.hostname === 'localhost' || tab.hostname === '127.0.0.1') &&
+        (expected.hostname === 'localhost' || expected.hostname === '127.0.0.1')
+      ) {
+        return true;
+      }
+
+      const tabHost = tab.hostname.toLowerCase();
+      const expectedHost = expected.hostname.toLowerCase();
+
+      // Hostnames must match or share the same base domain
+      if (tabHost !== expectedHost) {
+        const tabParts = tabHost.split('.');
+        const expParts = expectedHost.split('.');
+        if (tabParts.length < 2 || expParts.length < 2) return false;
+        const tabBase = tabParts.slice(-2).join('.');
+        const expBase = expParts.slice(-2).join('.');
+        if (tabBase !== expBase) return false;
+      }
+
+      // Path binding: Prevent cross-job autofill on the same host/ATS
+      const tabPath = tab.pathname.replace(/\/+$/, '').toLowerCase();
+      const expPath = expected.pathname.replace(/\/+$/, '').toLowerCase();
+      if (expPath && expPath !== '/' && tabPath && tabPath !== '/') {
+        const actionTokens = new Set(['apply', 'application', 'submit', 'view', 'form']);
+        const expSegments = expPath.split('/').filter((s) => Boolean(s) && !actionTokens.has(s));
+        const tabSegments = tabPath.split('/').filter((s) => Boolean(s) && !actionTokens.has(s));
+
+        // The specific job ID or slug is the terminal non-action segment
+        const expJobId = expSegments[expSegments.length - 1];
+        const tabJobId = tabSegments[tabSegments.length - 1];
+
+        if (expJobId && tabJobId && expJobId !== tabJobId) {
+          if (!tabSegments.includes(expJobId)) {
+            return false;
+          }
+        }
+      }
+
       return true;
+    } catch {
+      return false;
     }
   }
 
@@ -1770,64 +1809,6 @@ class SidebarController {
     }
     if (this.elements.formDetectionCard) {
       this.elements.formDetectionCard.classList.remove('hidden');
-    }
-  }
-
-  async handlePreviewAutofillPlan() {
-    await this.handleAutofillForm();
-  }
-
-  async handleExplainJob() {
-    if (!this.activeJob) return;
-    try {
-      const res = await this.backendClient.explainJob(this.activeJob);
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent =
-          res?.explanation || res?.summary || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = `Explain Job: ${err.message}`;
-      }
-    }
-  }
-
-  async handleCheckRequirements() {
-    if (!this.activeJob) return;
-    try {
-      const res = await this.backendClient.compareRequirements(this.activeJob);
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent =
-          res?.comparison || res?.summary || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = `Check Requirements: ${err.message}`;
-      }
-    }
-  }
-
-  async handleAssistantQuery() {
-    const query = this.elements.assistantQueryInput?.value?.trim();
-    if (!query) return;
-    try {
-      if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
-        this.elements.assistantResponseBox.classList.remove('hidden');
-        this.elements.assistantResponseContent.textContent = 'Thinking...';
-      }
-      const res = await this.backendClient.askAssistant(query, this.activeJob);
-      if (this.elements.assistantResponseContent) {
-        this.elements.assistantResponseContent.textContent =
-          res?.answer || res?.response || JSON.stringify(res, null, 2);
-      }
-    } catch (err) {
-      if (this.elements.assistantResponseContent) {
-        this.elements.assistantResponseContent.textContent = `Assistant: ${err.message}`;
-      }
     }
   }
 
@@ -2110,7 +2091,12 @@ class SidebarController {
       return;
     }
 
-    const packageHash = this.cachedState?.handoffData?.packageHash || '';
+    const packageHash =
+      this.cachedState?.handoffData?.packageHash ||
+      this.cachedState?.handoffPackage?.packageHash ||
+      this.cachedState?.handoffPackage?.applicationPackage?.packageHash ||
+      this.cachedState?.applicationPackage?.packageHash ||
+      '';
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
     const candidateName =
@@ -2137,7 +2123,12 @@ class SidebarController {
       return;
     }
 
-    const packageHash = this.cachedState?.handoffData?.packageHash || '';
+    const packageHash =
+      this.cachedState?.handoffData?.packageHash ||
+      this.cachedState?.handoffPackage?.packageHash ||
+      this.cachedState?.handoffPackage?.applicationPackage?.packageHash ||
+      this.cachedState?.applicationPackage?.packageHash ||
+      '';
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
     if (typeof window !== 'undefined') {
@@ -2318,7 +2309,11 @@ class SidebarController {
    * Previews safe autofill plan.
    */
   async handlePreviewAutofillPlan() {
-    const fields = this.cachedState?.detectedFormFields || [];
+    const fields =
+      this.cachedState?.detectedFormFields ||
+      this.cachedState?.formData?.fields ||
+      this.detectedFormData?.fields ||
+      [];
     if (fields.length === 0) {
       this._showAssistantResponse('No application form fields detected on this page yet.');
       return;

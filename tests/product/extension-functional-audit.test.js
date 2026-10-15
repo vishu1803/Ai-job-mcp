@@ -6,7 +6,7 @@ import fs from 'node:fs/promises';
 import { SidebarController } from '../../extension/sidebar/sidebar.js';
 import { genericAutofillEngine } from '../../extension/content/generic-autofill-engine.js';
 
-test('audit: effective form handler loses durable workflow update', async () => {
+test('effective form handler preserves durable workflow update and saves formData', async () => {
   const controller = new SidebarController();
   controller.cachedState = { workflowState: 'APPLICATION_READY' };
   let saved = 0;
@@ -15,28 +15,30 @@ test('audit: effective form handler loses durable workflow update', async () => 
   const form = { fields: [{ name: 'email', type: 'email' }] };
   await controller._handleFormDetectedEvent(form);
   assert.equal(controller.detectedFormData, form);
-  assert.equal(controller.cachedState.formData, undefined);
-  assert.equal(controller.cachedState.detectedFormFields, undefined);
-  assert.equal(saved, 0);
+  assert.deepEqual(controller.cachedState.formData, form);
+  assert.deepEqual(controller.cachedState.detectedFormFields, form.fields);
+  assert.equal(saved, 1);
 });
 
-test('audit: preview cannot see fields from effective form handler', async () => {
+test('preview sees fields from effective form handler', async () => {
   const controller = new SidebarController();
   controller.cachedState = {};
   controller._renderFormCard = () => {};
-  let output;
+  let output = '';
   controller._showAssistantResponse = (text) => {
     output = text;
   };
-  controller.backendClient.getAutofillPlan = () => {
-    throw new Error('must not be reached');
-  };
-  controller._handleFormDetectedEvent({ fields: [{ name: 'email', type: 'email' }] });
+  controller.backendClient.getAutofillPlan = async () => ({
+    mappedFields: [{ available: true, label: 'Email', value: 'a@b.com', source: 'profile' }],
+    fillableCount: 1,
+    sensitiveCount: 0,
+  });
+  await controller._handleFormDetectedEvent({ fields: [{ name: 'email', type: 'email' }] });
   await controller.handlePreviewAutofillPlan();
-  assert.match(output, /No application form fields detected/);
+  assert.match(output, /Safe Autofill Plan/);
 });
 
-test('audit: confirmation fabricates missing authorization and sponsorship answers', () => {
+test('audit: confirmation never fabricates missing authorization and sponsorship answers', () => {
   const form = {
     fields: [
       {
@@ -68,11 +70,8 @@ test('audit: confirmation fabricates missing authorization and sponsorship answe
     { candidate: {} },
     { allowProtected: true }
   );
-  assert.deepEqual(
-    confirmed.actions.map((a) => a.sanitizedValue),
-    ['yes', 'no']
-  );
-  assert.ok(confirmed.actions.every((a) => a.provenance === 'VERIFIED_PROFILE'));
+  // Missing candidate data must remain REVIEW even with allowProtected
+  assert.ok(confirmed.actions.every((a) => a.action === 'REVIEW'));
 });
 
 test('audit: prepare response metadata supplies no candidate autofill values', () => {
@@ -91,11 +90,18 @@ test('audit: prepare response metadata supplies no candidate autofill values', (
   assert.equal(plan.actions[0].source, 'missing');
 });
 
-test('audit: same host different job accepted by sidebar destination check', () => {
+test('audit: same host different job rejected by sidebar destination check', () => {
   const controller = new SidebarController();
   assert.equal(
     controller._verifyDestinationBinding(
       'https://jobs.lever.co/acme/job-B/apply',
+      'https://jobs.lever.co/acme/job-A'
+    ),
+    false
+  );
+  assert.equal(
+    controller._verifyDestinationBinding(
+      'https://jobs.lever.co/acme/job-A/apply',
       'https://jobs.lever.co/acme/job-A'
     ),
     true
@@ -146,6 +152,7 @@ test('audit: real browser DOM text fill succeeds; attachment execution is not up
   assert.equal(result.submits, 0);
   assert.equal(result.verification.verified, true);
   assert.equal(result.verification.verifiedCount, 1);
-  // Strict-mode assignment to native readonly HTMLElement.dataset may fail, unlike fake DOMs.
-  assert.equal(result.execution.executedActions[1].status, 'FAILED');
+  // Programmatic file input attachment is restricted by browser security; requires explicit manual upload
+  assert.equal(result.execution.executedActions[1].status, 'NEEDS_MANUAL_UPLOAD');
+  assert.equal(result.execution.executedActions[1].requiresUserReview, true);
 });

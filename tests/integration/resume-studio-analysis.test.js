@@ -188,7 +188,7 @@ describe('Resume Studio real PostgreSQL/session/HTTP analysis', () => {
     );
     const job = { ...parsed.jobDescription, requirements: parsed.requirements };
     const matches = EvidenceMatchingService.matchJobToCandidate(context, job, profile);
-    const projects = ProjectRelevanceService.computeProjectsRelevance(
+    const projectRelevance = ProjectRelevanceService.computeProjectsRelevance(
       context,
       job,
       profile.projects,
@@ -198,7 +198,7 @@ describe('Resume Studio real PostgreSQL/session/HTTP analysis', () => {
       context,
       job,
       matches,
-      projects,
+      projectRelevance,
       profile
     );
     assert.deepEqual(data.candidateFit.scoreBreakdown, fit.scoreBreakdown);
@@ -210,7 +210,7 @@ describe('Resume Studio real PostgreSQL/session/HTTP analysis', () => {
         relevanceScore: item.relevanceScore,
         selectionStatus: item.selectionStatus,
       })),
-      projects.projectRankings.map((item) => ({
+      projectRelevance.projectRankings.map((item) => ({
         projectId: item.projectId,
         rank: item.rank,
         relevanceScore: item.relevanceScore,

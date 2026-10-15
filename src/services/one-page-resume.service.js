@@ -388,8 +388,26 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     });
   }
   const preferred = fresher
-    ? ['HEADER', 'SUMMARY', 'EDUCATION', 'PROJECTS', 'SKILLS', 'EXPERIENCE', 'CERTIFICATIONS']
-    : ['HEADER', 'SUMMARY', 'EXPERIENCE', 'PROJECTS', 'SKILLS', 'EDUCATION', 'CERTIFICATIONS'];
+    ? [
+        'HEADER',
+        'SUMMARY',
+        'SKILLS',
+        'PROJECTS',
+        'DSA',
+        'EXPERIENCE',
+        'EDUCATION',
+        'CERTIFICATIONS',
+      ]
+    : [
+        'HEADER',
+        'SUMMARY',
+        'SKILLS',
+        'EXPERIENCE',
+        'PROJECTS',
+        'DSA',
+        'EDUCATION',
+        'CERTIFICATIONS',
+      ];
   const order = source.sectionOrder || [];
   const sectionOrder = [
     ...preferred.filter((key) => order.includes(key)),
