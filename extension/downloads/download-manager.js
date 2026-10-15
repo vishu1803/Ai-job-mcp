@@ -27,6 +27,14 @@ export class DownloadManager {
       packageHash
     );
 
+    // P15-002: verify the served artifact's identity BEFORE initiating the download
+    const identity = await this.verifyArtifactIdentity(applicationId, artifactType, packageHash);
+    if (!identity.verified) {
+      throw new Error(
+        `Artifact identity verification failed before download: ${identity.reason || 'identity unverified'}`
+      );
+    }
+
     // If chrome.downloads is available (standard extension context)
     if (typeof chrome !== 'undefined' && chrome.downloads?.download) {
       const downloadId = await chrome.downloads.download({
@@ -39,10 +47,7 @@ export class DownloadManager {
         saveAs: false,
       });
 
-      // P15-002: verify the served artifact's identity before reporting
-      // success — never claim verification that did not happen.
-      const identity = await this.verifyArtifactIdentity(applicationId, artifactType, packageHash);
-      return { downloadId, verified: identity.verified, reason: identity.reason, url: downloadUrl };
+      return { downloadId, verified: true, reason: null, url: downloadUrl };
     }
 
     // Fallback for non-extension environments / browser fetch

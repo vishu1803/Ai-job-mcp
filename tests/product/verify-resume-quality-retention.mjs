@@ -12,8 +12,9 @@ import {
 } from '../fixtures/resume-quality-skill-retention.js';
 
 const before = process.argv.includes('--before');
-const output = path.resolve(process.argv[2]);
-assert.ok(process.argv[2], 'An explicit output directory is required');
+const outputArg =
+  process.argv.slice(2).find((arg) => !arg.startsWith('--')) || 'output/pdf/test-retention';
+const output = path.resolve(outputArg);
 if (before) {
   const target = pathToFileURL(path.resolve('src/services/structured-resume.service.js')).href;
   const baseline = execFileSync(
@@ -135,7 +136,10 @@ for (const stage of ['junior', 'mid', 'experienced']) {
     });
     const name = `${stage}-${target}-${before ? 'before' : 'after'}`;
     await fs.writeFile(path.join(output, name + '.pdf'), compiled.pdfBuffer);
-    await fs.writeFile(path.join(output, name + '.view.json'), JSON.stringify(view, null, 2));
+    await fs.writeFile(
+      path.join(output, name + '.view.json'),
+      JSON.stringify(view, null, 2) + '\n'
+    );
     results.push({
       name,
       skillCount: skills.length,
@@ -154,5 +158,5 @@ for (const stage of ['junior', 'mid', 'experienced']) {
 }
 await fs.writeFile(
   path.join(output, `${before ? 'before' : 'after'}-selection-audit.json`),
-  JSON.stringify(results, null, 2)
+  JSON.stringify(results, null, 2) + '\n'
 );

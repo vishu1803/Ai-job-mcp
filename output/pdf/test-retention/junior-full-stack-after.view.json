@@ -1,5 +1,5 @@
 {
-  "documentId": "c1505b75-2e0d-4dc9-b105-15ef355e6d13",
+  "documentId": "d807f445-dcfb-4772-9154-d11c7b2e4ec4",
   "schemaVersion": "2.0.0",
   "targetRole": "Full-stack Developer",
   "sectionOrder": [
@@ -217,7 +217,7 @@
   },
   "sourceWarnings": [],
   "tailoringPlan": {
-    "planId": "bbf7833d-5955-4d12-8d7a-cf01ad40cd5b",
+    "planId": "37007fbf-28bb-4121-80ad-408246da8ff3",
     "targetJobId": null,
     "targetRoleTitle": "Full-stack Developer",
     "targetCompany": null,
@@ -368,7 +368,7 @@
     "providerStatus": "UNAVAILABLE",
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-15T08:50:51.450Z",
+  "createdAt": "2026-10-15T09:35:49.153Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack Software Engineer",
     "targetRole": "Full-stack Developer",

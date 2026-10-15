@@ -176,6 +176,13 @@
       "when": 1791936000002,
       "tag": "0024_resume_studio_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792055000000,
+      "tag": "0025_application_execution_covering_indexes",
+      "breakpoints": true
     }
   ]
 }

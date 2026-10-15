@@ -2,9 +2,74 @@
 
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-10-15*
+## COMPREHENSIVE-PRODUCT-QUALITY-002 - Remote Main CI Repair, Migration Compatibility, Extension Safety & Factual Retention (2026-10-15)
+
+**Status: IN_PROGRESS — Locally and real-browser verified; pending remote CI run confirmation and candidate personal resume acceptance.**
+Follow-up to remote main review at commit `d853bf91c2b12651a07424e7e51afa797da42709`. COMPREHENSIVE-PRODUCT-QUALITY-001 remains NOT fully complete until remote CI passes and candidate manual acceptance is obtained. Zero writes/migrations against existing Aiven database; zero remote push without explicit authorization.
+
+### Detailed Categorization:
+1. **Implemented and Locally Tested**:
+   - **GitHub CI Prettier Policy**: Added `output/` to `.prettierignore` to establish an explicit, deliberate generated-artifact policy separating ephemeral test outputs from source code. Re-formatted 7 test-retention JSON files (`after-selection-audit.json`, view JSONs) and updated `tests/product/verify-resume-quality-retention.mjs` to append trailing newlines and handle default output arguments safely. `npm run format:check` passes 100% locally.
+   - **Database Migration Compatibility**: Restored `drizzle/0019_atomic_application_execution.sql` to its exact original applied state, preventing existing database environments from missing new indexes. Moved the three covering indexes on `application_executions` (`idx_application_execution_tenant_user`, `idx_application_execution_tenant_candidate`, `idx_application_execution_tenant_application`) into a properly numbered additive migration: `drizzle/0025_application_execution_covering_indexes.sql` and registered in `drizzle/meta/_journal.json`. `npm run db:check` passes (`Everything's fine 🐶🔥`), `npm run audit:schema-integrity` passes (0 unindexed foreign keys, 0 stale update paths).
+   - **Extension Safety Hardening (`extension/sidebar/sidebar.js` & `extension/downloads/download-manager.js`)**:
+     - *Destination Binding*: `_verifyDestinationBinding` fails closed if either `tabUrl` or `expectedUrl` is missing or empty.
+     - *Multi-Tenant ATS Subdomain Isolation*: Enforced employer subdomain matching across `*.myworkdayjobs.com`, `*.icims.com`, `*.bamboohr.com`, `*.workable.com`, etc. Cross-employer subdomains (e.g. `stripe.wd1...` vs `airbnb.wd1...`) fail closed.
+     - *Shared ATS Platform Binding*: On `boards.greenhouse.io`, `jobs.lever.co`, `jobs.ashbyhq.com`, and `jobs.smartrecruiters.com`, segment 0 is verified as the employer slug. Job ID is extracted from subsequent path segments or query parameters (`gh_jid`, `token`, `jobid`, `job_id`, `id`, `req_id`, `requisitionid`, `posting_id`). Different job IDs on the same host fail closed. Navigating to root career boards without a job ID fails closed.
+     - *Localhost Safety*: Loopback URLs enforce exact port matching (`http://localhost:3000` vs `http://localhost:8080` fails closed) and path/query job identity matching. Localhost does NOT bypass canonical job checks.
+     - *Authoritative Package Enforcement*: Deleted synthetic fallback package `{ candidate: {}, metadata: {} }`. `handleAutofillForm` enforces strict existence of `candidate.email` / `canonicalEmail` and `candidate.fullName` / `displayName` and `packageHash`/integrity. Metadata-only handoff responses fail closed with user error.
+     - *Pre-DOM-Execution Tab Check*: Re-queries `chrome.tabs.get(targetTabId)` immediately before sending `EXECUTE_FILL`. If the active tab navigated away or changed destinations, execution aborts and 0 DOM alterations occur.
+     - *Download Manager Pre-Check*: In `extension/downloads/download-manager.js`, `verifyArtifactIdentity` runs a HEAD probe checking `x-package-hash` and `x-application-id` BEFORE `chrome.downloads.download` is called. If probe fails or headers mismatch, download is blocked.
+2. **Confirmed by Full GitHub CI**:
+   - Run [38710169079](https://github.com/vishu1803/Ai-career-agent/actions/runs/38710169079): Dependency Security passed; Code Quality failed on Prettier for 7 JSON files under `output/pdf/test-retention/`.
+   - Local validation now satisfies all CI checks (`format:check`, `lint`, `scan:secrets`, `audit:deps`, `audit:drizzle-columns`, `audit:schema-integrity`, `db:check`, `test:db-lifecycle-check`). Full remote workflow confirmation is pending next CI run on push.
+3. **Verified in a Real Browser**:
+   - `tests/product/extension-functional-audit.test.js`: Playwright headless Chromium launches and executes real DOM autofill on mapped safe fields. Form submission is verified never triggered (`submits === 0`). File input fields safely yield `NEEDS_MANUAL_UPLOAD` / `requiresUserReview: true` without simulated binary injection.
+   - Vector printer in Headless Chromium compiles single-page A4 PDFs in `tests/product/verify-resume-quality-retention.mjs` across all 6 archetypes.
+4. **Verified Against Real Candidate Data**:
+   - Synthetic candidate archetypes verified (fresher, mid, experienced across backend and full-stack).
+   - **The real candidate's personal Backend Engineering resume remains PENDING MANUAL REVIEW AND ACCEPTANCE**. Synthetic archetypes verify engine behavior, not candidate personal fit.
+5. **Unverified or Blocked**:
+   - Live AI provider behavior (Gemini/Vertex AI live calls unverified in CI offline gates).
+   - Remote Aiven database migration intentionally withheld per user directive ("Do not run migrations on the existing Aiven database without my permission").
+   - Full GitHub CI rerun confirmation pending push approval.
+
+- **Factual Retention Analysis (`output/pdf/test-retention/after-selection-audit.json`)**:
+  - Across all 6 archetypes, 5 total facts exist: 1 education, 1 project summary description, 3 candidate-authored technical bullets.
+  - Bullets composed and selected: `a1386829f15d7b8e870cf328` (database migrations) and `e8a921c8c2f52ea0ff7395cb` (integration test coverage).
+  - Omitted Fact 1 (`eda115f72abff8ccfcbfeaf9`: "Implemented lending endpoints with TypeScript and Node.js."): Reason `UNSUBSTANTIATED` with respect to repository commit/AST evidence (synthetic candidate profile only had `CLAIMED` status without commit links). Factual meaning is preserved in the resume via:
+    a) Verified Skills section (Languages & Backend: `Node.js`, `TypeScript`, `PostgreSQL`, etc.).
+    b) Project metadata technologies header.
+    c) Selected alternative implementation claim (`claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4`).
+  - Omitted Fact 2 (`1a8046f1501f57e8d9c94315`: "An API for a library lending workflow."): Reason `CAPACITY_LIMIT` (per-project bullet capacity = 2). A4 single-page layout budget reserves bullet slots for high-impact technical achievements rather than repeating the project name/overview. Project context is conveyed by project header ("Library API").
+  - 100% of candidate facts are accounted for in the composition ledger; zero unclassified content loss.
+
+- **Verification Evidence**:
+  - `npm run format:check`: PASS (`All matched files use Prettier code style!`).
+  - `npm run lint`: PASS (0 errors across entire repository).
+  - `npm run db:check`: PASS (`Everything's fine 🐶🔥`).
+  - `npm run audit:schema-integrity`: PASS (0 unindexed foreign keys, 0 write paths leaving updatedAt stale).
+  - `npm run audit:drizzle-columns`: PASS (1008 files scanned, 0 invalid column references).
+  - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+  - `npm run audit:deps`: PASS (No prohibited vulnerabilities).
+  - `npm run test:db-lifecycle-check`: PASS (123 integration test files checked, 105 DB files verified, 0 violations).
+  - `tests/product/extension-functional-audit.test.js`: 9/9 PASS (including Playwright real browser execution).
+  - Extension unit test battery: 80/80 PASS (across 16 suites in `tests/unit/extension-*.test.js`, `p57-extension-architecture.test.js`, `p87-extension-ai-assistant.test.js`).
+  - `tests/product/verify-resume-quality-retention.mjs`: PASS (all 6 archetypes produce PASS receipts and single-page A4 PDFs).
+
+- **Changed Files**:
+  - `.prettierignore`
+  - `drizzle/0019_atomic_application_execution.sql`
+  - `drizzle/0025_application_execution_covering_indexes.sql`
+  - `drizzle/meta/_journal.json`
+  - `extension/downloads/download-manager.js`
+  - `extension/sidebar/sidebar.js`
+  - `output/pdf/test-retention/*.json`
+  - `tests/product/extension-functional-audit.test.js`
+  - `tests/product/verify-resume-quality-retention.mjs`
+
 ## COMPREHENSIVE-PRODUCT-QUALITY-001 - Full Platform Audit, Resume Verbs, Extension Security & Navigation Unification (2026-10-15)
 
-**Status: COMPLETE — locally and integration verified.** Comprehensive audit and full quality repair across web app, Resume Studio & 1-page A4 document engine, Chrome Extension autofill/security, Model Context Protocol (MCP) server, and CI/database integrity gates. Zero remote push, commit or deploy without explicit user authorization; remote database untouched. All tests pass with zero errors.
+**Status: IN_PROGRESS (Locally Verified; Pending Full Remote CI & Personal Candidate Resume Acceptance).** Comprehensive audit and full quality repair across web app, Resume Studio & 1-page A4 document engine, Chrome Extension autofill/security, Model Context Protocol (MCP) server, and CI/database integrity gates. Zero remote push, commit or deploy without explicit user authorization; remote database untouched.
 
 - **Content Quality & Action Verbs**:
   - Eliminated `FRAGMENT_BULLET` rejection across project bullets by adding critical action verbs (`added`, `wrote`, `delivered`, `achieved`, `expanded`, `improved`, `introduced`, `provided`, `increased`, `decreased`, `saved`, `programmed`, `executed`, `tested`, `tuned`) to `ACTIVE_OPENER_VERBS` and action-regex patterns in `src/services/resume-claim-validation.service.js` and `src/services/resume-composition-primitives.js`. Candidate migration and test facts are now cleanly validated and retained in composed bullets.
