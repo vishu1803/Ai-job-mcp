@@ -2,24 +2,10 @@
   {
     "name": "junior-backend-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 0,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EDUCATION",
-      "PROJECTS",
-      "SKILLS"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EDUCATION", "PROJECTS", "SKILLS"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -34,14 +20,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [
@@ -97,24 +77,10 @@
   {
     "name": "junior-full-stack-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 0,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EDUCATION",
-      "PROJECTS",
-      "SKILLS"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EDUCATION", "PROJECTS", "SKILLS"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -129,14 +95,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [
@@ -192,25 +152,10 @@
   {
     "name": "mid-backend-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 1,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EXPERIENCE",
-      "PROJECTS",
-      "SKILLS",
-      "EDUCATION"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EXPERIENCE", "PROJECTS", "SKILLS", "EDUCATION"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -225,14 +170,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [
@@ -288,25 +227,10 @@
   {
     "name": "mid-full-stack-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 1,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EXPERIENCE",
-      "PROJECTS",
-      "SKILLS",
-      "EDUCATION"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EXPERIENCE", "PROJECTS", "SKILLS", "EDUCATION"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -321,14 +245,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [
@@ -384,25 +302,10 @@
   {
     "name": "experienced-backend-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 3,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EXPERIENCE",
-      "PROJECTS",
-      "SKILLS",
-      "EDUCATION"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EXPERIENCE", "PROJECTS", "SKILLS", "EDUCATION"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -417,14 +320,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [
@@ -480,25 +377,10 @@
   {
     "name": "experienced-full-stack-after",
     "skillCount": 7,
-    "skills": [
-      "Node.js",
-      "NestJS",
-      "Flask",
-      "TypeScript",
-      "Python",
-      "PostgreSQL",
-      "Docker"
-    ],
+    "skills": ["Node.js", "NestJS", "Flask", "TypeScript", "Python", "PostgreSQL", "Docker"],
     "experienceCount": 3,
     "projectCount": 1,
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "EXPERIENCE",
-      "PROJECTS",
-      "SKILLS",
-      "EDUCATION"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "EXPERIENCE", "PROJECTS", "SKILLS", "EDUCATION"],
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
@@ -513,14 +395,8 @@
         {
           "projectId": "00000000-0000-4000-8000-000000000004",
           "projectName": "Library API",
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
-          "semanticDimensions": [
-            "implementation",
-            "integration"
-          ]
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+          "semanticDimensions": ["implementation", "integration"]
         }
       ],
       "omittedFacts": [

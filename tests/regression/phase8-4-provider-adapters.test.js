@@ -62,7 +62,10 @@ import { ValidationError } from '../../src/errors/index.js';
 // DOM Mock Helpers
 function matchesSelector(el, selector) {
   if (!el || !selector) return false;
-  const parts = selector.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = selector
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   for (const part of parts) {
     if (matchesSingleSelector(el, part)) return true;
   }
@@ -89,12 +92,15 @@ function matchesSingleSelector(el, sel) {
     if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) {
       return false;
     }
-    const actualCls = el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
+    const actualCls =
+      el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
     return actualCls.split(/\s+/).includes(cls);
   }
 
   // Check quoted attribute selector where value can contain brackets e.g. [name="urls[LinkedIn]"]
-  const quotedAttrMatch = sel.match(/^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/);
+  const quotedAttrMatch = sel.match(
+    /^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/
+  );
   if (quotedAttrMatch) {
     const [, requiredTag, attrName, op, expectedVal] = quotedAttrMatch;
     if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) {
@@ -247,7 +253,8 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     title: 'Staff Infrastructure Architect',
     company: 'Nexus Scale Inc.',
     location: 'Remote, US',
-    description: 'Lead resilient platform infrastructure, cloud distributed consensus, and microservice architectures.',
+    description:
+      'Lead resilient platform infrastructure, cloud distributed consensus, and microservice architectures.',
     applicationUrl: 'https://boards.greenhouse.io/nexus/jobs/5001',
     source: 'GREENHOUSE',
   };
@@ -361,7 +368,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       },
       artifacts: {
         resume: { filename: 'Samantha_Resume.pdf', url: 'https://cdn.example.com/resumes/1.pdf' },
-        coverLetter: { filename: 'Samantha_CoverLetter.pdf', url: 'https://cdn.example.com/letters/1.pdf' },
+        coverLetter: {
+          filename: 'Samantha_CoverLetter.pdf',
+          url: 'https://cdn.example.com/letters/1.pdf',
+        },
       },
     };
   });
@@ -384,7 +394,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       assert.strictEqual(adapter.canHandle('https://boards.greenhouse.io/stripe/jobs/123'), true);
       assert.strictEqual(adapter.canHandle('https://job-boards.greenhouse.io/apex/jobs/456'), true);
       assert.strictEqual(adapter.canHandle('https://grnh.se/abc1234'), true);
-      assert.strictEqual(adapter.canHandle({ url: 'https://careers.example.com/apply?gh_src=custom' }), true);
+      assert.strictEqual(
+        adapter.canHandle({ url: 'https://careers.example.com/apply?gh_src=custom' }),
+        true
+      );
       const mockDoc = createMockDomDoc([createMockDomElement({ id: 'application_form' })]);
       assert.strictEqual(adapter.canHandle({ doc: mockDoc }), true);
       assert.strictEqual(adapter.canHandle('https://jobs.lever.co/company/job'), false);
@@ -403,35 +416,52 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const adapter = new AshbyPortalAdapter();
       assert.strictEqual(adapter.canHandle('https://jobs.ashbyhq.com/openai/100'), true);
       assert.strictEqual(adapter.canHandle('https://ashbyhq.com/apply/200'), true);
-      const mockDoc = createMockDomDoc([createMockDomElement({ attributes: { 'data-ashby-application-form': 'true' } })]);
+      const mockDoc = createMockDomDoc([
+        createMockDomElement({ attributes: { 'data-ashby-application-form': 'true' } }),
+      ]);
       assert.strictEqual(adapter.canHandle({ doc: mockDoc }), true);
       assert.strictEqual(adapter.canHandle('https://company.myworkdayjobs.com/apply'), false);
     });
 
     it('TEST 4 — Workday detection matches myworkdayjobs.com and semantic automation markers', () => {
       const adapter = new WorkdayPortalAdapter();
-      assert.strictEqual(adapter.canHandle('https://target.myworkdayjobs.com/en-US/careers/job/1'), true);
+      assert.strictEqual(
+        adapter.canHandle('https://target.myworkdayjobs.com/en-US/careers/job/1'),
+        true
+      );
       assert.strictEqual(adapter.canHandle('https://workday.com/careers/job/2'), true);
       assert.strictEqual(adapter.canHandle('https://wd5.myworkdayjobs.com/company/job/3'), true);
-      const mockDoc = createMockDomDoc([createMockDomElement({ attributes: { 'data-automation-id': 'workday-application' } })]);
+      const mockDoc = createMockDomDoc([
+        createMockDomElement({ attributes: { 'data-automation-id': 'workday-application' } }),
+      ]);
       assert.strictEqual(adapter.canHandle({ doc: mockDoc }), true);
       assert.strictEqual(adapter.canHandle('https://smartrecruiters.com/job'), false);
     });
 
     it('TEST 5 — SmartRecruiters detection matches smartrecruiters.com and DOM markers', () => {
       const adapter = new SmartRecruitersPortalAdapter();
-      assert.strictEqual(adapter.canHandle('https://jobs.smartrecruiters.com/Company/7439999-role'), true);
+      assert.strictEqual(
+        adapter.canHandle('https://jobs.smartrecruiters.com/Company/7439999-role'),
+        true
+      );
       assert.strictEqual(adapter.canHandle('https://smartrecruiters.com/apply/10'), true);
-      const mockDoc = createMockDomDoc([createMockDomElement({ attributes: { 'data-qa': 'smartr-application-form' } })]);
+      const mockDoc = createMockDomDoc([
+        createMockDomElement({ attributes: { 'data-qa': 'smartr-application-form' } }),
+      ]);
       assert.strictEqual(adapter.canHandle({ doc: mockDoc }), true);
       assert.strictEqual(adapter.canHandle('https://icims.com/job'), false);
     });
 
     it('TEST 6 — iCIMS detection matches icims.com and iframe markers', () => {
       const adapter = new IcimsPortalAdapter();
-      assert.strictEqual(adapter.canHandle('https://careers-company.icims.com/jobs/123/apply'), true);
+      assert.strictEqual(
+        adapter.canHandle('https://careers-company.icims.com/jobs/123/apply'),
+        true
+      );
       assert.strictEqual(adapter.canHandle('https://icims.com/careers/456'), true);
-      const mockDoc = createMockDomDoc([createMockDomElement({ id: 'icims_content_iframe', tagName: 'IFRAME' })]);
+      const mockDoc = createMockDomDoc([
+        createMockDomElement({ id: 'icims_content_iframe', tagName: 'IFRAME' }),
+      ]);
       assert.strictEqual(adapter.canHandle({ doc: mockDoc }), true);
       assert.strictEqual(adapter.canHandle('https://boards.greenhouse.io/job'), false);
     });
@@ -468,7 +498,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         createMockDomElement({ id: 'phone', name: 'phone', type: 'tel' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://boards.greenhouse.io/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://boards.greenhouse.io/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'greenhouse');
       assert.ok(schema.fields.some((f) => f.name === 'first_name'));
@@ -485,7 +518,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
         createMockDomElement({ id: 'urls_linkedin', name: 'urls[LinkedIn]' }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://jobs.lever.co/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://jobs.lever.co/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'lever');
       assert.ok(schema.fields.some((f) => f.name === 'name'));
@@ -495,11 +531,18 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 10 — Ashby form extracts into valid canonical PortalFormSchema', async () => {
       const adapter = new AshbyPortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'name', name: 'name', attributes: { 'data-testid': 'field-name' } }),
+        createMockDomElement({
+          id: 'name',
+          name: 'name',
+          attributes: { 'data-testid': 'field-name' },
+        }),
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://jobs.ashbyhq.com/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://jobs.ashbyhq.com/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'ashby');
       assert.ok(schema.fields.some((f) => f.name === 'name'));
@@ -508,12 +551,33 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 11 — Workday form extracts into valid canonical PortalFormSchema with semantic fields', async () => {
       const adapter = new WorkdayPortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'firstName', name: 'firstName', attributes: { 'data-automation-id': 'legalNameSection_firstName' } }),
-        createMockDomElement({ id: 'lastName', name: 'lastName', attributes: { 'data-automation-id': 'legalNameSection_lastName' } }),
-        createMockDomElement({ id: 'email', name: 'email', type: 'email', attributes: { 'data-automation-id': 'email' } }),
-        createMockDomElement({ id: 'resume', name: 'resume', type: 'file', attributes: { 'data-automation-id': 'file-upload-drop-zone' } }),
+        createMockDomElement({
+          id: 'firstName',
+          name: 'firstName',
+          attributes: { 'data-automation-id': 'legalNameSection_firstName' },
+        }),
+        createMockDomElement({
+          id: 'lastName',
+          name: 'lastName',
+          attributes: { 'data-automation-id': 'legalNameSection_lastName' },
+        }),
+        createMockDomElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          attributes: { 'data-automation-id': 'email' },
+        }),
+        createMockDomElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          attributes: { 'data-automation-id': 'file-upload-drop-zone' },
+        }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://company.myworkdayjobs.com/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://company.myworkdayjobs.com/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'workday');
       assert.ok(schema.fields.some((f) => f.name === 'firstName'));
@@ -523,12 +587,28 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 12 — SmartRecruiters form extracts into valid canonical PortalFormSchema', async () => {
       const adapter = new SmartRecruitersPortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'firstName', name: 'firstName', attributes: { 'data-qa': 'first-name-input' } }),
-        createMockDomElement({ id: 'lastName', name: 'lastName', attributes: { 'data-qa': 'last-name-input' } }),
+        createMockDomElement({
+          id: 'firstName',
+          name: 'firstName',
+          attributes: { 'data-qa': 'first-name-input' },
+        }),
+        createMockDomElement({
+          id: 'lastName',
+          name: 'lastName',
+          attributes: { 'data-qa': 'last-name-input' },
+        }),
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
-        createMockDomElement({ id: 'resume', name: 'resume', type: 'file', attributes: { 'data-qa': 'resume-upload' } }),
+        createMockDomElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          attributes: { 'data-qa': 'resume-upload' },
+        }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://jobs.smartrecruiters.com/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://jobs.smartrecruiters.com/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'smartrecruiters');
       assert.ok(schema.fields.some((f) => f.name === 'firstName'));
@@ -542,7 +622,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         createMockDomElement({ id: 'email', name: 'email', type: 'email' }),
         createMockDomElement({ id: 'resume', name: 'resume', type: 'file' }),
       ]);
-      const schema = await adapter.extractFormSchema({ doc: mockDoc, destinationUrl: 'https://careers-company.icims.com/apply' });
+      const schema = await adapter.extractFormSchema({
+        doc: mockDoc,
+        destinationUrl: 'https://careers-company.icims.com/apply',
+      });
       assert.doesNotThrow(() => PortalFormSchema.parse(schema));
       assert.strictEqual(schema.portalId, 'icims');
       assert.ok(schema.fields.some((f) => f.name === 'firstName'));
@@ -609,7 +692,9 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         id: 'test-iframe-adapter',
         name: 'Test Iframe Adapter',
       });
-      const iframeDoc = createMockDomDoc([createMockDomElement({ id: 'inner_input', name: 'inner_input' })]);
+      const iframeDoc = createMockDomDoc([
+        createMockDomElement({ id: 'inner_input', name: 'inner_input' }),
+      ]);
       const iframeEl = {
         id: 'content_frame',
         contentDocument: iframeDoc,
@@ -633,7 +718,9 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const iframeEl = {
         id: 'blocked_frame',
         get contentDocument() {
-          throw new Error('SecurityError: Blocked a frame with origin from accessing a cross-origin frame.');
+          throw new Error(
+            'SecurityError: Blocked a frame with origin from accessing a cross-origin frame.'
+          );
         },
       };
       const rootDoc = {
@@ -657,7 +744,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const adapter = new GreenhousePortalAdapter();
       const mockDoc = createMockDomDoc([
         createMockDomElement({ id: 'first_name', name: 'first_name' }),
-        createMockDomElement({ id: 'custom_why_join', name: 'custom_why_join', attributes: { 'aria-label': 'Why join us?' } }),
+        createMockDomElement({
+          id: 'custom_why_join',
+          name: 'custom_why_join',
+          attributes: { 'aria-label': 'Why join us?' },
+        }),
       ]);
       const pkgWithAnswer = {
         ...basePackage,
@@ -672,7 +763,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const action = fillPlan.actions.find((a) => a.name === 'custom_why_join');
       assert.ok(action);
       assert.strictEqual(action.action, 'FILL');
-      assert.strictEqual(action.sanitizedValue, 'Passionate about distributed systems architecture.');
+      assert.strictEqual(
+        action.sanitizedValue,
+        'Passionate about distributed systems architecture.'
+      );
       assert.strictEqual(action.confidence, 'HIGH');
     });
 
@@ -680,7 +774,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const adapter = new GreenhousePortalAdapter();
       const mockDoc = createMockDomDoc([
         createMockDomElement({ id: 'first_name', name: 'first_name' }),
-        createMockDomElement({ id: 'custom_favorite_editor', name: 'custom_favorite_editor', attributes: { 'aria-label': 'Favorite editor' } }),
+        createMockDomElement({
+          id: 'custom_favorite_editor',
+          name: 'custom_favorite_editor',
+          attributes: { 'aria-label': 'Favorite editor' },
+        }),
       ]);
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, basePackage);
       const action = fillPlan.actions.find((a) => a.name === 'custom_favorite_editor');
@@ -694,7 +792,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const adapter = new LeverPortalAdapter();
       const mockDoc = createMockDomDoc([
         createMockDomElement({ id: 'name', name: 'name' }),
-        createMockDomElement({ id: 'cards_experience', name: 'cards[project_experience]', attributes: { 'aria-label': 'Describe project experience' } }),
+        createMockDomElement({
+          id: 'cards_experience',
+          name: 'cards[project_experience]',
+          attributes: { 'aria-label': 'Describe project experience' },
+        }),
       ]);
       // Attempt to pass job description prose pretending to be candidate knowledge
       const pkg = {
@@ -706,7 +808,10 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       assert.ok(action);
       assert.strictEqual(action.action, 'REVIEW');
       assert.strictEqual(action.rawValue, null);
-      assert.notStrictEqual(action.sanitizedValue, 'Candidate must have 10 years of Kubernetes and Kafka.');
+      assert.notStrictEqual(
+        action.sanitizedValue,
+        'Candidate must have 10 years of Kubernetes and Kafka.'
+      );
     });
   });
 
@@ -717,7 +822,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 23 — Work authorization question is protected and marked requiresUserReview: true', async () => {
       const adapter = new WorkdayPortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'workAuthorizationQuestion', name: 'work_authorization', attributes: { 'data-automation-id': 'workAuthorizationQuestion' } }),
+        createMockDomElement({
+          id: 'workAuthorizationQuestion',
+          name: 'work_authorization',
+          attributes: { 'data-automation-id': 'workAuthorizationQuestion' },
+        }),
       ]);
       const schema = await adapter.extractFormSchema({ doc: mockDoc });
       const field = schema.fields.find((f) => f.name === 'work_authorization');
@@ -727,10 +836,18 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     });
 
     it('TEST 24 — Visa sponsorship question remains protected across all adapters', async () => {
-      const adapters = [new GreenhousePortalAdapter(), new LeverPortalAdapter(), new AshbyPortalAdapter()];
+      const adapters = [
+        new GreenhousePortalAdapter(),
+        new LeverPortalAdapter(),
+        new AshbyPortalAdapter(),
+      ];
       for (const adapter of adapters) {
         const mockDoc = createMockDomDoc([
-          createMockDomElement({ id: 'visa_sponsorship', name: 'require_visa_sponsorship', attributes: { 'aria-label': 'Do you require visa sponsorship?' } }),
+          createMockDomElement({
+            id: 'visa_sponsorship',
+            name: 'require_visa_sponsorship',
+            attributes: { 'aria-label': 'Do you require visa sponsorship?' },
+          }),
         ]);
         const schema = await adapter.extractFormSchema({ doc: mockDoc });
         const field = schema.fields.find((f) => f.name === 'require_visa_sponsorship');
@@ -744,7 +861,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 25 — Salary expectation question is strictly gated and protected', async () => {
       const adapter = new SmartRecruitersPortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'salary_expectation', name: 'desired_salary', attributes: { 'data-qa': 'question-salary', 'aria-label': 'Desired salary' } }),
+        createMockDomElement({
+          id: 'salary_expectation',
+          name: 'desired_salary',
+          attributes: { 'data-qa': 'question-salary', 'aria-label': 'Desired salary' },
+        }),
       ]);
       const schema = await adapter.extractFormSchema({ doc: mockDoc });
       const field = schema.fields.find((f) => f.name === 'desired_salary');
@@ -756,10 +877,16 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 26 — Legal attestation & accuracy confirmation NEVER automatically check', async () => {
       const adapter = new GreenhousePortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'declarations_accuracyconfirmed', name: 'declarations_accuracyconfirmed', type: 'checkbox' }),
+        createMockDomElement({
+          id: 'declarations_accuracyconfirmed',
+          name: 'declarations_accuracyconfirmed',
+          type: 'checkbox',
+        }),
       ]);
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, basePackage);
-      const action = fillPlan.actions.find((a) => a.fieldId.includes('accuracyconfirmed') || a.name.includes('accuracyconfirmed'));
+      const action = fillPlan.actions.find(
+        (a) => a.fieldId.includes('accuracyconfirmed') || a.name.includes('accuracyconfirmed')
+      );
       if (action) {
         assert.strictEqual(action.action, 'REVIEW');
         assert.strictEqual(action.requiresUserReview, true);
@@ -769,9 +896,7 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
 
     it('TEST 27 — Demographic & EEO fields (gender, race, veteran, disability) remain protected', async () => {
       const adapter = new GreenhousePortalAdapter();
-      const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'demographic_questions' }),
-      ]);
+      const mockDoc = createMockDomDoc([createMockDomElement({ id: 'demographic_questions' })]);
       const schema = await adapter.extractFormSchema({ doc: mockDoc });
       const eeoFields = schema.fields.filter((f) => f.name.startsWith('eeo_'));
       assert.ok(eeoFields.length >= 4);
@@ -805,7 +930,9 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         createMockDomElement({ id: 'cover_letter', name: 'cover_letter', type: 'file' }),
       ]);
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, basePackage);
-      const action = fillPlan.actions.find((a) => a.fieldType === 'file' && a.name === 'cover_letter');
+      const action = fillPlan.actions.find(
+        (a) => a.fieldType === 'file' && a.name === 'cover_letter'
+      );
       assert.ok(action);
       assert.strictEqual(action.action, 'UPLOAD');
     });
@@ -878,7 +1005,12 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 35 — Submit button is detected by detectSubmitButton', () => {
       const adapter = new BasePortalAdapter({ id: 'test-adapter', name: 'Test Adapter' });
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'submit_app', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_app',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
       const info = adapter.detectSubmitButton(mockDoc);
       assert.strictEqual(info.hasSubmitButton, true);
@@ -888,9 +1020,17 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
     it('TEST 36 — Submit action is NOT executed during submitOrHandoff', async () => {
       const adapter = new GreenhousePortalAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'submit_app', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_app',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
-      const res = await adapter.submitOrHandoff({ doc: mockDoc, destinationUrl: 'https://boards.greenhouse.io/apply' });
+      const res = await adapter.submitOrHandoff({
+        doc: mockDoc,
+        destinationUrl: 'https://boards.greenhouse.io/apply',
+      });
       assert.strictEqual(res.status, 'HANDOFF_READY');
       assert.strictEqual(res.retryState, 'NOT_SENT');
       assert.strictEqual(res.handoffKit.finalSubmitBlocked, true);
@@ -979,12 +1119,27 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
       const registry = new PortalAdapterRegistry();
       registerStandardPortalAdapters(registry);
 
-      assert.strictEqual(registry.resolve('https://boards.greenhouse.io/job')?.id, 'greenhouse-portal-adapter');
+      assert.strictEqual(
+        registry.resolve('https://boards.greenhouse.io/job')?.id,
+        'greenhouse-portal-adapter'
+      );
       assert.strictEqual(registry.resolve('https://jobs.lever.co/job')?.id, 'lever-portal-adapter');
-      assert.strictEqual(registry.resolve('https://jobs.ashbyhq.com/job')?.id, 'ashby-portal-adapter');
-      assert.strictEqual(registry.resolve('https://company.myworkdayjobs.com/job')?.id, 'workday-portal-adapter');
-      assert.strictEqual(registry.resolve('https://jobs.smartrecruiters.com/job')?.id, 'smartrecruiters-portal-adapter');
-      assert.strictEqual(registry.resolve('https://careers-company.icims.com/job')?.id, 'icims-portal-adapter');
+      assert.strictEqual(
+        registry.resolve('https://jobs.ashbyhq.com/job')?.id,
+        'ashby-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://company.myworkdayjobs.com/job')?.id,
+        'workday-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://jobs.smartrecruiters.com/job')?.id,
+        'smartrecruiters-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://careers-company.icims.com/job')?.id,
+        'icims-portal-adapter'
+      );
       assert.strictEqual(registry.resolve('https://unknown-board.com/job'), null);
     });
   });
@@ -1004,7 +1159,11 @@ describe('Phase 8.4 — Provider Application Adapters', () => {
         commonDeps
       );
       assert.ok(fitResult, 'analyze_job_fit must produce a non-null result');
-      assert.strictEqual(fitResult.overallFit.atsScore, 69.25, 'Computed ATS score must equal 69.25');
+      assert.strictEqual(
+        fitResult.overallFit.atsScore,
+        69.25,
+        'Computed ATS score must equal 69.25'
+      );
       assert.strictEqual(fitResult.overallFit.scoreBreakdown.requiredSkillsScore, 35.0);
     });
 

@@ -4,22 +4,25 @@
  * stale invalidation, evidence inspection, and adaptive 1-page geometry solving.
  */
 
-const rawSyntheticData = (typeof window !== 'undefined' && window.SYNTHETIC_DATA) 
-  ? window.SYNTHETIC_DATA 
-  : (typeof SYNTHETIC_DATA !== 'undefined' ? SYNTHETIC_DATA : {});
+const rawSyntheticData =
+  typeof window !== 'undefined' && window.SYNTHETIC_DATA
+    ? window.SYNTHETIC_DATA
+    : typeof SYNTHETIC_DATA !== 'undefined'
+      ? SYNTHETIC_DATA
+      : {};
 
 // Application State Model
 const state = {
   data: JSON.parse(JSON.stringify(rawSyntheticData)),
-  activeMode: 'split',      // 'editor' | 'split' | 'preview'
-  activeKeyword: null,      // Active highlighted keyword
-  proposalOpen: false,      // Whether AI proposal card is displayed
-  isStale: false,           // Whether current proposal is stale
-  isOverflowing: false,     // Simulated 2-page overflow state
-  isTightSpacing: false,    // Whether 1-page adaptive micro-spacing is active
-  activeDiagTab: 'fit',     // 'fit' | 'writing' | 'parse' | 'evidence'
+  activeMode: 'split', // 'editor' | 'split' | 'preview'
+  activeKeyword: null, // Active highlighted keyword
+  proposalOpen: false, // Whether AI proposal card is displayed
+  isStale: false, // Whether current proposal is stale
+  isOverflowing: false, // Simulated 2-page overflow state
+  isTightSpacing: false, // Whether 1-page adaptive micro-spacing is active
+  activeDiagTab: 'fit', // 'fit' | 'writing' | 'parse' | 'evidence'
   zoom: 1.0,
-  splitRatio: 0.5,          // 50% / 50%
+  splitRatio: 0.5, // 50% / 50%
   activeNodeId: null,
 };
 
@@ -78,9 +81,12 @@ window.filterKeywordChips = function (filter) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  if (filter === 'all' && document.getElementById('kwFilterAll')) document.getElementById('kwFilterAll').classList.add('active');
-  if (filter === 'matched' && document.getElementById('kwFilterMatched')) document.getElementById('kwFilterMatched').classList.add('active');
-  if (filter === 'gaps' && document.getElementById('kwFilterGaps')) document.getElementById('kwFilterGaps').classList.add('active');
+  if (filter === 'all' && document.getElementById('kwFilterAll'))
+    document.getElementById('kwFilterAll').classList.add('active');
+  if (filter === 'matched' && document.getElementById('kwFilterMatched'))
+    document.getElementById('kwFilterMatched').classList.add('active');
+  if (filter === 'gaps' && document.getElementById('kwFilterGaps'))
+    document.getElementById('kwFilterGaps').classList.add('active');
   renderKeywordChips();
 };
 

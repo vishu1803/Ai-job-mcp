@@ -1136,10 +1136,14 @@ export const applicationPackages = pgTable(
 // 20c. Application Approval Tickets Table (Phase 9.4 Persistent Approvals)
 // ---------------------------------------------------------------------------
 
-export const applicationApprovalTicketStatusEnum = pgEnum(
-  'application_approval_ticket_status',
-  ['ISSUED', 'PENDING', 'APPROVED', 'CONSUMED', 'EXPIRED', 'REVOKED']
-);
+export const applicationApprovalTicketStatusEnum = pgEnum('application_approval_ticket_status', [
+  'ISSUED',
+  'PENDING',
+  'APPROVED',
+  'CONSUMED',
+  'EXPIRED',
+  'REVOKED',
+]);
 
 export const applicationApprovalTickets = pgTable(
   'application_approval_tickets',

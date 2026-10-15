@@ -43,7 +43,10 @@ import {
   mapCanonicalApplicationToForm,
   generateDeterministicFieldId,
 } from '../../src/domain/portal/portal-adapter.contract.js';
-import { portalAdapterRegistry, PortalAdapterRegistry } from '../../src/domain/portal/portal-adapter-registry.js';
+import {
+  portalAdapterRegistry,
+  PortalAdapterRegistry,
+} from '../../src/domain/portal/portal-adapter-registry.js';
 import { FormDetector } from '../../extension/content/form-detector.js';
 import { JobPortalAdapterBase } from '../../extension/job-detection/job-portal-adapter.base.js';
 import { GreenhouseAdapter } from '../../src/services/job-board-adapters/greenhouse.adapter.js';
@@ -104,7 +107,11 @@ function createMockInputElement({
   return el;
 }
 
-function createMockDoc({ inputs = [], stepText = 'Step 1 of 1: Application', repeatedGroups = [] }) {
+function createMockDoc({
+  inputs = [],
+  stepText = 'Step 1 of 1: Application',
+  repeatedGroups = [],
+}) {
   return {
     querySelector: (sel) => {
       if (sel.includes('form')) {
@@ -255,7 +262,10 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
     assert.strictEqual(adapter.canHandle('https://other.com'), false);
 
     // Unimplemented methods throw descriptive errors
-    await assert.rejects(async () => await adapter.discoverJobs({}), /discoverJobs\(\) not implemented/);
+    await assert.rejects(
+      async () => await adapter.discoverJobs({}),
+      /discoverJobs\(\) not implemented/
+    );
     await assert.rejects(async () => await adapter.getJob('ref-1'), /getJob\(\) not implemented/);
     assert.throws(() => adapter.normalizeJob({}), /normalizeJob\(\) not implemented/);
     assert.throws(() => adapter.getJobIdentity({}), /getJobIdentity\(\) not implemented/);
@@ -301,8 +311,14 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
     assert.strictEqual(parsed.seniority, 'STAFF');
 
     // Reject missing required fields
-    assert.throws(() => CanonicalJobSchema.parse({ ...validJob, title: undefined }), /title|Required/);
-    assert.throws(() => CanonicalJobSchema.parse({ ...validJob, canonicalJobId: '' }), /canonicalJobId/);
+    assert.throws(
+      () => CanonicalJobSchema.parse({ ...validJob, title: undefined }),
+      /title|Required/
+    );
+    assert.throws(
+      () => CanonicalJobSchema.parse({ ...validJob, canonicalJobId: '' }),
+      /canonicalJobId/
+    );
   });
 
   // TEST 3 — Provider metadata does not pollute canonical job fields
@@ -460,10 +476,13 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
 
   // TEST 8 — Unknown provider classification
   test('TEST 8 — Unknown provider classification', () => {
-    assert.deepStrictEqual(classifyJobProvider('https://unknown-domain-random-portal.org/item/800'), {
-      category: 'UNKNOWN',
-      provider: 'UNKNOWN',
-    });
+    assert.deepStrictEqual(
+      classifyJobProvider('https://unknown-domain-random-portal.org/item/800'),
+      {
+        category: 'UNKNOWN',
+        provider: 'UNKNOWN',
+      }
+    );
     assert.deepStrictEqual(classifyJobProvider(''), {
       category: 'UNKNOWN',
       provider: 'UNKNOWN',
@@ -538,11 +557,38 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Senior Backend Engineer',
       company: 'Stripe',
       inputs: [
-        createMockInputElement({ id: 'first_name', name: 'first_name', label: 'First Name', required: true }),
-        createMockInputElement({ id: 'last_name', name: 'last_name', label: 'Last Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'resume', name: 'resume', type: 'file', label: 'Resume', accept: '.pdf' }),
-        createMockInputElement({ id: 'why_stripe', name: 'why_stripe', tagName: 'TEXTAREA', label: 'Why Stripe?' }),
+        createMockInputElement({
+          id: 'first_name',
+          name: 'first_name',
+          label: 'First Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'last_name',
+          name: 'last_name',
+          label: 'Last Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          label: 'Resume',
+          accept: '.pdf',
+        }),
+        createMockInputElement({
+          id: 'why_stripe',
+          name: 'why_stripe',
+          tagName: 'TEXTAREA',
+          label: 'Why Stripe?',
+        }),
         createMockInputElement({ id: 'gh_custom', name: 'gh_custom', type: 'custom_gh_widget' }),
       ],
     });
@@ -560,10 +606,26 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       company: 'Netflix',
       inputs: [
         createMockInputElement({ id: 'name', name: 'name', label: 'Full Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'phone', name: 'phone', type: 'tel', label: 'Phone' }),
-        createMockInputElement({ id: 'resume', name: 'resume', type: 'file', label: 'Resume', accept: '.pdf' }),
-        createMockInputElement({ id: 'lever_widget', name: 'lever_widget', type: 'unknown_widget' }),
+        createMockInputElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          label: 'Resume',
+          accept: '.pdf',
+        }),
+        createMockInputElement({
+          id: 'lever_widget',
+          name: 'lever_widget',
+          type: 'unknown_widget',
+        }),
       ],
     });
   });
@@ -580,10 +642,31 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       company: 'OpenAI',
       inputs: [
         createMockInputElement({ id: 'name', name: 'name', label: 'Full Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'resume', name: 'resume', type: 'file', label: 'Resume', accept: '.pdf' }),
-        createMockInputElement({ id: 'research', name: 'research', tagName: 'TEXTAREA', label: 'Research Interests' }),
-        createMockInputElement({ id: 'ashby_token', name: 'ashby_token', type: 'custom_ashby_tag' }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          label: 'Resume',
+          accept: '.pdf',
+        }),
+        createMockInputElement({
+          id: 'research',
+          name: 'research',
+          tagName: 'TEXTAREA',
+          label: 'Research Interests',
+        }),
+        createMockInputElement({
+          id: 'ashby_token',
+          name: 'ashby_token',
+          type: 'custom_ashby_tag',
+        }),
       ],
     });
   });
@@ -599,11 +682,31 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Principal Architect',
       company: 'Adobe',
       inputs: [
-        createMockInputElement({ id: 'legal_first_name', name: 'legal_first_name', label: 'Legal First Name', required: true }),
-        createMockInputElement({ id: 'legal_last_name', name: 'legal_last_name', label: 'Legal Last Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'legal_first_name',
+          name: 'legal_first_name',
+          label: 'Legal First Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'legal_last_name',
+          name: 'legal_last_name',
+          label: 'Legal Last Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'csrf', name: 'csrf', type: 'hidden', value: 'token-123' }),
-        createMockInputElement({ id: 'custom_eeo', name: 'custom_eeo', type: 'workday_eeo_widget' }),
+        createMockInputElement({
+          id: 'custom_eeo',
+          name: 'custom_eeo',
+          type: 'workday_eeo_widget',
+        }),
       ],
     });
   });
@@ -619,9 +722,25 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Security Engineer',
       company: 'Microsoft',
       inputs: [
-        createMockInputElement({ id: 'first_name', name: 'first_name', label: 'First Name', required: true }),
-        createMockInputElement({ id: 'last_name', name: 'last_name', label: 'Last Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'first_name',
+          name: 'first_name',
+          label: 'First Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'last_name',
+          name: 'last_name',
+          label: 'Last Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'icims_custom', name: 'icims_custom', type: 'icims_picker' }),
       ],
     });
@@ -638,9 +757,25 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Lead Developer',
       company: 'Visa',
       inputs: [
-        createMockInputElement({ id: 'firstName', name: 'firstName', label: 'First Name', required: true }),
-        createMockInputElement({ id: 'lastName', name: 'lastName', label: 'Last Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'firstName',
+          name: 'firstName',
+          label: 'First Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'lastName',
+          name: 'lastName',
+          label: 'Last Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'sr_custom', name: 'sr_custom', type: 'sr_unrecognized' }),
       ],
     });
@@ -657,11 +792,36 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Database Kernel Engineer',
       company: 'Oracle',
       inputs: [
-        createMockInputElement({ id: 'f_name', name: 'f_name', label: 'First Name', required: true }),
-        createMockInputElement({ id: 'l_name', name: 'l_name', label: 'Last Name', required: true }),
-        createMockInputElement({ id: 'u_email', name: 'u_email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'taleo_internal', name: 'taleo_internal', type: 'hidden', value: 'key-abc' }),
-        createMockInputElement({ id: 'taleo_extra', name: 'taleo_extra', type: 'taleo_custom_widget' }),
+        createMockInputElement({
+          id: 'f_name',
+          name: 'f_name',
+          label: 'First Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'l_name',
+          name: 'l_name',
+          label: 'Last Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'u_email',
+          name: 'u_email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'taleo_internal',
+          name: 'taleo_internal',
+          type: 'hidden',
+          value: 'key-abc',
+        }),
+        createMockInputElement({
+          id: 'taleo_extra',
+          name: 'taleo_extra',
+          type: 'taleo_custom_widget',
+        }),
       ],
     });
   });
@@ -677,8 +837,19 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Embedded Systems Engineer',
       company: 'Siemens',
       inputs: [
-        createMockInputElement({ id: 'candidate_name', name: 'candidate_name', label: 'Full Name', required: true }),
-        createMockInputElement({ id: 'contact_email', name: 'contact_email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'candidate_name',
+          name: 'candidate_name',
+          label: 'Full Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'contact_email',
+          name: 'contact_email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'sf_custom', name: 'sf_custom', type: 'sf_nonstandard' }),
       ],
     });
@@ -695,9 +866,27 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Staff Platform Engineer',
       company: 'LinkedIn',
       inputs: [
-        createMockInputElement({ id: 'phone', name: 'phone', type: 'tel', label: 'Phone Number', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'resume', name: 'resume', type: 'file', label: 'Resume', accept: '.pdf' }),
+        createMockInputElement({
+          id: 'phone',
+          name: 'phone',
+          type: 'tel',
+          label: 'Phone Number',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'resume',
+          name: 'resume',
+          type: 'file',
+          label: 'Resume',
+          accept: '.pdf',
+        }),
         createMockInputElement({ id: 'li_tracker', name: 'li_tracker', type: 'li_custom_tag' }),
       ],
     });
@@ -714,8 +903,19 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Cloud Infrastructure Architect',
       company: 'Indeed',
       inputs: [
-        createMockInputElement({ id: 'applicant_name', name: 'applicant_name', label: 'Full Name', required: true }),
-        createMockInputElement({ id: 'applicant_email', name: 'applicant_email', type: 'email', label: 'Email', required: true }),
+        createMockInputElement({
+          id: 'applicant_name',
+          name: 'applicant_name',
+          label: 'Full Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'applicant_email',
+          name: 'applicant_email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
         createMockInputElement({ id: 'ia_extra', name: 'ia_extra', type: 'ia_unknown' }),
       ],
     });
@@ -733,8 +933,20 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       company: 'Acme Technologies',
       inputs: [
         createMockInputElement({ id: 'name', name: 'name', label: 'Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'mobile', name: 'mobile', type: 'tel', label: 'Mobile', required: true }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'mobile',
+          name: 'mobile',
+          type: 'tel',
+          label: 'Mobile',
+          required: true,
+        }),
         createMockInputElement({ id: 'naukri_extra', name: 'naukri_extra', type: 'naukri_widget' }),
       ],
     });
@@ -751,9 +963,25 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Machine Learning Intern',
       company: 'AI Labs',
       inputs: [
-        createMockInputElement({ id: 'student_name', name: 'student_name', label: 'Student Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'why_hired', name: 'why_hired', tagName: 'TEXTAREA', label: 'Why hire you?' }),
+        createMockInputElement({
+          id: 'student_name',
+          name: 'student_name',
+          label: 'Student Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'why_hired',
+          name: 'why_hired',
+          tagName: 'TEXTAREA',
+          label: 'Why hire you?',
+        }),
         createMockInputElement({ id: 'is_extra', name: 'is_extra', type: 'unknown_is' }),
       ],
     });
@@ -770,9 +998,24 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'Lead AI Engineer',
       company: 'Example Inc',
       inputs: [
-        createMockInputElement({ id: 'full_name', name: 'full_name', label: 'Full Name', required: true }),
-        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-        createMockInputElement({ id: 'custom_widget', name: 'custom_widget', type: 'weird_company_picker' }),
+        createMockInputElement({
+          id: 'full_name',
+          name: 'full_name',
+          label: 'Full Name',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'email',
+          name: 'email',
+          type: 'email',
+          label: 'Email',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'custom_widget',
+          name: 'custom_widget',
+          type: 'weird_company_picker',
+        }),
       ],
     });
   });
@@ -788,9 +1031,23 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       title: 'General Specialist',
       company: 'Mystery Corp',
       inputs: [
-        createMockInputElement({ id: 'candidate', name: 'candidate', label: 'Candidate', required: true }),
-        createMockInputElement({ id: 'contact', name: 'contact', type: 'email', label: 'Contact Email' }),
-        createMockInputElement({ id: 'unknown_elem', name: 'unknown_elem', type: 'mystery_widget' }),
+        createMockInputElement({
+          id: 'candidate',
+          name: 'candidate',
+          label: 'Candidate',
+          required: true,
+        }),
+        createMockInputElement({
+          id: 'contact',
+          name: 'contact',
+          type: 'email',
+          label: 'Contact Email',
+        }),
+        createMockInputElement({
+          id: 'unknown_elem',
+          name: 'unknown_elem',
+          type: 'mystery_widget',
+        }),
       ],
     });
   });
@@ -821,9 +1078,10 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       label: `Field of type ${type}`,
       type,
       required: idx % 2 === 0,
-      options: type === 'select' || type === 'radio' || type === 'checkbox'
-        ? [{ label: 'Option 1', value: 'opt1', selected: true }]
-        : [],
+      options:
+        type === 'select' || type === 'radio' || type === 'checkbox'
+          ? [{ label: 'Option 1', value: 'opt1', selected: true }]
+          : [],
       accept: type === 'file' ? '.pdf,.docx' : null,
       customQuestion: type === 'custom_question',
       verified: type !== 'UNKNOWN',
@@ -886,7 +1144,11 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
   test('TEST 24 — Unknown DOM fields survive extraction', () => {
     const inputs = [
       createMockInputElement({ id: 'name', name: 'name', label: 'Full Name', required: true }),
-      createMockInputElement({ id: 'strange_widget', name: 'strange_widget', type: 'unsupported_html_type' }),
+      createMockInputElement({
+        id: 'strange_widget',
+        name: 'strange_widget',
+        type: 'unsupported_html_type',
+      }),
     ];
 
     const mockDoc = createMockDoc({ inputs });
@@ -1023,7 +1285,10 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
     assert.ok(questionField);
     assert.strictEqual(questionField.customQuestion, true);
     assert.strictEqual(questionField.requiresUserReview, true);
-    assert.strictEqual(questionField.label, 'Why do you want to join our engineering organization?');
+    assert.strictEqual(
+      questionField.label,
+      'Why do you want to join our engineering organization?'
+    );
   });
 
   // TEST 30 — Repeated groups survive extraction
@@ -1034,7 +1299,9 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
     ];
 
     const mockDoc = createMockDoc({
-      inputs: [createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email' })],
+      inputs: [
+        createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email' }),
+      ],
       repeatedGroups: [
         {
           id: 'education-history',
@@ -1054,8 +1321,18 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
   // TEST 31 — Field identity remains deterministic
   test('TEST 31 — Field identity remains deterministic', () => {
     const inputs = [
-      createMockInputElement({ id: 'user_email', name: 'email', type: 'email', label: 'Email Address' }),
-      createMockInputElement({ id: 'user_phone', name: 'phone', type: 'tel', label: 'Phone Number' }),
+      createMockInputElement({
+        id: 'user_email',
+        name: 'email',
+        type: 'email',
+        label: 'Email Address',
+      }),
+      createMockInputElement({
+        id: 'user_phone',
+        name: 'phone',
+        type: 'tel',
+        label: 'Phone Number',
+      }),
     ];
 
     const mockDoc = createMockDoc({ inputs });
@@ -1074,8 +1351,20 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
     }
 
     // Changing position or label changes the deterministic ID
-    const idA = generateDeterministicFieldId({ formId: 'f1', name: 'email', label: 'Email', type: 'email', position: 0 });
-    const idB = generateDeterministicFieldId({ formId: 'f1', name: 'email', label: 'Email', type: 'email', position: 1 });
+    const idA = generateDeterministicFieldId({
+      formId: 'f1',
+      name: 'email',
+      label: 'Email',
+      type: 'email',
+      position: 0,
+    });
+    const idB = generateDeterministicFieldId({
+      formId: 'f1',
+      name: 'email',
+      label: 'Email',
+      type: 'email',
+      position: 1,
+    });
     assert.notStrictEqual(idA, idB, 'Changing position must yield distinct fieldId');
   });
 
@@ -1099,10 +1388,34 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
       formId: 'test-form',
       destinationUrl: 'https://example.com/apply',
       fields: [
-        { fieldId: 'fld_email', name: 'email', label: 'Email Address', type: 'email', required: true },
-        { fieldId: 'fld_auth', name: 'work_authorization', label: 'Are you authorized to work in the US?', type: 'select', required: true },
-        { fieldId: 'fld_salary', name: 'salary_expectation', label: 'Desired Salary', type: 'number', required: false },
-        { fieldId: 'fld_custom', name: 'unknown_question', label: 'Tell us a secret', type: 'UNKNOWN', required: false },
+        {
+          fieldId: 'fld_email',
+          name: 'email',
+          label: 'Email Address',
+          type: 'email',
+          required: true,
+        },
+        {
+          fieldId: 'fld_auth',
+          name: 'work_authorization',
+          label: 'Are you authorized to work in the US?',
+          type: 'select',
+          required: true,
+        },
+        {
+          fieldId: 'fld_salary',
+          name: 'salary_expectation',
+          label: 'Desired Salary',
+          type: 'number',
+          required: false,
+        },
+        {
+          fieldId: 'fld_custom',
+          name: 'unknown_question',
+          label: 'Tell us a secret',
+          type: 'UNKNOWN',
+          required: false,
+        },
       ],
       questions: [],
       attachments: [],
@@ -1144,13 +1457,33 @@ describe('Phase 8.2 — Universal Job & Portal Adapter Foundation + Canonical Fo
   // TEST 33 — Extension produces canonical form schema
   test('TEST 33 — Extension produces canonical form schema', () => {
     const inputs = [
-      createMockInputElement({ id: 'first_name', name: 'first_name', label: 'First Name', required: true }),
-      createMockInputElement({ id: 'email', name: 'email', type: 'email', label: 'Email', required: true }),
-      createMockInputElement({ id: 'resume', name: 'resume', type: 'file', label: 'Resume', accept: '.pdf' }),
+      createMockInputElement({
+        id: 'first_name',
+        name: 'first_name',
+        label: 'First Name',
+        required: true,
+      }),
+      createMockInputElement({
+        id: 'email',
+        name: 'email',
+        type: 'email',
+        label: 'Email',
+        required: true,
+      }),
+      createMockInputElement({
+        id: 'resume',
+        name: 'resume',
+        type: 'file',
+        label: 'Resume',
+        accept: '.pdf',
+      }),
     ];
 
     const mockDoc = createMockDoc({ inputs });
-    const adapter = new JobPortalAdapterBase({ id: 'ext-test-portal', name: 'Extension Test Portal' });
+    const adapter = new JobPortalAdapterBase({
+      id: 'ext-test-portal',
+      name: 'Extension Test Portal',
+    });
 
     // Base adapter delegates extractForm to return fields
     adapter.extractForm = () => FormDetector.detect(mockDoc);

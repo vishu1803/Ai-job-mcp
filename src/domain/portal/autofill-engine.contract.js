@@ -98,7 +98,14 @@ export const PlannedFieldActionSchema = z.object({
   resultingValue: z.any().optional().nullable(),
   source: z.string().default(''),
   provenance: z
-    .enum(['USER_PROVIDED', 'VERIFIED_PROFILE', 'VERIFIED_EVIDENCE', 'INFERRED', 'GENERATED', 'UNKNOWN'])
+    .enum([
+      'USER_PROVIDED',
+      'VERIFIED_PROFILE',
+      'VERIFIED_EVIDENCE',
+      'INFERRED',
+      'GENERATED',
+      'UNKNOWN',
+    ])
     .default('UNKNOWN'),
   confidence: AutofillConfidenceEnum.default('LOW'),
   requiresUserReview: z.boolean().default(false),
@@ -116,7 +123,9 @@ export const PlannedFieldActionSchema = z.object({
 export const RepeatedGroupActionSchema = z.object({
   groupId: z.string().min(1, 'groupId is required'),
   label: z.string().default(''),
-  category: z.enum(['EXPERIENCE', 'EDUCATION', 'PROJECT', 'CERTIFICATION', 'OTHER']).default('OTHER'),
+  category: z
+    .enum(['EXPERIENCE', 'EDUCATION', 'PROJECT', 'CERTIFICATION', 'OTHER'])
+    .default('OTHER'),
   items: z.array(z.array(PlannedFieldActionSchema)).default([]),
   rowCount: z.number().int().nonnegative().default(0),
   maxRows: z.number().int().positive().default(10),
@@ -189,11 +198,21 @@ export const AutofillExecutionResultSchema = z.object({
  * @param {boolean} [params.customQuestion]
  * @returns {{ isProtected: boolean, category: z.infer<typeof ProtectedFieldCategoryEnum> }}
  */
-export function classifyProtectedField({ name = '', label = '', type = '', fieldType = '', _customQuestion = false }) {
+export function classifyProtectedField({
+  name = '',
+  label = '',
+  type = '',
+  fieldType = '',
+  _customQuestion = false,
+}) {
   const descriptor = `${name} ${label} ${fieldType}`.toLowerCase().trim();
 
   // 1. Work Authorization & Visa Sponsorship
-  if (/authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship|work_auth/i.test(descriptor)) {
+  if (
+    /authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship|work_auth/i.test(
+      descriptor
+    )
+  ) {
     return { isProtected: true, category: 'work_authorization' };
   }
   if (/sponsor|visa\s*sponsorship|require\s*sponsorship/i.test(descriptor)) {
@@ -202,7 +221,9 @@ export function classifyProtectedField({ name = '', label = '', type = '', field
 
   // 2. Legal / Accuracy / Declarations (HIGHEST PRIORITY - NEVER AUTO-FILL)
   if (
-    /declarations?_accuracyconfirmed|accuracy_confirmed|certif(y|ication)|attest|declaration/i.test(descriptor)
+    /declarations?_accuracyconfirmed|accuracy_confirmed|certif(y|ication)|attest|declaration/i.test(
+      descriptor
+    )
   ) {
     return { isProtected: true, category: 'accuracy_certification' };
   }
@@ -244,7 +265,8 @@ export function classifyProtectedField({ name = '', label = '', type = '', field
   // 5. Security tokens & Hidden portal state
   if (
     type === 'hidden' &&
-    (/csrf|xsrf|_token|authenticity|session|security|captcha|nonce/i.test(descriptor) || descriptor.length === 0)
+    (/csrf|xsrf|_token|authenticity|session|security|captcha|nonce/i.test(descriptor) ||
+      descriptor.length === 0)
   ) {
     return { isProtected: true, category: 'security_token' };
   }
@@ -261,7 +283,9 @@ export class AutofillEngineContract {
    */
   constructor(identity = { id: 'autofill-engine', name: 'Autofill Engine' }) {
     if (new.target === AutofillEngineContract) {
-      throw new TypeError('Cannot construct AutofillEngineContract instances directly; extend it instead.');
+      throw new TypeError(
+        'Cannot construct AutofillEngineContract instances directly; extend it instead.'
+      );
     }
     this.identity = identity;
   }

@@ -139,7 +139,9 @@ export function assertNoProviderPollution(jobObj) {
  * @returns {{ category: string, provider: string }}
  */
 export function classifyJobProvider(urlOrProvider) {
-  const str = String(urlOrProvider || '').toLowerCase().trim();
+  const str = String(urlOrProvider || '')
+    .toLowerCase()
+    .trim();
 
   // ATS Platforms
   if (str.includes('greenhouse.io') || str === 'greenhouse') {
@@ -221,7 +223,12 @@ export function classifyJobProvider(urlOrProvider) {
   }
 
   // Company Career Site Heuristic
-  if (str.includes('careers.') || str.includes('/careers') || str.includes('/jobs') || str.includes('jobs.')) {
+  if (
+    str.includes('careers.') ||
+    str.includes('/careers') ||
+    str.includes('/jobs') ||
+    str.includes('jobs.')
+  ) {
     return { category: 'COMPANY_CAREER_SITE', provider: 'COMPANY_CAREERS' };
   }
 
@@ -257,7 +264,9 @@ export class JobSourceAdapterContract {
    */
   constructor(identity) {
     if (new.target === JobSourceAdapterContract) {
-      throw new TypeError('Cannot construct JobSourceAdapterContract instances directly; extend it instead.');
+      throw new TypeError(
+        'Cannot construct JobSourceAdapterContract instances directly; extend it instead.'
+      );
     }
     const validated = JobSourceAdapterIdentitySchema.safeParse(identity);
     if (!validated.success) {

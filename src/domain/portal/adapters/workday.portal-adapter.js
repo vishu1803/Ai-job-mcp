@@ -50,7 +50,10 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
       if (
@@ -87,9 +90,16 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     // Support iframe detection in Workday setups
-    const iframeResult = this.locateIframe(context, 'iframe[id*="workday"], iframe[data-automation-id*="frame"]');
-    const doc = iframeResult.isAccessible && iframeResult.doc ? iframeResult.doc : (context.doc || context.document);
-    const destinationUrl = context.destinationUrl || context.url || 'https://company.myworkdayjobs.com/apply';
+    const iframeResult = this.locateIframe(
+      context,
+      'iframe[id*="workday"], iframe[data-automation-id*="frame"]'
+    );
+    const doc =
+      iframeResult.isAccessible && iframeResult.doc
+        ? iframeResult.doc
+        : context.doc || context.document;
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://company.myworkdayjobs.com/apply';
     const formId = 'workday-application-form';
 
     const fields = [];
@@ -104,8 +114,24 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
       'step_review',
     ];
 
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -129,41 +155,89 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
 
     if (doc && typeof doc.querySelector === 'function') {
       // 1. Personal Information (Step 1)
-      const firstNameEl = doc.querySelector('[data-automation-id="legalNameSection_firstName"], input[name="firstName"]');
+      const firstNameEl = doc.querySelector(
+        '[data-automation-id="legalNameSection_firstName"], input[name="firstName"]'
+      );
       if (firstNameEl) {
-        addField({ name: 'firstName', id: 'legalNameSection_firstName', label: 'First Name', type: 'text', required: true });
+        addField({
+          name: 'firstName',
+          id: 'legalNameSection_firstName',
+          label: 'First Name',
+          type: 'text',
+          required: true,
+        });
       }
 
-      const lastNameEl = doc.querySelector('[data-automation-id="legalNameSection_lastName"], input[name="lastName"]');
+      const lastNameEl = doc.querySelector(
+        '[data-automation-id="legalNameSection_lastName"], input[name="lastName"]'
+      );
       if (lastNameEl) {
-        addField({ name: 'lastName', id: 'legalNameSection_lastName', label: 'Last Name', type: 'text', required: true });
+        addField({
+          name: 'lastName',
+          id: 'legalNameSection_lastName',
+          label: 'Last Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const emailEl = doc.querySelector('[data-automation-id="email"], input[type="email"]');
       if (emailEl) {
-        addField({ name: 'email', id: 'email', label: 'Email Address', type: 'email', required: true });
+        addField({
+          name: 'email',
+          id: 'email',
+          label: 'Email Address',
+          type: 'email',
+          required: true,
+        });
       }
 
       const phoneEl = doc.querySelector('[data-automation-id="phone-number"], input[type="tel"]');
       if (phoneEl) {
-        addField({ name: 'phone', id: 'phone-number', label: 'Phone Number', type: 'tel', required: false });
+        addField({
+          name: 'phone',
+          id: 'phone-number',
+          label: 'Phone Number',
+          type: 'tel',
+          required: false,
+        });
       }
 
       // Address fields
       const addressEl = doc.querySelector('[data-automation-id="addressSection_addressLine1"]');
       if (addressEl) {
-        addField({ name: 'address', id: 'addressSection_addressLine1', label: 'Address Line 1', type: 'text', required: false });
+        addField({
+          name: 'address',
+          id: 'addressSection_addressLine1',
+          label: 'Address Line 1',
+          type: 'text',
+          required: false,
+        });
       }
 
       const cityEl = doc.querySelector('[data-automation-id="addressSection_city"]');
       if (cityEl) {
-        addField({ name: 'city', id: 'addressSection_city', label: 'City', type: 'text', required: false });
+        addField({
+          name: 'city',
+          id: 'addressSection_city',
+          label: 'City',
+          type: 'text',
+          required: false,
+        });
       }
 
       // 2. Attachments (Resume)
-      const resumeEl = doc.querySelector('[data-automation-id="file-upload-drop-zone"], input[type="file"]');
+      const resumeEl = doc.querySelector(
+        '[data-automation-id="file-upload-drop-zone"], input[type="file"]'
+      );
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'file-upload-drop-zone', label: 'Resume', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'file-upload-drop-zone',
+          label: 'Resume',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -186,9 +260,30 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
             minItems: 0,
             maxItems: 10,
             fields: [
-              PortalFieldSchema.parse({ fieldId: 'wd_job_title', name: 'jobTitle', label: 'Job Title', type: 'text', required: true, source: 'WORKDAY_DOM' }),
-              PortalFieldSchema.parse({ fieldId: 'wd_company', name: 'company', label: 'Company', type: 'text', required: true, source: 'WORKDAY_DOM' }),
-              PortalFieldSchema.parse({ fieldId: 'wd_location', name: 'location', label: 'Location', type: 'text', required: false, source: 'WORKDAY_DOM' }),
+              PortalFieldSchema.parse({
+                fieldId: 'wd_job_title',
+                name: 'jobTitle',
+                label: 'Job Title',
+                type: 'text',
+                required: true,
+                source: 'WORKDAY_DOM',
+              }),
+              PortalFieldSchema.parse({
+                fieldId: 'wd_company',
+                name: 'company',
+                label: 'Company',
+                type: 'text',
+                required: true,
+                source: 'WORKDAY_DOM',
+              }),
+              PortalFieldSchema.parse({
+                fieldId: 'wd_location',
+                name: 'location',
+                label: 'Location',
+                type: 'text',
+                required: false,
+                source: 'WORKDAY_DOM',
+              }),
             ],
           })
         );
@@ -203,8 +298,22 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
             minItems: 0,
             maxItems: 5,
             fields: [
-              PortalFieldSchema.parse({ fieldId: 'wd_school', name: 'school', label: 'School or University', type: 'text', required: true, source: 'WORKDAY_DOM' }),
-              PortalFieldSchema.parse({ fieldId: 'wd_degree', name: 'degree', label: 'Degree', type: 'text', required: false, source: 'WORKDAY_DOM' }),
+              PortalFieldSchema.parse({
+                fieldId: 'wd_school',
+                name: 'school',
+                label: 'School or University',
+                type: 'text',
+                required: true,
+                source: 'WORKDAY_DOM',
+              }),
+              PortalFieldSchema.parse({
+                fieldId: 'wd_degree',
+                name: 'degree',
+                label: 'Degree',
+                type: 'text',
+                required: false,
+                source: 'WORKDAY_DOM',
+              }),
             ],
           })
         );
@@ -213,26 +322,80 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
       // 4. Questions & Disclosures (Steps 3 & 4)
       const authQuestion = doc.querySelector('[data-automation-id="workAuthorizationQuestion"]');
       if (authQuestion) {
-        addField({ name: 'work_authorization', id: 'workAuthorizationQuestion', label: 'Are you legally authorized to work?', type: 'select', required: true, isSensitive: true, customQuestion: true });
+        addField({
+          name: 'work_authorization',
+          id: 'workAuthorizationQuestion',
+          label: 'Are you legally authorized to work?',
+          type: 'select',
+          required: true,
+          isSensitive: true,
+          customQuestion: true,
+        });
       }
 
       const disabQuestion = doc.querySelector('[data-automation-id="disabilitySection"]');
       if (disabQuestion) {
-        addField({ name: 'disability', id: 'disabilitySection', label: 'Voluntary Self-Identification of Disability', type: 'select', required: false, isSensitive: true, customQuestion: true });
+        addField({
+          name: 'disability',
+          id: 'disabilitySection',
+          label: 'Voluntary Self-Identification of Disability',
+          type: 'select',
+          required: false,
+          isSensitive: true,
+          customQuestion: true,
+        });
       }
 
       const vetQuestion = doc.querySelector('[data-automation-id="veteranSection"]');
       if (vetQuestion) {
-        addField({ name: 'veteran', id: 'veteranSection', label: 'Veteran Status', type: 'select', required: false, isSensitive: true, customQuestion: true });
+        addField({
+          name: 'veteran',
+          id: 'veteranSection',
+          label: 'Veteran Status',
+          type: 'select',
+          required: false,
+          isSensitive: true,
+          customQuestion: true,
+        });
       }
     } else {
       // Default canonical Workday structure
-      addField({ name: 'firstName', id: 'legalNameSection_firstName', label: 'First Name', type: 'text', required: true });
-      addField({ name: 'lastName', id: 'legalNameSection_lastName', label: 'Last Name', type: 'text', required: true });
-      addField({ name: 'email', id: 'email', label: 'Email Address', type: 'email', required: true });
-      addField({ name: 'phone', id: 'phone-number', label: 'Phone Number', type: 'tel', required: false });
+      addField({
+        name: 'firstName',
+        id: 'legalNameSection_firstName',
+        label: 'First Name',
+        type: 'text',
+        required: true,
+      });
+      addField({
+        name: 'lastName',
+        id: 'legalNameSection_lastName',
+        label: 'Last Name',
+        type: 'text',
+        required: true,
+      });
+      addField({
+        name: 'email',
+        id: 'email',
+        label: 'Email Address',
+        type: 'email',
+        required: true,
+      });
+      addField({
+        name: 'phone',
+        id: 'phone-number',
+        label: 'Phone Number',
+        type: 'tel',
+        required: false,
+      });
 
-      const resId = addField({ name: 'resume', id: 'file-upload-drop-zone', label: 'Resume', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'file-upload-drop-zone',
+        label: 'Resume',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,
@@ -245,9 +408,33 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
       );
 
       // Sensitive fields default protected
-      addField({ name: 'work_authorization', id: 'workAuthorizationQuestion', label: 'Work Authorization', type: 'select', required: true, isSensitive: true, customQuestion: true });
-      addField({ name: 'disability', id: 'disabilitySection', label: 'Disability Status', type: 'select', required: false, isSensitive: true, customQuestion: true });
-      addField({ name: 'veteran', id: 'veteranSection', label: 'Veteran Status', type: 'select', required: false, isSensitive: true, customQuestion: true });
+      addField({
+        name: 'work_authorization',
+        id: 'workAuthorizationQuestion',
+        label: 'Work Authorization',
+        type: 'select',
+        required: true,
+        isSensitive: true,
+        customQuestion: true,
+      });
+      addField({
+        name: 'disability',
+        id: 'disabilitySection',
+        label: 'Disability Status',
+        type: 'select',
+        required: false,
+        isSensitive: true,
+        customQuestion: true,
+      });
+      addField({
+        name: 'veteran',
+        id: 'veteranSection',
+        label: 'Veteran Status',
+        type: 'select',
+        required: false,
+        isSensitive: true,
+        customQuestion: true,
+      });
     }
 
     return PortalFormSchema.parse({
@@ -281,7 +468,12 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
         stepId: 'step_my_information',
         order: 1,
         name: 'My Information',
-        navigation: { hasNext: true, hasPrevious: false, isFinalStep: false, nextSelector: '[data-automation-id="bottom-navigation-next-button"]' },
+        navigation: {
+          hasNext: true,
+          hasPrevious: false,
+          isFinalStep: false,
+          nextSelector: '[data-automation-id="bottom-navigation-next-button"]',
+        },
         completionState: 'NOT_STARTED',
         requiresReview: false,
       }),
@@ -289,7 +481,13 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
         stepId: 'step_my_experience',
         order: 2,
         name: 'My Experience',
-        navigation: { hasNext: true, hasPrevious: true, isFinalStep: false, nextSelector: '[data-automation-id="bottom-navigation-next-button"]', prevSelector: '[data-automation-id="bottom-navigation-back-button"]' },
+        navigation: {
+          hasNext: true,
+          hasPrevious: true,
+          isFinalStep: false,
+          nextSelector: '[data-automation-id="bottom-navigation-next-button"]',
+          prevSelector: '[data-automation-id="bottom-navigation-back-button"]',
+        },
         completionState: 'NOT_STARTED',
         requiresReview: false,
       }),
@@ -297,7 +495,13 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
         stepId: 'step_application_questions',
         order: 3,
         name: 'Application Questions',
-        navigation: { hasNext: true, hasPrevious: true, isFinalStep: false, nextSelector: '[data-automation-id="bottom-navigation-next-button"]', prevSelector: '[data-automation-id="bottom-navigation-back-button"]' },
+        navigation: {
+          hasNext: true,
+          hasPrevious: true,
+          isFinalStep: false,
+          nextSelector: '[data-automation-id="bottom-navigation-next-button"]',
+          prevSelector: '[data-automation-id="bottom-navigation-back-button"]',
+        },
         completionState: 'NOT_STARTED',
         requiresReview: true,
       }),
@@ -305,7 +509,13 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
         stepId: 'step_voluntary_disclosures',
         order: 4,
         name: 'Voluntary Disclosures',
-        navigation: { hasNext: true, hasPrevious: true, isFinalStep: false, nextSelector: '[data-automation-id="bottom-navigation-next-button"]', prevSelector: '[data-automation-id="bottom-navigation-back-button"]' },
+        navigation: {
+          hasNext: true,
+          hasPrevious: true,
+          isFinalStep: false,
+          nextSelector: '[data-automation-id="bottom-navigation-next-button"]',
+          prevSelector: '[data-automation-id="bottom-navigation-back-button"]',
+        },
         completionState: 'NOT_STARTED',
         requiresReview: true,
       }),
@@ -313,7 +523,13 @@ export class WorkdayPortalAdapter extends BasePortalAdapter {
         stepId: 'step_review',
         order: 5,
         name: 'Review',
-        navigation: { hasNext: false, hasPrevious: true, isFinalStep: true, prevSelector: '[data-automation-id="bottom-navigation-back-button"]', submitSelector: '[data-automation-id="bottom-navigation-submit-button"]' },
+        navigation: {
+          hasNext: false,
+          hasPrevious: true,
+          isFinalStep: true,
+          prevSelector: '[data-automation-id="bottom-navigation-back-button"]',
+          submitSelector: '[data-automation-id="bottom-navigation-submit-button"]',
+        },
         completionState: 'NOT_STARTED',
         requiresReview: true,
       }),

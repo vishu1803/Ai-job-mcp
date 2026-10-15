@@ -436,8 +436,20 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
         formId: 'greenhouse-app-form',
         destinationUrl: window.location.href,
         fields: [
-          { fieldId: 'first_name', name: 'first_name', label: 'First Name', type: 'text', required: true },
-          { fieldId: 'last_name', name: 'last_name', label: 'Last Name', type: 'text', required: true },
+          {
+            fieldId: 'first_name',
+            name: 'first_name',
+            label: 'First Name',
+            type: 'text',
+            required: true,
+          },
+          {
+            fieldId: 'last_name',
+            name: 'last_name',
+            label: 'Last Name',
+            type: 'text',
+            required: true,
+          },
           { fieldId: 'email', name: 'email', label: 'Email', type: 'email', required: true },
           { fieldId: 'phone', name: 'phone', label: 'Phone', type: 'tel', required: false },
           {
@@ -461,14 +473,22 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
               { value: 'No', label: 'No' },
             ],
           },
-          { fieldId: 'cover_letter_text', name: 'cover_letter_text', label: 'Cover Letter / Note', type: 'textarea' },
+          {
+            fieldId: 'cover_letter_text',
+            name: 'cover_letter_text',
+            label: 'Cover Letter / Note',
+            type: 'textarea',
+          },
           // Sensitive demographic field: must route to REVIEW
           {
             fieldId: 'demographic_gender',
             name: 'demographic_gender',
             label: 'Gender Identity (Voluntary)',
             type: 'select',
-            options: [{ value: 'Female', label: 'Female' }, { value: 'Male', label: 'Male' }],
+            options: [
+              { value: 'Female', label: 'Female' },
+              { value: 'Male', label: 'Male' },
+            ],
           },
           // Ambiguous uncorroborated field: must route to REVIEW
           {
@@ -482,9 +502,10 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
 
       // Helper function matching CanonicalAutofillEngine prototype logic inside real Chromium
       function setNativeValue(el, val) {
-        const proto = (el.tagName === 'TEXTAREA')
-          ? window.HTMLTextAreaElement.prototype
-          : window.HTMLInputElement.prototype;
+        const proto =
+          el.tagName === 'TEXTAREA'
+            ? window.HTMLTextAreaElement.prototype
+            : window.HTMLInputElement.prototype;
         const desc = Object.getOwnPropertyDescriptor(proto, 'value');
         if (desc && desc.set) desc.set.call(el, val);
         else el.value = val;
@@ -505,7 +526,9 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
       selectEl.dispatchEvent(new Event('change', { bubbles: true }));
 
       // Radio work auth
-      const radioYes = document.querySelector('input[name="job_application_work_auth"][value="Yes"]');
+      const radioYes = document.querySelector(
+        'input[name="job_application_work_auth"][value="Yes"]'
+      );
       radioYes.checked = true;
       radioYes.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -532,8 +555,16 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
     assert.ok(result.coverLetter.includes('distributed systems'));
 
     // Invariant: Sensitive and uncorroborated fields remain untouched in DOM (routed to human REVIEW)
-    assert.strictEqual(result.genderValue, '', 'Sensitive demographic field must not be auto-filled');
-    assert.strictEqual(result.patentsValue, '', 'Uncorroborated ambiguous field must not be fabricated');
+    assert.strictEqual(
+      result.genderValue,
+      '',
+      'Sensitive demographic field must not be auto-filled'
+    );
+    assert.strictEqual(
+      result.patentsValue,
+      '',
+      'Uncorroborated ambiguous field must not be fabricated'
+    );
 
     await page.close();
   });
@@ -598,7 +629,10 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
 
       function setChecked(el, chk) {
         if (el.checked !== chk) {
-          const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'checked');
+          const desc = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            'checked'
+          );
           if (desc && desc.set) desc.set.call(el, chk);
           else el.checked = chk;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -655,7 +689,9 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
 
   it('TEST 4 — Workday multi-step fixture: Step transitions, repeated experience fields without duplication', async () => {
     const page = await context.newPage();
-    await page.goto(`${serverBaseUrl}/fixtures/workday-multistep`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${serverBaseUrl}/fixtures/workday-multistep`, {
+      waitUntil: 'domcontentloaded',
+    });
 
     // Step 1: Fill Contact Information
     await page.evaluate((pkg) => {
@@ -711,7 +747,11 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
 
     // Verify row count is STILL 2 (no duplicate rows created on navigation)
     const expRowCountAfterBack = await page.locator('.exp-row').count();
-    assert.strictEqual(expRowCountAfterBack, 2, 'Repeated groups must not duplicate across step navigation');
+    assert.strictEqual(
+      expRowCountAfterBack,
+      2,
+      'Repeated groups must not duplicate across step navigation'
+    );
 
     // Verify values survived navigation
     const row0Comp = await page.locator('input[name="workHistory[0].company"]').inputValue();
@@ -788,7 +828,11 @@ describe('Phase 9.6 — Real Browser Form Engine (Deterministic Provider Fixture
       return { verified: mismatches.length === 0, verifiedCount, mismatches };
     }, sampleApplicationPackage);
 
-    assert.strictEqual(tamperedVerification.verified, false, 'Tampered value must fail verification');
+    assert.strictEqual(
+      tamperedVerification.verified,
+      false,
+      'Tampered value must fail verification'
+    );
     assert.strictEqual(tamperedVerification.mismatches.length, 1);
     assert.strictEqual(tamperedVerification.mismatches[0].fieldId, 'gen-email');
     assert.strictEqual(tamperedVerification.mismatches[0].actual, 'attacker@tampered-domain.xyz');

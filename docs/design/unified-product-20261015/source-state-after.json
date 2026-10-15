@@ -1,59 +1,35 @@
 [
-    {
-        "worktree":  "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
-        "branch":  "main",
-        "head":  "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
-        "filesCompared":  2,
-        "changed":  [
-
-                    ],
-        "added":  [
-
-                  ],
-        "missingOnDisk":  [
-
-                          ],
-        "notListedButPresentAndHashUnchanged":  [
-                                                    ".claude/settings.local.json"
-                                                ],
-        "unchanged":  true
-    },
-    {
-        "worktree":  "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-backend",
-        "branch":  "backend/resume-studio-20261014",
-        "head":  "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
-        "filesCompared":  138,
-        "changed":  [
-
-                    ],
-        "added":  [
-
-                  ],
-        "missingOnDisk":  [
-
-                          ],
-        "notListedButPresentAndHashUnchanged":  [
-
-                                                ],
-        "unchanged":  true
-    },
-    {
-        "worktree":  "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-frontend",
-        "branch":  "frontend/resume-studio-20261014",
-        "head":  "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
-        "filesCompared":  26,
-        "changed":  [
-
-                    ],
-        "added":  [
-
-                  ],
-        "missingOnDisk":  [
-
-                          ],
-        "notListedButPresentAndHashUnchanged":  [
-
-                                                ],
-        "unchanged":  true
-    }
+  {
+    "worktree": "C:\\Users\\VISHW\\OneDrive\\Desktop\\Ai-career-agent",
+    "branch": "main",
+    "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+    "filesCompared": 2,
+    "changed": [],
+    "added": [],
+    "missingOnDisk": [],
+    "notListedButPresentAndHashUnchanged": [".claude/settings.local.json"],
+    "unchanged": true
+  },
+  {
+    "worktree": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-backend",
+    "branch": "backend/resume-studio-20261014",
+    "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+    "filesCompared": 138,
+    "changed": [],
+    "added": [],
+    "missingOnDisk": [],
+    "notListedButPresentAndHashUnchanged": [],
+    "unchanged": true
+  },
+  {
+    "worktree": "C:\\Users\\VISHW\\AppData\\Local\\Temp\\career-resume-studio-frontend",
+    "branch": "frontend/resume-studio-20261014",
+    "head": "890bcf03ed37bff11a912e68c1c7ee37c21f401a",
+    "filesCompared": 26,
+    "changed": [],
+    "added": [],
+    "missingOnDisk": [],
+    "notListedButPresentAndHashUnchanged": [],
+    "unchanged": true
+  }
 ]

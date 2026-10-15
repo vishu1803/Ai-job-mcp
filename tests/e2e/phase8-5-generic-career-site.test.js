@@ -23,9 +23,7 @@ import {
   GreenhousePortalAdapter,
   registerAllPortalAdapters,
 } from '../../src/domain/portal/adapters/index.js';
-import {
-  PortalAdapterRegistry,
-} from '../../src/domain/portal/portal-adapter-registry.js';
+import { PortalAdapterRegistry } from '../../src/domain/portal/portal-adapter-registry.js';
 import {
   PortalFormSchema,
   FieldValidationErrorSchema,
@@ -34,7 +32,10 @@ import {
 // DOM Mock Helpers with robust CSS selector matching
 function matchesSelector(el, selector) {
   if (!el || !selector) return false;
-  const parts = selector.split(',').map((s) => s.trim()).filter(Boolean);
+  const parts = selector
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   for (const part of parts) {
     if (matchesSingleSelector(el, part)) return true;
   }
@@ -47,22 +48,28 @@ function matchesSingleSelector(el, sel) {
   const tagIdMatch = sel.match(/^([a-zA-Z0-9_-]+)?#([a-zA-Z0-9_-]+)$/);
   if (tagIdMatch) {
     const [, requiredTag, id] = tagIdMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     return el.id === id;
   }
 
   const tagClassMatch = sel.match(/^([a-zA-Z0-9_-]+)?\.([a-zA-Z0-9_-]+)$/);
   if (tagClassMatch) {
     const [, requiredTag, cls] = tagClassMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
-    const actualCls = el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
+    const actualCls =
+      el.className || (typeof el.getAttribute === 'function' ? el.getAttribute('class') : '') || '';
     return actualCls.split(/\s+/).includes(cls);
   }
 
-  const quotedAttrMatch = sel.match(/^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/);
+  const quotedAttrMatch = sel.match(
+    /^(?:([a-zA-Z0-9_-]+))?\[([a-zA-Z0-9_:-]+)([\^$*]?=)["']([^"']*)["']\]$/
+  );
   if (quotedAttrMatch) {
     const [, requiredTag, attrName, op, expectedVal] = quotedAttrMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     let actualVal = null;
     if (attrName === 'id') actualVal = el.id;
     else if (attrName === 'name') actualVal = el.name;
@@ -81,7 +88,8 @@ function matchesSingleSelector(el, sel) {
   const multiAttrMatch = sel.match(/^([a-zA-Z0-9_-]+)?((?:\[[^\]]+\])+)$/);
   if (multiAttrMatch) {
     const [, requiredTag, brackets] = multiAttrMatch;
-    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase()) return false;
+    if (requiredTag && el.tagName && el.tagName.toUpperCase() !== requiredTag.toUpperCase())
+      return false;
     const singleAttrRegex = /\[([a-zA-Z0-9_:-]+)(?:([\^$*]?=)["']?([^"']*)["']?)?\]/g;
     let match;
     while ((match = singleAttrRegex.exec(brackets)) !== null) {
@@ -220,8 +228,14 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
       },
     },
     artifacts: {
-      resume: { filename: 'Marcus_Holloway_Resume.pdf', url: 'https://cdn.example.com/resumes/marcus.pdf' },
-      coverLetter: { filename: 'Marcus_Holloway_CoverLetter.pdf', url: 'https://cdn.example.com/letters/marcus.pdf' },
+      resume: {
+        filename: 'Marcus_Holloway_Resume.pdf',
+        url: 'https://cdn.example.com/resumes/marcus.pdf',
+      },
+      coverLetter: {
+        filename: 'Marcus_Holloway_CoverLetter.pdf',
+        url: 'https://cdn.example.com/letters/marcus.pdf',
+      },
     },
     answers: {
       custom_motivation: {
@@ -264,8 +278,16 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
     it('TEST 3 — Autocomplete attributes take precedence in semantic field classification', async () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'c_fn', name: 'c_fn', attributes: { autocomplete: 'given-name' } }),
-        createMockDomElement({ id: 'c_ln', name: 'c_ln', attributes: { autocomplete: 'family-name' } }),
+        createMockDomElement({
+          id: 'c_fn',
+          name: 'c_fn',
+          attributes: { autocomplete: 'given-name' },
+        }),
+        createMockDomElement({
+          id: 'c_ln',
+          name: 'c_ln',
+          attributes: { autocomplete: 'family-name' },
+        }),
         createMockDomElement({ id: 'c_em', name: 'c_em', attributes: { autocomplete: 'email' } }),
         createMockDomElement({ id: 'c_tel', name: 'c_tel', attributes: { autocomplete: 'tel' } }),
       ]);
@@ -314,7 +336,11 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
         createMockDomElement({ id: 'first_name', name: 'first_name' }),
-        createMockDomElement({ id: 'custom_widget_x', name: 'custom_widget_x', placeholder: 'Enter internal routing ID' }),
+        createMockDomElement({
+          id: 'custom_widget_x',
+          name: 'custom_widget_x',
+          placeholder: 'Enter internal routing ID',
+        }),
       ]);
 
       const schema = await adapter.extractFormSchema({ doc: mockDoc });
@@ -331,10 +357,27 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
     it('TEST 6 — Protected sensitive fields strictly marked requiresUserReview: true', async () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'work_auth', name: 'work_authorization', attributes: { 'aria-label': 'Are you legally authorized to work?' } }),
-        createMockDomElement({ id: 'visa_req', name: 'require_visa', attributes: { 'aria-label': 'Will you require sponsorship?' } }),
-        createMockDomElement({ id: 'desired_salary', name: 'desired_salary', attributes: { 'aria-label': 'Expected salary rate' } }),
-        createMockDomElement({ id: 'acc_cert', name: 'accuracy_certify', type: 'checkbox', attributes: { 'aria-label': 'I certify this is accurate' } }),
+        createMockDomElement({
+          id: 'work_auth',
+          name: 'work_authorization',
+          attributes: { 'aria-label': 'Are you legally authorized to work?' },
+        }),
+        createMockDomElement({
+          id: 'visa_req',
+          name: 'require_visa',
+          attributes: { 'aria-label': 'Will you require sponsorship?' },
+        }),
+        createMockDomElement({
+          id: 'desired_salary',
+          name: 'desired_salary',
+          attributes: { 'aria-label': 'Expected salary rate' },
+        }),
+        createMockDomElement({
+          id: 'acc_cert',
+          name: 'accuracy_certify',
+          type: 'checkbox',
+          attributes: { 'aria-label': 'I certify this is accurate' },
+        }),
       ]);
 
       const schema = await adapter.extractFormSchema({ doc: mockDoc });
@@ -347,21 +390,34 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
     it('TEST 7 — Approved custom question answer fills with HIGH confidence', async () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'custom_motivation', name: 'custom_motivation', tagName: 'TEXTAREA', placeholder: 'Why do you want to work here?' }),
+        createMockDomElement({
+          id: 'custom_motivation',
+          name: 'custom_motivation',
+          tagName: 'TEXTAREA',
+          placeholder: 'Why do you want to work here?',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, basePackage);
       const action = fillPlan.actions.find((a) => a.name === 'custom_motivation');
       assert.ok(action);
       assert.strictEqual(action.action, 'FILL');
-      assert.strictEqual(action.sanitizedValue, 'Excited to build privacy-preserving decentralized platforms.');
+      assert.strictEqual(
+        action.sanitizedValue,
+        'Excited to build privacy-preserving decentralized platforms.'
+      );
       assert.strictEqual(action.confidence, 'HIGH');
     });
 
     it('TEST 8 — Unapproved custom question resolves strictly to action: REVIEW (zero fabrication)', async () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'custom_greatest_challenge', name: 'custom_greatest_challenge', tagName: 'TEXTAREA', placeholder: 'Describe your greatest challenge' }),
+        createMockDomElement({
+          id: 'custom_greatest_challenge',
+          name: 'custom_greatest_challenge',
+          tagName: 'TEXTAREA',
+          placeholder: 'Describe your greatest challenge',
+        }),
       ]);
 
       const { fillPlan } = await adapter.prepareAutofill({ doc: mockDoc }, basePackage);
@@ -402,16 +458,20 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
 
     it('TEST 10 — Dynamic DOM: Form refresh picks up dynamically injected fields', async () => {
       const adapter = new GenericCareerSiteAdapter();
-      const initialElements = [
-        createMockDomElement({ id: 'first_name', name: 'first_name' }),
-      ];
+      const initialElements = [createMockDomElement({ id: 'first_name', name: 'first_name' })];
       const mockDoc = createMockDomDoc(initialElements);
 
       const initialSchema = await adapter.extractFormSchema({ doc: mockDoc });
       assert.strictEqual(initialSchema.fields.length, 1);
 
       // Simulate dynamic DOM injection (e.g. conditional question appears)
-      initialElements.push(createMockDomElement({ id: 'injected_q', name: 'injected_q', placeholder: 'Tell us about your recent work' }));
+      initialElements.push(
+        createMockDomElement({
+          id: 'injected_q',
+          name: 'injected_q',
+          placeholder: 'Tell us about your recent work',
+        })
+      );
       const refreshedSchema = await adapter.refreshFormSchema({ doc: mockDoc });
       assert.strictEqual(refreshedSchema.fields.length, 2);
       assert.ok(refreshedSchema.fields.some((f) => f.name === 'injected_q'));
@@ -468,10 +528,18 @@ describe('Phase 8.5 — Generic Career Site Fallback E2E', () => {
     it('TEST 14 — Submission Safety: Final submit is NEVER clicked automatically; halts at READY_FOR_FINAL_REVIEW', async () => {
       const adapter = new GenericCareerSiteAdapter();
       const mockDoc = createMockDomDoc([
-        createMockDomElement({ id: 'submit_app', tagName: 'BUTTON', type: 'submit', textContent: 'Submit Application' }),
+        createMockDomElement({
+          id: 'submit_app',
+          tagName: 'BUTTON',
+          type: 'submit',
+          textContent: 'Submit Application',
+        }),
       ]);
 
-      const handoff = await adapter.submitOrHandoff({ doc: mockDoc, destinationUrl: 'https://careers.custom.io/apply' });
+      const handoff = await adapter.submitOrHandoff({
+        doc: mockDoc,
+        destinationUrl: 'https://careers.custom.io/apply',
+      });
       assert.strictEqual(handoff.status, 'HANDOFF_READY');
       assert.strictEqual(handoff.handoffKit.finalSubmitBlocked, true);
       assert.strictEqual(handoff.handoffKit.requiresUserApproval, true);

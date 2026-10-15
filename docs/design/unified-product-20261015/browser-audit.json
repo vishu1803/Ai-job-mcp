@@ -174,11 +174,7 @@
       "url": "/apps/radar",
       "status": 200,
       "title": "Job Fit Radar | AI Careers Hub",
-      "headings": [
-        "Job Radar & Market Fit",
-        "No Live Opportunities Found",
-        "Career Copilot"
-      ],
+      "headings": ["Job Radar & Market Fit", "No Live Opportunities Found", "Career Copilot"],
       "buttons": [
         {
           "text": "Copilot",
@@ -970,11 +966,7 @@
       "url": "/resume-studio?draftId=ac572b4d-5fad-4d01-9732-fa50cf50a1ae",
       "status": 200,
       "title": "AI Tailored Resume Studio | AI Careers Hub",
-      "headings": [
-        "Resume Studio",
-        "Job Requirements & Targeting",
-        "Your resume"
-      ],
+      "headings": ["Resume Studio", "Job Requirements & Targeting", "Your resume"],
       "buttons": [
         {
           "text": "S\n              \n                Synthetic Studio Candidate",
@@ -1551,11 +1543,7 @@
       "url": "/projects",
       "status": 200,
       "title": "Portfolio Projects | AI Careers Hub",
-      "headings": [
-        "Projects & Code Evidence",
-        "No projects added yet.",
-        "Career Copilot"
-      ],
+      "headings": ["Projects & Code Evidence", "No projects added yet.", "Career Copilot"],
       "buttons": [
         {
           "text": "Copilot",

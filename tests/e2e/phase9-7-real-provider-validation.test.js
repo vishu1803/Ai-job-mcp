@@ -117,7 +117,10 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
       // 1. Greenhouse
       if (url.pathname === '/portals/greenhouse/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('greenhouse', `
+        res.end(
+          htmlTemplate(
+            'greenhouse',
+            `
           <form id="application_form" action="/submit" method="POST">
             <input type="text" id="first_name" name="first_name" />
             <input type="text" id="last_name" name="last_name" />
@@ -125,14 +128,19 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="tel" id="phone" name="phone" />
             <button type="submit" id="submit_app">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 2. Lever
       if (url.pathname === '/portals/lever/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('lever', `
+        res.end(
+          htmlTemplate(
+            'lever',
+            `
           <form class="application-form" id="application-form" action="/submit" method="POST">
             <input type="text" name="name" id="name" />
             <input type="email" name="email" id="email" />
@@ -140,28 +148,38 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="text" name="org" id="org" />
             <button type="submit" class="template-btn-submit">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 3. Ashby
       if (url.pathname === '/portals/ashby/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('ashby', `
+        res.end(
+          htmlTemplate(
+            'ashby',
+            `
           <form class="ashby-application-form" data-ashby-application-form="true" action="/submit" method="POST">
             <input type="text" name="name" id="ashby-name" />
             <input type="email" name="email" id="ashby-email" />
             <input type="tel" name="phone" id="ashby-phone" />
             <button type="submit" id="ashby-submit-btn">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 4. Workday
       if (url.pathname === '/portals/workday/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('workday', `
+        res.end(
+          htmlTemplate(
+            'workday',
+            `
           <form data-automation-id="workday-application" action="/submit" method="POST">
             <input type="text" data-automation-id="legalNameSection_firstName" name="legalFirstName" id="wd-first-name" />
             <input type="text" data-automation-id="legalNameSection_lastName" name="legalLastName" id="wd-last-name" />
@@ -169,14 +187,19 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="tel" data-automation-id="phone-number" name="phone" id="wd-phone" />
             <button type="submit" data-automation-id="bottom-navigation-next-button">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 5. SmartRecruiters
       if (url.pathname === '/portals/smartrecruiters/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('smartrecruiters', `
+        res.end(
+          htmlTemplate(
+            'smartrecruiters',
+            `
           <form data-qa="smartr-application-form" class="application-form" action="/submit" method="POST">
             <input type="text" name="firstName" id="sr-first-name" />
             <input type="text" name="lastName" id="sr-last-name" />
@@ -184,14 +207,19 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="tel" name="phoneNumber" id="sr-phone" />
             <button type="submit" data-qa="apply-button">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 6. iCIMS
       if (url.pathname === '/portals/icims/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('icims', `
+        res.end(
+          htmlTemplate(
+            'icims',
+            `
           <form id="iCIMS_form" class="iCIMS_JobContent" action="/submit" method="POST">
             <input type="text" name="first_name" id="icims-first-name" />
             <input type="text" name="last_name" id="icims-last-name" />
@@ -199,14 +227,19 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="tel" name="phone" id="icims-phone" />
             <button type="submit" id="icims-submit">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
       // 7. Generic Career Site
       if (url.pathname === '/portals/generic/apply') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlTemplate('generic', `
+        res.end(
+          htmlTemplate(
+            'generic',
+            `
           <form id="generic_apply_form" action="/submit" method="POST">
             <input type="text" name="firstName" id="gen-first-name" />
             <input type="text" name="lastName" id="gen-last-name" />
@@ -214,7 +247,9 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
             <input type="tel" name="phone" id="gen-phone" />
             <button type="submit" id="gen-submit">Submit Application</button>
           </form>
-        `));
+        `
+          )
+        );
         return;
       }
 
@@ -395,18 +430,25 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
         };
       }, pageUrl);
 
-      assert.ok(extractedSchema.fields.length >= 3, `${provider.name} extracted form schema must have fields`);
+      assert.ok(
+        extractedSchema.fields.length >= 3,
+        `${provider.name} extracted form schema must have fields`
+      );
 
       // Step 3: Canonical Autofill Engine generates deterministic FillPlan
       const fillPlan = canonicalAutofillEngine.planFillSync(extractedSchema, canonicalPackage);
-      assert.ok(fillPlan.actions.length > 0, `${provider.name} FillPlan must produce planned actions`);
+      assert.ok(
+        fillPlan.actions.length > 0,
+        `${provider.name} FillPlan must produce planned actions`
+      );
 
       // Step 4: Real Content Script EXECUTE_FILL flow in Chromium
       const executionResult = await page.evaluate((plan) => {
         function setVal(el, val) {
-          const proto = (el.tagName === 'TEXTAREA')
-            ? window.HTMLTextAreaElement.prototype
-            : window.HTMLInputElement.prototype;
+          const proto =
+            el.tagName === 'TEXTAREA'
+              ? window.HTMLTextAreaElement.prototype
+              : window.HTMLInputElement.prototype;
           const desc = Object.getOwnPropertyDescriptor(proto, 'value');
           if (desc && desc.set) desc.set.call(el, val);
           else el.value = val;
@@ -454,7 +496,8 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
       });
 
       assert.ok(
-        adapterStagingResult.status === 'READY_FOR_FINAL_REVIEW' || adapterStagingResult.status === 'HANDOFF_READY',
+        adapterStagingResult.status === 'READY_FOR_FINAL_REVIEW' ||
+          adapterStagingResult.status === 'HANDOFF_READY',
         `${provider.name} must stage application in READY_FOR_FINAL_REVIEW or HANDOFF_READY`
       );
       assert.strictEqual(
@@ -465,7 +508,11 @@ describe('Phase 9.7 — Real Provider Validation (All 7 Providers in Real Chromi
 
       // Step 7: Strict Safety Invariant — Submit was NEVER automatically clicked
       const finalSubmitExecuted = await page.evaluate(() => window.__formSubmitted);
-      assert.strictEqual(finalSubmitExecuted, false, `${provider.name} final submit button must NEVER be clicked automatically`);
+      assert.strictEqual(
+        finalSubmitExecuted,
+        false,
+        `${provider.name} final submit button must NEVER be clicked automatically`
+      );
 
       await page.close();
     });

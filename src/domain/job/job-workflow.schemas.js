@@ -497,34 +497,109 @@ export const FieldProvenanceEnum = z.enum([
   'UNKNOWN',
 ]);
 
-export const SubmissionRetryStateEnum = z.enum([
-  'NOT_SENT',
-  'SENT_UNKNOWN',
-  'CONFIRMED',
-  'FAILED',
-]);
+export const SubmissionRetryStateEnum = z.enum(['NOT_SENT', 'SENT_UNKNOWN', 'CONFIRMED', 'FAILED']);
 
 export const ACTION_TAXONOMY = Object.freeze({
-  search_jobs: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  get_job_posting: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  get_candidate_profile: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  analyze_job_fit: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  get_application_package: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  get_application_submission_status: { level: 'READ_ONLY', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  search_jobs: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  get_job_posting: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  get_candidate_profile: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  analyze_job_fit: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  get_application_package: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  get_application_submission_status: {
+    level: 'READ_ONLY',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
 
-  prepare_job_application: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
-  generate_tailored_resume: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
-  draft_cover_letter: { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
-  'prepare-handoff': { level: 'PREPARE', requiresApproval: false, mutatesState: true, externalConsequences: false },
+  prepare_job_application: {
+    level: 'PREPARE',
+    requiresApproval: false,
+    mutatesState: true,
+    externalConsequences: false,
+  },
+  generate_tailored_resume: {
+    level: 'PREPARE',
+    requiresApproval: false,
+    mutatesState: true,
+    externalConsequences: false,
+  },
+  draft_cover_letter: {
+    level: 'PREPARE',
+    requiresApproval: false,
+    mutatesState: true,
+    externalConsequences: false,
+  },
+  'prepare-handoff': {
+    level: 'PREPARE',
+    requiresApproval: false,
+    mutatesState: true,
+    externalConsequences: false,
+  },
 
-  'assistant/autofill-plan': { level: 'PREFILL', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  autofill_form_fields: { level: 'PREFILL', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  'assistant/autofill-plan': {
+    level: 'PREFILL',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  autofill_form_fields: {
+    level: 'PREFILL',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
 
-  create_application_preview: { level: 'REVIEW', requiresApproval: false, mutatesState: false, externalConsequences: false },
-  validate_job_application: { level: 'REVIEW', requiresApproval: false, mutatesState: false, externalConsequences: false },
+  create_application_preview: {
+    level: 'REVIEW',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
+  validate_job_application: {
+    level: 'REVIEW',
+    requiresApproval: false,
+    mutatesState: false,
+    externalConsequences: false,
+  },
 
-  request_application_approval: { level: 'REVIEW', requiresApproval: true, mutatesState: true, externalConsequences: false },
-  submit_job_application: { level: 'SUBMIT', requiresApproval: true, mutatesState: true, externalConsequences: true },
+  request_application_approval: {
+    level: 'REVIEW',
+    requiresApproval: true,
+    mutatesState: true,
+    externalConsequences: false,
+  },
+  submit_job_application: {
+    level: 'SUBMIT',
+    requiresApproval: true,
+    mutatesState: true,
+    externalConsequences: true,
+  },
 });
 
 export const ApplicationAnswerSchema = z.object({

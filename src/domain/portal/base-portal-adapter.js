@@ -50,7 +50,10 @@ export class BasePortalAdapter extends PortalAdapterContract {
     metadata = {},
   }) {
     if (!fieldId) {
-      throw new ValidationError('fieldId is required to normalize validation error', 'MISSING_FIELD_ID');
+      throw new ValidationError(
+        'fieldId is required to normalize validation error',
+        'MISSING_FIELD_ID'
+      );
     }
 
     let normalizedMessage = rawMessage || 'Field validation error';
@@ -92,7 +95,10 @@ export class BasePortalAdapter extends PortalAdapterContract {
    * @returns {object} { isIframe, isAccessible, isBlocked, status, doc, error }
    */
   locateIframe(context = {}, iframeSelector = 'iframe') {
-    const rootDoc = context.doc || context.document || (typeof globalThis.document !== 'undefined' ? globalThis.document : null);
+    const rootDoc =
+      context.doc ||
+      context.document ||
+      (typeof globalThis.document !== 'undefined' ? globalThis.document : null);
     if (!rootDoc || typeof rootDoc.querySelector !== 'function') {
       return {
         isIframe: false,
@@ -194,7 +200,11 @@ export class BasePortalAdapter extends PortalAdapterContract {
   async prepareAutofill(context, applicationPackage, options = {}) {
     const formSchema = await this.extractFormSchema(context);
     const validatedSchema = PortalFormSchema.parse(formSchema);
-    const fillPlan = await this.autofillEngine.planFill(validatedSchema, applicationPackage, options);
+    const fillPlan = await this.autofillEngine.planFill(
+      validatedSchema,
+      applicationPackage,
+      options
+    );
     return { formSchema: validatedSchema, fillPlan };
   }
 
@@ -226,7 +236,8 @@ export class BasePortalAdapter extends PortalAdapterContract {
       status: 'HANDOFF_READY',
       portalType: this.id,
       destinationUrl: context.destinationUrl || context.url || '',
-      message: 'Application form filled and verified. Staged for human review prior to final submission.',
+      message:
+        'Application form filled and verified. Staged for human review prior to final submission.',
       handoffKit: {
         requiresUserApproval: true,
         submissionReady: true,

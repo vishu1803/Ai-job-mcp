@@ -86,11 +86,7 @@
         ]
       }
     },
-    "required": [
-      "contractVersion",
-      "drafts",
-      "nextOffset"
-    ],
+    "required": ["contractVersion", "drafts", "nextOffset"],
     "additionalProperties": false,
     "$schema": "http://json-schema.org/draft-07/schema#"
   }

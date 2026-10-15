@@ -107,7 +107,11 @@ export function classifyProtectedField(field = {}) {
   }
 
   // 3. Salary and Compensation
-  if (/salary|compensation|expected_pay|desired_pay|rate_expectation|hourly_rate|pay_range/i.test(fullText)) {
+  if (
+    /salary|compensation|expected_pay|desired_pay|rate_expectation|hourly_rate|pay_range/i.test(
+      fullText
+    )
+  ) {
     return {
       isProtected: true,
       category: 'salary_expectation',
@@ -116,7 +120,9 @@ export function classifyProtectedField(field = {}) {
   }
 
   // 4. EEO & Demographics
-  if (/race|ethnicity|hispanic|latino|gender|sex|veteran|disability|handicap|lgbt/i.test(fullText)) {
+  if (
+    /race|ethnicity|hispanic|latino|gender|sex|veteran|disability|handicap|lgbt/i.test(fullText)
+  ) {
     if (/veteran|military/i.test(fullText)) {
       return {
         isProtected: true,
@@ -148,7 +154,10 @@ export function classifyProtectedField(field = {}) {
   }
 
   // 6. Generic legal fallback (excluding legal name fields such as legalFirstName, legalLastName)
-  if (!/first|last|name|given|family|middle|sur/i.test(fullText) && /legal|declaration|signature/i.test(fullText)) {
+  if (
+    !/first|last|name|given|family|middle|sur/i.test(fullText) &&
+    /legal|declaration|signature/i.test(fullText)
+  ) {
     return {
       isProtected: true,
       category: 'legal_attestation',
@@ -218,8 +227,12 @@ export function findMatchingOption(options = [], candidateValue) {
   if (typeof candidateValue === 'boolean') {
     const desired = candidateValue ? ['yes', 'true', '1'] : ['no', 'false', '0'];
     for (const opt of options) {
-      const valStr = String(opt.value || '').toLowerCase().trim();
-      const lblStr = String(opt.label || '').toLowerCase().trim();
+      const valStr = String(opt.value || '')
+        .toLowerCase()
+        .trim();
+      const lblStr = String(opt.label || '')
+        .toLowerCase()
+        .trim();
       if (desired.includes(valStr) || desired.includes(lblStr)) {
         return opt;
       }
@@ -240,8 +253,12 @@ export function findMatchingOption(options = [], candidateValue) {
 
   // 2. Case-insensitive match on value or label
   for (const opt of options) {
-    const valLower = String(opt.value || '').toLowerCase().trim();
-    const lblLower = String(opt.label || '').toLowerCase().trim();
+    const valLower = String(opt.value || '')
+      .toLowerCase()
+      .trim();
+    const lblLower = String(opt.label || '')
+      .toLowerCase()
+      .trim();
     if (valLower === cleanCand || lblLower === cleanCand) {
       return opt;
     }
@@ -257,8 +274,8 @@ export function setNativeValue(element, value) {
   if (!element) return;
   const isTextArea = (element.tagName || '').toUpperCase() === 'TEXTAREA';
   const prototype = isTextArea
-    ? (globalThis.HTMLTextAreaElement?.prototype || Object.getPrototypeOf(element))
-    : (globalThis.HTMLInputElement?.prototype || Object.getPrototypeOf(element));
+    ? globalThis.HTMLTextAreaElement?.prototype || Object.getPrototypeOf(element)
+    : globalThis.HTMLInputElement?.prototype || Object.getPrototypeOf(element);
 
   const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
   if (descriptor && descriptor.set) {
@@ -326,25 +343,16 @@ export class GenericAutofillEngine {
         : null) ||
       null;
 
-    const firstName =
-      rawCandidate.firstName ||
-      (fullName ? fullName.split(' ')[0] : null);
+    const firstName = rawCandidate.firstName || (fullName ? fullName.split(' ')[0] : null);
 
     const lastName =
-      rawCandidate.lastName ||
-      (fullName ? fullName.split(' ').slice(1).join(' ') : null);
+      rawCandidate.lastName || (fullName ? fullName.split(' ').slice(1).join(' ') : null);
 
     const email =
-      rawCandidate.canonicalEmail ||
-      rawCandidate.email ||
-      rawCandidate.candidateEmail ||
-      null;
+      rawCandidate.canonicalEmail || rawCandidate.email || rawCandidate.candidateEmail || null;
 
     const phone =
-      rawCandidate.phone ||
-      rawCandidate.phoneNumber ||
-      rawCandidate.candidatePhone ||
-      null;
+      rawCandidate.phone || rawCandidate.phoneNumber || rawCandidate.candidatePhone || null;
 
     const candidate = {
       ...rawCandidate,
@@ -385,15 +393,24 @@ export class GenericAutofillEngine {
       const normName = `${name} ${label} ${fieldId}`.toLowerCase();
 
       if (/first.*name|fname/i.test(normName)) {
-        resolvedRaw = candidate.firstName || (candidate.fullName || candidate.name || '').split(' ')[0] || null;
+        resolvedRaw =
+          candidate.firstName || (candidate.fullName || candidate.name || '').split(' ')[0] || null;
         source = 'candidate.firstName';
         confidence = 'HIGH';
       } else if (/last.*name|lname|surname/i.test(normName)) {
-        resolvedRaw = candidate.lastName || (candidate.fullName || candidate.name || '').split(' ').slice(1).join(' ') || null;
+        resolvedRaw =
+          candidate.lastName ||
+          (candidate.fullName || candidate.name || '').split(' ').slice(1).join(' ') ||
+          null;
         source = 'candidate.lastName';
         confidence = 'HIGH';
       } else if (/full.*name|your.*name|candidate.*name|\bname\b/i.test(normName)) {
-        resolvedRaw = candidate.fullName || candidate.name || (candidate.firstName ? `${candidate.firstName} ${candidate.lastName || ''}`.trim() : null);
+        resolvedRaw =
+          candidate.fullName ||
+          candidate.name ||
+          (candidate.firstName
+            ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+            : null);
         source = 'candidate.fullName';
         confidence = 'HIGH';
       } else if (/email/i.test(normName)) {
@@ -405,11 +422,12 @@ export class GenericAutofillEngine {
         source = 'candidate.phone';
         confidence = 'HIGH';
       } else if (/linkedin/i.test(normName)) {
-        resolvedRaw = candidate.linkedIn || candidate.linkedinUrl || (candidate.socials?.linkedin) || null;
+        resolvedRaw =
+          candidate.linkedIn || candidate.linkedinUrl || candidate.socials?.linkedin || null;
         source = 'candidate.linkedIn';
         confidence = 'HIGH';
       } else if (/github/i.test(normName)) {
-        resolvedRaw = candidate.github || candidate.githubUrl || (candidate.socials?.github) || null;
+        resolvedRaw = candidate.github || candidate.githubUrl || candidate.socials?.github || null;
         source = 'candidate.github';
         confidence = 'HIGH';
       } else if (/website|portfolio|url/i.test(normName)) {
@@ -423,10 +441,7 @@ export class GenericAutofillEngine {
         resolvedRaw = candidate.workAuthorization ?? true;
         source = 'candidate.workAuthorization';
         confidence = 'HIGH';
-      } else if (
-        protection.category === 'visa_sponsorship' ||
-        /sponsor|visa/i.test(normName)
-      ) {
+      } else if (protection.category === 'visa_sponsorship' || /sponsor|visa/i.test(normName)) {
         resolvedRaw = candidate.requiresSponsorship ?? false;
         source = 'candidate.requiresSponsorship';
         confidence = 'HIGH';
@@ -842,14 +857,18 @@ export class GenericAutofillEngine {
 
     if (action.metadata?.automationId) {
       try {
-        const elByAuto = doc.querySelector(`[data-automation-id="${action.metadata.automationId}"]`);
+        const elByAuto = doc.querySelector(
+          `[data-automation-id="${action.metadata.automationId}"]`
+        );
         if (elByAuto) return elByAuto;
       } catch {}
     }
 
     if (action.name) {
       try {
-        const elByPartial = doc.querySelector(`[name*="${action.name}" i], [id*="${action.name}" i]`);
+        const elByPartial = doc.querySelector(
+          `[name*="${action.name}" i], [id*="${action.name}" i]`
+        );
         if (elByPartial) return elByPartial;
       } catch {}
     }

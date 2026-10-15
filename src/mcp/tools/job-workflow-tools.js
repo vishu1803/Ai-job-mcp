@@ -189,14 +189,21 @@ export function registerJobWorkflowTools(
       const requested = params.applicationPackage;
       const candidateId = await resolveCandidateId(context, requested.candidateId, database);
       const approved = await workflowService.getAuthoritativeApplicationPackage({
-        tenantId: context.tenantId, userId: context.userId || context.id,
-        candidateId, applicationId: requested.applicationId,
-        packageVersion: requested.packageVersion, packageHash: requested.packageHash,
+        tenantId: context.tenantId,
+        userId: context.userId || context.id,
+        candidateId,
+        applicationId: requested.applicationId,
+        packageVersion: requested.packageVersion,
+        packageHash: requested.packageHash,
         role: context.role,
       });
-      const pkg = { ...approved.applicationPackage, applicationId: approved.applicationId,
-        packageVersion: approved.packageVersion, packageHash: approved.packageHash,
-        preparedAt: approved.preparedAt };
+      const pkg = {
+        ...approved.applicationPackage,
+        applicationId: approved.applicationId,
+        packageVersion: approved.packageVersion,
+        packageHash: approved.packageHash,
+        preparedAt: approved.preparedAt,
+      };
       const previewMarkdown = workflowService.createApplicationPreview(pkg);
 
       return {

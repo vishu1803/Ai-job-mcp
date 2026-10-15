@@ -82,8 +82,12 @@ export function findMatchingOption(options = [], candidateValue) {
   if (typeof candidateValue === 'boolean') {
     const desired = candidateValue ? ['yes', 'true', '1'] : ['no', 'false', '0'];
     for (const opt of options) {
-      const valStr = String(opt.value || '').toLowerCase().trim();
-      const lblStr = String(opt.label || '').toLowerCase().trim();
+      const valStr = String(opt.value || '')
+        .toLowerCase()
+        .trim();
+      const lblStr = String(opt.label || '')
+        .toLowerCase()
+        .trim();
       if (desired.includes(valStr) || desired.includes(lblStr)) {
         return opt;
       }
@@ -104,8 +108,12 @@ export function findMatchingOption(options = [], candidateValue) {
 
   // 2. Case-insensitive match on value or label
   for (const opt of options) {
-    const valLower = String(opt.value || '').toLowerCase().trim();
-    const lblLower = String(opt.label || '').toLowerCase().trim();
+    const valLower = String(opt.value || '')
+      .toLowerCase()
+      .trim();
+    const lblLower = String(opt.label || '')
+      .toLowerCase()
+      .trim();
     if (valLower === cleanCand || lblLower === cleanCand) {
       return opt;
     }
@@ -123,8 +131,8 @@ export function setNativeValue(element, value) {
   if (!element) return;
   const isTextArea = (element.tagName || '').toUpperCase() === 'TEXTAREA';
   const prototype = isTextArea
-    ? (globalThis.HTMLTextAreaElement?.prototype || Object.getPrototypeOf(element))
-    : (globalThis.HTMLInputElement?.prototype || Object.getPrototypeOf(element));
+    ? globalThis.HTMLTextAreaElement?.prototype || Object.getPrototypeOf(element)
+    : globalThis.HTMLInputElement?.prototype || Object.getPrototypeOf(element);
 
   const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
   if (descriptor && descriptor.set) {
@@ -191,7 +199,10 @@ export class GenericAutofillEngine extends AutofillEngineContract {
       throw new ValidationError('formSchema is required for planFill', 'MISSING_FORM_SCHEMA');
     }
     if (!applicationPackage) {
-      throw new ValidationError('applicationPackage is required for planFill', 'MISSING_APPLICATION_PACKAGE');
+      throw new ValidationError(
+        'applicationPackage is required for planFill',
+        'MISSING_APPLICATION_PACKAGE'
+      );
     }
 
     const validatedForm = PortalFormSchema.parse(formSchema);
@@ -266,7 +277,10 @@ export class GenericAutofillEngine extends AutofillEngineContract {
     };
     const answers = applicationPackage.answers || {};
     const prefs =
-      candidate.careerPreferences || candidate.jobPreferences || candidate.profileMetadata?.careerPreferences || {};
+      candidate.careerPreferences ||
+      candidate.jobPreferences ||
+      candidate.profileMetadata?.careerPreferences ||
+      {};
     const userCustom = candidate.profileMetadata?.userCustom || {};
     const contact = candidate.contact || {};
     const social = candidate.socialLinks || {};
@@ -303,7 +317,10 @@ export class GenericAutofillEngine extends AutofillEngineContract {
 
       // 1. Hidden fields handling (Security tokens MUST NEVER be overwritten)
       if (type === 'hidden') {
-        if (protection.category === 'security_token' || /csrf|token|state|nonce/i.test(descriptor)) {
+        if (
+          protection.category === 'security_token' ||
+          /csrf|token|state|nonce/i.test(descriptor)
+        ) {
           plannedActions.push(
             PlannedFieldActionSchema.parse({
               fieldId,
@@ -361,7 +378,8 @@ export class GenericAutofillEngine extends AutofillEngineContract {
 
       // Check explicit approved custom question answers first
       if (answers[fieldId] !== undefined) {
-        resolvedRaw = answers[fieldId]?.value !== undefined ? answers[fieldId].value : answers[fieldId];
+        resolvedRaw =
+          answers[fieldId]?.value !== undefined ? answers[fieldId].value : answers[fieldId];
         provenance = answers[fieldId]?.provenance || 'USER_PROVIDED';
         source = `answers.${fieldId}`;
         confidence = 'HIGH';
@@ -399,7 +417,9 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             contact.fullName ||
             applicationPackage.candidateName ||
             (contact.firstName ? `${contact.firstName} ${contact.lastName || ''}`.trim() : null) ||
-            (candidate.firstName ? `${candidate.firstName} ${candidate.lastName || ''}`.trim() : null);
+            (candidate.firstName
+              ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+              : null);
           if (resolvedRaw) {
             source = 'candidate.fullName';
             provenance = 'VERIFIED_PROFILE';
@@ -418,7 +438,8 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             confidence = 'HIGH';
           }
         } else if (/phone|mobile|tel/i.test(descriptor) || type === 'tel') {
-          resolvedRaw = candidate.phone || contact.phone || applicationPackage.candidatePhone || null;
+          resolvedRaw =
+            candidate.phone || contact.phone || applicationPackage.candidatePhone || null;
           if (resolvedRaw) {
             source = 'candidate.phone';
             provenance = 'VERIFIED_PROFILE';
@@ -503,7 +524,8 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             }
           }
         } else if (/notice[\s_-]?period|availability/i.test(descriptor)) {
-          const rawNotice = prefs.noticePeriod ?? userCustom.noticePeriod ?? candidate.noticePeriod ?? null;
+          const rawNotice =
+            prefs.noticePeriod ?? userCustom.noticePeriod ?? candidate.noticePeriod ?? null;
           if (rawNotice) {
             resolvedRaw = rawNotice;
             source = 'candidate.careerPreferences.noticePeriod';
@@ -511,7 +533,11 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             confidence = 'HIGH';
           }
         } else if (protection.category === 'work_authorization') {
-          const rawAuth = candidate.workAuthorization ?? prefs.workAuthorization ?? userCustom.workAuthorization ?? null;
+          const rawAuth =
+            candidate.workAuthorization ??
+            prefs.workAuthorization ??
+            userCustom.workAuthorization ??
+            null;
           if (rawAuth !== undefined && rawAuth !== null) {
             resolvedRaw = Array.isArray(rawAuth) ? rawAuth.join(', ') : rawAuth;
             source = 'candidate.careerPreferences.workAuthorization';
@@ -519,7 +545,12 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             confidence = 'HIGH';
           }
         } else if (protection.category === 'visa_sponsorship') {
-          const rawVisa = candidate.visaSponsorshipRequired ?? candidate.requiresSponsorship ?? prefs.visaSponsorshipRequired ?? userCustom.visaSponsorshipRequired ?? null;
+          const rawVisa =
+            candidate.visaSponsorshipRequired ??
+            candidate.requiresSponsorship ??
+            prefs.visaSponsorshipRequired ??
+            userCustom.visaSponsorshipRequired ??
+            null;
           if (rawVisa !== undefined && rawVisa !== null) {
             const strVal = String(rawVisa).trim().toUpperCase();
             resolvedRaw =
@@ -533,7 +564,8 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             confidence = 'HIGH';
           }
         } else if (protection.category === 'salary_expectation') {
-          const rawSalary = prefs.salaryFloor ?? prefs.targetSalary ?? userCustom.salaryFloor ?? null;
+          const rawSalary =
+            prefs.salaryFloor ?? prefs.targetSalary ?? userCustom.salaryFloor ?? null;
           if (rawSalary !== undefined && rawSalary !== null) {
             resolvedRaw = rawSalary;
             source = 'candidate.careerPreferences.salaryFloor';
@@ -656,7 +688,10 @@ export class GenericAutofillEngine extends AutofillEngineContract {
         confidence = 'HIGH';
       } else if (type === 'file') {
         action = 'UPLOAD';
-        if (typeof resolvedRaw === 'object' && (resolvedRaw.url || resolvedRaw.filename || resolvedRaw.documentId)) {
+        if (
+          typeof resolvedRaw === 'object' &&
+          (resolvedRaw.url || resolvedRaw.filename || resolvedRaw.documentId)
+        ) {
           sanitized = resolvedRaw.filename || resolvedRaw.title || resolvedRaw.url || 'resume.pdf';
           confidence = 'HIGH';
           verificationMethod = 'FILE_INPUT';
@@ -716,8 +751,15 @@ export class GenericAutofillEngine extends AutofillEngineContract {
       const groupDescriptor = `${group.groupId} ${group.label}`.toLowerCase();
       const isEdu = /education|school|university|degree/i.test(groupDescriptor);
       const isProj = /project/i.test(groupDescriptor);
-      const isExp = !isEdu && !isProj && /experience|history|job|work|employment/i.test(groupDescriptor);
-      const itemsSource = isEdu ? education : isExp ? workHistory : isProj ? (candidate.projects || workHistory) : [];
+      const isExp =
+        !isEdu && !isProj && /experience|history|job|work|employment/i.test(groupDescriptor);
+      const itemsSource = isEdu
+        ? education
+        : isExp
+          ? workHistory
+          : isProj
+            ? candidate.projects || workHistory
+            : [];
 
       const rows = [];
       for (const item of itemsSource) {
@@ -726,7 +768,8 @@ export class GenericAutofillEngine extends AutofillEngineContract {
           const fName = (f.name || '').toLowerCase();
           let fVal = null;
           if (isEdu) {
-            if (/school|university|institution/i.test(fName)) fVal = item.school || item.institution;
+            if (/school|university|institution/i.test(fName))
+              fVal = item.school || item.institution;
             else if (/degree/i.test(fName)) fVal = item.degree;
             else if (/field|major/i.test(fName)) fVal = item.fieldOfStudy || item.major;
           } else if (isExp) {
@@ -748,7 +791,13 @@ export class GenericAutofillEngine extends AutofillEngineContract {
               status: 'PLANNED',
               rawValue: fVal,
               sanitizedValue: sanitizeText(fVal),
-              source: isEdu ? 'candidate.education' : isExp ? 'candidate.workHistory' : isProj ? 'candidate.projects' : 'candidate',
+              source: isEdu
+                ? 'candidate.education'
+                : isExp
+                  ? 'candidate.workHistory'
+                  : isProj
+                    ? 'candidate.projects'
+                    : 'candidate',
               provenance: 'VERIFIED_PROFILE',
               confidence: fVal ? 'HIGH' : 'LOW',
               requiresUserReview: !fVal,
@@ -833,7 +882,10 @@ export class GenericAutofillEngine extends AutofillEngineContract {
       }
 
       // Safety check: Unknown fields must not be auto-filled
-      if (action.fieldType === 'UNKNOWN' && (action.action === 'FILL' || action.action === 'SELECT')) {
+      if (
+        action.fieldType === 'UNKNOWN' &&
+        (action.action === 'FILL' || action.action === 'SELECT')
+      ) {
         errors.push(`Unknown field "${action.fieldId}" cannot have automated fill action.`);
       }
     }
@@ -925,7 +977,9 @@ export class GenericAutofillEngine extends AutofillEngineContract {
             dispatchSyntheticEvents(element, ['change']);
           } else if (element.type === 'radio') {
             // Find all radios sharing name
-            const radios = doc.querySelectorAll ? doc.querySelectorAll(`input[type="radio"][name="${element.name}"]`) : [element];
+            const radios = doc.querySelectorAll
+              ? doc.querySelectorAll(`input[type="radio"][name="${element.name}"]`)
+              : [element];
             for (const r of radios) {
               const shouldCheck = r.value === planAction.sanitizedValue;
               if (r.checked !== shouldCheck) {
@@ -1015,7 +1069,12 @@ export class GenericAutofillEngine extends AutofillEngineContract {
     const mismatches = [];
 
     for (const action of validatedPlan.actions) {
-      if (action.action !== 'FILL' && action.action !== 'SELECT' && action.action !== 'CHECK' && action.action !== 'UNCHECK') {
+      if (
+        action.action !== 'FILL' &&
+        action.action !== 'SELECT' &&
+        action.action !== 'CHECK' &&
+        action.action !== 'UNCHECK'
+      ) {
         continue;
       }
 
@@ -1095,14 +1154,18 @@ export class GenericAutofillEngine extends AutofillEngineContract {
 
     if (action.metadata?.automationId) {
       try {
-        const elByAuto = doc.querySelector(`[data-automation-id="${action.metadata.automationId}"]`);
+        const elByAuto = doc.querySelector(
+          `[data-automation-id="${action.metadata.automationId}"]`
+        );
         if (elByAuto) return elByAuto;
       } catch {}
     }
 
     if (action.name) {
       try {
-        const elByPartial = doc.querySelector(`[name*="${action.name}" i], [id*="${action.name}" i]`);
+        const elByPartial = doc.querySelector(
+          `[name*="${action.name}" i], [id*="${action.name}" i]`
+        );
         if (elByPartial) return elByPartial;
       } catch {}
     }
@@ -1126,4 +1189,3 @@ export const genericAutofillEngine = new GenericAutofillEngine();
 /** Canonical Autofill Engine Exports (ARCH-060) */
 export const CanonicalAutofillEngine = GenericAutofillEngine;
 export const canonicalAutofillEngine = genericAutofillEngine;
-

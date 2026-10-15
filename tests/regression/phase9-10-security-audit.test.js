@@ -58,10 +58,7 @@ describe('Phase 9.10 — Final Security Audit & Submission Invariants', () => {
     const files = targetDirs.flatMap(walkDir);
     assert.ok(files.length > 10, 'Expected at least 10 production files to audit');
 
-    const forbiddenPatterns = [
-      /\.requestSubmit\s*\(/g,
-      /\.submit\s*\(\s*\)/g,
-    ];
+    const forbiddenPatterns = [/\.requestSubmit\s*\(/g, /\.submit\s*\(\s*\)/g];
 
     const violations = [];
     for (const file of files) {
@@ -112,7 +109,8 @@ describe('Phase 9.10 — Final Security Audit & Submission Invariants', () => {
 
     const files = targetDirs.flatMap(walkDir);
 
-    const submitClickRegex = /(?:submit|apply|send)Btn\.click\s*\(|querySelector\([^)]*submit[^)]*\)\.click\s*\(/gi;
+    const submitClickRegex =
+      /(?:submit|apply|send)Btn\.click\s*\(|querySelector\([^)]*submit[^)]*\)\.click\s*\(/gi;
     const violations = [];
 
     for (const file of files) {
@@ -162,10 +160,26 @@ describe('Phase 9.10 — Final Security Audit & Submission Invariants', () => {
       });
 
       assert.ok(result, `Adapter ${adapter.id} must return result`);
-      assert.strictEqual(result.handoffKit?.finalSubmitBlocked, true, `Adapter ${adapter.id} must set handoffKit.finalSubmitBlocked: true`);
-      assert.strictEqual(result.metadata?.autoSubmitBlocked, true, `Adapter ${adapter.id} must set metadata.autoSubmitBlocked: true`);
-      assert.notStrictEqual(result.status, 'SUBMITTED', `Adapter ${adapter.id} must never return status: SUBMITTED`);
-      assert.notStrictEqual(result.status, 'APPLIED', `Adapter ${adapter.id} must never return status: APPLIED`);
+      assert.strictEqual(
+        result.handoffKit?.finalSubmitBlocked,
+        true,
+        `Adapter ${adapter.id} must set handoffKit.finalSubmitBlocked: true`
+      );
+      assert.strictEqual(
+        result.metadata?.autoSubmitBlocked,
+        true,
+        `Adapter ${adapter.id} must set metadata.autoSubmitBlocked: true`
+      );
+      assert.notStrictEqual(
+        result.status,
+        'SUBMITTED',
+        `Adapter ${adapter.id} must never return status: SUBMITTED`
+      );
+      assert.notStrictEqual(
+        result.status,
+        'APPLIED',
+        `Adapter ${adapter.id} must never return status: APPLIED`
+      );
     }
   });
 

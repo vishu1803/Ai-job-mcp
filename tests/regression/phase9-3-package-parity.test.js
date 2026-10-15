@@ -345,8 +345,20 @@ describe('Phase 9.3 — Canonical Application Package Parity', () => {
         { fieldId: 'f4', name: 'email', label: 'Email Address', type: 'email', required: true },
         { fieldId: 'f5', name: 'phone', label: 'Phone Number', type: 'tel', required: true },
         { fieldId: 'f6', name: 'resume', label: 'Resume / CV', type: 'file', required: true },
-        { fieldId: 'f7', name: 'coverLetter', label: 'Cover Letter', type: 'file', required: false },
-        { fieldId: 'f8', name: 'linkedin', label: 'LinkedIn Profile', type: 'url', required: false },
+        {
+          fieldId: 'f7',
+          name: 'coverLetter',
+          label: 'Cover Letter',
+          type: 'file',
+          required: false,
+        },
+        {
+          fieldId: 'f8',
+          name: 'linkedin',
+          label: 'LinkedIn Profile',
+          type: 'url',
+          required: false,
+        },
         { fieldId: 'f9', name: 'github', label: 'GitHub Profile', type: 'url', required: false },
       ],
     });
@@ -369,8 +381,16 @@ describe('Phase 9.3 — Canonical Application Package Parity', () => {
         },
       },
       artifacts: {
-        resume: { filename: 'resume.pdf', url: 'https://example.com/resume.pdf', text: 'Resume markdown' },
-        coverLetter: { filename: 'cover.pdf', url: 'https://example.com/cover.pdf', text: 'Cover letter markdown' },
+        resume: {
+          filename: 'resume.pdf',
+          url: 'https://example.com/resume.pdf',
+          text: 'Resume markdown',
+        },
+        coverLetter: {
+          filename: 'cover.pdf',
+          url: 'https://example.com/cover.pdf',
+          text: 'Cover letter markdown',
+        },
       },
       tailoredResume: { markdownContent: 'Resume markdown', title: 'Resume' },
       coverLetter: { markdownContent: 'Cover letter markdown', title: 'Cover Letter' },
@@ -420,7 +440,12 @@ describe('Phase 9.3 — Canonical Application Package Parity', () => {
         { fieldId: 'last_name', name: 'last_name', label: 'Last Name', type: 'text' },
         { fieldId: 'email', name: 'email', label: 'Email', type: 'email' },
         { fieldId: 'phone', name: 'phone', label: 'Phone', type: 'tel' },
-        { fieldId: 'work_auth', name: 'work_authorization', label: 'Authorized to work in US?', type: 'checkbox' },
+        {
+          fieldId: 'work_auth',
+          name: 'work_authorization',
+          label: 'Authorized to work in US?',
+          type: 'checkbox',
+        },
       ],
     };
 
@@ -502,7 +527,11 @@ describe('Phase 9.3 — Canonical Application Package Parity', () => {
       'Unanswered custom question must strictly require human review'
     );
     assert.strictEqual(action.requiresUserReview, true);
-    assert.strictEqual(action.sanitizedValue, null, 'Never synthesize generative answers autonomously');
+    assert.strictEqual(
+      action.sanitizedValue,
+      null,
+      'Never synthesize generative answers autonomously'
+    );
   });
 
   it('TEST 6 — Anti-Tautological ATS Score Parity', async () => {

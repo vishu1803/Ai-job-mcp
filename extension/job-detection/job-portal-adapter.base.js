@@ -126,7 +126,10 @@ export class JobPortalAdapterBase {
           source: f.source || 'DOM',
           customQuestion: Boolean(f.customQuestion),
           verified: f.verified !== undefined ? Boolean(f.verified) : f.type !== 'UNKNOWN',
-          requiresUserReview: f.requiresUserReview !== undefined ? Boolean(f.requiresUserReview) : f.type === 'UNKNOWN',
+          requiresUserReview:
+            f.requiresUserReview !== undefined
+              ? Boolean(f.requiresUserReview)
+              : f.type === 'UNKNOWN',
           providerMetadata: f.providerMetadata || {},
           metadata: f.metadata || {},
         };

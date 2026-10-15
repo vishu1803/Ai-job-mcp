@@ -41,7 +41,10 @@ import {
   PortalAdapterContract,
   PortalFormSchema,
 } from '../../src/domain/portal/portal-adapter.contract.js';
-import { JobSourceAdapterContract, CanonicalJobSchema } from '../../src/domain/job/job-source-adapter.contract.js';
+import {
+  JobSourceAdapterContract,
+  CanonicalJobSchema,
+} from '../../src/domain/job/job-source-adapter.contract.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import { db } from '../../src/db/index.js';
 import { tenants, users, candidates, jobApplications } from '../../src/db/schema.js';
@@ -207,7 +210,10 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     assert.strictEqual(dummy.id, 'dummy-engine');
     assert.strictEqual(dummy.name, 'Dummy Engine');
     assert.rejects(async () => await dummy.planFill({}, {}), /planFill\(\) not implemented/);
-    assert.rejects(async () => await dummy.validateFillPlan({}, {}), /validateFillPlan\(\) not implemented/);
+    assert.rejects(
+      async () => await dummy.validateFillPlan({}, {}),
+      /validateFillPlan\(\) not implemented/
+    );
     assert.rejects(async () => await dummy.executeFill({}, {}), /executeFill\(\) not implemented/);
     assert.rejects(async () => await dummy.verifyFill({}, {}), /verifyFill\(\) not implemented/);
   });
@@ -301,7 +307,9 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_summary', name: 'summary', label: 'Professional Summary', type: 'textarea' }],
+      fields: [
+        { fieldId: 'f_summary', name: 'summary', label: 'Professional Summary', type: 'textarea' },
+      ],
     };
     const pkg = { answers: { summary: 'Line 1\nLine 2\nLine 3' } };
     const plan = await genericAutofillEngine.planFill(form, pkg);
@@ -354,7 +362,14 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_exp_years', name: 'years_experience', label: 'Years Experience', type: 'number' }],
+      fields: [
+        {
+          fieldId: 'f_exp_years',
+          name: 'years_experience',
+          label: 'Years Experience',
+          type: 'number',
+        },
+      ],
     };
     const pkg = { answers: { years_experience: '7' } };
     const plan = await genericAutofillEngine.planFill(form, pkg);
@@ -367,7 +382,14 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_start', name: 'available_start_date', label: 'Available Start Date', type: 'date' }],
+      fields: [
+        {
+          fieldId: 'f_start',
+          name: 'available_start_date',
+          label: 'Available Start Date',
+          type: 'date',
+        },
+      ],
     };
     const pkg = { answers: { available_start_date: '2026-11-01T00:00:00.000Z' } };
     const plan = await genericAutofillEngine.planFill(form, pkg);
@@ -446,7 +468,12 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
       portalId: 'p',
       formId: 'f',
       fields: [
-        { fieldId: 'f_remote', name: 'remote_preference', label: 'Remote preference', type: 'checkbox' },
+        {
+          fieldId: 'f_remote',
+          name: 'remote_preference',
+          label: 'Remote preference',
+          type: 'checkbox',
+        },
         { fieldId: 'f_newsletter', name: 'opt_newsletter', label: 'Newsletter', type: 'checkbox' },
       ],
     };
@@ -460,7 +487,10 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
   });
 
   test('TEST 15 — Checkbox group preserves multiple checkbox options', () => {
-    const opts = [{ label: 'Frontend', value: 'fe' }, { label: 'Backend', value: 'be' }];
+    const opts = [
+      { label: 'Frontend', value: 'fe' },
+      { label: 'Backend', value: 'be' },
+    ];
     const match = findMatchingOption(opts, 'Frontend');
     assert.strictEqual(match.value, 'fe');
   });
@@ -473,10 +503,23 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_resume', name: 'resume', label: 'Attach Resume', type: 'file', accept: '.pdf' }],
+      fields: [
+        {
+          fieldId: 'f_resume',
+          name: 'resume',
+          label: 'Attach Resume',
+          type: 'file',
+          accept: '.pdf',
+        },
+      ],
     };
     const pkg = {
-      artifacts: { resume: { filename: 'Alex_Rivera_Resume.pdf', url: 'https://cdn.example.com/resumes/1.pdf' } },
+      artifacts: {
+        resume: {
+          filename: 'Alex_Rivera_Resume.pdf',
+          url: 'https://cdn.example.com/resumes/1.pdf',
+        },
+      },
     };
     const plan = await genericAutofillEngine.planFill(form, pkg);
 
@@ -490,10 +533,20 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_cl', name: 'cover_letter', label: 'Attach Cover Letter', type: 'file', accept: '.pdf' }],
+      fields: [
+        {
+          fieldId: 'f_cl',
+          name: 'cover_letter',
+          label: 'Attach Cover Letter',
+          type: 'file',
+          accept: '.pdf',
+        },
+      ],
     };
     const pkg = {
-      artifacts: { coverLetter: { filename: 'Alex_Cover_Letter.pdf', url: 'https://cdn.example.com/cl/1.pdf' } },
+      artifacts: {
+        coverLetter: { filename: 'Alex_Cover_Letter.pdf', url: 'https://cdn.example.com/cl/1.pdf' },
+      },
     };
     const plan = await genericAutofillEngine.planFill(form, pkg);
 
@@ -505,7 +558,14 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_portfolio_doc', name: 'portfolio_pdf', label: 'Portfolio Document', type: 'file' }],
+      fields: [
+        {
+          fieldId: 'f_portfolio_doc',
+          name: 'portfolio_pdf',
+          label: 'Portfolio Document',
+          type: 'file',
+        },
+      ],
     };
     const pkg = { artifacts: {} }; // No portfolio file
     const plan = await genericAutofillEngine.planFill(form, pkg);
@@ -547,7 +607,9 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_strange', name: 'strange_elem', label: 'Custom Widget', type: 'UNKNOWN' }],
+      fields: [
+        { fieldId: 'f_strange', name: 'strange_elem', label: 'Custom Widget', type: 'UNKNOWN' },
+      ],
     };
     const plan = await genericAutofillEngine.planFill(form, { candidate: {} });
 
@@ -560,7 +622,14 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     const form = {
       portalId: 'p',
       formId: 'f',
-      fields: [{ fieldId: 'f_why', name: 'why_us', label: 'Why do you want to work here?', type: 'textarea' }],
+      fields: [
+        {
+          fieldId: 'f_why',
+          name: 'why_us',
+          label: 'Why do you want to work here?',
+          type: 'textarea',
+        },
+      ],
     };
     // Even if job posting has rich description, candidate package answers is empty
     const pkg = { candidate: {}, answers: {}, targetJob: { description: 'We are leaders in AI.' } };
@@ -603,19 +672,28 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
   });
 
   test('TEST 24 — Visa question protected', () => {
-    const protection = classifyProtectedField({ name: 'visa_sponsorship', label: 'Do you require visa sponsorship?' });
+    const protection = classifyProtectedField({
+      name: 'visa_sponsorship',
+      label: 'Do you require visa sponsorship?',
+    });
     assert.strictEqual(protection.isProtected, true);
     assert.strictEqual(protection.category, 'visa_sponsorship');
   });
 
   test('TEST 25 — Work authorization protected', () => {
-    const protection = classifyProtectedField({ name: 'work_authorization', label: 'Are you authorized to work in US?' });
+    const protection = classifyProtectedField({
+      name: 'work_authorization',
+      label: 'Are you authorized to work in US?',
+    });
     assert.strictEqual(protection.isProtected, true);
     assert.strictEqual(protection.category, 'work_authorization');
   });
 
   test('TEST 26 — Salary question protected', () => {
-    const protection = classifyProtectedField({ name: 'desired_salary', label: 'Desired annual compensation' });
+    const protection = classifyProtectedField({
+      name: 'desired_salary',
+      label: 'Desired annual compensation',
+    });
     assert.strictEqual(protection.isProtected, true);
     assert.strictEqual(protection.category, 'salary_expectation');
   });
@@ -650,7 +728,13 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
         },
       ],
       repeatedGroupActions: [],
-      summary: { totalFields: 1, autoFillableCount: 1, reviewCount: 0, skippedCount: 0, protectedCount: 0 },
+      summary: {
+        totalFields: 1,
+        autoFillableCount: 1,
+        reviewCount: 0,
+        skippedCount: 0,
+        protectedCount: 0,
+      },
     };
 
     const result = await genericAutofillEngine.executeFill(plan, { doc: mockDoc });
@@ -691,7 +775,11 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
   });
 
   test('TEST 30 — Post-fill verification confirms DOM values', async () => {
-    const inputEl = createMockDomInput({ id: 'email', name: 'email', value: 'verified@example.com' });
+    const inputEl = createMockDomInput({
+      id: 'email',
+      name: 'email',
+      value: 'verified@example.com',
+    });
     const mockDoc = createMockDomDoc([inputEl]);
 
     const plan = {
@@ -717,14 +805,33 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
 
   test('TEST 31 — Idempotent repeated execution leaves form in stable state', async () => {
     const inputEl = createMockDomInput({ id: 'username', name: 'username', value: '' });
-    const chkEl = createMockDomInput({ id: 'newsletter', name: 'newsletter', type: 'checkbox', checked: false });
+    const chkEl = createMockDomInput({
+      id: 'newsletter',
+      name: 'newsletter',
+      type: 'checkbox',
+      checked: false,
+    });
     const mockDoc = createMockDomDoc([inputEl, chkEl]);
 
     const plan = {
       planId: 'plan-idempotent',
       actions: [
-        { fieldId: 'username', fieldType: 'text', name: 'username', action: 'FILL', sanitizedValue: 'alex_r', status: 'PLANNED' },
-        { fieldId: 'newsletter', fieldType: 'checkbox', name: 'newsletter', action: 'CHECK', sanitizedValue: true, status: 'PLANNED' },
+        {
+          fieldId: 'username',
+          fieldType: 'text',
+          name: 'username',
+          action: 'FILL',
+          sanitizedValue: 'alex_r',
+          status: 'PLANNED',
+        },
+        {
+          fieldId: 'newsletter',
+          fieldType: 'checkbox',
+          name: 'newsletter',
+          action: 'CHECK',
+          sanitizedValue: true,
+          status: 'PLANNED',
+        },
       ],
       repeatedGroupActions: [],
       summary: {},
@@ -743,14 +850,28 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
 
   test('TEST 32 — Already-checked checkbox is not toggled off', async () => {
     let clicks = 0;
-    const chkEl = createMockDomInput({ id: 'chk_opt', name: 'chk_opt', type: 'checkbox', checked: true });
+    const chkEl = createMockDomInput({
+      id: 'chk_opt',
+      name: 'chk_opt',
+      type: 'checkbox',
+      checked: true,
+    });
     chkEl.addEventListener('click', () => clicks++);
 
     const mockDoc = createMockDomDoc([chkEl]);
 
     const plan = {
       planId: 'plan-chk',
-      actions: [{ fieldId: 'chk_opt', fieldType: 'checkbox', name: 'chk_opt', action: 'CHECK', sanitizedValue: true, status: 'PLANNED' }],
+      actions: [
+        {
+          fieldId: 'chk_opt',
+          fieldType: 'checkbox',
+          name: 'chk_opt',
+          action: 'CHECK',
+          sanitizedValue: true,
+          status: 'PLANNED',
+        },
+      ],
       repeatedGroupActions: [],
       summary: {},
     };
@@ -792,9 +913,7 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     };
     const pkg = {
       candidate: {
-        workHistory: [
-          { company: 'Stripe', title: 'Staff Engineer' },
-        ],
+        workHistory: [{ company: 'Stripe', title: 'Staff Engineer' }],
       },
     };
 
@@ -854,16 +973,20 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     };
     const pkg = {
       candidate: {
-        education: [
-          { school: 'Stanford University', degree: 'B.S. Computer Science' },
-        ],
+        education: [{ school: 'Stanford University', degree: 'B.S. Computer Science' }],
       },
     };
 
     const plan = await genericAutofillEngine.planFill(form, pkg);
     assert.strictEqual(plan.repeatedGroupActions[0].category, 'EDUCATION');
-    assert.strictEqual(plan.repeatedGroupActions[0].items[0][0].sanitizedValue, 'Stanford University');
-    assert.strictEqual(plan.repeatedGroupActions[0].items[0][1].sanitizedValue, 'B.S. Computer Science');
+    assert.strictEqual(
+      plan.repeatedGroupActions[0].items[0][0].sanitizedValue,
+      'Stanford University'
+    );
+    assert.strictEqual(
+      plan.repeatedGroupActions[0].items[0][1].sanitizedValue,
+      'B.S. Computer Science'
+    );
   });
 
   test('TEST 37 — No duplicate rows created across repeated planning', async () => {
@@ -931,7 +1054,11 @@ describe('Phase 8.3 — Generic Browser Form Autofill Engine', () => {
     await genericAutofillEngine.planFill(form, basePackage);
     const snapshotAfter = JSON.stringify(basePackage.candidateSnapshot || basePackage.candidate);
 
-    assert.strictEqual(snapshotBefore, snapshotAfter, 'Autofill planning must not mutate candidate truth');
+    assert.strictEqual(
+      snapshotBefore,
+      snapshotAfter,
+      'Autofill planning must not mutate candidate truth'
+    );
   });
 
   test('TEST 41 — Candidate evidence graph remains unchanged', () => {

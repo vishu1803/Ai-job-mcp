@@ -1562,13 +1562,21 @@ textarea:focus-visible {
 /* Print */
 /* The Studio workspace link adds a navigation item; keep the shared header usable. */
 @media (max-width: 1100px) {
-  .navbar .nav-links { display: none; }
-  .navbar .nav-mobile-toggle { display: inline-flex; }
+  .navbar .nav-links {
+    display: none;
+  }
+  .navbar .nav-mobile-toggle {
+    display: inline-flex;
+  }
 }
 @media (max-width: 600px) {
   .navbar .user-dropdown-btn > span,
-  .navbar .copilot-nav-btn span { display: none; }
-  .navbar .nav-actions { gap: 8px; }
+  .navbar .copilot-nav-btn span {
+    display: none;
+  }
+  .navbar .nav-actions {
+    gap: 8px;
+  }
 }
 @media print {
   .navbar,

@@ -97,7 +97,9 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
       applicationId: z.string().uuid().optional(),
       packageHash: z.string().length(64),
       destinationUrl: z.string().url(),
-      applicationPackage: ApplicationPackageSchema.optional().describe('Legacy context hints only; execution always loads the approved server snapshot. Omit to submit by ticket reference.'),
+      applicationPackage: ApplicationPackageSchema.optional().describe(
+        'Legacy context hints only; execution always loads the approved server snapshot. Omit to submit by ticket reference.'
+      ),
     }),
   },
   get_application_submission_status: {

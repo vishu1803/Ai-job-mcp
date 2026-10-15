@@ -44,7 +44,10 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
       if (
@@ -82,7 +85,8 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     const doc = context.doc || context.document;
-    const destinationUrl = context.destinationUrl || context.url || 'https://boards.greenhouse.io/job/apply';
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://boards.greenhouse.io/job/apply';
     const formId = 'greenhouse-application-form';
 
     const fields = [];
@@ -92,8 +96,24 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
     const steps = [];
 
     // Helper to push field safely
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -119,12 +139,24 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
       // 1. Core candidate fields
       const firstNameEl = doc.querySelector('#first_name, [name="first_name"]');
       if (firstNameEl) {
-        addField({ name: 'first_name', id: 'first_name', label: 'First Name', type: 'text', required: true });
+        addField({
+          name: 'first_name',
+          id: 'first_name',
+          label: 'First Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const lastNameEl = doc.querySelector('#last_name, [name="last_name"]');
       if (lastNameEl) {
-        addField({ name: 'last_name', id: 'last_name', label: 'Last Name', type: 'text', required: true });
+        addField({
+          name: 'last_name',
+          id: 'last_name',
+          label: 'Last Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const emailEl = doc.querySelector('#email, [name="email"]');
@@ -140,7 +172,13 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
       // 2. Attachments
       const resumeEl = doc.querySelector('#resume, input[name="resume"], [data-qa="resume"]');
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'resume', label: 'Resume/CV', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'resume',
+          label: 'Resume/CV',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -155,7 +193,13 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
 
       const coverLetterEl = doc.querySelector('#cover_letter, input[name="cover_letter"]');
       if (coverLetterEl) {
-        const fieldId = addField({ name: 'cover_letter', id: 'cover_letter', label: 'Cover Letter', type: 'file', required: false });
+        const fieldId = addField({
+          name: 'cover_letter',
+          id: 'cover_letter',
+          label: 'Cover Letter',
+          type: 'file',
+          required: false,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -169,19 +213,43 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
       }
 
       // 3. URLs
-      const linkedinEl = doc.querySelector('[name*="linkedin"], #job_application_answers_attributes_linkedin');
+      const linkedinEl = doc.querySelector(
+        '[name*="linkedin"], #job_application_answers_attributes_linkedin'
+      );
       if (linkedinEl) {
-        addField({ name: 'linkedin', id: 'linkedin', label: 'LinkedIn Profile', type: 'url', required: false });
+        addField({
+          name: 'linkedin',
+          id: 'linkedin',
+          label: 'LinkedIn Profile',
+          type: 'url',
+          required: false,
+        });
       }
 
-      const githubEl = doc.querySelector('[name*="github"], #job_application_answers_attributes_github');
+      const githubEl = doc.querySelector(
+        '[name*="github"], #job_application_answers_attributes_github'
+      );
       if (githubEl) {
-        addField({ name: 'github', id: 'github', label: 'GitHub Profile', type: 'url', required: false });
+        addField({
+          name: 'github',
+          id: 'github',
+          label: 'GitHub Profile',
+          type: 'url',
+          required: false,
+        });
       }
 
-      const websiteEl = doc.querySelector('[name*="website"], #job_application_answers_attributes_website');
+      const websiteEl = doc.querySelector(
+        '[name*="website"], #job_application_answers_attributes_website'
+      );
       if (websiteEl) {
-        addField({ name: 'website', id: 'website', label: 'Website / Portfolio', type: 'url', required: false });
+        addField({
+          name: 'website',
+          id: 'website',
+          label: 'Website / Portfolio',
+          type: 'url',
+          required: false,
+        });
       }
 
       // 4. Repeated groups: Education & Experience
@@ -226,7 +294,9 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
 
       // 5. Custom & Sensitive screening questions
       const customQuestionEls = doc.querySelectorAll
-        ? doc.querySelectorAll('.custom_question, [id^="job_application_answers_attributes"], [id^="custom_"], [name^="custom_"]')
+        ? doc.querySelectorAll(
+            '.custom_question, [id^="job_application_answers_attributes"], [id^="custom_"], [name^="custom_"]'
+          )
         : [];
       for (const qEl of customQuestionEls) {
         const qName = qEl.name || qEl.id || '';
@@ -286,19 +356,39 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
       }
 
       // 7. Multi-step detection
-      const stepIndicator = doc.querySelector('.step-indicator, [data-step-container], #step_container');
+      const stepIndicator = doc.querySelector(
+        '.step-indicator, [data-step-container], #step_container'
+      );
       if (stepIndicator) {
         isMultiStep = true;
         steps.push('step_personal', 'step_experience', 'step_questions', 'step_review');
       }
     } else {
       // Default canonical Greenhouse structure for headless / fixture mode
-      addField({ name: 'first_name', id: 'first_name', label: 'First Name', type: 'text', required: true });
-      addField({ name: 'last_name', id: 'last_name', label: 'Last Name', type: 'text', required: true });
+      addField({
+        name: 'first_name',
+        id: 'first_name',
+        label: 'First Name',
+        type: 'text',
+        required: true,
+      });
+      addField({
+        name: 'last_name',
+        id: 'last_name',
+        label: 'Last Name',
+        type: 'text',
+        required: true,
+      });
       addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
       addField({ name: 'phone', id: 'phone', label: 'Phone', type: 'tel', required: false });
 
-      const resId = addField({ name: 'resume', id: 'resume', label: 'Resume/CV', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'resume',
+        label: 'Resume/CV',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,
@@ -310,7 +400,13 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
         })
       );
 
-      const covId = addField({ name: 'cover_letter', id: 'cover_letter', label: 'Cover Letter', type: 'file', required: false });
+      const covId = addField({
+        name: 'cover_letter',
+        id: 'cover_letter',
+        label: 'Cover Letter',
+        type: 'file',
+        required: false,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: covId,
@@ -322,8 +418,20 @@ export class GreenhousePortalAdapter extends BasePortalAdapter {
         })
       );
 
-      addField({ name: 'linkedin', id: 'linkedin', label: 'LinkedIn Profile', type: 'url', required: false });
-      addField({ name: 'github', id: 'github', label: 'GitHub Profile', type: 'url', required: false });
+      addField({
+        name: 'linkedin',
+        id: 'linkedin',
+        label: 'LinkedIn Profile',
+        type: 'url',
+        required: false,
+      });
+      addField({
+        name: 'github',
+        id: 'github',
+        label: 'GitHub Profile',
+        type: 'url',
+        required: false,
+      });
       addField({ name: 'website', id: 'website', label: 'Website', type: 'url', required: false });
     }
 

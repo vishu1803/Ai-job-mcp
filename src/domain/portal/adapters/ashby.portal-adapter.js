@@ -42,10 +42,17 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
-      if (lower.includes('jobs.ashbyhq.com') || lower.includes('ashbyhq.com') || lower.includes('/ashby/')) {
+      if (
+        lower.includes('jobs.ashbyhq.com') ||
+        lower.includes('ashbyhq.com') ||
+        lower.includes('/ashby/')
+      ) {
         return true;
       }
     }
@@ -73,7 +80,8 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     const doc = context.doc || context.document;
-    const destinationUrl = context.destinationUrl || context.url || 'https://jobs.ashbyhq.com/company/job/apply';
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://jobs.ashbyhq.com/company/job/apply';
     const formId = 'ashby-application-form';
 
     const fields = [];
@@ -82,8 +90,24 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
     let isMultiStep = false;
     const steps = [];
 
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -107,7 +131,9 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
 
     if (doc && typeof doc.querySelector === 'function') {
       // 1. Core candidate fields (Ashby uses React-controlled name/email/phone)
-      const nameEl = doc.querySelector('input[name="name"], [data-testid="field-name"], input[name="fullName"]');
+      const nameEl = doc.querySelector(
+        'input[name="name"], [data-testid="field-name"], input[name="fullName"]'
+      );
       if (nameEl) {
         addField({ name: 'name', id: 'name', label: 'Full Name', type: 'text', required: true });
       }
@@ -117,15 +143,25 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
         addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
       }
 
-      const phoneEl = doc.querySelector('input[name="phoneNumber"], [data-testid="field-phone"], input[name="phone"]');
+      const phoneEl = doc.querySelector(
+        'input[name="phoneNumber"], [data-testid="field-phone"], input[name="phone"]'
+      );
       if (phoneEl) {
         addField({ name: 'phone', id: 'phone', label: 'Phone', type: 'tel', required: false });
       }
 
       // 2. Attachments
-      const resumeEl = doc.querySelector('#resume, input[name*="resume"], input[type="file"][name*="resume"], [data-testid="resume-upload"]');
+      const resumeEl = doc.querySelector(
+        '#resume, input[name*="resume"], input[type="file"][name*="resume"], [data-testid="resume-upload"]'
+      );
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'resume',
+          label: 'Resume',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -139,9 +175,17 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
       }
 
       // 3. Social & Portfolio Links
-      const linkedinEl = doc.querySelector('input[name*="linkedin"], [data-testid="field-linkedin"]');
+      const linkedinEl = doc.querySelector(
+        'input[name*="linkedin"], [data-testid="field-linkedin"]'
+      );
       if (linkedinEl) {
-        addField({ name: 'linkedin', id: 'linkedin', label: 'LinkedIn', type: 'url', required: false });
+        addField({
+          name: 'linkedin',
+          id: 'linkedin',
+          label: 'LinkedIn',
+          type: 'url',
+          required: false,
+        });
       }
 
       const githubEl = doc.querySelector('input[name*="github"], [data-testid="field-github"]');
@@ -150,7 +194,9 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
       }
 
       // 4. Custom questions
-      const customEls = doc.querySelectorAll ? doc.querySelectorAll('[data-testid^="custom-field-"], [name^="field-"]') : [];
+      const customEls = doc.querySelectorAll
+        ? doc.querySelectorAll('[data-testid^="custom-field-"], [name^="field-"]')
+        : [];
       for (const cEl of customEls) {
         const cName = cEl.name || cEl.getAttribute('data-testid') || '';
         const cLabel = (cEl.getAttribute('aria-label') || cEl.placeholder || cName).trim();
@@ -167,7 +213,9 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
       }
 
       // 5. Multi-step detection
-      const stepIndicator = doc.querySelector('[data-testid="application-step-indicator"], [data-step]');
+      const stepIndicator = doc.querySelector(
+        '[data-testid="application-step-indicator"], [data-step]'
+      );
       if (stepIndicator) {
         isMultiStep = true;
         steps.push('step_basic_info', 'step_questions', 'step_review');
@@ -178,7 +226,13 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
       addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
       addField({ name: 'phone', id: 'phone', label: 'Phone', type: 'tel', required: false });
 
-      const resId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'resume',
+        label: 'Resume',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,
@@ -190,7 +244,13 @@ export class AshbyPortalAdapter extends BasePortalAdapter {
         })
       );
 
-      addField({ name: 'linkedin', id: 'linkedin', label: 'LinkedIn', type: 'url', required: false });
+      addField({
+        name: 'linkedin',
+        id: 'linkedin',
+        label: 'LinkedIn',
+        type: 'url',
+        required: false,
+      });
       addField({ name: 'github', id: 'github', label: 'GitHub', type: 'url', required: false });
     }
 

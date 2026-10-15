@@ -43,7 +43,10 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
   canHandle(destination) {
     if (!destination) return false;
 
-    const url = typeof destination === 'string' ? destination : destination.url || destination.destinationUrl || '';
+    const url =
+      typeof destination === 'string'
+        ? destination
+        : destination.url || destination.destinationUrl || '';
     if (url) {
       const lower = url.toLowerCase();
       if (lower.includes('smartrecruiters.com') || lower.includes('/smartrecruiters/')) {
@@ -73,7 +76,8 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
    */
   async extractFormSchema(context = {}) {
     const doc = context.doc || context.document;
-    const destinationUrl = context.destinationUrl || context.url || 'https://jobs.smartrecruiters.com/company/job/apply';
+    const destinationUrl =
+      context.destinationUrl || context.url || 'https://jobs.smartrecruiters.com/company/job/apply';
     const formId = 'smartrecruiters-application-form';
 
     const fields = [];
@@ -82,8 +86,24 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
     let isMultiStep = false;
     const steps = [];
 
-    const addField = ({ name, id, label, type, required = false, isSensitive = false, customQuestion = false, options = [] }) => {
-      const fieldId = generateDeterministicFieldId({ formId, name, id, label, type, position: fields.length });
+    const addField = ({
+      name,
+      id,
+      label,
+      type,
+      required = false,
+      isSensitive = false,
+      customQuestion = false,
+      options = [],
+    }) => {
+      const fieldId = generateDeterministicFieldId({
+        formId,
+        name,
+        id,
+        label,
+        type,
+        position: fields.length,
+      });
       fields.push(
         PortalFieldSchema.parse({
           fieldId,
@@ -107,14 +127,28 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
 
     if (doc && typeof doc.querySelector === 'function') {
       // 1. Personal Details
-      const firstNameEl = doc.querySelector('input[name="firstName"], [data-qa="first-name-input"]');
+      const firstNameEl = doc.querySelector(
+        'input[name="firstName"], [data-qa="first-name-input"]'
+      );
       if (firstNameEl) {
-        addField({ name: 'firstName', id: 'firstName', label: 'First Name', type: 'text', required: true });
+        addField({
+          name: 'firstName',
+          id: 'firstName',
+          label: 'First Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const lastNameEl = doc.querySelector('input[name="lastName"], [data-qa="last-name-input"]');
       if (lastNameEl) {
-        addField({ name: 'lastName', id: 'lastName', label: 'Last Name', type: 'text', required: true });
+        addField({
+          name: 'lastName',
+          id: 'lastName',
+          label: 'Last Name',
+          type: 'text',
+          required: true,
+        });
       }
 
       const emailEl = doc.querySelector('input[name="email"], [data-qa="email-input"]');
@@ -122,15 +156,31 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
         addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
       }
 
-      const phoneEl = doc.querySelector('input[name="phoneNumber"], [data-qa="phone-number-input"]');
+      const phoneEl = doc.querySelector(
+        'input[name="phoneNumber"], [data-qa="phone-number-input"]'
+      );
       if (phoneEl) {
-        addField({ name: 'phoneNumber', id: 'phoneNumber', label: 'Phone Number', type: 'tel', required: false });
+        addField({
+          name: 'phoneNumber',
+          id: 'phoneNumber',
+          label: 'Phone Number',
+          type: 'tel',
+          required: false,
+        });
       }
 
       // 2. Attachments
-      const resumeEl = doc.querySelector('[data-qa="resume-upload"], input[type="file"][name*="resume"]');
+      const resumeEl = doc.querySelector(
+        '[data-qa="resume-upload"], input[type="file"][name*="resume"]'
+      );
       if (resumeEl) {
-        const fieldId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+        const fieldId = addField({
+          name: 'resume',
+          id: 'resume',
+          label: 'Resume',
+          type: 'file',
+          required: true,
+        });
         attachments.push(
           PortalAttachmentFieldSchema.parse({
             fieldId,
@@ -153,19 +203,37 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
             minItems: 0,
             maxItems: 10,
             fields: [
-              PortalFieldSchema.parse({ fieldId: 'sr_title', name: 'title', label: 'Title', type: 'text', required: true, source: 'SMARTRECRUITERS_DOM' }),
-              PortalFieldSchema.parse({ fieldId: 'sr_company', name: 'company', label: 'Company', type: 'text', required: true, source: 'SMARTRECRUITERS_DOM' }),
+              PortalFieldSchema.parse({
+                fieldId: 'sr_title',
+                name: 'title',
+                label: 'Title',
+                type: 'text',
+                required: true,
+                source: 'SMARTRECRUITERS_DOM',
+              }),
+              PortalFieldSchema.parse({
+                fieldId: 'sr_company',
+                name: 'company',
+                label: 'Company',
+                type: 'text',
+                required: true,
+                source: 'SMARTRECRUITERS_DOM',
+              }),
             ],
           })
         );
       }
 
       // 4. Screening & Sensitive Questions
-      const questionEls = doc.querySelectorAll ? doc.querySelectorAll('.screening-question, [data-qa^="question-"]') : [];
+      const questionEls = doc.querySelectorAll
+        ? doc.querySelectorAll('.screening-question, [data-qa^="question-"]')
+        : [];
       for (const qEl of questionEls) {
         const qName = qEl.name || qEl.getAttribute('data-qa') || '';
         const qLabel = (qEl.getAttribute('aria-label') || qEl.placeholder || qName).trim();
-        const isSensitive = /authorization|visa|sponsor|salary|veteran|disability/i.test(qName + ' ' + qLabel);
+        const isSensitive = /authorization|visa|sponsor|salary|veteran|disability/i.test(
+          qName + ' ' + qLabel
+        );
         addField({
           name: qName,
           id: qEl.id || qName,
@@ -185,12 +253,36 @@ export class SmartRecruitersPortalAdapter extends BasePortalAdapter {
       }
     } else {
       // Default canonical SmartRecruiters structure
-      addField({ name: 'firstName', id: 'firstName', label: 'First Name', type: 'text', required: true });
-      addField({ name: 'lastName', id: 'lastName', label: 'Last Name', type: 'text', required: true });
+      addField({
+        name: 'firstName',
+        id: 'firstName',
+        label: 'First Name',
+        type: 'text',
+        required: true,
+      });
+      addField({
+        name: 'lastName',
+        id: 'lastName',
+        label: 'Last Name',
+        type: 'text',
+        required: true,
+      });
       addField({ name: 'email', id: 'email', label: 'Email', type: 'email', required: true });
-      addField({ name: 'phoneNumber', id: 'phoneNumber', label: 'Phone Number', type: 'tel', required: false });
+      addField({
+        name: 'phoneNumber',
+        id: 'phoneNumber',
+        label: 'Phone Number',
+        type: 'tel',
+        required: false,
+      });
 
-      const resId = addField({ name: 'resume', id: 'resume', label: 'Resume', type: 'file', required: true });
+      const resId = addField({
+        name: 'resume',
+        id: 'resume',
+        label: 'Resume',
+        type: 'file',
+        required: true,
+      });
       attachments.push(
         PortalAttachmentFieldSchema.parse({
           fieldId: resId,

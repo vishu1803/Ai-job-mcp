@@ -14,7 +14,8 @@ const SYNTHETIC_DATA = {
     location: 'Seattle, WA',
     github: 'github.com/avance-infra',
     linkedin: 'linkedin.com/in/elenarostova',
-    summary: '10+ years architecting high-throughput distributed streaming engines, Raft consensus protocols, and Kubernetes infrastructure in Go and Rust. Proven track record leading core platform teams scaling Tier-0 services to 55M requests/second.',
+    summary:
+      '10+ years architecting high-throughput distributed streaming engines, Raft consensus protocols, and Kubernetes infrastructure in Go and Rust. Proven track record leading core platform teams scaling Tier-0 services to 55M requests/second.',
   },
 
   targetJob: {
@@ -25,7 +26,8 @@ const SYNTHETIC_DATA = {
     location: 'Remote (US) / Seattle, WA',
     salary: '$240,000 - $285,000 + Equity',
     postedDaysAgo: 3,
-    requirementsSummary: 'Seeking a Staff Systems Engineer to architect next-generation distributed consensus storage, write eBPF network proxies, and lead Kubernetes operator development in Go and Rust.',
+    requirementsSummary:
+      'Seeking a Staff Systems Engineer to architect next-generation distributed consensus storage, write eBPF network proxies, and lead Kubernetes operator development in Go and Rust.',
   },
 
   keywords: {
@@ -71,10 +73,14 @@ const SYNTHETIC_DATA = {
             id: 'prop-1',
             status: 'PENDING',
             targetKeyword: 'eBPF Routing',
-            originalText: 'Architected global edge proxy processing 55 million HTTP requests per second with sub-5ms P99 latency across 310 data centers.',
-            proposedText: 'Engineered zero-copy eBPF socket routing engine for global edge proxy, processing 55M req/sec with sub-5ms P99 latency while reducing transit compute expenditure by $14.2M.',
-            formula: 'Accomplished [eBPF socket routing] as measured by [55M req/sec and $14.2M reduction] by doing [zero-copy kernel redirection].',
-            rationale: 'Substantiates direct transit cost reduction using verified eBPF commit e3f7556, matching CloudScale requirement for kernel optimization.',
+            originalText:
+              'Architected global edge proxy processing 55 million HTTP requests per second with sub-5ms P99 latency across 310 data centers.',
+            proposedText:
+              'Engineered zero-copy eBPF socket routing engine for global edge proxy, processing 55M req/sec with sub-5ms P99 latency while reducing transit compute expenditure by $14.2M.',
+            formula:
+              'Accomplished [eBPF socket routing] as measured by [55M req/sec and $14.2M reduction] by doing [zero-copy kernel redirection].',
+            rationale:
+              'Substantiates direct transit cost reduction using verified eBPF commit e3f7556, matching CloudScale requirement for kernel optimization.',
             evidenceId: 'ev-1',
           },
         },
@@ -171,7 +177,8 @@ const SYNTHETIC_DATA = {
       id: 'proj-1',
       name: 'Titan Consensus Engine',
       repo: 'avance-infra/titan-raft',
-      description: 'Open-source multi-raft consensus library written in Rust achieving 450,000 IOPS benchmarked on NVMe clusters.',
+      description:
+        'Open-source multi-raft consensus library written in Rust achieving 450,000 IOPS benchmarked on NVMe clusters.',
       keywords: ['Rust', 'Raft'],
       evidenceId: 'ev-2',
       truthStatus: 'VERIFIED',
@@ -182,7 +189,8 @@ const SYNTHETIC_DATA = {
       id: 'proj-2',
       name: 'k8s-mesh-operator',
       repo: 'avance-infra/k8s-mesh',
-      description: 'Custom Kubernetes CRD operator and eBPF daemonset providing transparent mTLS mesh routing.',
+      description:
+        'Custom Kubernetes CRD operator and eBPF daemonset providing transparent mTLS mesh routing.',
       keywords: ['Go', 'Kubernetes', 'eBPF'],
       evidenceId: 'ev-1',
       truthStatus: 'VERIFIED',
@@ -220,7 +228,8 @@ const SYNTHETIC_DATA = {
       degree: 'Master of Science in Computer Science',
       school: 'University of Washington',
       year: 'May 2011',
-      details: 'Thesis: Asynchronous Byzantine Fault Tolerance in Geographically Distributed Clusters.',
+      details:
+        'Thesis: Asynchronous Byzantine Fault Tolerance in Geographically Distributed Clusters.',
       included: true,
     },
     {
@@ -261,7 +270,8 @@ const SYNTHETIC_DATA = {
       author: 'Elena Rostova <elena@avance-infra.dev>',
       date: '2023-11-04T11:20:05Z',
       verifiedAt: '2026-10-14T09:12:00Z',
-      commitMessage: 'perf(wal): achieve 450,000 IOPS with direct I/O zero-allocation circular buffer',
+      commitMessage:
+        'perf(wal): achieve 450,000 IOPS with direct I/O zero-allocation circular buffer',
       diffSnippet: `@@ -88,6 +88,12 @@ impl WriteAheadLog {
 +    pub fn append_batch_direct(&mut self, entries: &[LogEntry]) -> Result<u64> {
 +        // Direct NVMe sector alignment avoiding OS page cache copy overhead
@@ -301,7 +311,11 @@ const SYNTHETIC_DATA = {
       breakdown: {
         requirements: { score: 48, max: 50, note: '6 of 6 core required technologies verified' },
         seniority: { score: 25, max: 25, note: '10+ years exceeds 8+ year Staff threshold' },
-        projects: { score: 15, max: 15, note: 'Titan Raft and k8s-mesh closely mirror CloudScale scope' },
+        projects: {
+          score: 15,
+          max: 15,
+          note: 'Titan Raft and k8s-mesh closely mirror CloudScale scope',
+        },
       },
     },
     writingQuality: {

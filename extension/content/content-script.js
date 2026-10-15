@@ -748,33 +748,36 @@ if (!window.__aicareershub_content_script_loaded) {
       }
 
       if (message.type === 'GET_FORM_STATE' || message.type === 'REFRESH_FORM_SCHEMA') {
-        performFormDetection().then((formInfo) => {
-          sendResponse({
-            success: true,
-            hasForm: Boolean(formInfo && formInfo.hasForm),
-            formId: formInfo?.formId || 'application-form',
-            step: formInfo?.step || 1,
-            totalSteps: formInfo?.totalSteps || 1,
-            stepTitle: formInfo?.stepTitle || '',
-            fields: formInfo?.fields || [],
-            repeatedGroups: formInfo?.repeatedGroups || [],
-            url: window.location.href,
+        performFormDetection()
+          .then((formInfo) => {
+            sendResponse({
+              success: true,
+              hasForm: Boolean(formInfo && formInfo.hasForm),
+              formId: formInfo?.formId || 'application-form',
+              step: formInfo?.step || 1,
+              totalSteps: formInfo?.totalSteps || 1,
+              stepTitle: formInfo?.stepTitle || '',
+              fields: formInfo?.fields || [],
+              repeatedGroups: formInfo?.repeatedGroups || [],
+              url: window.location.href,
+            });
+          })
+          .catch((err) => {
+            sendResponse({
+              success: false,
+              hasForm: false,
+              fields: [],
+              error: err.message,
+            });
           });
-        }).catch((err) => {
-          sendResponse({
-            success: false,
-            hasForm: false,
-            fields: [],
-            error: err.message,
-          });
-        });
         return true;
       }
 
       if (message.type === 'PLAN_FILL') {
         (async () => {
           try {
-            const formInfo = message.form && message.form.fields ? message.form : await performFormDetection();
+            const formInfo =
+              message.form && message.form.fields ? message.form : await performFormDetection();
             const mod = await getAutofillEngineModule();
             if (!mod || !mod.genericAutofillEngine) {
               sendResponse({ success: false, error: 'Autofill engine unavailable' });

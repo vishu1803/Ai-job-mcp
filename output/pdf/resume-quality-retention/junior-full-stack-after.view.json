@@ -2,13 +2,7 @@
   "documentId": "c8f17bac-319a-4236-a427-6f7033de6ad5",
   "schemaVersion": "2.0.0",
   "targetRole": "Full-stack Developer",
-  "sectionOrder": [
-    "HEADER",
-    "SUMMARY",
-    "EDUCATION",
-    "PROJECTS",
-    "SKILLS"
-  ],
+  "sectionOrder": ["HEADER", "SUMMARY", "EDUCATION", "PROJECTS", "SKILLS"],
   "candidateIdentity": {
     "displayName": "Synthetic junior Candidate",
     "headline": "Target role: Full-stack Developer",
@@ -138,24 +132,13 @@
       "description": "An API for a library lending workflow.",
       "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
       "liveUrl": null,
-      "technologies": [
-        "TypeScript",
-        "Node.js",
-        "PostgreSQL"
-      ],
+      "technologies": ["TypeScript", "Node.js", "PostgreSQL"],
       "bullets": [
         {
           "text": "Implemented lending endpoints with TypeScript and Node.js, and wrote integration tests for checkout validation and error responses.",
           "evidenceRefs": [],
-          "matchedRequirementIds": [
-            "req-2809b2f2ff81",
-            "req-acded19bfc43",
-            "req-34e85e1313e6"
-          ],
-          "composedFromFactIds": [
-            "eda115f72abff8ccfcbfeaf9",
-            "a1386829f15d7b8e870cf328"
-          ],
+          "matchedRequirementIds": ["req-2809b2f2ff81", "req-acded19bfc43", "req-34e85e1313e6"],
+          "composedFromFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
           "provenanceStatus": "CLAIMED"
         }
       ],
@@ -165,10 +148,7 @@
       "authoritativeRankingRank": 1,
       "selectedBecause": "Ranked #1 for target role",
       "projectMatchedRequirements": [],
-      "selectedBulletFactIds": [
-        "eda115f72abff8ccfcbfeaf9",
-        "a1386829f15d7b8e870cf328"
-      ]
+      "selectedBulletFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"]
     }
   ],
   "experience": [],
@@ -211,16 +191,8 @@
     "targetCompany": null,
     "candidateArchetype": "FRESHER",
     "pageTarget": "ONE_PAGE_STRICT",
-    "sectionOrder": [
-      "HEADER",
-      "SUMMARY",
-      "SKILLS",
-      "PROJECTS",
-      "EDUCATION"
-    ],
-    "selectedProjectIds": [
-      "00000000-0000-4000-8000-000000000004"
-    ],
+    "sectionOrder": ["HEADER", "SUMMARY", "SKILLS", "PROJECTS", "EDUCATION"],
+    "selectedProjectIds": ["00000000-0000-4000-8000-000000000004"],
     "selectedSkillSlugs": [
       "node-js",
       "typescript",
@@ -421,89 +393,59 @@
     "claimPlanSummary": [
       {
         "claimId": "claim-00000000-0000-4000-8000-000000000004-implementation-d01eea55a4",
-        "factIds": [
-          "a1386829f15d7b8e870cf328"
-        ],
-        "semanticDimensions": [
-          "implementation",
-          "integration"
-        ],
+        "factIds": ["a1386829f15d7b8e870cf328"],
+        "semanticDimensions": ["implementation", "integration"],
         "jobRelevance": 100,
         "selected": true
       },
       {
         "claimId": "claim-00000000-0000-4000-8000-000000000004-indiv-ac00190d25",
-        "factIds": [
-          "e8a921c8c2f52ea0ff7395cb"
-        ],
-        "semanticDimensions": [
-          "capability",
-          "capability"
-        ],
+        "factIds": ["e8a921c8c2f52ea0ff7395cb"],
+        "semanticDimensions": ["capability", "capability"],
         "jobRelevance": 100,
         "selected": true
       },
       {
         "claimId": "fallback-claim-eda115f72abff8ccfcbfeaf9",
-        "factIds": [
-          "eda115f72abff8ccfcbfeaf9",
-          "a1386829f15d7b8e870cf328"
-        ],
-        "semanticDimensions": [
-          "implementation",
-          "integration"
-        ],
+        "factIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
+        "semanticDimensions": ["implementation", "integration"],
         "jobRelevance": 0,
         "selected": true
       },
       {
         "claimId": "fallback-claim-e8a921c8c2f52ea0ff7395cb",
-        "factIds": [
-          "e8a921c8c2f52ea0ff7395cb"
-        ],
-        "semanticDimensions": [
-          "capability"
-        ],
+        "factIds": ["e8a921c8c2f52ea0ff7395cb"],
+        "semanticDimensions": ["capability"],
         "jobRelevance": 0,
         "selected": true
       },
       {
         "claimId": "omitted-eda115f72abff8ccfcbfeaf9",
-        "factIds": [
-          "eda115f72abff8ccfcbfeaf9"
-        ],
+        "factIds": ["eda115f72abff8ccfcbfeaf9"],
         "selected": false,
         "omissionReason": "UNSUBSTANTIATED"
       },
       {
         "claimId": "omitted-a1386829f15d7b8e870cf328",
-        "factIds": [
-          "a1386829f15d7b8e870cf328"
-        ],
+        "factIds": ["a1386829f15d7b8e870cf328"],
         "selected": false,
         "omissionReason": "FRAGMENT_BULLET"
       },
       {
         "claimId": "omitted-e8a921c8c2f52ea0ff7395cb",
-        "factIds": [
-          "e8a921c8c2f52ea0ff7395cb"
-        ],
+        "factIds": ["e8a921c8c2f52ea0ff7395cb"],
         "selected": false,
         "omissionReason": "FRAGMENT_BULLET"
       },
       {
         "claimId": "omitted-e8a921c8c2f52ea0ff7395cb",
-        "factIds": [
-          "e8a921c8c2f52ea0ff7395cb"
-        ],
+        "factIds": ["e8a921c8c2f52ea0ff7395cb"],
         "selected": false,
         "omissionReason": "FRAGMENT_BULLET"
       },
       {
         "claimId": "omitted-1a8046f1501f57e8d9c94315",
-        "factIds": [
-          "1a8046f1501f57e8d9c94315"
-        ],
+        "factIds": ["1a8046f1501f57e8d9c94315"],
         "selected": false,
         "omissionReason": "CAPACITY_LIMIT"
       }
@@ -516,13 +458,8 @@
       }
     ],
     "pdfSummary": {
-      "renderedClaimIds": [
-        "bullet-1"
-      ],
-      "renderedFactIds": [
-        "eda115f72abff8ccfcbfeaf9",
-        "a1386829f15d7b8e870cf328"
-      ]
+      "renderedClaimIds": ["bullet-1"],
+      "renderedFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"]
     },
     "requirementCoverage": {
       "requirements": [
@@ -598,9 +535,7 @@
           "coveredByFactIds": []
         }
       ],
-      "selectedProjectIds": [
-        "00000000-0000-4000-8000-000000000004"
-      ],
+      "selectedProjectIds": ["00000000-0000-4000-8000-000000000004"],
       "selectedFactIds": [
         "1a8046f1501f57e8d9c94315",
         "a1386829f15d7b8e870cf328",
@@ -614,9 +549,7 @@
         "id": "req-fde7dbde2067",
         "text": "NestJS",
         "normalizedConcept": "nestjs",
-        "aliases": [
-          "nestjs"
-        ],
+        "aliases": ["nestjs"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -627,9 +560,7 @@
         "id": "req-e47eeb4ef728",
         "text": "Flask",
         "normalizedConcept": "flask",
-        "aliases": [
-          "flask"
-        ],
+        "aliases": ["flask"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -640,9 +571,7 @@
         "id": "req-2809b2f2ff81",
         "text": "TypeScript",
         "normalizedConcept": "typescript",
-        "aliases": [
-          "typescript"
-        ],
+        "aliases": ["typescript"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -653,9 +582,7 @@
         "id": "req-acded19bfc43",
         "text": "Node.js",
         "normalizedConcept": "node.js",
-        "aliases": [
-          "node.js"
-        ],
+        "aliases": ["node.js"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -666,9 +593,7 @@
         "id": "req-34e85e1313e6",
         "text": "PostgreSQL",
         "normalizedConcept": "postgresql",
-        "aliases": [
-          "postgresql"
-        ],
+        "aliases": ["postgresql"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -679,9 +604,7 @@
         "id": "req-319a32d333db",
         "text": "Docker",
         "normalizedConcept": "docker",
-        "aliases": [
-          "docker"
-        ],
+        "aliases": ["docker"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -692,9 +615,7 @@
         "id": "req-44407571a645",
         "text": "Python",
         "normalizedConcept": "python",
-        "aliases": [
-          "python"
-        ],
+        "aliases": ["python"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -705,9 +626,7 @@
         "id": "req-6c6a47e31602",
         "text": "React",
         "normalizedConcept": "react",
-        "aliases": [
-          "react"
-        ],
+        "aliases": ["react"],
         "class": "TECHNOLOGY",
         "importance": "REQUIRED",
         "weight": 1,
@@ -838,22 +757,15 @@
       }
     ],
     "projectRemovalRecords": [],
-    "selectedProjectIds": [
-      "00000000-0000-4000-8000-000000000004"
-    ],
-    "renderedProjectIds": [
-      "00000000-0000-4000-8000-000000000004"
-    ],
+    "selectedProjectIds": ["00000000-0000-4000-8000-000000000004"],
+    "renderedProjectIds": ["00000000-0000-4000-8000-000000000004"],
     "selectedFactIds": [
       "1a8046f1501f57e8d9c94315",
       "a1386829f15d7b8e870cf328",
       "e8a921c8c2f52ea0ff7395cb",
       "eda115f72abff8ccfcbfeaf9"
     ],
-    "renderedFactIds": [
-      "eda115f72abff8ccfcbfeaf9",
-      "a1386829f15d7b8e870cf328"
-    ],
+    "renderedFactIds": ["eda115f72abff8ccfcbfeaf9", "a1386829f15d7b8e870cf328"],
     "authoritativeEligibleProjectCount": 1
   }
 }

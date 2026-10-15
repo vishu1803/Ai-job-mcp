@@ -232,9 +232,7 @@ describe('Phase 9.2 — Extension Runtime Connection (Real Browser E2E)', () => 
     assert.ok(cdpReady, 'Chrome failed to respond on CDP port');
 
     // Deterministic extension ID derived from extension manifest key
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8')
-    );
+    const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf8'));
     const buf = Buffer.from(manifest.key, 'base64');
     const hash = crypto.createHash('sha256').update(buf).digest();
     extensionId = Array.from(hash.slice(0, 16))
@@ -302,7 +300,10 @@ describe('Phase 9.2 — Extension Runtime Connection (Real Browser E2E)', () => 
     assert.strictEqual(formState.success, true);
     assert.strictEqual(formState.hasForm, true);
     assert.ok(Array.isArray(formState.fields), 'formState.fields must be an array');
-    assert.ok(formState.fields.length >= 6, `Expected at least 6 fields, got ${formState.fields.length}`);
+    assert.ok(
+      formState.fields.length >= 6,
+      `Expected at least 6 fields, got ${formState.fields.length}`
+    );
 
     const fieldNames = formState.fields.map((f) => f.name || f.id);
     assert.ok(fieldNames.includes('first_name'), 'first_name must be detected');
@@ -317,24 +318,27 @@ describe('Phase 9.2 — Extension Runtime Connection (Real Browser E2E)', () => 
     const backgroundPage = await context.newPage();
     await backgroundPage.goto(`chrome-extension://${extensionId}/sidebar/sidebar.html`);
 
-    const planResult = await backgroundPage.evaluate(async (pkg) => {
-      const tabs = await chrome.tabs.query({});
-      const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
+    const planResult = await backgroundPage.evaluate(
+      async (pkg) => {
+        const tabs = await chrome.tabs.query({});
+        const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
 
-      return new Promise((resolve) => {
-        chrome.tabs.sendMessage(
-          applyTab.id,
-          {
-            type: 'PLAN_FILL',
-            applicationPackage: pkg,
-            sensitiveConfirmed: true,
-          },
-          (response) => {
-            resolve(response);
-          }
-        );
-      });
-    }, { candidate: mockCandidate });
+        return new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            applyTab.id,
+            {
+              type: 'PLAN_FILL',
+              applicationPackage: pkg,
+              sensitiveConfirmed: true,
+            },
+            (response) => {
+              resolve(response);
+            }
+          );
+        });
+      },
+      { candidate: mockCandidate }
+    );
 
     await backgroundPage.close();
 
@@ -365,36 +369,47 @@ describe('Phase 9.2 — Extension Runtime Connection (Real Browser E2E)', () => 
     const backgroundPage = await context.newPage();
     await backgroundPage.goto(`chrome-extension://${extensionId}/sidebar/sidebar.html`);
 
-    const execResult = await backgroundPage.evaluate(async (pkg) => {
-      const tabs = await chrome.tabs.query({});
-      const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
+    const execResult = await backgroundPage.evaluate(
+      async (pkg) => {
+        const tabs = await chrome.tabs.query({});
+        const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
 
-      // 1. Plan
-      const planRes = await new Promise((resolve) => {
-        chrome.tabs.sendMessage(
-          applyTab.id,
-          { type: 'PLAN_FILL', applicationPackage: pkg, sensitiveConfirmed: true },
-          resolve
-        );
-      });
+        // 1. Plan
+        const planRes = await new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            applyTab.id,
+            { type: 'PLAN_FILL', applicationPackage: pkg, sensitiveConfirmed: true },
+            resolve
+          );
+        });
 
-      // 2. Execute
-      return new Promise((resolve) => {
-        chrome.tabs.sendMessage(
-          applyTab.id,
-          { type: 'EXECUTE_FILL', plan: planRes.plan, sensitiveConfirmed: true },
-          resolve
-        );
-      });
-    }, { candidate: mockCandidate });
+        // 2. Execute
+        return new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            applyTab.id,
+            { type: 'EXECUTE_FILL', plan: planRes.plan, sensitiveConfirmed: true },
+            resolve
+          );
+        });
+      },
+      { candidate: mockCandidate }
+    );
 
     await backgroundPage.close();
 
     assert.strictEqual(execResult.success, true);
     assert.strictEqual(execResult.finalSubmitBlocked, true, 'Final submit MUST remain blocked');
     assert.ok(execResult.executionResult.summary.executed >= 5, 'Must execute at least 5 fields');
-    assert.strictEqual(execResult.verificationResult.verified, true, 'Verification pass must succeed');
-    assert.strictEqual(execResult.verificationResult.mismatches.length, 0, 'Zero verification mismatches');
+    assert.strictEqual(
+      execResult.verificationResult.verified,
+      true,
+      'Verification pass must succeed'
+    );
+    assert.strictEqual(
+      execResult.verificationResult.mismatches.length,
+      0,
+      'Zero verification mismatches'
+    );
 
     // 4. Assert actual DOM values directly in the real Chrome webpage
     const firstNameVal = await formPage.inputValue('#first_name');
@@ -418,26 +433,29 @@ describe('Phase 9.2 — Extension Runtime Connection (Real Browser E2E)', () => 
     const backgroundPage = await context.newPage();
     await backgroundPage.goto(`chrome-extension://${extensionId}/sidebar/sidebar.html`);
 
-    const verifyResult = await backgroundPage.evaluate(async (pkg) => {
-      const tabs = await chrome.tabs.query({});
-      const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
+    const verifyResult = await backgroundPage.evaluate(
+      async (pkg) => {
+        const tabs = await chrome.tabs.query({});
+        const applyTab = tabs.find((t) => t.url && t.url.includes('/apply'));
 
-      const planRes = await new Promise((resolve) => {
-        chrome.tabs.sendMessage(
-          applyTab.id,
-          { type: 'PLAN_FILL', applicationPackage: pkg, sensitiveConfirmed: true },
-          resolve
-        );
-      });
+        const planRes = await new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            applyTab.id,
+            { type: 'PLAN_FILL', applicationPackage: pkg, sensitiveConfirmed: true },
+            resolve
+          );
+        });
 
-      return new Promise((resolve) => {
-        chrome.tabs.sendMessage(
-          applyTab.id,
-          { type: 'VERIFY_FILL', plan: planRes.plan },
-          resolve
-        );
-      });
-    }, { candidate: mockCandidate });
+        return new Promise((resolve) => {
+          chrome.tabs.sendMessage(
+            applyTab.id,
+            { type: 'VERIFY_FILL', plan: planRes.plan },
+            resolve
+          );
+        });
+      },
+      { candidate: mockCandidate }
+    );
 
     await backgroundPage.close();
 

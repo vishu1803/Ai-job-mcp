@@ -136,7 +136,9 @@ try {
   `);
 
   if (dupCheck.rows.length > 0) {
-    throw new Error(`Duplicate installation_ids still exist after quarantine: ${JSON.stringify(dupCheck.rows)}`);
+    throw new Error(
+      `Duplicate installation_ids still exist after quarantine: ${JSON.stringify(dupCheck.rows)}`
+    );
   }
   console.log('Confirmed 0 duplicate installation_ids remaining in resource_connections.');
 

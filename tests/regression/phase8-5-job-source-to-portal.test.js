@@ -31,9 +31,7 @@ import {
   GenericCareerSiteAdapter,
   registerAllPortalAdapters,
 } from '../../src/domain/portal/adapters/index.js';
-import {
-  PortalAdapterRegistry,
-} from '../../src/domain/portal/portal-adapter-registry.js';
+import { PortalAdapterRegistry } from '../../src/domain/portal/portal-adapter-registry.js';
 import {
   PortalFormSchema,
   ApplicationStepSchema,
@@ -43,9 +41,7 @@ import {
   IframeScopeSchema,
   PortalApplicationStateMachine,
 } from '../../src/domain/portal/portal-adapter.contract.js';
-import {
-  BasePortalAdapter,
-} from '../../src/domain/portal/base-portal-adapter.js';
+import { BasePortalAdapter } from '../../src/domain/portal/base-portal-adapter.js';
 import {
   GenericAutofillEngine,
   genericAutofillEngine,
@@ -169,15 +165,33 @@ describe('Phase 8.5 — Job Source to Application Portal Resolution', () => {
 
     it('TEST 9 — Fallback Order: 1. Exact ATS -> 2. Registered Family -> 3. Generic -> 4. Unsupported', () => {
       // 1. Exact ATS
-      assert.strictEqual(registry.resolve('https://boards.greenhouse.io/job')?.id, 'greenhouse-portal-adapter');
+      assert.strictEqual(
+        registry.resolve('https://boards.greenhouse.io/job')?.id,
+        'greenhouse-portal-adapter'
+      );
       assert.strictEqual(registry.resolve('https://jobs.lever.co/job')?.id, 'lever-portal-adapter');
-      assert.strictEqual(registry.resolve('https://jobs.ashbyhq.com/job')?.id, 'ashby-portal-adapter');
-      assert.strictEqual(registry.resolve('https://company.myworkdayjobs.com/job')?.id, 'workday-portal-adapter');
-      assert.strictEqual(registry.resolve('https://jobs.smartrecruiters.com/job')?.id, 'smartrecruiters-portal-adapter');
-      assert.strictEqual(registry.resolve('https://careers-corp.icims.com/job')?.id, 'icims-portal-adapter');
+      assert.strictEqual(
+        registry.resolve('https://jobs.ashbyhq.com/job')?.id,
+        'ashby-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://company.myworkdayjobs.com/job')?.id,
+        'workday-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://jobs.smartrecruiters.com/job')?.id,
+        'smartrecruiters-portal-adapter'
+      );
+      assert.strictEqual(
+        registry.resolve('https://careers-corp.icims.com/job')?.id,
+        'icims-portal-adapter'
+      );
 
       // 2. Generic Career Site Fallback
-      assert.strictEqual(registry.resolve('https://careers.unknownstartup.com/apply')?.id, 'generic-career-site-adapter');
+      assert.strictEqual(
+        registry.resolve('https://careers.unknownstartup.com/apply')?.id,
+        'generic-career-site-adapter'
+      );
 
       // 3. Null / Invalid Destination yields null
       assert.strictEqual(registry.resolve(null), null);
@@ -217,7 +231,11 @@ describe('Phase 8.5 — Job Source to Application Portal Resolution', () => {
         commonDeps
       );
       assert.ok(fitResult, 'analyze_job_fit must produce a non-null result');
-      assert.strictEqual(fitResult.overallFit.atsScore, 69.25, 'Computed ATS score must equal 69.25');
+      assert.strictEqual(
+        fitResult.overallFit.atsScore,
+        69.25,
+        'Computed ATS score must equal 69.25'
+      );
       assert.strictEqual(fitResult.overallFit.scoreBreakdown.requiredSkillsScore, 35.0);
     });
 

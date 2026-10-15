@@ -169,10 +169,7 @@ or related field must be completed.`;
   // TEST 4 — Single-line required education
   // ---------------------------------------------------------------------------
   it('TEST 4 — Single-line required education variants resolve to REQUIRED and required=true', async () => {
-    const variants = [
-      "Bachelor's degree required",
-      "Bachelor's degree is required",
-    ];
+    const variants = ["Bachelor's degree required", "Bachelor's degree is required"];
 
     for (const variant of variants) {
       // Direct parser
@@ -260,12 +257,7 @@ JavaScript, React, Node.js, PostgreSQL, REST APIs, Git.`;
     const input = `Preferred:
 Next.js, Docker, TypeScript, FastAPI.`;
 
-    const expectedPreferredSkills = [
-      'next-js',
-      'docker',
-      'typescript',
-      'fastapi',
-    ];
+    const expectedPreferredSkills = ['next-js', 'docker', 'typescript', 'fastapi'];
 
     // 1. Direct JobDescriptionParser
     const parsed = await JobDescriptionParser.parse({ rawText: input });
@@ -308,9 +300,7 @@ Next.js, Docker, TypeScript, FastAPI.`;
     // Required skills
     const requiredSlugs = ['javascript', 'react', 'node-js', 'postgresql', 'rest-api', 'git'];
     for (const slug of requiredSlugs) {
-      const skill = parsed.requirements.find(
-        (r) => r.category === 'SKILL' && r.skillSlug === slug
-      );
+      const skill = parsed.requirements.find((r) => r.category === 'SKILL' && r.skillSlug === slug);
       assert.ok(skill, `Required skill ${slug} must be extracted`);
       assert.equal(skill.importance, 'REQUIRED', `Skill ${slug} must be REQUIRED`);
     }
@@ -318,9 +308,7 @@ Next.js, Docker, TypeScript, FastAPI.`;
     // Preferred skills
     const preferredSlugs = ['next-js', 'docker', 'typescript', 'fastapi'];
     for (const slug of preferredSlugs) {
-      const skill = parsed.requirements.find(
-        (r) => r.category === 'SKILL' && r.skillSlug === slug
-      );
+      const skill = parsed.requirements.find((r) => r.category === 'SKILL' && r.skillSlug === slug);
       assert.ok(skill, `Preferred skill ${slug} must be extracted`);
       assert.equal(skill.importance, 'PREFERRED', `Skill ${slug} must be PREFERRED`);
     }
