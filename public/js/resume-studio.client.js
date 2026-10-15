@@ -1,3 +1,5 @@
+import { connectStudioDocuments } from './resume-studio-documents.client.js';
+import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js';
 /**
  * @file Resume Studio Client-Side Controller (Slice 3: AI Proposals & Safe Conflict Merge)
  *
@@ -67,14 +69,10 @@
   const fitBandEl = document.getElementById('valFitBand');
   const kwCoverageEl = document.getElementById('valKwCoverage');
   const kwDetailEl = document.getElementById('valKwDetail');
-  const writingScoreEl = document.getElementById('valWritingScore');
-  const writingDetailEl = document.getElementById('valWritingDetail');
-  const parseabilityScoreEl = document.getElementById('valParseabilityScore');
 
   // Tabs & Panels
   const tabButtons = document.querySelectorAll('.rs-tab-btn');
   const tabPanels = document.querySelectorAll('.rs-tab-panel');
-  const liveDocumentPreviewEl = document.getElementById('liveDocumentPreview');
   const reqListEl = document.getElementById('reqListContainer');
   const projectListEl = document.getElementById('projectListContainer');
   const writingContainerEl = document.getElementById('writingDiagnosticsContainer');
@@ -94,6 +92,28 @@
   // State Management
   // =========================================================================
   let currentDraft = null;
+  let savedDraft = null;
+  let saveTask = null;
+  let decisionBusy = false;
+  let restoreBusy = false;
+  const busyDisabled = new WeakMap();
+  function setInteractionBusy(value) {
+    restoreBusy = value;
+    for (const field of [
+      ...structuredEditorContainer.querySelectorAll('input,textarea,button'),
+      btnCreateDraft,
+      btnOpenModular,
+    ]) {
+      if (value) {
+        busyDisabled.set(field, field.disabled);
+        field.disabled = true;
+      } else if (busyDisabled.has(field)) {
+        field.disabled = busyDisabled.get(field);
+        busyDisabled.delete(field);
+      }
+    }
+    structuredEditorCard.setAttribute('aria-busy', String(value));
+  }
   let currentRevision = 1;
   let isSaving = false;
   let hasConflict = false;
@@ -118,6 +138,20 @@
 
   // Read-only state check
   const isReadOnly = container?.dataset?.readonly === 'true';
+  const documents = connectStudioDocuments({
+    state: () => ({
+      draft: currentDraft,
+      pending: isSaving || pendingEdits.size > 0 || hasSelectionChanged(),
+      readonly: isReadOnly,
+      conflict: hasConflict,
+    }),
+    save: saveDraft,
+    csrf: getCsrfToken,
+    message: showAlert,
+    onConflict: handleRevisionConflict,
+    onRestore: initializeDraft,
+    setInteractionBusy,
+  });
 
   // CSRF retrieval
   function getCsrfToken() {
@@ -161,6 +195,7 @@
     saveStatusEl.style.display = 'inline-flex';
     saveStatusEl.className = `rs-save-status rs-save-${state}`;
     saveStatusTextEl.textContent = message;
+    document.getElementById('btnRetrySave').hidden = state !== 'failed';
   }
 
   // Character Counter
@@ -183,24 +218,91 @@
   }
 
   // Tab Navigation
+  document.querySelector('.rs-tab-nav').setAttribute('role', 'tablist');
+  tabPanels.forEach((panel) => panel.setAttribute('role', 'tabpanel'));
   tabButtons.forEach((btn) => {
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-controls', btn.dataset.tab);
+    btn.setAttribute('aria-selected', String(btn.classList.contains('active')));
+    btn.tabIndex = btn.classList.contains('active') ? 0 : -1;
+    btn.addEventListener('keydown', (event) => {
+      const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+      if (!keys.includes(event.key)) return;
+      event.preventDefault();
+      const buttons = [...tabButtons],
+        index = buttons.indexOf(btn);
+      const next =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? buttons.length - 1
+            : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next].focus();
+      buttons[next].click();
+    });
     btn.addEventListener('click', () => {
       const targetId = btn.dataset.tab;
       tabButtons.forEach((b) => b.classList.remove('active'));
       tabPanels.forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
+      tabButtons.forEach((button) => {
+        button.setAttribute('aria-selected', String(button === btn));
+        button.tabIndex = button === btn ? 0 : -1;
+      });
       const targetPanel = document.getElementById(targetId);
       if (targetPanel) targetPanel.classList.add('active');
     });
   });
 
   // Drawer Controls
+  let layer = null,
+    previousFocus = null;
+  function focusLayer(element) {
+    layer = element;
+    previousFocus = document.activeElement;
+    element.setAttribute('role', 'dialog');
+    element.setAttribute('aria-modal', 'true');
+    splitWorkspace.inert = true;
+    document.querySelector('.rs-header').inert = true;
+    element.querySelector('button,input,textarea,a[href]')?.focus();
+  }
+  function releaseLayer() {
+    if (!layer) return;
+    layer = null;
+    splitWorkspace.inert = false;
+    document.querySelector('.rs-header').inert = false;
+    previousFocus?.focus();
+  }
+  document.addEventListener('keydown', (event) => {
+    if (!layer) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeAllDrawers();
+      closeConflictModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const items = [...layer.querySelectorAll('button,input,textarea,a[href]')].filter(
+      (el) => !el.disabled && el.getClientRects().length
+    );
+    const first = items[0],
+      last = items.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  });
   function openDrawer(drawer) {
     if (!drawer) return;
     closeAllDrawers();
     drawer.classList.add('open');
     if (drawerBackdrop) drawerBackdrop.classList.add('open');
     document.body.style.overflow = 'hidden';
+    focusLayer(drawer);
   }
 
   function closeAllDrawers() {
@@ -209,10 +311,28 @@
     });
     if (drawerBackdrop) drawerBackdrop.classList.remove('open');
     document.body.style.overflow = '';
+    releaseLayer();
   }
 
-  if (btnOpenDiagnostics) btnOpenDiagnostics.addEventListener('click', () => openDrawer(drawerDiagnostics));
-  if (btnOpenEvidence) btnOpenEvidence.addEventListener('click', () => openDrawer(drawerEvidence));
+  if (btnOpenDiagnostics)
+    btnOpenDiagnostics.addEventListener('click', () => openDrawer(drawerDiagnostics));
+  if (btnOpenEvidence)
+    btnOpenEvidence.addEventListener('click', () => {
+      if (currentDraft) {
+        const host = document.getElementById('evidenceItemsContainer');
+        host.replaceChildren();
+        const note = document.createElement('p');
+        note.textContent =
+          'This draft was cloned from your reviewed master, version ' +
+          currentDraft.sourceVersion +
+          '. Its statements are candidate-reported claims. Wording edits do not independently verify them.';
+        const link = document.createElement('a');
+        link.href = '/resumes/' + currentDraft.sourceResumeId;
+        link.textContent = 'Open original master';
+        host.append(note, link);
+      }
+      openDrawer(drawerEvidence);
+    });
   if (btnOpenModular) btnOpenModular.addEventListener('click', () => openDrawer(drawerModular));
   if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeAllDrawers);
 
@@ -236,8 +356,9 @@
       const newLeftWidth = e.clientX - workspaceRect.left;
       const totalWidth = workspaceRect.width;
       const pct = (newLeftWidth / totalWidth) * 100;
-      if (pct >= 25 && pct <= 75) {
+      if (pct >= 30 && pct <= 70) {
         leftPane.style.width = `${pct}%`;
+        divider.setAttribute('aria-valuenow', String(Math.round(pct)));
       }
     });
 
@@ -278,7 +399,9 @@
   // Draft Lifecycle Operations
   // =========================================================================
   function initializeDraft(draft) {
-    currentDraft = draft;
+    clearAlert();
+    currentDraft = structuredClone(draft);
+    savedDraft = structuredClone(draft);
     currentRevision = typeof draft.revision === 'number' ? draft.revision : 1;
     hasConflict = false;
     pendingEdits.clear();
@@ -317,16 +440,16 @@
     }
 
     if (draft.jobTarget) {
-      if (jobTitleInput && !jobTitleInput.value && draft.jobTarget.title) {
+      if (jobTitleInput && draft.jobTarget.title) {
         jobTitleInput.value = draft.jobTarget.title;
       }
-      if (jobCompanyInput && !jobCompanyInput.value && draft.jobTarget.company) {
+      if (jobCompanyInput && draft.jobTarget.company) {
         jobCompanyInput.value = draft.jobTarget.company;
       }
-      if (jobUrlInput && !jobUrlInput.value && draft.jobTarget.sourceUrl) {
+      if (jobUrlInput && draft.jobTarget.sourceUrl) {
         jobUrlInput.value = draft.jobTarget.sourceUrl;
       }
-      if (jobDescTextarea && !jobDescTextarea.value && draft.jobTarget.rawDescription) {
+      if (jobDescTextarea && draft.jobTarget.rawDescription) {
         jobDescTextarea.value = draft.jobTarget.rawDescription;
         updateCharCount();
       }
@@ -335,12 +458,18 @@
     if (structuredEditorCard) {
       structuredEditorCard.style.display = 'block';
     }
+    document.getElementById('rsJobDetails').open = false;
 
+    for (const field of [jobTitleInput, jobCompanyInput, jobUrlInput, jobDescTextarea])
+      if (field) field.readOnly = true;
     renderStructuredEditor(draft);
     renderLiveDocumentPreview(draft);
     renderModularDrawer();
 
     setSaveStatus('saved', 'All changes saved');
+    documents.loaded();
+    loadProposals(draft.id);
+    refreshDraftDiagnostics();
 
     const tabDoc = document.getElementById('tabDocumentPreview');
     if (tabDoc) tabDoc.click();
@@ -348,6 +477,11 @@
 
   async function createDraft() {
     clearAlert();
+    if (isReadOnly || restoreBusy) return;
+    if (currentDraft) {
+      await saveDraft();
+      if (hasConflict || pendingEdits.size || hasSelectionChanged()) return;
+    }
 
     const resumeId = baseResumeSelect ? baseResumeSelect.value : null;
     if (!resumeId) {
@@ -388,9 +522,9 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'x-csrf-token': csrfToken,
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
         credentials: 'include',
         body: JSON.stringify(payload),
@@ -404,7 +538,9 @@
         } else if (response.status === 403) {
           showAlert(json?.error?.message || 'Access denied or CSRF token invalid.');
         } else if (response.status === 404) {
-          showAlert(json?.error?.message || 'Base master resume not found or unlinked to candidate.');
+          showAlert(
+            json?.error?.message || 'Base master resume not found or unlinked to candidate.'
+          );
         } else if (response.status === 409) {
           showAlert(json?.error?.message || 'Master resume snapshot is unavailable or not ready.');
         } else {
@@ -440,8 +576,8 @@
       const response = await fetch(`/api/v1/resume-studio/drafts/${encodeURIComponent(draftId)}`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
+          Accept: 'application/json',
+          Origin: window.location.origin,
         },
         credentials: 'include',
       });
@@ -473,18 +609,15 @@
   // Autosave & Concurrency Control (expectedRevision)
   // =========================================================================
   function queueTextEdit(nodeId, newText) {
-    if (!currentDraft || isReadOnly || hasConflict) return;
+    if (!currentDraft || isReadOnly || hasConflict || restoreBusy) return;
 
     pendingEdits.set(nodeId, { nodeId, text: newText });
 
     // Invalidate active proposal on this node if candidate manually edited text
-    if (activeProposals.has(nodeId)) {
-      const proposal = activeProposals.get(nodeId);
-      proposal.status = 'STALE';
-      renderProposalCard(nodeId, proposal);
-    }
+    for (const [id, proposal] of activeProposals) renderProposalCard(id, proposal);
 
     applyLocalTextEditToModel(nodeId, newText);
+    updateRoleLabels();
     renderLiveDocumentPreview(currentDraft);
 
     setSaveStatus('unsaved', 'Unsaved changes');
@@ -496,7 +629,7 @@
   }
 
   function toggleSelection(kind, id, isIncluded) {
-    if (!currentDraft || isReadOnly || hasConflict) return;
+    if (!currentDraft || isReadOnly || hasConflict || restoreBusy) return;
 
     const set = activeSelection[kind];
     if (!set) return;
@@ -514,6 +647,7 @@
     } else {
       set.delete(id);
     }
+    for (const [node, proposal] of activeProposals) renderProposalCard(node, proposal);
 
     renderLiveDocumentPreview(currentDraft);
     renderModularDrawer();
@@ -526,7 +660,15 @@
     }, 300);
   }
 
-  async function saveDraft() {
+  function saveDraft() {
+    if (saveTask) return saveTask;
+    saveTask = performSaveDraft().finally(() => {
+      saveTask = null;
+    });
+    return saveTask;
+  }
+
+  async function performSaveDraft() {
     if (!currentDraft || isSaving || hasConflict || isReadOnly) return;
 
     if (pendingEdits.size === 0 && !hasSelectionChanged()) {
@@ -557,17 +699,20 @@
     const csrfToken = getCsrfToken();
 
     try {
-      const response = await fetch(`/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'x-csrf-token': csrfToken,
-          'Origin': window.location.origin,
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'x-csrf-token': csrfToken,
+            Origin: window.location.origin,
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        }
+      );
 
       const json = await response.json().catch(() => null);
 
@@ -599,24 +744,36 @@
       // Success 200 OK
       isSaving = false;
       if (json && json.success && json.data) {
-        currentDraft = json.data;
+        savedDraft = structuredClone(json.data);
+        clearAlert();
+        currentDraft = structuredClone(json.data);
         currentRevision = currentDraft.revision;
 
         for (const [nodeId, edit] of inFlightEdits.entries()) {
           if (pendingEdits.get(nodeId)?.text === edit.text) {
             pendingEdits.delete(nodeId);
+            const node = nodesById.get(nodeId),
+              field = structuredEditorContainer.querySelector(
+                `.rs-edit-input[data-node-id="${nodeId}"]`
+              );
+            if (node && field) field.value = getNodeText(currentDraft.structuredResume, node.path);
           }
         }
+        for (const edit of pendingEdits.values()) applyLocalTextEditToModel(edit.nodeId, edit.text);
+        updateRoleLabels();
 
         if (revisionBadgeEl) {
           revisionBadgeEl.textContent = `Rev ${currentRevision}`;
         }
 
         if (pendingEdits.size > 0 || hasSelectionChanged()) {
-          saveDraft();
+          await performSaveDraft();
         } else {
           setSaveStatus('saved', 'All changes saved');
+          documents.schedule();
+          refreshDraftDiagnostics();
         }
+        for (const [node, proposal] of activeProposals) renderProposalCard(node, proposal);
       }
     } catch (err) {
       isSaving = false;
@@ -627,12 +784,7 @@
 
   function hasSelectionChanged() {
     if (!currentDraft || !currentDraft.selection) return false;
-    const baseSel = currentDraft.selection;
-    if (activeSelection.experienceIds.size !== (baseSel.experienceIds?.length || 0)) return true;
-    if (activeSelection.projectIds.size !== (baseSel.projectIds?.length || 0)) return true;
-    if (activeSelection.bulletIds.size !== (baseSel.bulletIds?.length || 0)) return true;
-    if (activeSelection.skillIds.size !== (baseSel.skillIds?.length || 0)) return true;
-    return false;
+    return selectionKeys.some((key) => !sameIds(activeSelection[key], savedDraft.selection[key]));
   }
 
   function applyLocalTextEditToModel(nodeId, newText) {
@@ -647,6 +799,23 @@
       target = target[path[i]];
     }
     target[path[path.length - 1]] = newText;
+    if (path[0] === 'experience' && path[2] === 'endDate' && newText?.trim())
+      target.isCurrent = /^(present|current|ongoing)$/i.test(newText.trim());
+  }
+  function updateRoleLabels() {
+    for (const label of structuredEditorContainer.querySelectorAll('[data-role-index]')) {
+      const role = currentDraft.structuredResume.experience[Number(label.dataset.roleIndex)];
+      label.textContent =
+        label.dataset.roleField === 'title'
+          ? role.title || 'Role'
+          : label.dataset.roleField === 'company'
+            ? role.company
+              ? 'at ' + role.company
+              : ''
+            : [role.startDate, role.isCurrent ? 'Present' : role.endDate]
+                .filter(Boolean)
+                .join(' – ');
+    }
   }
 
   // =========================================================================
@@ -659,6 +828,10 @@
    */
   async function handleRevisionConflict(errorJson) {
     hasConflict = true;
+    structuredEditorContainer?.querySelectorAll('input,textarea,button').forEach((input) => {
+      input.disabled = true;
+    });
+    documents.invalidate();
     const details = errorJson?.error?.details?.[0] || {};
     const actualRev = details.actualRevision || currentRevision + 1;
     const expRev = details.expectedRevision || currentRevision;
@@ -666,9 +839,12 @@
     // Fetch latest authoritative server draft without destroying local work
     let serverDraft = null;
     try {
-      const res = await fetch(`/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}`, {
-        headers: { Accept: 'application/json' },
-      });
+      const res = await fetch(
+        `/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}`,
+        {
+          headers: { Accept: 'application/json' },
+        }
+      );
       const data = await res.json();
       if (data?.success && data?.data) {
         serverDraft = data.data;
@@ -680,7 +856,10 @@
     conflictData = {
       expectedRevision: expRev,
       actualRevision: actualRev,
-      baseDraft: JSON.parse(JSON.stringify(currentDraft)),
+      baseDraft: structuredClone(savedDraft),
+      localSelection: Object.fromEntries(
+        selectionKeys.map((key) => [key, [...activeSelection[key]]])
+      ),
       serverDraft,
       preservedEdits: new Map(pendingEdits),
       fieldConflicts: [],
@@ -703,61 +882,31 @@
    * Classifies changes into Safe Non-Conflicting Merges vs Direct Collisions.
    */
   function analyzeConflictDiffs(data) {
-    const baseSR = data.baseDraft.structuredResume || {};
-    const serverSR = data.serverDraft.structuredResume || {};
-    const localEdits = data.preservedEdits;
-
-    const directConflicts = [];
-    const safeServerUpdates = [];
-
-    // Check all server nodes that changed from base
-    for (const node of data.serverDraft.nodes || []) {
-      if (!node.editable) continue;
-      const baseText = getNodeText(baseSR, node.path);
-      const serverText = getNodeText(serverSR, node.path);
-      const hasLocalEdit = localEdits.has(node.nodeId);
-      const localText = hasLocalEdit ? localEdits.get(node.nodeId).text : null;
-
-      if (serverText !== baseText) {
-        if (hasLocalEdit && localText !== serverText) {
-          // Direct field collision
-          directConflicts.push({
-            nodeId: node.nodeId,
-            path: node.path,
-            fieldLabel: formatNodePathLabel(node.path),
-            baseText,
-            serverText,
-            localText,
-            selectedChoice: 'local', // Default: preserve candidate's work
-          });
-        } else if (!hasLocalEdit) {
-          // Safe server update: local didn't touch this field
-          safeServerUpdates.push({
-            nodeId: node.nodeId,
-            path: node.path,
-            fieldLabel: formatNodePathLabel(node.path),
-            serverText,
-          });
-        }
-      }
-    }
-
-    data.fieldConflicts = directConflicts;
-    data.safeMerges = safeServerUpdates;
+    Object.assign(
+      data,
+      compareDrafts(data.baseDraft, data.serverDraft, data.preservedEdits, data.localSelection)
+    );
+    for (const entry of [...data.fieldConflicts, ...data.safeMerges])
+      entry.fieldLabel = formatNodePathLabel(entry.path);
   }
 
   function formatNodePathLabel(path) {
     if (!Array.isArray(path)) return 'Field';
+    const label = (key) =>
+      String(key)
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/^./, (char) => char.toUpperCase());
+    if (path[0] === 'candidateIdentity') return label(path[1]);
     if (path[0] === 'summary') return 'Professional Summary';
     if (path[0] === 'experience') {
       const idx = path[1];
       if (path[2] === 'bullets') return `Experience #${idx + 1} Bullet #${path[3] + 1}`;
-      return `Experience #${idx + 1} (${path[2]})`;
+      return `Experience #${idx + 1}: ${label(path[2])}`;
     }
     if (path[0] === 'projects') {
       const idx = path[1];
       if (path[2] === 'bullets') return `Project #${idx + 1} Bullet #${path[3] + 1}`;
-      return `Project #${idx + 1} (${path[2]})`;
+      return `Project #${idx + 1}: ${label(path[2])}`;
     }
     return path.join(' · ');
   }
@@ -766,10 +915,12 @@
     if (!conflictModalBackdrop || !conflictData) return;
     renderConflictModalContent(conflictData);
     conflictModalBackdrop.classList.add('open');
+    focusLayer(conflictModalBackdrop);
   }
 
   function closeConflictModal() {
     if (conflictModalBackdrop) conflictModalBackdrop.classList.remove('open');
+    releaseLayer();
   }
 
   function renderConflictModalContent(data) {
@@ -846,19 +997,24 @@
     }
 
     conflictModalBody.innerHTML = html;
+    btnConflictModalApply.disabled =
+      !data.serverDraft || data.fieldConflicts.some((c) => !c.selectedChoice);
 
     // Attach Radio Change Handlers
     conflictModalBody.querySelectorAll('input[type="radio"]').forEach((radio) => {
       radio.addEventListener('change', (e) => {
         const row = e.target.closest('.rs-conflict-choice-row');
         if (row) {
-          row.querySelectorAll('.rs-conflict-option').forEach((opt) => opt.classList.remove('selected'));
+          row
+            .querySelectorAll('.rs-conflict-option')
+            .forEach((opt) => opt.classList.remove('selected'));
           e.target.closest('.rs-conflict-option').classList.add('selected');
         }
         const card = e.target.closest('.rs-conflict-field-card');
         const cIdx = parseInt(card.dataset.conflictIdx, 10);
         if (data.fieldConflicts[cIdx]) {
           data.fieldConflicts[cIdx].selectedChoice = e.target.value;
+          btnConflictModalApply.disabled = data.fieldConflicts.some((c) => !c.selectedChoice);
         }
       });
     });
@@ -883,17 +1039,14 @@
   if (btnConflictReload) {
     btnConflictReload.addEventListener('click', () => {
       if (!currentDraft) return;
-      pendingEdits.clear();
-      hasConflict = false;
-      if (conflictBanner) conflictBanner.classList.remove('active');
-      closeConflictModal();
       loadDraft(currentDraft.id);
     });
   }
 
   if (btnConflictModalApply) {
     btnConflictModalApply.addEventListener('click', async () => {
-      if (!conflictData || !conflictData.serverDraft) return;
+      if (!conflictData?.serverDraft || conflictData.fieldConflicts.some((c) => !c.selectedChoice))
+        return;
 
       // Prepare merged structured draft
       const serverDraft = conflictData.serverDraft;
@@ -915,7 +1068,11 @@
       }
 
       // Adopt server draft baseline and revision
-      currentDraft = serverDraft;
+      savedDraft = structuredClone(serverDraft);
+      currentDraft = structuredClone(serverDraft);
+      activeSelection = Object.fromEntries(
+        selectionKeys.map((key) => [key, new Set(conflictData.selection[key])])
+      );
       currentRevision = serverDraft.revision;
       indexNodes(currentDraft.nodes);
 
@@ -929,7 +1086,9 @@
       closeConflictModal();
       if (conflictBanner) conflictBanner.classList.remove('active');
 
-      // Trigger authoritative save against serverRevision
+      for (const edit of pendingEdits.values()) applyLocalTextEditToModel(edit.nodeId, edit.text);
+      renderStructuredEditor(currentDraft);
+      renderModularDrawer();
       await saveDraft();
     });
   }
@@ -943,13 +1102,16 @@
    */
   async function requestProposal(nodeId) {
     if (!currentDraft || isReadOnly || hasConflict) return;
+    clearAlert();
 
     // Flush any pending text autosave before requesting proposal to coordinate revisions
-    if (pendingEdits.size > 0 || saveDebounceTimer) {
+    if (saveTask || pendingEdits.size > 0 || hasSelectionChanged()) {
       if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
       await saveDraft();
+      if (hasConflict || pendingEdits.size || hasSelectionChanged()) return;
     }
 
+    const draftId = currentDraft.id;
     const slot = document.getElementById(`proposal-slot-${nodeId}`);
     const triggerBtn = document.querySelector(`.rs-btn-propose[data-bullet-node-id="${nodeId}"]`);
 
@@ -971,34 +1133,48 @@
     const csrfToken = getCsrfToken();
 
     try {
-      const response = await fetch(`/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}/proposals`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'x-csrf-token': csrfToken,
-          'Origin': window.location.origin,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          expectedRevision: currentRevision,
-          nodeId,
-        }),
-      });
+      const response = await fetch(
+        `/api/v1/resume-studio/drafts/${encodeURIComponent(currentDraft.id)}/proposals`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'x-csrf-token': csrfToken,
+            Origin: window.location.origin,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            expectedRevision: currentRevision,
+            nodeId,
+          }),
+        }
+      );
 
       const json = await response.json().catch(() => null);
 
+      if (currentDraft?.id !== draftId) return;
       if (!response.ok) {
         if (response.status === 422) {
-          const reason = json?.error?.message || 'No source-preserving wording change found. Original text already concise.';
+          const reason =
+            json?.error?.message ||
+            'No source-preserving wording change found. Original text already concise.';
           renderProposalUnsupported(slot, reason);
         } else if (response.status === 409) {
-          showAlert('Draft was updated during proposal generation. Please save or refresh to evaluate current text.');
+          showAlert(
+            'Draft was updated during proposal generation. Please save or refresh to evaluate current text.'
+          );
           if (slot) slot.innerHTML = '';
         } else if (response.status === 503) {
-          renderProposalUnsupported(slot, 'Proposal service temporarily unavailable. You can continue editing manually.');
+          renderProposalUnsupported(
+            slot,
+            'Proposal service temporarily unavailable. You can continue editing manually.'
+          );
         } else {
-          renderProposalUnsupported(slot, json?.error?.message || `Proposal generation failed (HTTP ${response.status}).`);
+          renderProposalUnsupported(
+            slot,
+            json?.error?.message || `Proposal generation failed (HTTP ${response.status}).`
+          );
         }
         return;
       }
@@ -1013,7 +1189,7 @@
     } finally {
       if (triggerBtn) {
         triggerBtn.disabled = false;
-        triggerBtn.innerHTML = `<span>✦ Wording</span>`;
+        triggerBtn.innerHTML = `<span>Wording</span>`;
       }
     }
   }
@@ -1034,16 +1210,21 @@
     const slot = document.getElementById(`proposal-slot-${nodeId}`);
     if (!slot) return;
 
-    const isStale = proposal.status === 'STALE' || proposal.baseRevision !== currentRevision;
+    const isStale =
+      proposal.status === 'STALE' ||
+      proposal.baseRevision !== currentRevision ||
+      pendingEdits.size > 0 ||
+      hasSelectionChanged();
     const reqText = proposal.jobRequirement?.text || 'Target Skill';
     const truthState = proposal.truthState || 'CLAIMED';
-    const claimLabel = proposal.claimLabel || (truthState === 'CLAIMED' ? '[Unverified User Claim]' : 'VERIFIED');
+    const claimLabel =
+      proposal.claimLabel || (truthState === 'CLAIMED' ? '[Unverified User Claim]' : 'VERIFIED');
 
     slot.innerHTML = `
       <div class="rs-proposal-card ${isStale ? 'stale' : ''}" id="proposal-${proposal.id}" data-proposal-id="${proposal.id}" data-node-id="${nodeId}">
         <div class="rs-proposal-header">
           <div class="rs-proposal-title">
-            <span class="rs-proposal-badge">✦ Wording Refinement</span>
+            <span class="rs-proposal-badge">Wording suggestion</span>
             <span class="rs-req-chip">${escapeHtml(reqText)}</span>
           </div>
           <span class="rs-status-tag rs-status-tag-${truthState}">
@@ -1054,7 +1235,7 @@
         ${
           isStale
             ? `<div class="rs-proposal-stale-notice">
-                 <span>⚠ Stale proposal: Draft revision has advanced since generation. Re-evaluate current text.</span>
+                 <span>Stale proposal: Draft revision has advanced since generation. Re-evaluate current text.</span>
                </div>`
             : ''
         }
@@ -1081,9 +1262,9 @@
                  ${proposal.evidenceLinks
                    .map(
                      (e) => `
-                     <span class="rs-evidence-link" title="${escapeHtml(e.identifier)}">
-                       ${escapeHtml(e.sourceKind || 'MASTER_SNAPSHOT')} (${escapeHtml(e.truthState || 'CLAIMED')})
-                     </span>
+                     <button type="button" class="rs-evidence-link rs-btn rs-inspect-proposal-source">
+                       Inspect ${e.sourceKind === 'DRAFT_EDIT' ? 'candidate edit' : 'master wording'} (${escapeHtml(e.truthState || 'CLAIMED')})
+                     </button>
                    `
                    )
                    .join('')}
@@ -1103,7 +1284,7 @@
                   class="rs-btn rs-btn-sm rs-btn-reject-proposal"
                   data-proposal-id="${proposal.id}"
                   data-node-id="${nodeId}"
-                  ${isReadOnly ? 'disabled' : ''}>
+                  ${isStale || isReadOnly ? 'disabled' : ''}>
             Reject
           </button>
         </div>
@@ -1114,6 +1295,19 @@
     const card = slot.querySelector('.rs-proposal-card');
     const acceptBtn = card.querySelector('.rs-btn-accept-proposal');
     const rejectBtn = card.querySelector('.rs-btn-reject-proposal');
+    card.querySelectorAll('.rs-inspect-proposal-source').forEach((button, index) =>
+      button.addEventListener('click', () => {
+        const evidence = proposal.evidenceLinks[index],
+          host = document.getElementById('evidenceItemsContainer');
+        host.replaceChildren();
+        const source = document.createElement('blockquote');
+        source.textContent = evidence.sourceText;
+        const note = document.createElement('p');
+        note.textContent = `${evidence.truthState}: candidate-reported wording from ${evidence.sourceKind === 'DRAFT_EDIT' ? 'draft revision ' + evidence.draftRevision : 'master version ' + evidence.sourceVersion}. This is not independently verified evidence.`;
+        host.append(source, note);
+        openDrawer(drawerEvidence);
+      })
+    );
 
     if (acceptBtn) {
       acceptBtn.addEventListener('click', () => decideProposal(proposal.id, nodeId, 'ACCEPT'));
@@ -1127,19 +1321,26 @@
    * Submits candidate explicit decision (ACCEPT / REJECT) via POST /proposals/:id/decision.
    */
   async function decideProposal(proposalId, nodeId, decision) {
-    if (!currentDraft || isReadOnly) return;
+    if (!currentDraft || isReadOnly || hasConflict || decisionBusy) return;
+    await saveDraft();
+    if (hasConflict || pendingEdits.size || hasSelectionChanged()) return;
 
     const proposal = activeProposals.get(nodeId);
     if (!proposal) return;
+    const draftId = currentDraft.id;
 
     if (decision === 'ACCEPT' && proposal.baseRevision !== currentRevision) {
-      showAlert('Cannot accept proposal: draft revision has changed. Proposal is stale.', 'warning');
+      showAlert(
+        'Cannot accept proposal: draft revision has changed. Proposal is stale.',
+        'warning'
+      );
       proposal.status = 'STALE';
       renderProposalCard(nodeId, proposal);
       return;
     }
 
     const csrfToken = getCsrfToken();
+    decisionBusy = true;
 
     try {
       const response = await fetch(
@@ -1148,9 +1349,9 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            Accept: 'application/json',
             'x-csrf-token': csrfToken,
-            'Origin': window.location.origin,
+            Origin: window.location.origin,
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -1162,11 +1363,15 @@
 
       const json = await response.json().catch(() => null);
 
+      if (currentDraft?.id !== draftId) return;
       if (!response.ok) {
         if (response.status === 409) {
           const reason = json?.error?.details?.[0]?.reason;
           if (reason === 'STALE_PROPOSAL') {
-            showAlert('Proposal is stale: draft revision has advanced. Please re-evaluate current wording.', 'warning');
+            showAlert(
+              'Proposal is stale: draft revision has advanced. Please re-evaluate current wording.',
+              'warning'
+            );
             proposal.status = 'STALE';
             renderProposalCard(nodeId, proposal);
           } else {
@@ -1182,21 +1387,30 @@
         const result = json.data;
         if (decision === 'ACCEPT' && result.draft) {
           // Update draft and revision authoritatively
-          currentDraft = result.draft;
+          savedDraft = structuredClone(result.draft);
+          currentDraft = structuredClone(result.draft);
+          for (const edit of pendingEdits.values())
+            applyLocalTextEditToModel(edit.nodeId, edit.text);
           currentRevision = result.draft.revision;
           indexNodes(currentDraft.nodes);
 
           // Update bullet textarea in UI
           const textarea = document.querySelector(`.rs-bullet-textarea[data-node-id="${nodeId}"]`);
           if (textarea) {
-            textarea.value = proposal.proposedText;
+            textarea.value = pendingEdits.get(nodeId)?.text ?? proposal.proposedText;
             textarea.classList.remove('dirty');
           }
 
           // Update revision badge and document preview
           if (revisionBadgeEl) revisionBadgeEl.textContent = `Rev ${currentRevision}`;
           renderLiveDocumentPreview(currentDraft);
-          setSaveStatus('saved', 'All changes saved');
+          for (const [id, other] of activeProposals) renderProposalCard(id, other);
+          if (pendingEdits.size || hasSelectionChanged()) await saveDraft();
+          else {
+            setSaveStatus('saved', 'All changes saved');
+            documents.schedule();
+            refreshDraftDiagnostics();
+          }
         }
 
         // Remove active proposal card
@@ -1206,6 +1420,8 @@
       }
     } catch (err) {
       showAlert(`Network error: ${err.message}`);
+    } finally {
+      decisionBusy = false;
     }
   }
 
@@ -1217,7 +1433,17 @@
     const sr = draft.structuredResume || {};
     const prov = draft.nodeProvenance || {};
 
-    let html = '';
+    let html = '<details class="rs-source-details"><summary>Contact and role details</summary>';
+    for (const node of draft.nodes.filter(
+      (n) =>
+        n.editable &&
+        (n.kind === 'IDENTITY' || n.kind === 'TEXT') &&
+        n.path.at(-1) !== 'description'
+    )) {
+      const label = formatNodePathLabel(node.path);
+      html += `<label class="rs-label">${escapeHtml(label)}<input class="rs-input rs-edit-input" data-node-id="${node.nodeId}" value="${escapeHtml(getNodeText(sr, node.path))}" ${isReadOnly ? 'disabled' : ''}></label>`;
+    }
+    html += '</details>';
 
     // 1. Professional Summary Section
     const summaryNode = nodesByPath.get('summary.text');
@@ -1264,11 +1490,11 @@
                        data-node-id="${expNodeId}"
                        ${isExpIncluded ? 'checked' : ''}
                        ${isReadOnly ? 'disabled' : ''}>
-                <strong style="font-size:0.85rem; color:var(--rs-text-primary);">${escapeHtml(exp.title || 'Role')}</strong>
-                <span style="font-size:0.8rem; color:var(--rs-text-secondary);">at ${escapeHtml(exp.company || '')}</span>
+                <strong data-role-index="${expIdx}" data-role-field="title" style="font-size:0.85rem; color:var(--rs-text-primary);">${escapeHtml(exp.title || 'Role')}</strong>
+                <span data-role-index="${expIdx}" data-role-field="company" style="font-size:0.8rem; color:var(--rs-text-secondary);">${exp.company ? 'at ' + escapeHtml(exp.company) : ''}</span>
               </label>
-              <span style="font-size:0.75rem; color:var(--rs-text-muted); font-family:var(--rs-font-mono);">
-                ${escapeHtml(exp.startDate || '')} – ${escapeHtml(exp.endDate || 'Present')}
+              <span data-role-index="${expIdx}" data-role-field="dates" style="font-size:0.75rem; color:var(--rs-text-muted); font-family:var(--rs-font-mono);">
+                ${escapeHtml([exp.startDate, exp.isCurrent ? 'Present' : exp.endDate].filter(Boolean).join(' – '))}
               </span>
             </div>
 
@@ -1297,7 +1523,9 @@
           const bulletNode = nodesByPath.get(`experience.${expIdx}.bullets.${bIdx}`);
           const bulletNodeId = bulletNode ? bulletNode.nodeId : `exp-${expIdx}-b-${bIdx}`;
           const isBulletIncluded = activeSelection.bulletIds.has(bulletNodeId);
-          const bulletProv = bulletNode ? prov[bulletNode.nodeId]?.truthState || 'CLAIMED' : 'CLAIMED';
+          const bulletProv = bulletNode
+            ? prov[bulletNode.nodeId]?.truthState || 'CLAIMED'
+            : 'CLAIMED';
 
           html += `
             <div class="rs-bullet-edit-row ${isBulletIncluded ? '' : 'rs-bullet-excluded'}" id="bullet-row-${bulletNodeId}">
@@ -1317,7 +1545,7 @@
                 ${
                   !isReadOnly && bulletNode?.editable
                     ? `<button type="button" class="rs-btn-propose" data-bullet-node-id="${bulletNodeId}" title="Refine bullet wording with grounded evidence">
-                         <span>✦ Wording</span>
+                         <span>Wording</span>
                        </button>`
                     : ''
                 }
@@ -1398,7 +1626,9 @@
           const bulletNode = nodesByPath.get(`projects.${pIdx}.bullets.${bIdx}`);
           const bulletNodeId = bulletNode ? bulletNode.nodeId : `proj-${pIdx}-b-${bIdx}`;
           const isBulletIncluded = activeSelection.bulletIds.has(bulletNodeId);
-          const bulletProv = bulletNode ? prov[bulletNode.nodeId]?.truthState || 'CLAIMED' : 'CLAIMED';
+          const bulletProv = bulletNode
+            ? prov[bulletNode.nodeId]?.truthState || 'CLAIMED'
+            : 'CLAIMED';
 
           html += `
             <div class="rs-bullet-edit-row ${isBulletIncluded ? '' : 'rs-bullet-excluded'}" id="bullet-row-${bulletNodeId}">
@@ -1417,7 +1647,7 @@
                 ${
                   !isReadOnly && bulletNode?.editable
                     ? `<button type="button" class="rs-btn-propose" data-bullet-node-id="${bulletNodeId}" title="Refine bullet wording with grounded evidence">
-                         <span>✦ Wording</span>
+                         <span>Wording</span>
                        </button>`
                     : ''
                 }
@@ -1481,11 +1711,23 @@
   }
 
   function attachEditorEventListeners() {
+    structuredEditorContainer.querySelectorAll('.rs-edit-input').forEach((input) => {
+      const node = nodesById.get(input.dataset.nodeId);
+      if (node) input.setAttribute('aria-label', formatNodePathLabel(node.path));
+    });
+    structuredEditorContainer.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      const node = nodesById.get(input.dataset.nodeId || input.dataset.bulletNodeId);
+      if (node) input.setAttribute('aria-label', 'Include ' + formatNodePathLabel(node.path));
+    });
     // Textarea edits
     structuredEditorContainer.querySelectorAll('.rs-edit-input').forEach((input) => {
       input.addEventListener('input', (e) => {
         const nodeId = e.target.dataset.nodeId;
-        const val = e.target.value;
+        const node = nodesById.get(nodeId);
+        const nullable =
+          ['IDENTITY', 'TEXT'].includes(node?.kind) &&
+          !(node?.path[0] === 'projects' && node?.path[2] === 'name');
+        const val = nullable && !e.target.value.trim() ? null : e.target.value;
         e.target.classList.add('dirty');
         queueTextEdit(nodeId, val);
       });
@@ -1544,143 +1786,8 @@
   // Part C: Live Document Preview Rendering (10pt serif typography)
   // =========================================================================
   function renderLiveDocumentPreview(draft) {
-    if (!liveDocumentPreviewEl || !draft) return;
-    const sr = draft.structuredResume || {};
-    const identity = sr.candidateIdentity || {};
-
-    let html = '';
-
-    // Document Header
-    html += `
-      <div class="rs-pd-header">
-        <h1 class="rs-pd-name">${escapeHtml(identity.displayName || 'Candidate Name')}</h1>
-        <div class="rs-pd-meta">
-          ${[identity.location, identity.email, identity.phone].filter(Boolean).map(escapeHtml).join(' &nbsp;·&nbsp; ')}
-        </div>
-      </div>
-    `;
-
-    // Professional Summary
-    const summaryText = sr.summary?.text;
-    if (summaryText && summaryText.trim().length > 0) {
-      html += `
-        <div class="rs-pd-section">
-          <div class="rs-pd-section-title">Professional Summary</div>
-          <div class="rs-pd-summary-text">${escapeHtml(summaryText)}</div>
-        </div>
-      `;
-    }
-
-    // Work Experience (Filter by selection)
-    const experiences = Array.isArray(sr.experience) ? sr.experience : [];
-    const includedExperiences = experiences.filter((exp, idx) => {
-      const node = nodesByPath.get(`experience.${idx}`);
-      return node && activeSelection.experienceIds.has(node.nodeId);
-    });
-
-    if (includedExperiences.length > 0) {
-      html += `
-        <div class="rs-pd-section">
-          <div class="rs-pd-section-title">Experience</div>
-      `;
-
-      includedExperiences.forEach((exp) => {
-        const expIdx = experiences.indexOf(exp);
-        html += `
-          <div class="rs-pd-entry">
-            <div class="rs-pd-entry-row">
-              <span><strong>${escapeHtml(exp.title || 'Software Engineer')}</strong></span>
-              <span>${escapeHtml(exp.startDate || '')} – ${escapeHtml(exp.endDate || 'Present')}</span>
-            </div>
-            <div class="rs-pd-entry-sub">
-              <span>${escapeHtml(exp.company || '')}</span>
-              <span>${escapeHtml(exp.location || 'Remote')}</span>
-            </div>
-        `;
-
-        const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
-        const includedBullets = bullets.filter((b, bIdx) => {
-          const bNode = nodesByPath.get(`experience.${expIdx}.bullets.${bIdx}`);
-          return bNode && activeSelection.bulletIds.has(bNode.nodeId);
-        });
-
-        if (includedBullets.length > 0) {
-          html += `<ul class="rs-pd-bullets">`;
-          includedBullets.forEach((bullet) => {
-            html += `<li>${escapeHtml(bullet)}</li>`;
-          });
-          html += `</ul>`;
-        }
-
-        html += `</div>`;
-      });
-
-      html += `</div>`;
-    }
-
-    // Portfolio Projects (Filter by selection)
-    const projects = Array.isArray(sr.projects) ? sr.projects : [];
-    const includedProjects = projects.filter((proj, idx) => {
-      const node = nodesByPath.get(`projects.${idx}`);
-      return node && activeSelection.projectIds.has(node.nodeId);
-    });
-
-    if (includedProjects.length > 0) {
-      html += `
-        <div class="rs-pd-section">
-          <div class="rs-pd-section-title">Projects</div>
-      `;
-
-      includedProjects.forEach((proj) => {
-        const pIdx = projects.indexOf(proj);
-        const techs = Array.isArray(proj.technologies) ? proj.technologies.join(', ') : '';
-
-        html += `
-          <div class="rs-pd-entry">
-            <div class="rs-pd-entry-row">
-              <span><strong>${escapeHtml(proj.name || 'Project')}</strong> ${techs ? `(${escapeHtml(techs)})` : ''}</span>
-            </div>
-            ${proj.description ? `<div style="font-size:9.5pt; color:#374151; margin-top:2px;">${escapeHtml(proj.description)}</div>` : ''}
-        `;
-
-        const bullets = Array.isArray(proj.bullets) ? proj.bullets : [];
-        const includedBullets = bullets.filter((b, bIdx) => {
-          const bNode = nodesByPath.get(`projects.${pIdx}.bullets.${bIdx}`);
-          return bNode && activeSelection.bulletIds.has(bNode.nodeId);
-        });
-
-        if (includedBullets.length > 0) {
-          html += `<ul class="rs-pd-bullets">`;
-          includedBullets.forEach((bullet) => {
-            html += `<li>${escapeHtml(bullet)}</li>`;
-          });
-          html += `</ul>`;
-        }
-
-        html += `</div>`;
-      });
-
-      html += `</div>`;
-    }
-
-    // Skills Section (Filter by selection)
-    const skills = Array.isArray(sr.skills) ? sr.skills : [];
-    const includedSkills = skills.filter((s, idx) => {
-      const node = nodesByPath.get(`skills.${idx}`);
-      return node && activeSelection.skillIds.has(node.nodeId);
-    });
-
-    if (includedSkills.length > 0) {
-      const skillNames = includedSkills.map((s) => (typeof s === 'string' ? s : s.name || s.skillName || ''));
-      html += `
-        <div class="rs-pd-section">
-          <div class="rs-pd-section-title">Technical Skills</div>
-          <div class="rs-pd-skills-text">${escapeHtml(skillNames.join('  ·  '))}</div>
-        </div>
-      `;
-    }
-
-    liveDocumentPreviewEl.innerHTML = html;
+    if (!draft) return;
+    documents.invalidate();
   }
 
   // =========================================================================
@@ -1688,76 +1795,40 @@
   // =========================================================================
   function renderModularDrawer() {
     if (!modularDrawerContent || !currentDraft) return;
-    const sr = currentDraft.structuredResume || {};
-    const projects = Array.isArray(sr.projects) ? sr.projects : [];
-    const experiences = Array.isArray(sr.experience) ? sr.experience : [];
-
-    let html = `
-      <div style="font-size:0.8rem; font-weight:600; color:var(--rs-text-primary); margin-bottom:10px;">
-        Active Project Selection (${activeSelection.projectIds.size} / 4 max)
-      </div>
-    `;
-
-    projects.forEach((proj, idx) => {
-      const node = nodesByPath.get(`projects.${idx}`);
-      const nodeId = node ? node.nodeId : `proj-${idx}`;
-      const isChecked = activeSelection.projectIds.has(nodeId);
-      const isMaxDisabled = !isChecked && activeSelection.projectIds.size >= 4;
-
-      html += `
-        <div class="rs-card" style="margin-bottom:8px; padding:10px 14px;">
-          <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
-            <input type="checkbox"
-                   class="rs-checkbox rs-toggle-proj"
-                   data-node-id="${nodeId}"
-                   ${isChecked ? 'checked' : ''}
-                   ${isMaxDisabled || isReadOnly ? 'disabled' : ''}>
-            <span style="color:var(--rs-text-primary);">${escapeHtml(proj.name)}</span>
-          </label>
-        </div>
-      `;
-    });
-
-    html += `
-      <div style="font-size:0.8rem; font-weight:600; color:var(--rs-text-primary); margin:18px 0 10px;">
-        Active Experience Roles (${activeSelection.experienceIds.size} active)
-      </div>
-    `;
-
-    experiences.forEach((exp, idx) => {
-      const node = nodesByPath.get(`experience.${idx}`);
-      const nodeId = node ? node.nodeId : `exp-${idx}`;
-      const isChecked = activeSelection.experienceIds.has(nodeId);
-
-      html += `
-        <div class="rs-card" style="margin-bottom:8px; padding:10px 14px;">
-          <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; cursor:pointer;">
-            <input type="checkbox"
-                   class="rs-checkbox rs-toggle-exp"
-                   data-node-id="${nodeId}"
-                   ${isChecked ? 'checked' : ''}
-                   ${isReadOnly ? 'disabled' : ''}>
-            <span style="color:var(--rs-text-primary);">${escapeHtml(exp.title)} at ${escapeHtml(exp.company)}</span>
-          </label>
-        </div>
-      `;
-    });
-
-    modularDrawerContent.innerHTML = html;
-
-    modularDrawerContent.querySelectorAll('.rs-toggle-proj').forEach((chk) => {
-      chk.addEventListener('change', (e) => {
-        toggleSelection('projectIds', e.target.dataset.nodeId, e.target.checked);
-        renderStructuredEditor(currentDraft);
+    modularDrawerContent.replaceChildren();
+    const overview = document.createElement('p');
+    overview.textContent =
+      activeSelection.experienceIds.size +
+      ' roles, ' +
+      activeSelection.projectIds.size +
+      ' projects and ' +
+      activeSelection.skillIds.size +
+      ' skills included. Your source records stay unchanged.';
+    modularDrawerContent.append(overview);
+    for (const [section, key, selector] of [
+      ['experience', 'experienceIds', '.rs-toggle-exp'],
+      ['projects', 'projectIds', '.rs-toggle-proj'],
+    ]) {
+      currentDraft.structuredResume[section].forEach((item, index) => {
+        const node = nodesByPath.get(section + '.' + index);
+        if (!node) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rs-btn rs-selection-jump';
+        button.textContent =
+          (activeSelection[key].has(node.nodeId) ? 'Included: ' : 'Excluded: ') +
+          (item.name || [item.title, item.company].filter(Boolean).join(' at '));
+        button.addEventListener('click', () => {
+          closeAllDrawers();
+          const field = structuredEditorContainer.querySelector(
+            selector + '[data-node-id="' + node.nodeId + '"]'
+          );
+          field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          field?.focus({ preventScroll: true });
+        });
+        modularDrawerContent.append(button);
       });
-    });
-
-    modularDrawerContent.querySelectorAll('.rs-toggle-exp').forEach((chk) => {
-      chk.addEventListener('change', (e) => {
-        toggleSelection('experienceIds', e.target.dataset.nodeId, e.target.checked);
-        renderStructuredEditor(currentDraft);
-      });
-    });
+    }
   }
 
   // =========================================================================
@@ -1772,40 +1843,28 @@
         fitBandEl.textContent = data.candidateFit.fitBand;
         fitBandEl.className = `rs-fit-band rs-fit-band-${data.candidateFit.fitBand}`;
       }
+    } else if (fitScoreEl) {
+      fitScoreEl.textContent = '—';
+      fitBandEl.textContent = 'No evaluable requirements';
     }
 
-    if (kwCoverageEl && data.candidateFit && data.candidateFit.scoreBreakdown) {
-      const kw = data.candidateFit.scoreBreakdown.requiredSkillsCoverage;
-      if (kw) {
-        kwCoverageEl.textContent = `${kw.earned} / ${kw.possible} (${kw.percentage}%)`;
-        if (kwDetailEl) {
-          kwDetailEl.textContent = `${kw.earned} of ${kw.possible} required skills verified`;
-        }
-      }
-    }
-
-    if (writingScoreEl && data.writingDiagnostics) {
-      writingScoreEl.textContent = String(data.writingDiagnostics.overallScore);
-      if (writingDetailEl) {
-        const h = data.writingDiagnostics.heuristics;
-        writingDetailEl.textContent = `${h?.quantifiedBulletsCount || 0} quantified bullets, ${h?.passiveVoiceCount || 0} passive`;
-      }
-    }
-
-    if (parseabilityScoreEl && data.parseability) {
-      parseabilityScoreEl.textContent = data.parseability.status;
+    if (kwCoverageEl && data.keywordCoverage) {
+      kwCoverageEl.textContent = data.keywordCoverage.overallCoveragePercent + '%';
+      kwDetailEl.textContent = 'Lexical coverage; claims and verified evidence are distinct.';
     }
 
     if (reqListEl && Array.isArray(data.keywords)) {
       renderRequirementsList(data.keywords);
     }
 
-    if (projectListEl && data.projectEvaluations) {
-      renderProjectsList(data.projectEvaluations);
+    if (projectListEl && data.projectRelevance) {
+      renderProjectsList(data.projectRelevance);
     }
 
-    if (writingContainerEl && data.writingDiagnostics) {
-      renderWritingDiagnostics(data.writingDiagnostics);
+    if (writingContainerEl && data.writingQuality?.report) {
+      renderWritingDiagnostics(data.writingQuality?.report);
+    } else if (writingContainerEl) {
+      writingContainerEl.textContent = 'No selected bullets to evaluate.';
     }
 
     if (denominatorAuditContainer && data.candidateFit?.scoreBreakdown?.denominatorAudit) {
@@ -1818,6 +1877,14 @@
     let html = '';
     keywords.forEach((kw) => {
       const state = kw.truthState || 'CLAIMED';
+      const match = {
+        EXACT_VERIFIED: 'Exact match',
+        EXACT_CLAIMED: 'Exact wording; candidate claim',
+        TAXONOMY_EQUIVALENT: 'Equivalent terminology',
+        RELATED_INSUFFICIENT: 'Related skill; insufficient for this requirement',
+        MISSING_IN_PROFILE: 'Missing from profile',
+        UNSUPPORTED_ON_RESUME: 'Unsupported wording',
+      }[kw.category];
       html += `
         <div class="rs-req-card">
           <div class="rs-req-card-header">
@@ -1828,17 +1895,25 @@
             </span>
           </div>
           <div style="font-size:0.75rem; color:var(--rs-text-secondary); margin-bottom:4px;">
-            Requirement Match: <strong>${kw.satisfiesRequirement ? 'SATISFIED' : 'UNSATISFIED'}</strong> · Importance: ${escapeHtml(kw.importance || 'REQUIRED')}
+            ${escapeHtml(match)}. ${kw.satisfiesRequirement ? 'Supported by verified evidence' : 'Not supported by verified evidence'}
           </div>
+          <button type="button" class="rs-btn rs-inspect-requirement" data-term="${escapeHtml(kw.term)}">Inspect basis</button>
         </div>
       `;
     });
     reqListEl.innerHTML = html;
+    reqListEl.querySelectorAll('.rs-inspect-requirement').forEach((button) =>
+      button.addEventListener('click', () => {
+        const keyword = keywords.find((k) => k.term === button.dataset.term);
+        document.getElementById('evidenceItemsContainer').textContent = keyword.explanation;
+        openDrawer(drawerEvidence);
+      })
+    );
   }
 
   function renderProjectsList(projectEvaluations) {
     if (!projectListEl) return;
-    const evaluated = projectEvaluations.evaluatedProjects || [];
+    const evaluated = projectEvaluations.projectRankings || [];
     let html = '';
     evaluated.forEach((p) => {
       html += `
@@ -1848,7 +1923,7 @@
             <span class="rs-badge" style="font-size:0.68rem;">Score: ${p.relevanceScore}</span>
           </div>
           <div style="font-size:0.75rem; color:var(--rs-text-secondary);">
-            Matched Keywords: ${escapeHtml((p.matchedKeywords || []).join(', ') || 'None')}
+            Matched Keywords: ${escapeHtml((p.contributingSkills || []).join(', ') || 'None')}
           </div>
         </div>
       `;
@@ -1858,44 +1933,39 @@
 
   function renderWritingDiagnostics(writing) {
     if (!writingContainerEl) return;
-    const h = writing.heuristics || {};
-    writingContainerEl.innerHTML = `
-      <div class="rs-scoreboard" style="margin-bottom:14px;">
-        <div class="rs-scorecard">
-          <span class="rs-scorecard-label">Quantified Bullets</span>
-          <div class="rs-scorecard-value-row">
-            <span class="rs-scorecard-value">${h.quantifiedBulletsCount || 0}</span>
-          </div>
-        </div>
-        <div class="rs-scorecard">
-          <span class="rs-scorecard-label">Action Verb Openers</span>
-          <div class="rs-scorecard-value-row">
-            <span class="rs-scorecard-value">${h.actionVerbOpenersCount || 0}</span>
-          </div>
-        </div>
-        <div class="rs-scorecard">
-          <span class="rs-scorecard-label">Passive Voice Findings</span>
-          <div class="rs-scorecard-value-row">
-            <span class="rs-scorecard-value" style="color:${(h.passiveVoiceCount || 0) > 0 ? 'var(--rs-status-missing)' : 'var(--rs-status-verified)'};">${h.passiveVoiceCount || 0}</span>
-          </div>
-        </div>
-      </div>
-    `;
+    const q = writing.quantification;
+    let html = `<p class="rs-card-desc">${q.totalBullets} selected bullets; ${q.quantifiedBulletCount} contain candidate-supplied metrics. Metrics are optional and remain unverified claims.</p>`;
+    html +=
+      '<ul>' + writing.findings.map((f) => `<li>${escapeHtml(f.message)}</li>`).join('') + '</ul>';
+    html +=
+      '<ul>' +
+      writing.recommendations.map((text) => `<li>${escapeHtml(text)}</li>`).join('') +
+      '</ul>';
+    if (!writing.findings.length && !writing.recommendations.length)
+      html += '<p>No writing findings from these rules.</p>';
+    html +=
+      '<button type="button" class="rs-btn" id="rsReviewWriting">Review wording in editor</button>';
+    writingContainerEl.innerHTML = html;
+    document.getElementById('rsReviewWriting').addEventListener('click', () => {
+      const input = structuredEditorContainer.querySelector('textarea');
+      input?.scrollIntoView({ block: 'center' });
+      input?.focus();
+    });
   }
 
   function renderDenominatorAudit(da) {
     if (!denominatorAuditContainer) return;
     denominatorAuditContainer.innerHTML = `
       <div style="font-size:0.8rem; color:var(--rs-text-secondary); margin-bottom:12px;">
-        Earned <strong>${da.totalEarnedPoints}</strong> of <strong>${da.totalPossiblePoints}</strong> audited points (${da.percentage}%).
+        Earned <strong>${da.totalEarnedPoints}</strong> of <strong>${da.totalPossiblePoints}</strong> audited points.
       </div>
       <div class="rs-card" style="font-size:0.75rem;">
-        <div>Required Skills: ${da.requiredSkills?.earned} / ${da.requiredSkills?.possible}</div>
-        <div>Preferred Skills: ${da.preferredSkills?.earned} / ${da.preferredSkills?.possible}</div>
-        <div>Project Relevance: ${da.projectRelevance?.earned} / ${da.projectRelevance?.possible}</div>
-        <div>Experience: ${da.experience?.earned} / ${da.experience?.possible}</div>
-        <div>Education: ${da.education?.earned} / ${da.education?.possible}</div>
-        <div>Evidence Confidence: ${da.evidenceConfidence?.earned} / ${da.evidenceConfidence?.possible}</div>
+        <div>Required Skills: ${da.requiredSkills?.earnedPoints} / ${da.requiredSkills?.possiblePoints}</div>
+        <div>Preferred Skills: ${da.preferredSkills?.earnedPoints} / ${da.preferredSkills?.possiblePoints}</div>
+        <div>Project Relevance: ${da.projectRelevance?.earnedPoints} / ${da.projectRelevance?.possiblePoints}</div>
+        <div>Experience: ${da.experience?.earnedPoints} / ${da.experience?.possiblePoints}</div>
+        <div>Education: ${da.education?.earnedPoints} / ${da.education?.possiblePoints}</div>
+        <div>Evidence Confidence: ${da.evidenceConfidence?.earnedPoints} / ${da.evidenceConfidence?.possiblePoints}</div>
       </div>
     `;
   }
@@ -1910,7 +1980,9 @@
     const rawDescription = (jobDescTextarea ? jobDescTextarea.value : '').trim();
 
     if (rawDescription.length < 100) {
-      showAlert('Job description must be at least 100 characters for deterministic qualification analysis.');
+      showAlert(
+        'Job description must be at least 100 characters for deterministic qualification analysis.'
+      );
       if (jobDescTextarea) jobDescTextarea.focus();
       return;
     }
@@ -1932,9 +2004,9 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'x-csrf-token': csrfToken,
-          'Origin': window.location.origin,
+          Origin: window.location.origin,
         },
         credentials: 'include',
         body: JSON.stringify({ jobTarget }),
@@ -1969,11 +2041,94 @@
   }
 
   // =========================================================================
+  async function refreshDraftDiagnostics() {
+    if (!currentDraft) return;
+    const id = currentDraft.id,
+      revision = currentRevision;
+    try {
+      const response = await fetch('/api/v1/resume-studio/drafts/' + id + '/diagnostics', {
+        credentials: 'same-origin',
+      });
+      if (!response.ok) return;
+      const value = await response.json();
+      if (
+        currentDraft?.id === id &&
+        currentRevision === value.data.revision &&
+        revision === currentRevision
+      )
+        renderAnalysisData(value.data.analysis);
+    } catch {
+      /* No fallback score. */
+    }
+  }
+  async function loadProposals(id) {
+    try {
+      const response = await fetch('/api/v1/resume-studio/drafts/' + id + '/proposals', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return;
+      const value = await response.json();
+      if (currentDraft?.id !== id) return;
+      const seen = new Set();
+      for (const proposal of value.data.proposals) {
+        if (seen.has(proposal.nodeId)) continue;
+        seen.add(proposal.nodeId);
+        if (
+          ['PENDING', 'STALE'].includes(proposal.status) &&
+          !activeProposals.has(proposal.nodeId)
+        ) {
+          activeProposals.set(proposal.nodeId, proposal);
+          renderProposalCard(proposal.nodeId, proposal);
+        }
+      }
+    } catch {
+      /* Manual editing remains available; no fixture substitution. */
+    }
+  }
+
+  document.querySelectorAll('#studioReturnLink,.ch-primary-nav a,.ch-brand').forEach((link) =>
+    link.addEventListener('click', async (event) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || !currentDraft) return;
+      event.preventDefault();
+      await saveDraft();
+      if (hasConflict || pendingEdits.size || hasSelectionChanged()) {
+        showAlert(
+          'Save or resolve your changes before leaving. Your local wording is retained.',
+          'warning'
+        );
+        return;
+      }
+      window.location.assign(link.href);
+    })
+  );
+  if (divider && leftPane)
+    divider.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const current = Number(divider.getAttribute('aria-valuenow') || 50);
+      const next =
+        event.key === 'Home'
+          ? 30
+          : event.key === 'End'
+            ? 70
+            : Math.max(30, Math.min(70, current + (event.key === 'ArrowRight' ? 5 : -5)));
+      leftPane.style.width = `${next}%`;
+      divider.setAttribute('aria-valuenow', String(next));
+    });
+
   // Initial Event Bindings & Startup
   // =========================================================================
   if (btnCreateDraft) {
     btnCreateDraft.addEventListener('click', createDraft);
   }
+  document.getElementById('btnRetrySave').addEventListener('click', saveDraft);
+  window.addEventListener('beforeunload', (event) => {
+    if (pendingEdits.size || hasSelectionChanged()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
   if (btnAnalyze) {
     btnAnalyze.addEventListener('click', runAnalysis);
   }
@@ -1982,6 +2137,7 @@
   }
 
   const urlParams = new URLSearchParams(window.location.search);
+  updateCharCount();
   const initialDraftId = urlParams.get('draftId') || container?.dataset?.draftId;
 
   if (initialDraftId) {
@@ -1991,59 +2147,5 @@
   // =========================================================================
   // Test Helpers & Synthetic Fixture Loaders
   // =========================================================================
-  window.loadResumeStudioDraftFixture = function (fixtureData) {
-    const draft = fixtureData?.data || fixtureData;
-    if (draft) initializeDraft(draft);
-  };
-
-  window.loadResumeStudioAnalysisFixture = function (fixtureData) {
-    const analysis = fixtureData?.data || fixtureData;
-    if (analysis) renderAnalysisData(analysis);
-  };
-
-  window.loadResumeStudioProposalFixture = function (fixtureData) {
-    const proposal = fixtureData?.data?.proposal || fixtureData?.data || fixtureData;
-    if (proposal && proposal.nodeId) {
-      activeProposals.set(proposal.nodeId, proposal);
-      renderProposalCard(proposal.nodeId, proposal);
-    }
-  };
-
-  window.simulate409ConflictWithServerDraft = async function (serverDraft) {
-    hasConflict = true;
-    conflictData = {
-      expectedRevision: currentRevision,
-      actualRevision: serverDraft.revision,
-      baseDraft: JSON.parse(JSON.stringify(currentDraft)),
-      serverDraft,
-      preservedEdits: new Map(pendingEdits),
-      fieldConflicts: [],
-      safeMerges: [],
-    };
-    analyzeConflictDiffs(conflictData);
-    if (actualRevEl) actualRevEl.textContent = String(serverDraft.revision);
-    if (expectedRevEl) expectedRevEl.textContent = String(currentRevision);
-    if (conflictBanner) conflictBanner.classList.add('active');
-    setSaveStatus('conflict', 'Revision conflict detected');
-  };
-
-  window.getResumeStudioState = function () {
-    return {
-      currentDraft,
-      currentRevision,
-      isSaving,
-      hasConflict,
-      conflictData,
-      pendingEdits: Array.from(pendingEdits.entries()),
-      activeProposals: Array.from(activeProposals.entries()),
-      activeSelection: {
-        experienceIds: Array.from(activeSelection.experienceIds),
-        projectIds: Array.from(activeSelection.projectIds),
-        bulletIds: Array.from(activeSelection.bulletIds),
-        skillIds: Array.from(activeSelection.skillIds),
-      },
-    };
-  };
-
   updateCharCount();
 })();

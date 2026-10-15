@@ -23,7 +23,8 @@ import { renderResumeStudioPage } from '../../src/views/resume-studio.page.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../../');
-const screenshotDir = 'C:/Users/VISHW/.gemini/antigravity-ide/brain/e52fdb3e-8870-44b9-9cef-260453998284/screenshots/slice3';
+const screenshotDir =
+  'C:/Users/VISHW/.gemini/antigravity-ide/brain/e52fdb3e-8870-44b9-9cef-260453998284/screenshots/slice3';
 
 // Ensure screenshot directory exists
 await fs.mkdir(screenshotDir, { recursive: true });
@@ -236,7 +237,9 @@ async function startServer() {
         data: null,
         error: {
           code: 'CONFLICT',
-          details: [{ reason: 'DRAFT_REVISION_CONFLICT', expectedRevision, actualRevision: serverRevision }],
+          details: [
+            { reason: 'DRAFT_REVISION_CONFLICT', expectedRevision, actualRevision: serverRevision },
+          ],
         },
       });
     }
@@ -259,7 +262,8 @@ async function startServer() {
     proposal.nodeId = nodeId;
     proposal.baseRevision = serverRevision;
     proposal.originalText = originalText;
-    proposal.proposedText = 'Implemented React views using component interfaces to support internal workflows.';
+    proposal.proposedText =
+      'Implemented React views using component interfaces to support internal workflows.';
     proposal.status = 'PENDING';
 
     serverProposals.set(proposal.id, proposal);
@@ -290,77 +294,82 @@ async function startServer() {
   });
 
   // POST /api/v1/resume-studio/drafts/:id/proposals/:proposalId/decision (Contract 1.2.0)
-  app.post('/api/v1/resume-studio/drafts/:id/proposals/:proposalId/decision', async (req, reply) => {
-    const csrf = req.headers['x-csrf-token'];
-    if (csrf !== CSRF_TOKEN) {
-      return reply.code(403).send({ error: { code: 'CSRF_TOKEN_INVALID' } });
-    }
-
-    const { proposalId } = req.params;
-    const { expectedRevision, decision } = req.body || {};
-    const proposal = serverProposals.get(proposalId);
-
-    if (!proposal) {
-      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
-    }
-
-    // Guard: Stale or mismatched revision
-    if (proposal.baseRevision !== serverRevision || expectedRevision !== serverRevision) {
-      proposal.status = 'STALE';
-      return reply.code(409).send({
-        success: false,
-        data: null,
-        error: {
-          code: 'CONFLICT',
-          details: [{ reason: 'STALE_PROPOSAL' }],
-          message: 'Proposal is no longer applicable; refresh the current draft.',
-        },
-      });
-    }
-
-    if (decision === 'REJECT') {
-      proposal.status = 'REJECTED';
-      proposal.decidedAt = new Date().toISOString();
-      return reply.code(200).send({
-        success: true,
-        data: {
-          contractVersion: '1.2.0',
-          proposal,
-          draft: serverDraft,
-        },
-      });
-    }
-
-    if (decision === 'ACCEPT') {
-      proposal.status = 'ACCEPTED';
-      proposal.decidedAt = new Date().toISOString();
-
-      // Atomically apply proposed text to draft and bump revision
-      const node = serverDraft.nodes.find((n) => n.nodeId === proposal.nodeId);
-      if (node && Array.isArray(node.path)) {
-        let target = serverDraft.structuredResume;
-        for (let i = 0; i < node.path.length - 1; i++) {
-          target = target[node.path[i]];
-        }
-        target[node.path[node.path.length - 1]] = proposal.proposedText;
+  app.post(
+    '/api/v1/resume-studio/drafts/:id/proposals/:proposalId/decision',
+    async (req, reply) => {
+      const csrf = req.headers['x-csrf-token'];
+      if (csrf !== CSRF_TOKEN) {
+        return reply.code(403).send({ error: { code: 'CSRF_TOKEN_INVALID' } });
       }
 
-      serverRevision++;
-      serverDraft.revision = serverRevision;
-      proposal.decisionRevision = serverRevision;
+      const { proposalId } = req.params;
+      const { expectedRevision, decision } = req.body || {};
+      const proposal = serverProposals.get(proposalId);
 
-      return reply.code(200).send({
-        success: true,
-        data: {
-          contractVersion: '1.2.0',
-          proposal,
-          draft: serverDraft,
-        },
-      });
+      if (!proposal) {
+        return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
+      }
+
+      // Guard: Stale or mismatched revision
+      if (proposal.baseRevision !== serverRevision || expectedRevision !== serverRevision) {
+        proposal.status = 'STALE';
+        return reply.code(409).send({
+          success: false,
+          data: null,
+          error: {
+            code: 'CONFLICT',
+            details: [{ reason: 'STALE_PROPOSAL' }],
+            message: 'Proposal is no longer applicable; refresh the current draft.',
+          },
+        });
+      }
+
+      if (decision === 'REJECT') {
+        proposal.status = 'REJECTED';
+        proposal.decidedAt = new Date().toISOString();
+        return reply.code(200).send({
+          success: true,
+          data: {
+            contractVersion: '1.2.0',
+            proposal,
+            draft: serverDraft,
+          },
+        });
+      }
+
+      if (decision === 'ACCEPT') {
+        proposal.status = 'ACCEPTED';
+        proposal.decidedAt = new Date().toISOString();
+
+        // Atomically apply proposed text to draft and bump revision
+        const node = serverDraft.nodes.find((n) => n.nodeId === proposal.nodeId);
+        if (node && Array.isArray(node.path)) {
+          let target = serverDraft.structuredResume;
+          for (let i = 0; i < node.path.length - 1; i++) {
+            target = target[node.path[i]];
+          }
+          target[node.path[node.path.length - 1]] = proposal.proposedText;
+        }
+
+        serverRevision++;
+        serverDraft.revision = serverRevision;
+        proposal.decisionRevision = serverRevision;
+
+        return reply.code(200).send({
+          success: true,
+          data: {
+            contractVersion: '1.2.0',
+            proposal,
+            draft: serverDraft,
+          },
+        });
+      }
+
+      return reply
+        .code(400)
+        .send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid decision' } });
     }
-
-    return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid decision' } });
-  });
+  );
 
   const address = await app.listen({ port: 0, host: '127.0.0.1' });
   return { app, baseUrl: address };
@@ -409,7 +418,9 @@ async function runVerification() {
       throw new Error('Missing accurate client-side simulation disclaimer in preview notice');
     }
 
-    await page.screenshot({ path: path.join(screenshotDir, '01_desktop-1440-editing-preview-notice.png') });
+    await page.screenshot({
+      path: path.join(screenshotDir, '01_desktop-1440-editing-preview-notice.png'),
+    });
     testResults.push('01_desktop-1440-editing-preview-notice.png');
     console.log('  ✓ Initial state and Editing Preview disclaimer verified');
 
@@ -433,7 +444,8 @@ async function runVerification() {
     // Verify each bullet row has a "✦ Wording" proposal button
     const proposeButtons = page.locator('.rs-btn-propose');
     const proposeBtnCount = await proposeButtons.count();
-    if (proposeBtnCount === 0) throw new Error('Missing ✦ Wording proposal trigger buttons on bullets');
+    if (proposeBtnCount === 0)
+      throw new Error('Missing ✦ Wording proposal trigger buttons on bullets');
     console.log(`  ✓ Found ${proposeBtnCount} bullet wording proposal trigger buttons`);
 
     await page.screenshot({ path: path.join(screenshotDir, '02_desktop-1440-draft-created.png') });
@@ -455,28 +467,43 @@ async function runVerification() {
 
     // Wait for debounced autosave to encounter 409 conflict
     await page.waitForSelector('#rsConflictBanner.active', { state: 'visible', timeout: 5000 });
-    console.log('  ✓ HTTP 409 conflict banner displayed; autosave paused to protect candidate edits');
+    console.log(
+      '  ✓ HTTP 409 conflict banner displayed; autosave paused to protect candidate edits'
+    );
 
-    await page.screenshot({ path: path.join(screenshotDir, '03_desktop-1440-conflict-banner.png') });
+    await page.screenshot({
+      path: path.join(screenshotDir, '03_desktop-1440-conflict-banner.png'),
+    });
     testResults.push('03_desktop-1440-conflict-banner.png');
 
     // Click Review & Merge Changes
     await page.click('#btnConflictReview');
-    await page.waitForSelector('#rsConflictModalBackdrop.open', { state: 'visible', timeout: 5000 });
+    await page.waitForSelector('#rsConflictModalBackdrop.open', {
+      state: 'visible',
+      timeout: 5000,
+    });
 
     // Verify modal displays non-conflicting safe merges
     const modalContent = await page.locator('#rsConflictModalBody').textContent();
-    if (!modalContent.includes('Safe Non-Conflicting') && !modalContent.includes('Direct Field Conflicts')) {
+    if (
+      !modalContent.includes('Safe Non-Conflicting') &&
+      !modalContent.includes('Direct Field Conflicts')
+    ) {
       throw new Error(`Unexpected conflict modal body: ${modalContent}`);
     }
 
-    await page.screenshot({ path: path.join(screenshotDir, '04_desktop-1440-conflict-review-modal.png') });
+    await page.screenshot({
+      path: path.join(screenshotDir, '04_desktop-1440-conflict-review-modal.png'),
+    });
     testResults.push('04_desktop-1440-conflict-review-modal.png');
     console.log('  ✓ Conflict review modal correctly classified safe merges and direct collisions');
 
     // Click "Save Merged Resolution" to apply non-conflicting server updates while keeping local bullet edit
     await page.click('#btnConflictModalApply');
-    await page.waitForSelector('#rsConflictModalBackdrop.open', { state: 'detached', timeout: 5000 });
+    await page.waitForSelector('#rsConflictModalBackdrop.open', {
+      state: 'detached',
+      timeout: 5000,
+    });
     await page.waitForFunction(
       () => {
         const el = document.getElementById('rsSaveStatusText');
@@ -519,7 +546,9 @@ async function runVerification() {
     console.log(`    - Proposed: "${proposedText}"`);
     console.log(`    - Truth: ${truthTag}`);
 
-    await page.screenshot({ path: path.join(screenshotDir, '05_desktop-1440-proposal-active.png') });
+    await page.screenshot({
+      path: path.join(screenshotDir, '05_desktop-1440-proposal-active.png'),
+    });
     testResults.push('05_desktop-1440-proposal-active.png');
 
     // -------------------------------------------------------------------------
@@ -563,7 +592,9 @@ async function runVerification() {
       throw new Error('Live document preview did not reflect accepted proposal');
     }
 
-    await page.screenshot({ path: path.join(screenshotDir, '06_desktop-1440-proposal-accepted.png') });
+    await page.screenshot({
+      path: path.join(screenshotDir, '06_desktop-1440-proposal-accepted.png'),
+    });
     testResults.push('06_desktop-1440-proposal-accepted.png');
     console.log('  ✓ Accepted proposal updated structured editor and live preview authoritatively');
 
@@ -602,7 +633,9 @@ async function runVerification() {
       deviceScaleFactor: 2,
     });
     const page1280 = await context1280.newPage();
-    await page1280.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, { waitUntil: 'networkidle' });
+    await page1280.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, {
+      waitUntil: 'networkidle',
+    });
     await page1280.waitForSelector('#structuredEditorCard', { state: 'visible' });
     await page1280.screenshot({ path: path.join(screenshotDir, '08_laptop-1280-slice3.png') });
     testResults.push('08_laptop-1280-slice3.png');
@@ -614,7 +647,9 @@ async function runVerification() {
       deviceScaleFactor: 2,
     });
     const page1024 = await context1024.newPage();
-    await page1024.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, { waitUntil: 'networkidle' });
+    await page1024.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, {
+      waitUntil: 'networkidle',
+    });
     await page1024.waitForSelector('#structuredEditorCard', { state: 'visible' });
     await page1024.screenshot({ path: path.join(screenshotDir, '09_tablet-1024-slice3.png') });
     testResults.push('09_tablet-1024-slice3.png');
@@ -626,7 +661,9 @@ async function runVerification() {
       deviceScaleFactor: 2,
     });
     const page375 = await context375.newPage();
-    await page375.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, { waitUntil: 'networkidle' });
+    await page375.goto(`${baseUrl}/resume-studio?draftId=${serverDraft.id}`, {
+      waitUntil: 'networkidle',
+    });
     await page375.waitForSelector('#structuredEditorCard', { state: 'visible' });
     await page375.screenshot({ path: path.join(screenshotDir, '10_mobile-375-slice3.png') });
     testResults.push('10_mobile-375-slice3.png');

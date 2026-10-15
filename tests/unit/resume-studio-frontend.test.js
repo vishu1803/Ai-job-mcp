@@ -18,7 +18,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderResumeStudioPage } from '../../src/views/resume-studio.page.js';
-import { renderLayout } from '../../src/views/layout.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,19 +164,34 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
   // -------------------------------------------------------------------------
   // Page View Rendering & DOM Integration Tests
   // -------------------------------------------------------------------------
-  it('renders Resume Studio Page HTML with Slice 3 controls, conflict modal, and editing preview notice', () => {
+  it('renders real document actions, safe conflict review and session CSRF without prototype claims', () => {
     const html = renderResumeStudioPage({
       user: { id: 'u1', email: 'test@example.com', displayName: 'Asha 林', role: 'MEMBER' },
       tenant: { id: 't1', name: 'Test Tenant' },
       candidate: { id: 'c1', name: 'Asha 林' },
       candidateProfile: {
-        skills: [{ name: 'PostgreSQL', verified: true }, { name: 'React', verified: false }],
+        skills: [
+          { name: 'PostgreSQL', verified: true },
+          { name: 'React', verified: false },
+        ],
         projects: [{ name: 'Analytical Engine Core', projectType: 'APPLICATION' }],
-        experiences: [{ title: 'Lead Architect', company: 'Pioneer Labs', startDate: '2022', endDate: 'Present' }],
+        experiences: [
+          {
+            title: 'Lead Architect',
+            company: 'Pioneer Labs',
+            startDate: '2022',
+            endDate: 'Present',
+          },
+        ],
         professionalSummary: 'Senior Systems Architect with authentic repository evidence.',
       },
       baseResumes: [
-        { id: '2e5d9ef0-58ba-4c27-af13-40e8660909a8', fileName: 'Asha_Master.pdf', version: 1, isMaster: true },
+        {
+          id: '2e5d9ef0-58ba-4c27-af13-40e8660909a8',
+          fileName: 'Asha_Master.pdf',
+          version: 1,
+          isMaster: true,
+        },
       ],
       draftId: 'test-draft-uuid-999',
       csrfToken: 'test-csrf-token-xyz-123',
@@ -188,9 +202,10 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
     assert.ok(html.includes('AI Tailored Resume Studio'));
 
     // Slice 3 Header Elements
-    assert.ok(html.includes('Slice 3 · AI Proposals &amp; Editor'));
+    assert.ok(!html.includes('Slice 3 · AI Proposals &amp; Editor'));
     assert.ok(html.includes('id="rsSaveStatus"'));
-    assert.ok(html.includes('id="rsRevisionBadge"'));
+    assert.ok(!html.includes('id="rsRevisionBadge"'));
+    assert.ok(!html.includes('id="copilot-drawer"'));
 
     // Slice 3 Conflict Resolution Banner & Modal
     assert.ok(html.includes('id="rsConflictBanner"'));
@@ -203,11 +218,20 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
 
     // Part C: Editing Preview Tab & Notice
     assert.ok(html.includes('id="tabDocumentPreview"'));
-    assert.ok(html.includes('Editing Preview</button>'));
-    assert.ok(html.includes('rs-preview-notice'));
-    assert.ok(html.includes('Editing Preview · Client-Side Rendering'));
-    assert.ok(html.includes('Simulation Only'));
-    assert.ok(html.includes('Page count, 1-page geometry, margins (&ge;0.50in), and vector text extraction are evaluated strictly on compiled export outputs in Slice 5'));
+    for (const id of [
+      'btnCompilePreview',
+      'rsDocumentPreview',
+      'btnExportPdf',
+      'btnExportDocx',
+      'rsApprovalReviewed',
+      'btnApprovePackage',
+      'rsHistory',
+    ])
+      assert.ok(html.includes('id="' + id + '"'));
+    assert.ok(html.includes('type="module"'));
+    assert.ok(html.includes('test-csrf-token-xyz-123'));
+    assert.ok(!html.includes('Simulation Only'));
+    assert.ok(!html.includes('decreasing p99 latency by 42%'));
   });
 
   // -------------------------------------------------------------------------
@@ -230,15 +254,23 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
     ]);
 
     const serverChanges = [];
-    if (serverBullet0 !== baseBullet0) serverChanges.push({ nodeId: 'node-b0', text: serverBullet0 });
-    if (serverBullet1 !== baseBullet1) serverChanges.push({ nodeId: 'node-b1', text: serverBullet1 });
+    if (serverBullet0 !== baseBullet0)
+      serverChanges.push({ nodeId: 'node-b0', text: serverBullet0 });
+    if (serverBullet1 !== baseBullet1)
+      serverChanges.push({ nodeId: 'node-b1', text: serverBullet1 });
 
     // Check collision on node-b0: server didn't change it
-    const directCollisions = serverChanges.filter((s) => localEdits.has(s.nodeId) && localEdits.get(s.nodeId).text !== s.text);
+    const directCollisions = serverChanges.filter(
+      (s) => localEdits.has(s.nodeId) && localEdits.get(s.nodeId).text !== s.text
+    );
     const safeServerUpdates = serverChanges.filter((s) => !localEdits.has(s.nodeId));
 
     assert.equal(directCollisions.length, 0, 'Different fields must have ZERO direct collisions');
-    assert.equal(safeServerUpdates.length, 1, 'Server update on bullet 1 must be safe to auto-merge');
+    assert.equal(
+      safeServerUpdates.length,
+      1,
+      'Server update on bullet 1 must be safe to auto-merge'
+    );
     assert.equal(safeServerUpdates[0].nodeId, 'node-b1');
   });
 
@@ -254,9 +286,15 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
 
     const serverChanges = [{ nodeId: 'node-b0', text: serverBullet0 }];
 
-    const directCollisions = serverChanges.filter((s) => localEdits.has(s.nodeId) && localEdits.get(s.nodeId).text !== s.text);
+    const directCollisions = serverChanges.filter(
+      (s) => localEdits.has(s.nodeId) && localEdits.get(s.nodeId).text !== s.text
+    );
 
-    assert.equal(directCollisions.length, 1, 'Same field edited on both sides must produce 1 direct collision');
+    assert.equal(
+      directCollisions.length,
+      1,
+      'Same field edited on both sides must produce 1 direct collision'
+    );
     assert.equal(directCollisions[0].nodeId, 'node-b0');
     assert.equal(directCollisions[0].text, serverBullet0);
   });
@@ -270,7 +308,11 @@ describe('Resume Studio Frontend Unit Tests (Slice 1, 2 & 3)', () => {
 
     // Guard: proposal was generated on rev 1, current is rev 2
     const isStale = proposalBaseRevision !== currentRevision;
-    assert.equal(isStale, true, 'Proposal from revision 1 must be recognized as stale when draft is at revision 2');
+    assert.equal(
+      isStale,
+      true,
+      'Proposal from revision 1 must be recognized as stale when draft is at revision 2'
+    );
 
     // Expected decision payloads
     const acceptPayload = { expectedRevision: currentRevision, decision: 'ACCEPT' };
