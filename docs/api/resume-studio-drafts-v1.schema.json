@@ -4,53 +4,67 @@
     "$ref": "#/definitions/createRequest",
     "definitions": {
       "createRequest": {
-        "type": "object",
-        "properties": {
-          "source": {
+        "anyOf": [
+          {
             "type": "object",
             "properties": {
-              "kind": {
-                "type": "string",
-                "const": "RESUME"
-              },
-              "resumeId": {
+              "generationId": {
                 "type": "string",
                 "format": "uuid"
               }
             },
-            "required": ["kind", "resumeId"],
+            "required": ["generationId"],
             "additionalProperties": false
           },
-          "jobTarget": {
+          {
             "type": "object",
             "properties": {
-              "title": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 255
+              "source": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "RESUME"
+                  },
+                  "resumeId": {
+                    "$ref": "#/definitions/createRequest/anyOf/0/properties/generationId"
+                  }
+                },
+                "required": ["kind", "resumeId"],
+                "additionalProperties": false
               },
-              "company": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 255
-              },
-              "sourceUrl": {
-                "type": "string",
-                "format": "uri",
-                "maxLength": 2048
-              },
-              "rawDescription": {
-                "type": "string",
-                "minLength": 100,
-                "maxLength": 250000
+              "jobTarget": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "company": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "sourceUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 2048
+                  },
+                  "rawDescription": {
+                    "type": "string",
+                    "minLength": 100,
+                    "maxLength": 250000
+                  }
+                },
+                "required": ["rawDescription"],
+                "additionalProperties": false
               }
             },
-            "required": ["rawDescription"],
+            "required": ["source", "jobTarget"],
             "additionalProperties": false
           }
-        },
-        "required": ["source", "jobTarget"],
-        "additionalProperties": false
+        ]
       }
     },
     "$schema": "http://json-schema.org/draft-07/schema#"
@@ -189,6 +203,33 @@
             "type": "string",
             "const": "DRAFT"
           },
+          "generation": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/responseData/properties/id"
+              },
+              "contentHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "parentGenerationId": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/responseData/properties/id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "origin": {
+                "type": "string"
+              }
+            },
+            "required": ["id", "contentHash", "parentGenerationId", "origin"],
+            "additionalProperties": false
+          },
           "sourceResumeId": {
             "$ref": "#/definitions/responseData/properties/id"
           },
@@ -197,14 +238,13 @@
             "exclusiveMinimum": 0
           },
           "sourceContentHash": {
-            "type": "string",
-            "pattern": "^[a-f0-9]{64}$"
+            "$ref": "#/definitions/responseData/properties/generation/properties/contentHash"
           },
           "sourceSnapshotHash": {
-            "$ref": "#/definitions/responseData/properties/sourceContentHash"
+            "$ref": "#/definitions/responseData/properties/generation/properties/contentHash"
           },
           "contentHash": {
-            "$ref": "#/definitions/responseData/properties/sourceContentHash"
+            "$ref": "#/definitions/responseData/properties/generation/properties/contentHash"
           },
           "createdAt": {
             "type": "string",
@@ -234,7 +274,7 @@
               },
               "rawDescription": {
                 "type": "string",
-                "minLength": 100,
+                "minLength": 10,
                 "maxLength": 250000
               }
             },
@@ -699,6 +739,57 @@
               "schemaVersion": {
                 "type": "string",
                 "const": "studio-draft/1.0.0"
+              },
+              "targetRole": {
+                "type": "string",
+                "maxLength": 255
+              },
+              "sectionOrder": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "dsa": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "hasSection": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "profileUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "bullets": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "default": []
+                      },
+                      "provenanceStatus": {
+                        "type": "string",
+                        "enum": ["CLAIMED", "USER_PROVIDED", "VERIFIED", "CORROBORATED"],
+                        "default": "CLAIMED"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "candidateIdentity": {
                 "type": "object",
@@ -1634,32 +1725,28 @@
                 "items": {
                   "$ref": "#/definitions/responseData/properties/id"
                 },
-                "maxItems": 10000,
-                "uniqueItems": true
+                "maxItems": 10000
               },
               "projectIds": {
                 "type": "array",
                 "items": {
                   "$ref": "#/definitions/responseData/properties/id"
                 },
-                "maxItems": 4,
-                "uniqueItems": true
+                "maxItems": 4
               },
               "bulletIds": {
                 "type": "array",
                 "items": {
                   "$ref": "#/definitions/responseData/properties/id"
                 },
-                "maxItems": 10000,
-                "uniqueItems": true
+                "maxItems": 10000
               },
               "skillIds": {
                 "type": "array",
                 "items": {
                   "$ref": "#/definitions/responseData/properties/id"
                 },
-                "maxItems": 10000,
-                "uniqueItems": true
+                "maxItems": 10000
               }
             },
             "required": ["experienceIds", "projectIds", "bulletIds", "skillIds"],

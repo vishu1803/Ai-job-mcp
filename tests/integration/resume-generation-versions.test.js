@@ -1,4 +1,11 @@
-﻿import { test } from 'node:test';
+import { ResumeStudioHistoryService } from '../../src/services/resume-studio-history.service.js';
+import Ajv from 'ajv';
+import fs from 'node:fs/promises';
+import { buildApp } from '../../src/app.js';
+import { createSession, generateCsrfToken } from '../../src/security/session.service.js';
+import { ResumeStudioDraftService } from '../../src/services/resume-studio-draft.service.js';
+import { studioDocumentContent } from '../../src/services/resume-studio-document-content.js';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
@@ -38,13 +45,33 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
       description: 'Node.js and PostgreSQL.',
       requirements: ['Node.js', 'PostgreSQL'],
     },
+    options: {
+      projectRankings: profile.projects.map((project, index) => ({
+        projectId: project.id,
+        projectName: project.name,
+        status: 'SELECTED',
+        relevanceScore: 100 - index,
+        rank: index + 1,
+      })),
+    },
   });
-  const sources = contexts.map((ctx) => ({
-    identity: { name: profile.displayName || 'Synthetic candidate', email: 'fixture@example.test' },
-    sourceResumeId: ctx.resumeId,
-    sourceVersion: 1,
-    summary: 'Source facts are preserved.',
-  }));
+  const sources = contexts.map((ctx) =>
+    JSON.parse(
+      JSON.stringify({
+        identity: {
+          name: profile.displayName || 'Synthetic candidate',
+          email: 'fixture@example.test',
+        },
+        sourceResumeId: ctx.resumeId,
+        sourceVersion: 1,
+        summary: 'Source facts are preserved.',
+        projects: profile.projects,
+        skills: profile.skills,
+        experience: profile.experience,
+        education: profile.education,
+      })
+    )
+  );
   const request = (ctx, key = 'first') => ({
     candidateId: ctx.candidateId,
     sourceResumeId: ctx.resumeId,
@@ -237,6 +264,168 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
       assert.equal(master.contentHash, sourceHash);
       assert.equal(master.isBaseResume, true);
     });
+    await t.test(
+      'exact generated content opens once in Studio, persists edits and retains older versions',
+      async () => {
+        const drafts = new ResumeStudioDraftService({ database: db });
+        const draft = await drafts.create(contexts[0], { generationId: first.id });
+        assert.equal(draft.generation.id, first.id);
+        assert.equal(
+          draft.structuredResume.summary.text,
+          first.bundle.structuredResume.summary.text
+        );
+        assert.notEqual(draft.structuredResume.summary.text, sources[0].summary);
+        assert.ok(draft.structuredResume.projects.length > 0);
+        assert.deepEqual(
+          draft.structuredResume.projects.map((p) => p.bullets),
+          first.bundle.structuredResume.projects.map((p) => p.bullets.map((b) => b.text))
+        );
+        const projection = studioDocumentContent(draft);
+        assert.equal(projection.render.targetRole, first.bundle.structuredResume.targetRole);
+        assert.deepEqual(
+          projection.render.sectionOrder,
+          first.bundle.structuredResume.sectionOrder
+        );
+        assert.deepEqual(
+          projection.render.skills.categories.map((c) => [
+            c.categoryName,
+            c.skills.map((v) => v.name),
+          ]),
+          first.bundle.structuredResume.skills.categories.map((c) => [
+            c.categoryName,
+            c.skills.map((v) => v.name),
+          ])
+        );
+        const headings = projection.blocks.filter((b) => b.style === 'Heading1').map((b) => b.text);
+        assert.ok(headings.indexOf('Technical Skills') < headings.indexOf('Technical Projects'));
+        const summaryNode = draft.nodes.find((n) => n.kind === 'SUMMARY');
+        const edited = await drafts.update(contexts[0], draft.id, {
+          expectedRevision: 1,
+          edits: [{ nodeId: summaryNode.nodeId, text: 'Candidate-authored refined summary.' }],
+        });
+        const reopened = await drafts.create(contexts[0], { generationId: first.id });
+        assert.equal(reopened.id, draft.id);
+        assert.equal(reopened.revision, 2);
+        assert.equal(reopened.structuredResume.summary.text, edited.structuredResume.summary.text);
+        await assert.rejects(
+          drafts.update(contexts[0], draft.id, {
+            expectedRevision: 1,
+            edits: [{ nodeId: summaryNode.nodeId, text: 'Stale edit.' }],
+          }),
+          /revision/
+        );
+        await assert.rejects(drafts.create(contexts[1], { generationId: first.id }), /not found/i);
+        assert.deepEqual((await service.get(contexts[0], first.id)).bundle, first.bundle);
+      }
+    );
+    await t.test(
+      'authenticated HTTP opening requires CSRF and returns the persisted generated draft',
+      async () => {
+        const app = await buildApp({ logger: false });
+        try {
+          await app.listen({ host: '127.0.0.1', port: 0 });
+          const base = 'http://127.0.0.1:' + app.server.address().port;
+          const session = await createSession(db, contexts[0]);
+          const headers = {
+            'content-type': 'application/json',
+            accept: 'application/json',
+            origin: base,
+            cookie: 'career_hub_session=' + session.rawToken,
+          };
+          const url = base + '/api/v1/resume-studio/drafts';
+          const rejected = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ generationId: first.id }),
+          });
+          assert.equal(rejected.status, 403);
+          headers['x-csrf-token'] = generateCsrfToken(session.sessionId);
+          const opened = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ generationId: first.id }),
+          });
+          const body = await opened.json();
+          assert.equal(opened.status, 201, JSON.stringify(body));
+          assert.equal(body.data.generation.id, first.id);
+          const portable = JSON.parse(
+            await fs.readFile(
+              new URL('../../docs/api/resume-studio-drafts-v1.schema.json', import.meta.url),
+              'utf8'
+            )
+          );
+          const validate = new Ajv({ strict: false, validateFormats: false }).compile(
+            portable.responseData
+          );
+          assert.equal(validate(body.data), true, JSON.stringify(validate.errors));
+          assert.equal(body.data.revision, 2);
+          assert.equal(
+            body.data.structuredResume.summary.text,
+            'Candidate-authored refined summary.'
+          );
+          const loaded = await fetch(url + '/' + body.data.id, { headers });
+          assert.equal(loaded.status, 200);
+          assert.equal((await loaded.json()).data.contentHash, body.data.contentHash);
+        } finally {
+          await app.close();
+        }
+      }
+    );
+    await t.test(
+      'generated drafts retain revision history and restore through existing CAS workflow',
+      async () => {
+        const drafts = new ResumeStudioDraftService({ database: db });
+        const draft = await drafts.create(contexts[0], { generationId: first.id });
+        const history = new ResumeStudioHistoryService({ database: db });
+        const restored = await history.restore(contexts[0], draft.id, {
+          expectedRevision: 2,
+          restoreRevision: 1,
+        });
+        assert.equal(restored.revision, 3);
+        assert.equal(restored.generation.id, first.id);
+        assert.equal(
+          restored.structuredResume.summary.text,
+          first.bundle.structuredResume.summary.text
+        );
+        assert.equal(
+          (await history.get(contexts[0], draft.id, 2)).structuredResume.summary.text,
+          'Candidate-authored refined summary.'
+        );
+        await assert.rejects(
+          history.restore(contexts[0], draft.id, { expectedRevision: 2, restoreRevision: 1 }),
+          /Draft changed/
+        );
+      }
+    );
+    await t.test(
+      'historical generation opens after its master is superseded without cloning the new master',
+      async () => {
+        const historical = await service.save(
+          contexts[0],
+          request(contexts[0], 'historical'),
+          bundle()
+        );
+        await db
+          .update(resumes)
+          .set({ isBaseResume: false, lifecycleState: 'ARCHIVED', updatedAt: new Date() })
+          .where(eq(resumes.id, contexts[0].resumeId));
+        await db
+          .update(candidates)
+          .set({
+            profileMetadata: { resumeData: { summary: 'A different current master.' } },
+            updatedAt: new Date(),
+          })
+          .where(eq(candidates.id, contexts[0].candidateId));
+        const draft = await new ResumeStudioDraftService({ database: db }).create(contexts[0], {
+          generationId: historical.id,
+        });
+        assert.equal(
+          draft.structuredResume.summary.text,
+          historical.bundle.structuredResume.summary.text
+        );
+        assert.equal(draft.sourceVersion, 1);
+      }
+    );
   } finally {
     for (const ctx of contexts) await db.delete(tenants).where(eq(tenants.id, ctx.tenantId));
     await closeDatabase();

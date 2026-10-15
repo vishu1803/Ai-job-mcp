@@ -1,3 +1,7 @@
+# UNIFIED-RESUME-STUDIO-005 - Exact saved generation opening (2026-10-15)
+
+Status: IN_PROGRESS. Generated-version Studio adapter and immutable source link implemented. Real PostgreSQL/Fastify/session/CSRF gate 13/13 PASS; existing Studio regression gate 49/49 PASS; fresh 28-migration chain PASS locally. Saved selected summary/skills/projects are retained; edits, reload, history/restore and historical-master opening verified. Frontend deep link implemented but not yet browser-verified. Master-only create and existing generation adapters still require the shared authorized operation; Library/compare/handoff/fonts/browser acceptance incomplete. Migration0027 is local-only; no Aiven migration/push/deployment. See docs/product/unified-resume-implementation.md for evidence and compatibility.
+
 # UNIFIED-RESUME-VERSIONS-004 - Durable generation persistence (2026-10-15)
 
 Status: IN_PROGRESS. Additive generation ledger and internal encrypted version service implemented; 9/9 PostgreSQL contract cases PASS, 27 migrations PASS on fresh disposable local database. Owner/master snapshots, retry identity, parent generations and immutable structured content preserved without changing application selection. Existing APIs/Studio callers not yet connected; no browser/document acceptance claimed. Migration compatibility/rollback analysis and exact evidence in docs/product/unified-resume-implementation.md. No remote migration, push or deployment.

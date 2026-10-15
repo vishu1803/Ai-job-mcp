@@ -1,3 +1,6 @@
+import { resumeStudioDrafts } from '../db/resume-studio.schema.js';
+import { ResumeGenerationVersionService } from './resume-generation-version.service.js';
+import { generatedResumeStudioContent } from './resume-studio-generation-content.js';
 import {
   StudioLibraryQuerySchema,
   StudioLibraryResponseSchema,
@@ -75,6 +78,7 @@ export class ResumeStudioDraftService {
           }) ||
         hashStudioContent(source.snapshot) !== row.sourceSnapshotHash ||
         hashStudioContent(content.payload) !== row.contentHash ||
+        (row.generationId && source.snapshot.generationId !== row.generationId) ||
         source.snapshot.sourceResumeId !== row.sourceResumeId ||
         source.snapshot.sourceVersion !== row.sourceVersion ||
         source.snapshot.sourceContentHash !== row.sourceContentHash
@@ -138,6 +142,7 @@ export class ResumeStudioDraftService {
   async create(context, input) {
     requireContext(context, true);
     const body = parseInput(StudioCreateDraftRequestSchema, input);
+    if (body.generationId) return this.createFromGeneration(context, body.generationId);
     const bounded = boundStudioJobText(body.jobTarget.rawDescription);
     const parsed = await JobDescriptionParser.parse(
       {
@@ -260,6 +265,110 @@ export class ResumeStudioDraftService {
       // Validate the exact persisted contract before committing history/audit.
       const response = this._response(created);
       await drafts.appendRevision(created, context, 'draft_created');
+      return response;
+    });
+  }
+
+  async createFromGeneration(context, generationId) {
+    requireContext(context, true);
+    parseInput(StudioDraftParamsSchema, { id: generationId });
+    return this.db.transaction(async (tx) => {
+      const versions = new ResumeGenerationVersionService({ database: tx });
+      const generation = await versions.owned(tx, context, generationId, true);
+      const [existing] = await tx
+        .select()
+        .from(resumeStudioDrafts)
+        .where(
+          and(
+            eq(resumeStudioDrafts.generationId, generationId),
+            eq(resumeStudioDrafts.tenantId, context.tenantId),
+            eq(resumeStudioDrafts.userId, context.userId)
+          )
+        );
+      if (existing) return this._response(existing);
+      const request = generation.request;
+      const job = request.jobSnapshot;
+      const bounded = boundStudioJobText(job.rawDescription || job.description || '');
+      const parsed = await JobDescriptionParser.parse(
+        {
+          source: 'PASTE',
+          rawText: bounded.text,
+          title: job.title,
+          ...(job.company ? { company: job.company } : {}),
+        },
+        { tenantId: context.tenantId }
+      );
+      const id = crypto.randomUUID();
+      const masterSnapshot = normalizeStudioMaster(
+        generation.bundle.sourceSnapshot,
+        generation.sourceResumeId
+      );
+      const structuredResume = generatedResumeStudioContent(generation.bundle.structuredResume, id);
+      const nodes = createStudioNodes(structuredResume);
+      const snapshot = {
+        generationId,
+        generationContentHash: generation.contentHash,
+        sourceResumeId: generation.sourceResumeId,
+        sourceVersion: generation.sourceVersion,
+        sourceContentHash: generation.sourceContentHash,
+        rawCanonical: generation.bundle.sourceSnapshot,
+        masterSnapshot,
+        generatedSnapshot: generation.bundle.structuredResume,
+      };
+      const sourceSnapshotHash = hashStudioContent(snapshot);
+      const payload = {
+        generation: {
+          id: generationId,
+          contentHash: generation.contentHash,
+          parentGenerationId: generation.parentGenerationId,
+          origin: generation.origin,
+        },
+        jobTarget: {
+          title: job.title,
+          ...(job.company ? { company: job.company } : {}),
+          rawDescription: bounded.text,
+        },
+        jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
+        warnings: bounded.truncated
+          ? [
+              {
+                code: 'JOB_DESCRIPTION_TRUNCATED',
+                message: 'Job description was truncated to the parser budget. Review requirements.',
+              },
+            ]
+          : [],
+        structuredResume,
+        nodes,
+        selection: {
+          ...defaultStudioSelection(nodes),
+          projectIds: nodes.filter((n) => n.kind === 'PROJECT').map((n) => n.nodeId),
+        },
+        nodeProvenance: Object.fromEntries(
+          nodes.map((node) => [node.nodeId, { truthState: 'CLAIMED', editedAtRevision: null }])
+        ),
+      };
+      const row = {
+        id,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        candidateId: generation.candidateId,
+        generationId,
+        sourceResumeId: generation.sourceResumeId,
+        sourceVersion: generation.sourceVersion,
+        sourceContentHash: generation.sourceContentHash,
+        sourceSnapshotHash,
+        revision: 1,
+        contentHash: hashStudioContent(payload),
+      };
+      row.encryptedSource = encryptStudioPayload({ binding: binding(row), snapshot });
+      row.encryptedContent = encryptStudioPayload({
+        binding: { ...binding(row), revision: 1, sourceSnapshotHash },
+        payload,
+      });
+      const repo = new ResumeStudioRepository(tx);
+      const created = await repo.insert(row);
+      const response = this._response(created);
+      await repo.appendRevision(created, context, 'draft_created');
       return response;
     });
   }
