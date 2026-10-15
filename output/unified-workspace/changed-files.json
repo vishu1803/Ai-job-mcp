@@ -1388,8 +1388,8 @@
     },
     {
       "path": "docs/product/unified-ui-milestone-1-handoff.md",
-      "bytes": 9718,
-      "sha256": "53c8b76c3a8603d593dfed93776734cc5987a9c60a5f5d2dc6901efe928c69cc"
+      "bytes": 9903,
+      "sha256": "088cdea1df475a48ff53eae24ac1b4fa27bc20126bc481d7f9968fa1df443a81"
     },
     {
       "path": "output/resume-studio/dense-spacing-diagnostic.verification.json",
@@ -1663,13 +1663,13 @@
     },
     {
       "path": "output/unified-workspace/local-main/desktop-dark-studio-viewport.png",
-      "bytes": 191115,
-      "sha256": "41eb58782cc422786c1854b130abe363c092b186a83e350317020d8918fad593"
+      "bytes": 189679,
+      "sha256": "6b163f2c2d38edb857f590ce4caa5ef3a07fa3603fc85ab91fa2173a30fccd07"
     },
     {
       "path": "output/unified-workspace/local-main/desktop-dark-studio.png",
-      "bytes": 386300,
-      "sha256": "6664ff28b08393c3408687b9d68311d542df84e692e8688cfcf4cfdbfd8d4fce"
+      "bytes": 382459,
+      "sha256": "740bfeb201145d6f5862e2f8255f59001d5cbbb21b74c4d4f85b4c17b43e0144"
     },
     {
       "path": "output/unified-workspace/local-main/desktop-light-overview-viewport.png",
@@ -1693,13 +1693,13 @@
     },
     {
       "path": "output/unified-workspace/local-main/desktop-light-studio-viewport.png",
-      "bytes": 190387,
-      "sha256": "a345c4c47f7582871ca6966a4cd0fd22859a6f3b768f848d2664ee9f5e920b06"
+      "bytes": 188905,
+      "sha256": "cbfec3e49db07bd799b2304a0f7c591a193cfc7dc0cecb275203edd7af2e434e"
     },
     {
       "path": "output/unified-workspace/local-main/desktop-light-studio.png",
-      "bytes": 383622,
-      "sha256": "1444b8d50a7c38b92329cd1f21b8d37bf5aac92e7d2b3a28451250b35f3e10b7"
+      "bytes": 379721,
+      "sha256": "34bab3014eb67933d7e3b560243e5d9b21f1c53b37465411562b9f482030563c"
     },
     {
       "path": "output/unified-workspace/local-main/mobile-dark-overview-viewport.png",
@@ -1728,8 +1728,8 @@
     },
     {
       "path": "output/unified-workspace/local-main/mobile-dark-studio.png",
-      "bytes": 310219,
-      "sha256": "3c93dc6dfa14e66f7028dd778e4d1fe648b16adffe4e03fcd3027ca52ec9ceda"
+      "bytes": 309709,
+      "sha256": "030835c4ca7b2250cb27d15434514de4f1a37deea7ce31166b04dd98228edbe1"
     },
     {
       "path": "output/unified-workspace/local-main/mobile-light-overview-viewport.png",
@@ -1758,13 +1758,13 @@
     },
     {
       "path": "output/unified-workspace/local-main/mobile-light-studio.png",
-      "bytes": 308108,
-      "sha256": "035866d64da2b789c8a9e033947d64c0417a504267d0b3b64097a8920411d151"
+      "bytes": 307493,
+      "sha256": "628e27a6c8f64aa55fd284622a8c23d64d19a5a2ca3656cf60738317a7a1c3d2"
     },
     {
       "path": "output/unified-workspace/local-main/server.json",
-      "bytes": 610,
-      "sha256": "5a7e41d68ca074f7b4360bb6c7bbc6db85fb91a8eea07a6516b86ff5073358db"
+      "bytes": 609,
+      "sha256": "26cf3729f007dbd0f0387f4d9f8abbfc1e781fc291011d22623f6b4d44ea07b9"
     },
     {
       "path": "output/unified-workspace/local-main/verification.json",
@@ -1853,8 +1853,8 @@
     },
     {
       "path": "project.md",
-      "bytes": 2169218,
-      "sha256": "f2ba70eb925c51a86ecac9ac871a6bd59ba6e289323c3e2d3f24dcb819d7aee2"
+      "bytes": 2170106,
+      "sha256": "4dd8fb2bd1c85a65743923cc02d1d63b29b74a7c5288be63c74ccb51e0cac405"
     },
     {
       "path": "public/css/resume-studio.css",
@@ -2021,5 +2021,7 @@
       "bytes": 15387,
       "sha256": "86d2fb2cdad44c8acee00db64106b3a19029fda02f1839a9ca629bb05d4fb0d6"
     }
-  ]
+  ],
+  "applicationCheckpoint": "9a4830dfed7475ab8c657d0c853cd4dafb8d40fe",
+  "finalEvidenceRefresh": "Committed-source actual-main12state browser capture; no application code changes."
 }

@@ -18,6 +18,10 @@
 - Quality checkpoint29changedJS/MJS lint0errors/warnings; strict394file scan0findings, whitespacePASS. CSS formatter unavailable (installed plugin missing); actual browser behavior verified. External design CLI access unavailable; approved52localwireframes preserved and used. Original backend138/frontend26 files byte unchanged; unrelated main .claude settings hash unchanged; all planning gallery links resolve. No push/deploy performed by this task; external3cef691PR16 appeared during verification and was preserved. Stop after first milestone. Later screens, exact Studio bytes through legacy handoff, Office rendering and liveAI remain open; no production readiness/progress-percentage claim.
 
 
+- Durable implementation checkpoint9a4830dfed7475ab8c657d0c853cd4dafb8d40fe on localmain. Final review serverPID7236/4318 restarted from that commit using the no-dotenv fixture preloader; exact login/current draft in output/unified-workspace/local-main/server.json. Discovery/analysis target handoff rendering and real owned context6/6 passed again, not added to592 count. Final404-file strict scan0findings; scoped29JS/MJS lintPASS. No remaining-screen implementation authorized before owner visual review.
+
+- Final committed-source browser capturePASS:12states/24PNGs on serverPID7236/4318, main9a4830, actual PDF image decoded before screenshot, no page errors/root overflow. Live synthetic login restores current draft2ad40941-e9cf-4509-bb89-e012c09eb35c. Gallery/output and handoff runtime updated; later checkpoint is evidence-only. No product code changed after this capture.
+
 ## STUDIO-MAIN-001 - Authorized local consolidation (2026-10-15)
 
 **Status: COMPLETE - authorized local consolidation and actual-main verification.** Local checkpoint commits and merge into main authorized; remote publication/deployment prohibited. Current phase P0 product acceptance plus explicitly authorized unified UI milestone. No PRD repair implementation changed.

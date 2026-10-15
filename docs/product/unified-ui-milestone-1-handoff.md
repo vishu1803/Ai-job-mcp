@@ -7,10 +7,12 @@ Status: locally verified; first visual milestone awaiting owner review. Product-
 - Main checkout: C:\Users\VISHW\OneDrive\Desktop\Ai-career-agent, branch main.
 - Overview: http://127.0.0.1:4318/dashboard
 - Resume Library: http://127.0.0.1:4318/resumes
-- Fixture login and exact saved draft: http://127.0.0.1:4318/auth/dev-login?e2e=1&returnTo=%2Fresume-studio%3FdraftId%3D75153c81-f3c3-4834-accc-aa2e77bff0f1
+- Fixture login and exact saved draft: http://127.0.0.1:4318/auth/dev-login?e2e=1&returnTo=%2Fresume-studio%3FdraftId%3D2ad40941-e9cf-4509-bb89-e012c09eb35c
 - Actual screenshots: [review gallery](../../output/unified-workspace/review.html).
 - Start/restart from main: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/start-studio-visual.ps1 -Background`. The helper selects a free port4317-4327 and prints its manifest directory. It requires the already migrated disposable database; it never migrates. Existing private dotenv files are excluded by the explicit test-only preloader. Do not use this fixture runner for production.
 - Port4318 is actual main. Port4317 remains the original backend worktree. Both original implementation worktrees and all recovery directories remain. A normal main .env may point at another database; this task did not run npmdev against it or migrate it.
+
+Implementation checkpoint: `9a4830dfed7475ab8c657d0c853cd4dafb8d40fe`. Final visual serverPID7236 loads that main commit; later evidence-only commits do not change application code.
 
 ## Consolidation evidence
 
