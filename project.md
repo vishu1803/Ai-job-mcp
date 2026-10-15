@@ -1,3 +1,7 @@
+# UNIFIED-RESUME-ARTIFACTS-007 - Real saved documents and contact retention (2026-10-15)
+
+Status: IN_PROGRESS. Actual shared-operation Backend/Full-Stack PDF and DOCX artifacts generated from one synthetic master with real DB, compiler, independent verification, encrypted storage and exact Studio opening. Both single A4 pages; correct phone/location/links now retained. 14/14 integration PASS, including current explicit contact clears and old-version preservation. Actual fonts still Segoe UI (required Latin Modern FAIL); sparse fixture density, Word pagination, all-entry adapters/Library/compare/handoff/browser/CI acceptance remain open. Detailed artifacts/path and limits in docs/product/unified-resume-implementation.md. No live provider or remote DB calls.
+
 # UNIFIED-RESUME-ENGINE-006 - Authorized saved generation operation (2026-10-15)
 
 Status: IN_PROGRESS. Shared execute operation reuses existing source/ranking/writer/fitter/compiler/evidence/storage, persists before Studio opens, and removes master-clone Studio creation. Canonical master projects/skills reconciled. Fixed parser extractedValue loss and generic master-summary fallback precedence. Focused 81/81 PASS; real DB/HTTP integration 14/14 PASS with controlled compiler fixtures. Existing normalization gate retains the same one baseline provenance mismatch. No real compiler/browser acceptance claim. Other workflow adapters still require execute integration; Library/compare/handoff/fonts/full-suite closure remain. See implementation report. No remote writes, migration, push or deployment.

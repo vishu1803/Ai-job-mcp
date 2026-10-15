@@ -185,13 +185,33 @@ export class ResumeGenerationService {
       ...(body.jobTarget.sourceUrl ? { sourceUrl: body.jobTarget.sourceUrl } : {}),
     };
     const view = await new CandidateProfileService(this.db).getProfile(context, source.owner.id);
-    const metadata = { ...view.candidate.profileMetadata, resumeData: source.canonical };
-    const masterInput = { ...source.canonical, profileMetadata: metadata };
+    const metadata = { ...source.owner.profileMetadata, resumeData: source.canonical };
+    const masterIdentity = source.canonical.identity || {};
+    const masterInput = { ...masterIdentity, ...source.canonical, profileMetadata: metadata };
     const sections = normalizeResumeSourceSections(masterInput);
     const masterDsa = resumeSourceValue(masterInput, 'dsa', ['problemSolving']);
+    const masterLinks = resumeSourceValue(masterInput, 'links', ['portfolioLinks']);
     const profile = json({
       ...view.candidate,
       ...sections,
+      displayName: resumeSourceValue(
+        { ...masterInput, displayName: masterIdentity.name || view.candidate.displayName },
+        'displayName'
+      ),
+      canonicalEmail:
+        source.owner.canonicalEmail || masterIdentity.email || view.candidate.canonicalEmail,
+      phone: resumeSourceValue(masterInput, 'phone', ['canonicalPhone', 'phoneNumber']),
+      location: resumeSourceValue(masterInput, 'location'),
+      headline: resumeSourceValue(masterInput, 'headline'),
+      links:
+        masterLinks === undefined
+          ? [
+              ...['github', 'linkedin', 'leetcode'].flatMap((label) =>
+                masterIdentity[label] ? [{ label, url: masterIdentity[label] }] : []
+              ),
+              ...(masterIdentity.portfolioUrls || []).map((url) => ({ label: 'Portfolio', url })),
+            ]
+          : masterLinks,
       summary: resumeSourceValue(masterInput, 'summary'),
       skills: view.skills || [],
       projects: reconcileCandidateProjects({
@@ -201,7 +221,7 @@ export class ResumeGenerationService {
 
       dsa: masterDsa === undefined ? view.dsa || null : masterDsa,
       resumeSections: view.resumeSections || [],
-      profileMetadata: { ...view.candidate.profileMetadata, resumeData: source.canonical },
+      profileMetadata: metadata,
     });
     profile.skills = resumeSkillInputs(profile);
     const ranking = ProjectRelevanceService.computeProjectsRelevance(

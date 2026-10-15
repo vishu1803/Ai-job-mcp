@@ -66,6 +66,9 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
         identity: {
           name: profile.displayName || 'Synthetic candidate',
           email: 'fixture@example.test',
+          phone: profile.phone,
+          location: profile.location,
+          headline: profile.headline,
         },
         sourceResumeId: ctx.resumeId,
         sourceVersion: 1,
@@ -462,6 +465,15 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
           };
           const generated = await engine.execute(contexts[0], input);
           assert.equal(generated.bundle.structuredResume.writing.providerUsed, true);
+          assert.equal(generated.bundle.structuredResume.candidateIdentity.phone, profile.phone);
+          assert.equal(
+            generated.bundle.structuredResume.candidateIdentity.location,
+            profile.location
+          );
+          assert.equal(
+            generated.bundle.structuredResume.candidateIdentity.email,
+            'fixture@example.test'
+          );
           assert.equal(generated.bundle.metadata.writing.provider, 'gemini-vertex');
           const retried = await engine.execute(contexts[0], input);
           assert.equal(retried.id, generated.id);
@@ -483,6 +495,30 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
             jobTarget: input.jobTarget,
           });
           assert.equal(retryMaster.id, fromMaster.id);
+          await db
+            .update(candidates)
+            .set({
+              profileMetadata: {
+                resumeData: sources[0],
+                userCustom: { phone: null, location: null, links: [] },
+              },
+              updatedAt: new Date(),
+            })
+            .where(eq(candidates.id, contexts[0].candidateId));
+          const cleared = await engine.execute(contexts[0], {
+            ...input,
+            idempotencyKey: 'cleared-contacts',
+            origin: 'REGENERATION',
+            parentGenerationId: generated.id,
+          });
+          assert.equal(cleared.bundle.structuredResume.candidateIdentity.phone, null);
+          assert.equal(cleared.bundle.structuredResume.candidateIdentity.location, null);
+          assert.deepEqual(cleared.bundle.structuredResume.candidateIdentity.links, []);
+          assert.equal(
+            (await service.get(contexts[0], generated.id)).bundle.structuredResume.candidateIdentity
+              .phone,
+            profile.phone
+          );
           const callsBeforeFailure = compileCalls;
           failCompilation = true;
           await assert.rejects(
