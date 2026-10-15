@@ -1,3 +1,7 @@
+# UNIFIED-RESUME-VERSIONS-004 - Durable generation persistence (2026-10-15)
+
+Status: IN_PROGRESS. Additive generation ledger and internal encrypted version service implemented; 9/9 PostgreSQL contract cases PASS, 27 migrations PASS on fresh disposable local database. Owner/master snapshots, retry identity, parent generations and immutable structured content preserved without changing application selection. Existing APIs/Studio callers not yet connected; no browser/document acceptance claimed. Migration compatibility/rollback analysis and exact evidence in docs/product/unified-resume-implementation.md. No remote migration, push or deployment.
+
 # UNIFIED-RESUME-OPTIMIZER-003 - Semantic freeze regression (2026-10-15)
 
 Status: IN_PROGRESS (bounded fix locally verified). Frozen full suite: 4300 pass/181 fail/4481 total. New optimizer regression fixed: layout trials retain exact selected content, accepted writing and provenance; no post-freeze expansion or pruning. Three new preservation cases pass; existing focused gate 41 pass/2 known baseline failures, including formerly new fingerprint test now passing. Full suite still RED. Report: docs/product/unified-resume-implementation.md. No remote changes, push or deployment.
