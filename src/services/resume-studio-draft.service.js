@@ -1,3 +1,4 @@
+import { ResumeGenerationService } from './resume-generation.service.js';
 import { resumeStudioDrafts } from '../db/resume-studio.schema.js';
 import { ResumeGenerationVersionService } from './resume-generation-version.service.js';
 import { generatedResumeStudioContent } from './resume-studio-generation-content.js';
@@ -8,14 +9,11 @@ import {
 import crypto from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, resumes } from '../db/schema.js';
-import { ResumeRepository } from '../db/repositories/resume.repository.js';
 import { ResumeStudioRepository } from '../db/repositories/resume-studio.repository.js';
 import { JobDescriptionParser } from '../domain/career/job-parser.js';
 import { boundStudioJobText } from './resume-studio-analysis.service.js';
 import {
   AuthorizationError,
-  NotFoundError,
   ConflictError,
   ValidationError,
   InternalServerError,
@@ -59,8 +57,9 @@ function binding(row) {
 }
 
 export class ResumeStudioDraftService {
-  constructor({ database = defaultDb } = {}) {
+  constructor({ database = defaultDb, generationService = null } = {}) {
     this.db = database;
+    this.generationService = generationService;
   }
 
   _decode(row) {
@@ -143,130 +142,13 @@ export class ResumeStudioDraftService {
     requireContext(context, true);
     const body = parseInput(StudioCreateDraftRequestSchema, input);
     if (body.generationId) return this.createFromGeneration(context, body.generationId);
-    const bounded = boundStudioJobText(body.jobTarget.rawDescription);
-    const parsed = await JobDescriptionParser.parse(
-      {
-        source: 'PASTE',
-        rawText: bounded.text,
-        ...(body.jobTarget.title ? { title: body.jobTarget.title } : {}),
-        ...(body.jobTarget.company ? { company: body.jobTarget.company } : {}),
-        metadata: body.jobTarget.sourceUrl ? { sourceUrl: body.jobTarget.sourceUrl } : {},
-      },
-      { tenantId: context.tenantId }
-    );
-    return this.db.transaction(async (tx) => {
-      const [owner] = await tx
-        .select()
-        .from(candidates)
-        .where(
-          and(
-            eq(candidates.tenantId, context.tenantId),
-            eq(candidates.userId, context.userId),
-            eq(candidates.status, 'ACTIVE')
-          )
-        )
-        .for('share');
-      if (!owner) throw new NotFoundError('Master resume not found');
-      const repo = new ResumeRepository(tx);
-      const master = await repo.getResumeById({
-        id: body.source.resumeId,
-        tenantId: context.tenantId,
-        candidateId: owner.id,
-      });
-      // Lock the source lifecycle/version through draft insert; no source updates.
-      await tx
-        .select({ id: resumes.id })
-        .from(resumes)
-        .where(eq(resumes.id, master.id))
-        .for('share');
-      const lockedMaster = await repo.getResumeById({
-        id: master.id,
-        tenantId: context.tenantId,
-        candidateId: owner.id,
-      });
-      if (!lockedMaster.isBaseResume || lockedMaster.lifecycleState !== 'BASE_RESUME') {
-        throw new ConflictError('Select a reviewed canonical master resume', [
-          { reason: 'MASTER_NOT_READY' },
-        ]);
-      }
-      const rawCanonical = owner.profileMetadata?.resumeData;
-      if (
-        !rawCanonical ||
-        rawCanonical.sourceResumeId !== master.id ||
-        rawCanonical.sourceVersion !== lockedMaster.version
-      ) {
-        throw new ConflictError('Reviewed master snapshot is unavailable or stale', [
-          { reason: 'MASTER_SNAPSHOT_UNAVAILABLE' },
-        ]);
-      }
-      const [sections, claims] = await Promise.all([
-        repo.getResumeSections({ resumeId: master.id, tenantId: context.tenantId }),
-        repo.getCandidateClaims({
-          resumeId: master.id,
-          tenantId: context.tenantId,
-          candidateId: owner.id,
-        }),
-      ]);
-      const id = crypto.randomUUID();
-      const masterSnapshot = normalizeStudioMaster(rawCanonical, master.id);
-      const structuredResume = structuredClone(masterSnapshot);
-      structuredResume.documentId = id;
-      const nodes = createStudioNodes(structuredResume);
-      const snapshot = JSON.parse(
-        JSON.stringify({
-          sourceResumeId: master.id,
-          sourceVersion: lockedMaster.version,
-          sourceContentHash: lockedMaster.contentHash,
-          rawCanonical,
-          sections,
-          claims,
-          masterSnapshot,
-        })
-      );
-      const sourceSnapshotHash = hashStudioContent(snapshot);
-      const payload = {
-        jobTarget: { ...body.jobTarget, rawDescription: bounded.text },
-        jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
-        warnings: bounded.truncated
-          ? [
-              {
-                code: 'JOB_DESCRIPTION_TRUNCATED',
-                message:
-                  'Job description was truncated to the parser character/UTF-8 byte budget. Review extracted requirements.',
-              },
-            ]
-          : [],
-        structuredResume,
-        nodes,
-        selection: defaultStudioSelection(nodes),
-        nodeProvenance: Object.fromEntries(
-          nodes.map((node) => [node.nodeId, { truthState: 'CLAIMED', editedAtRevision: null }])
-        ),
-      };
-      const row = {
-        id,
-        tenantId: context.tenantId,
-        userId: context.userId,
-        candidateId: owner.id,
-        sourceResumeId: master.id,
-        sourceVersion: lockedMaster.version,
-        sourceContentHash: lockedMaster.contentHash,
-        sourceSnapshotHash,
-        revision: 1,
-        contentHash: hashStudioContent(payload),
-      };
-      row.encryptedSource = encryptStudioPayload({ binding: binding(row), snapshot });
-      row.encryptedContent = encryptStudioPayload({
-        binding: { ...binding(row), revision: 1, sourceSnapshotHash },
-        payload,
-      });
-      const drafts = new ResumeStudioRepository(tx);
-      const created = await drafts.insert(row);
-      // Validate the exact persisted contract before committing history/audit.
-      const response = this._response(created);
-      await drafts.appendRevision(created, context, 'draft_created');
-      return response;
+    this.generationService ||= new ResumeGenerationService({ database: this.db });
+    const generation = await this.generationService.execute(context, {
+      sourceResumeId: body.source.resumeId,
+      jobTarget: body.jobTarget,
+      origin: 'STUDIO_ENTRY',
     });
+    return this.createFromGeneration(context, generation.id);
   }
 
   async createFromGeneration(context, generationId) {
@@ -325,10 +207,14 @@ export class ResumeStudioDraftService {
         },
         jobTarget: {
           title: job.title,
+          ...(job.sourceUrl ? { sourceUrl: job.sourceUrl } : {}),
           ...(job.company ? { company: job.company } : {}),
           rawDescription: bounded.text,
         },
-        jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
+        jobDescription: generation.bundle.metadata.jobDescription || {
+          ...parsed.jobDescription,
+          requirements: parsed.requirements,
+        },
         warnings: bounded.truncated
           ? [
               {

@@ -201,3 +201,29 @@ test('an explicit experience clear excludes historical master responsibilities f
   const inventory = buildCanonicalFactInventory(candidate, job());
   assert.equal(inventory.facts.filter((f) => f.ownerType === 'EXPERIENCE').length, 0);
 });
+
+test('source-grounded fallback summary is used honestly instead of cloning the master summary', async () => {
+  const candidate = profile();
+  candidate.summary = 'Original generic master summary.';
+  const result = await generateResumeContent({
+    candidateProfile: candidate,
+    jobPosting: job(),
+    selectedProjects: candidate.projects,
+    selectedSkills: candidate.skills,
+    projectRankings: candidate.projects.map((project, index) => ({
+      projectId: project.id,
+      projectName: project.name,
+      status: 'SELECTED',
+      relevanceScore: 100 - index,
+      rank: index + 1,
+    })),
+    aiProvider: false,
+    generator: { generateTailoredResumeLatex: () => ({ texContent: 'fixture' }) },
+    compiler: { compileLatexToPdf: async () => ({ pageCount: 1 }) },
+  });
+  assert.notEqual(result.safeStructuredResume.summary.text, candidate.summary);
+  assert.ok(result.safeStructuredResume.summary.text.length > 0);
+  assert.equal(result.safeStructuredResume.writing.providerUsed, false);
+  assert.equal(result.safeStructuredResume.writing.method, 'SOURCE_GROUNDED_DETERMINISTIC');
+  assert.equal(candidate.summary, 'Original generic master summary.');
+});

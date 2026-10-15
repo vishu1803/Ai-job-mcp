@@ -1,3 +1,8 @@
+import { ResumeGenerationService } from '../../src/services/resume-generation.service.js';
+import { DocumentStorageService } from '../../src/services/document-storage.service.js';
+import { fixtureProvider } from '../fixtures/resume-writing-provider.js';
+import os from 'node:os';
+import path from 'node:path';
 import { ResumeStudioHistoryService } from '../../src/services/resume-studio-history.service.js';
 import Ajv from 'ajv';
 import fs from 'node:fs/promises';
@@ -395,6 +400,119 @@ test('immutable encrypted generation ledger: ownership, retry, source binding an
           history.restore(contexts[0], draft.id, { expectedRevision: 2, restoreRevision: 1 }),
           /Draft changed/
         );
+      }
+    );
+    await t.test(
+      'authorized operation uses shared writer, real source selection and encrypted persistence',
+      async () => {
+        let compileCalls = 0,
+          failCompilation = false;
+        const storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'unified-generation-contract-'));
+        const storage = new DocumentStorageService({ database: db, storageDir });
+        const engine = new ResumeGenerationService({
+          database: db,
+          aiProvider: fixtureProvider(),
+          storage,
+          generator: {
+            generateTailoredResumeLatex: () => ({ texContent: 'Controlled layout fixture' }),
+          },
+          compiler: { compileLatexToPdf: async () => ({ pageCount: 1 }) },
+          compileDocument: async (draft) => {
+            compileCalls++;
+            if (failCompilation) throw Error('Controlled compiler failure');
+            assert.equal(
+              draft.structuredResume.summary.text,
+              'Developed book search and lending endpoints in Node.js.'
+            );
+            assert.ok(draft.structuredResume.projects.length > 0);
+            return {
+              pdf: Buffer.from('Persistence fixture PDF bytes').toString('base64'),
+              docx: Buffer.from('Persistence fixture DOCX bytes').toString('base64'),
+              verification: {
+                failedChecks: [],
+                pageCount: 1,
+                a4: true,
+                textPreserved: true,
+                minimumFontPt: 10,
+                fontsEmbedded: true,
+                unicodeMaps: true,
+                wordSpacing: true,
+                readingOrder: true,
+                noClipping: true,
+                noOverlaps: true,
+                glyphsSafe: true,
+                docxTextPreserved: true,
+                marginIn: 0.6,
+                lineHeight: 1.24,
+                compiler: 'chrome_headless',
+              },
+            };
+          },
+        });
+        try {
+          const input = {
+            sourceResumeId: contexts[0].resumeId,
+            origin: 'STUDIO_ENTRY',
+            idempotencyKey: 'operation',
+            jobTarget: {
+              title: 'Backend Engineer',
+              rawDescription:
+                'Requirements: Node.js API development and PostgreSQL database migrations. Implement supported API endpoints and write integration tests for validation and error responses.',
+            },
+          };
+          const generated = await engine.execute(contexts[0], input);
+          assert.equal(generated.bundle.structuredResume.writing.providerUsed, true);
+          assert.equal(generated.bundle.metadata.writing.provider, 'gemini-vertex');
+          const retried = await engine.execute(contexts[0], input);
+          assert.equal(retried.id, generated.id);
+          assert.equal(compileCalls, 1);
+          const throughMcp = await engine.execute(contexts[0], { ...input, origin: 'MCP' });
+          assert.equal(throughMcp.id, generated.id);
+          assert.equal(compileCalls, 1);
+          const draftService = new ResumeStudioDraftService({
+            database: db,
+            generationService: engine,
+          });
+          const fromMaster = await draftService.create(contexts[0], {
+            source: { kind: 'RESUME', resumeId: contexts[0].resumeId },
+            jobTarget: input.jobTarget,
+          });
+          assert.notEqual(fromMaster.structuredResume.summary.text, sources[0].summary);
+          const retryMaster = await draftService.create(contexts[0], {
+            source: { kind: 'RESUME', resumeId: contexts[0].resumeId },
+            jobTarget: input.jobTarget,
+          });
+          assert.equal(retryMaster.id, fromMaster.id);
+          const callsBeforeFailure = compileCalls;
+          failCompilation = true;
+          await assert.rejects(
+            engine.execute(contexts[0], { ...input, idempotencyKey: 'compiler-failed' }),
+            /Controlled compiler failure/
+          );
+          assert.equal(compileCalls, callsBeforeFailure + 1);
+          assert.equal(
+            await service.findByKey(contexts[0], contexts[0].candidateId, 'compiler-failed'),
+            null
+          );
+          failCompilation = false;
+          const downloaded = await storage.getDecryptedDocument({
+            tenantId: contexts[0].tenantId,
+            candidateId: contexts[0].candidateId,
+            storageKey: generated.bundle.artifacts.pdf.storageKey,
+            expectedPackageHash: generated.bundle.metadata.artifactPackageHash,
+          });
+          assert.equal(downloaded.toString(), 'Persistence fixture PDF bytes');
+          const draft = await new ResumeStudioDraftService({ database: db }).create(contexts[0], {
+            generationId: generated.id,
+          });
+          assert.equal(
+            draft.structuredResume.summary.text,
+            generated.bundle.structuredResume.summary.text
+          );
+          await assert.rejects(engine.execute(contexts[1], input), /master/i);
+        } finally {
+          await fs.rm(storageDir, { recursive: true, force: true });
+        }
       }
     );
     await t.test(

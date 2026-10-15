@@ -319,6 +319,7 @@ export class AiResumeContentGeneratorService {
             selectedProjects,
             selectedSkills,
             factInventory: availableFacts,
+            options: { preserveAuthoredSummary: !job?.title },
           })
     );
     summaryProviderStatuses.set(summary, realized);

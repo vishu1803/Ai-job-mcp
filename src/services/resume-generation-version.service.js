@@ -174,6 +174,23 @@ export class ResumeGenerationVersionService {
       .offset(bounds.offset);
     return rows.map(({ generation }) => this.decode(generation));
   }
+  async findByKey(context, candidateId, idempotencyKey) {
+    trusted(context);
+    parse(z.string().uuid(), candidateId);
+    parse(z.string().trim().min(1).max(200), idempotencyKey);
+    const [row] = await this.db
+      .select()
+      .from(resumeGenerations)
+      .where(
+        and(
+          eq(resumeGenerations.tenantId, context.tenantId),
+          eq(resumeGenerations.userId, context.userId),
+          eq(resumeGenerations.candidateId, candidateId),
+          eq(resumeGenerations.idempotencyKey, idempotencyKey)
+        )
+      );
+    return row ? this.owned(this.db, context, row.id) : null;
+  }
   async save(context, input, compiledBundle) {
     trusted(context, true);
     const request = parse(requestSchema, input),
@@ -183,7 +200,7 @@ export class ResumeGenerationVersionService {
       bundle.evidenceValidationReceipt.documentId !== bundle.structuredResume.documentId
     )
       throw new ValidationError('Generation evidence validation must pass');
-    const requestHash = hashStudioContent(request);
+    const requestHash = hashStudioContent({ ...request, origin: undefined });
     return this.db.transaction(async (tx) => {
       // Serializes retries and version creation for this exact owner without mutating the candidate.
       const [owner] = await tx

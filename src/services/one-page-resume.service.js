@@ -354,6 +354,9 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
       (item.bullets || []).map((bullet) => textOf(bullet).trim())
     )
   );
+  const preserveWrittenSummary =
+    source.writing?.summaryStatus === 'ACCEPTED' ||
+    (source.writing?.summaryStatus && source.summary?.composedFromFactIds?.length > 0);
   const generatedAccomplishmentSummary =
     source.summary?.composedFromFactIds?.length > 0 &&
     summarySentences.length > 0 &&
@@ -363,7 +366,7 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     .filter((item) => !displayedBullets.includes(item.text))
     .map((item) => item.index);
   if (
-    source.writing?.summaryStatus !== 'ACCEPTED' &&
+    !preserveWrittenSummary &&
     summary &&
     summarySentences.length &&
     (!nonRepeated.length || generatedAccomplishmentSummary)
@@ -376,7 +379,7 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
         : 'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
     );
   } else if (
-    source.writing?.summaryStatus !== 'ACCEPTED' &&
+    !preserveWrittenSummary &&
     summarySentences.length > 1 &&
     nonRepeated.length < summarySentences.length &&
     nonRepeated.length <= 2

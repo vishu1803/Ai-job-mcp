@@ -92,10 +92,20 @@ export function normalizeJobRequirementString(req) {
   if (!req) return '';
   if (typeof req === 'string') return req.trim();
   if (typeof req === 'object') {
-    return [req.text, req.keyword, req.title, req.name, req.skill, req.concept, req.description]
+    const text = [
+      req.text,
+      req.keyword,
+      req.title,
+      req.name,
+      req.skill,
+      req.concept,
+      req.description,
+    ]
       .filter((s) => typeof s === 'string' && s.trim().length > 0)
       .join(' ')
       .trim();
+    // Canonical JobRequirement records expose extractedValue, not a text field.
+    return text || (typeof req.extractedValue === 'string' ? req.extractedValue.trim() : '');
   }
   return String(req).trim();
 }
@@ -715,7 +725,7 @@ export function normalizeJobInput(jobInput) {
 
   if (hasExplicitCollections) {
     for (const req of rawRequirements) {
-      const text = typeof req === 'string' ? req : req?.text || '';
+      const text = normalizeJobRequirementString(req);
       const foundSkills =
         text.includes(' ') && text.length > 20
           ? JobDescriptionParser.extractSkillsFromLine(text)

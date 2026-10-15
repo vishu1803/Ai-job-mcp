@@ -280,7 +280,7 @@ function extractCandidateLinks(profile) {
 
 // Reconcile explicit master assertions with the indexed inventory. Project stack
 // mentions are deliberately not an input: they do not establish candidate skills.
-function resumeSkillInputs(source) {
+export function resumeSkillInputs(source) {
   const meta = source.profileMetadata || {};
   const override = [meta.userCustom, meta].find((entry) => entry && Object.hasOwn(entry, 'skills'));
   const declaredSkills = override ? override.skills : source.skills;
@@ -1535,8 +1535,10 @@ export function buildStructuredResumeDocument({
     typeof authoredSummary === 'object' && authoredSummary !== null
       ? authoredSummary.text
       : authoredSummary;
-  const acceptedAiSummary = options?.aiContent?.writing?.summaryStatus === 'ACCEPTED';
-  if (!acceptedAiSummary && typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
+  const generatedSummary =
+    typeof options?.aiContent?.summary?.text === 'string' &&
+    options.aiContent.summary.text.trim().length > 0;
+  if (!generatedSummary && typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
     summary = {
       text: authoredSummaryText.trim(),
       provenanceStatus: 'CLAIMED',
@@ -1625,7 +1627,7 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
   if (
-    !acceptedAiSummary &&
+    !generatedSummary &&
     (authoredSummary === null ||
       (typeof authoredSummaryText === 'string' && !authoredSummaryText.trim()) ||
       (!authoredSummary &&
