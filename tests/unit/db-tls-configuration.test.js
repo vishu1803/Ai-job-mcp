@@ -11,12 +11,14 @@ test('explicit TLS verification and existing CA are honored in development too',
     url: config.DATABASE_URL,
     flag: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED,
     ca: process.env.DATABASE_CA_CERT,
+    caFile: process.env.DATABASE_CA_FILE,
   };
   try {
     config.NODE_ENV = 'development';
     config.DATABASE_URL =
       'postgres://synthetic:unused@db.example.test:5432/existing?sslmode=require';
     process.env.DATABASE_SSL_REJECT_UNAUTHORIZED = 'true';
+    delete process.env.DATABASE_CA_FILE;
     process.env.DATABASE_CA_CERT = rootCertificates.find((pem) =>
       pem.includes('BEGIN CERTIFICATE')
     );
@@ -30,6 +32,7 @@ test('explicit TLS verification and existing CA are honored in development too',
     for (const [name, value] of [
       ['DATABASE_SSL_REJECT_UNAUTHORIZED', old.flag],
       ['DATABASE_CA_CERT', old.ca],
+      ['DATABASE_CA_FILE', old.caFile],
     ])
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
