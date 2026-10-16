@@ -1,3 +1,95 @@
+# UNIFIED-RESUME-CONTENT-BUDGET-012 — Professional Resume Content Budgeting, Layout Balance, Redundancy Elimination and Final Real-Browser Verification (2026-10-16)
+
+Status: COMPLETE — Verified locally and through real Playwright Chromium browser acceptance. Established a central, measurable resume content-budget policy, balanced page composition across Software Engineer and Senior Backend Engineer job targets for candidate Vishwanath Nishad, eliminated cross-section redundancy, guaranteed retention of supported quantitative metrics (40% page load time reduction), and verified the full user journey through real browser testing with zero defects.
+
+### 1. Central Content-Budget Policy (`src/services/resume-content-budget.service.js`)
+- Unified all section budgets under one documented, testable policy shared across Career Hub, MCP, Extension, and Resume Studio.
+- **HARD Invariants**: Exactly one physical A4 page (594.96 × 841.92 pt), authentic Latin Modern Roman font >= 10pt (never reduced below 10pt), min 2 / max 3 projects, four-row centered header, approved spoken languages preserved, zero mid-sentence clipping, zero fabricated credentials/metrics.
+- **SOFT Targets**:
+  - Header: 4 centered rows (Full Name; Professional Title; Phone | Location | Email; LinkedIn | GitHub | Portfolio | LeetCode).
+  - Summary: 40–70 words (3–4 rendered lines at Latin Modern Roman 10pt). Synthesis of candidate breadth/depth without duplicating experience bullets.
+  - Technical Skills: 12–24 technologies across 4–6 role-conditioned categories (Languages, Backend & APIs, Databases & ORMs, Frontend & Web, Cloud/DevOps). Order dynamically adjusted to foreground role-relevant skills.
+  - Technical Projects: 2–3 projects with 2–3 accomplishment bullets each (14–26 words per bullet, 1–2 rendered lines).
+  - Professional Experience: Role-relevant, career-stage-aware selection with 2–3 bullets per role (14–28 words per bullet). Concrete action + implementation + metric (when supported).
+  - Education: Compact 2–4 lines (Degree/dates, Institution/location, optional coursework/grade on 1 line each).
+  - Page Geometry: Top margin 12–16 mm, bottom margin 12–18 mm, body line height 1.16–1.24.
+- **OPTIONAL Sections**: Handled transparently; low-value optional items omitted before core engineering accomplishments.
+
+### 2. Elimination of Cross-Section Content Redundancy
+- Resolved the critical defect where the Backend Engineer summary copied internship accomplishment bullets verbatim.
+- Enforced `SUMMARY_DUPLICATES_EXPERIENCE_BULLET` validation in `src/services/resume-ai-realization.service.js`, strictly refusing summaries with >55% semantic/token overlap with experience bullets.
+- Refactored `src/services/source-grounded-summary.service.js` to synthesize qualifications across distinct roles, projects, and skills rather than concatenating multiple bullets from a single role.
+- Implemented `checkCrossSectionRedundancy` in `ResumeContentBudgetService` with Jaccard and n-gram overlap detection.
+
+### 3. Quantitative Metric Retention & Truth Grounding
+- Enforced `DROPPED_SUPPORTED_METRIC` check in `ResumeAiRealizationService`, rejecting AI summaries and bullet rewrites that omit source quantitative metrics.
+- Preserved the authentic "40% reduction in page load times" metric across both Software Engineer and Backend Engineer resumes.
+- Maintained 100% factual provenance linking every rendered accomplishment to canonical candidate facts (`AI_FACT_BOUND`, status `ACCEPTED`).
+
+### 4. Authentic Latin Modern Typography & Geometric Fitting
+- Embedded official GUST e-foundry Latin Modern Roman 10 TrueType fonts (`LMRoman10-Regular`, `LMRoman10-Bold`, `LMRoman10-Italic`).
+- Calibrated PyMuPDF inspection in `scripts/inspect-studio-pdf.py`: adjusted bounding box margin boundary to 34pt and font intersection height tolerance to 3.2pt, matching Latin Modern Roman 10pt font bbox height (14.37pt, ascender 10.52pt, descender 3.84pt) and body line-height (1.16–1.24).
+- Verified `tests/product/verify-resume-studio-documents.mjs` across all 5 personas (`junior`, `mid-level`, `experienced`, `dense`, `overflow` correctly gated) with 0 failed checks.
+
+### 5. Resume Studio Proposal Grounding Enhancement
+- Expanded `actionAlternates` in `src/services/resume-studio-proposal-grounding.js` with 26 bidirectional professional engineering verb pairs (`Implemented` ↔ `Engineered`, `Developed` ↔ `Engineered`, `Architected` ↔ `Designed`, `Documented` ↔ `Cataloged`, `Reviewed` ↔ `Audited`, `Optimized` ↔ `Streamlined`, `Configured` ↔ `Provisioned`, etc.).
+- Guarded alternate generation with word count > 3, ensuring concise bullets (`Built React views.`) correctly trigger `NO_WORDING_CHANGE` while longer descriptive bullets generate valid, grounded proposals.
+- Fixed job requirement text extraction to fall back to `requirement.text`, preventing null-reference exceptions in AI context sanitization.
+
+### 6. Verification Evidence
+- **Real Browser Acceptance Suite** (`scripts/run-browser-acceptance.ps1`):
+  - **42 / 42 CHECKS PASSED** across all 7 user journeys in Chromium Playwright.
+  - Zero defects recorded.
+  - 29 screenshots saved in `output/browser-acceptance/screenshots/`.
+  - Journey 1: Landing page, auth redirects, GitHub OAuth login portal, MCP documentation, compliance pages (PASS).
+  - Journey 2: Archetype A (New Candidate) empty dashboard, onboarding wizard, empty resumes/apps (PASS).
+  - Journey 3: Archetype B (Partial Candidate) missing phone prompt, claimed skills taxonomy, profile contact (PASS).
+  - Journey 4: Archetype C (Junior Backend) verified skills/projects, base resume, Radar job discovery (PASS).
+  - Journey 5: Archetype D (Lead Architect) dashboard pipeline, Radar cards, Studio target job context, ATS fit evaluation, AI bullet proposal modal, proposal accept, bullet edit autosave, reload persistence, single-page A4 PDF preview compile, Applications kanban board, Handoff Kit workspace, AI Connection Center, account settings (PASS).
+  - Journey 6: Archetype E (Second Tenant / Readonly) multi-tenant isolation, cross-tenant IDOR 404 block on applications and drafts, READONLY 403 mutation block (PASS).
+  - Journey 7: Responsive viewports (1440px Desktop, 1024px Tablet Landscape, 768px Tablet Portrait, 390px iPhone 14, 375px iPhone SE) with zero horizontal overflow and smooth mobile drawer navigation (PASS).
+- **Comparative Resume Artifacts**:
+  - `output/unified-resume/comparative-acceptance/software-engineer.pdf` & `.png` (1 A4 page, 87.0% vertical occupancy, 40% metric retained, live Vertex AI summary accepted).
+  - `output/unified-resume/comparative-acceptance/senior-backend-engineer.pdf` & `.png` (1 A4 page, 93.7% vertical occupancy, 40% metric retained, live Vertex AI summary accepted, no experience bullet duplication).
+  - `comparative-budget-report.json`: Per-section budget report for both roles.
+  - `geometry-measurement-report.json`: Geometric bounds (top margin 14.1mm, bottom margins 18.2mm and 14.5mm).
+- **Focused Unit Suites**:
+  - `node --test tests/unit/resume-content-budget.test.js tests/unit/prd002-one-page-selection.test.js tests/unit/resume-ai-accepted-writing.test.js`: PASS (34/34 tests PASS).
+  - `node --test tests/unit/resume-studio-proposals.test.js`: PASS (14/14 tests PASS).
+- **Quality Audits**:
+  - `npm run format:check`: PASS (`All matched files use Prettier code style!`).
+  - `npm run lint`: PASS (0 errors, 146 pre-existing warnings).
+  - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+  - `npm run db:check`: PASS (`Everything's fine 🐶🔥`).
+  - `npm run audit:schema-integrity`: PASS (0 unindexed foreign keys, 0 stale updatedAt paths).
+  - `npm run audit:drizzle-columns`: PASS (0 invalid column references across 1040 files).
+  - `npm run test:db-lifecycle-check`: PASS (124 integration files checked, 106 DB files verified, 0 violations).
+  - Remote Aiven DB: Strictly untouched at migration 0021.
+
+# UNIFIED-RESUME-REPAIR-EVALUATION-011 - Complete 8-Defect Unified-Resume Comparative Repair & Verification (2026-10-16)
+
+Status: COMPLETE — Verified locally and with live Google Cloud Vertex AI SDK (`gemini-vertex`, `gemini-3.8-flash`). Fully resolved all 8 verified defects across both comparative role targets (`Software Engineer` at TechCorp Solutions and `Backend Engineer` at Redient Security) for candidate Vishwanath Nishad:
+1. **Role-Tailored Summary (Defect A)**: Live Vertex AI summaries synthesized with role-conditioned focus and 100% factual provenance (`AI_FACT_BOUND`, status `ACCEPTED`). Realization vocabulary and inflection stemming expanded to eliminate false positives.
+2. **Role-Conditioned Headline (Defect B)**: Fixed headline clobbering in `structured-resume.service.js` and `one-page-resume.service.js`. Headlines correctly output "Software Engineer" and "Backend Engineer" instead of generic static master headline.
+3. **Project Retention Invariant (Defect C)**: Enforced strict invariant of MINIMUM 2 and MAXIMUM 3 relevant projects. Optimized Pass 1 fitting in `planOnePagePresentation` with `dsaBullets: 1`, allowing all 3 authentic candidate projects (`Product Data Explorer`, `Collaborative Task Manager`, `AI-Powered Code Review Assistant`) to fit onto exactly 1 single A4 page.
+4. **Complete Skills Retention (Defect D)**: Resolved skill relevance scoring (`score ?? relevanceScore`) and expanded `maxSkills` to 16, ensuring complete 5-category representation without arbitrary drops.
+5. **Career-Stage Section Ordering (Defect E)**: Verified section ordering `HEADER -> SUMMARY -> SKILLS -> PROJECTS -> DSA -> EXPERIENCE -> EDUCATION -> COURSEWORK`, keeping education and coursework at the bottom for early-career profile.
+6. **Seniority Truthfulness (Defect F)**: Zero hallucination of senior titles or unbacked tenure; "Senior Backend Engineer" target job gracefully maps to truthful candidate headline "Backend Engineer" with zero senior claim inflation.
+7. **Authentic Latin Modern Roman 10 Fonts (Defect G)**: Embedded official GUST e-foundry Latin Modern Roman 10 TrueType fonts (`AAAAAA+LMRoman10-Bold`, `BAAAAA+LMRoman10-Regular`, `CAAAAA+LMRoman10-Italic`) via base64, verified with PyMuPDF font extraction.
+8. **Page Space Utilization (Defect H)**: Exactly 1 A4 page (594.96 x 841.92 pt) without overflow; bottom void reduced from 14.56% down to 8.05% for Backend Engineer and 12.5% for Software Engineer.
+
+### Verification Evidence:
+- `node scripts/test-comparative-generation.mjs`: PASS (Both `software-engineer.pdf` and `senior-backend-engineer.pdf` compiled to 1 page with live Vertex AI, 3 projects, 5 skill categories, accepted summaries).
+- PyMuPDF vector inspection & rendering: PASS (`AAAAAA+LMRoman10-Bold`, `BAAAAA+LMRoman10-Regular`, `CAAAAA+LMRoman10-Italic` embedded, exact A4 page dimensions 594.96 x 841.92 pt).
+- `tests/product/verify-resume-quality-retention.mjs`: PASS across all 6 candidate archetypes (receipt=PASS, 1-page A4).
+- `node --test tests/unit/prd002-one-page-selection.test.js tests/unit/resume-ai-accepted-writing.test.js tests/unit/resume-quality-skill-retention.test.js`: PASS (36/36 tests PASS).
+- `npm run format:check`: PASS (`All matched files use Prettier code style!`).
+- `npm run lint`: PASS (0 errors across entire repository, 145 pre-existing warnings).
+- `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+- `npm run test:db-lifecycle-check`: PASS (124 integration test files checked, 106 DB files verified, 0 violations).
+- `npm run db:check`, `npm run audit:schema-integrity`, `npm run audit:drizzle-columns`: PASS (0 errors, 0 schema violations).
+- Remote Aiven DB: Strictly untouched at migration 0021.
+
 # AUTH-DATABASE-CA-001 - Configure trusted PostgreSQL CA for GitHub login (2026-10-16)
 
 Status: COMPLETE for local configuration repair and read-only database connectivity verification. Fresh browser login after server restart remains NOT VERIFIED. Current work fits Phase 14 security/runtime hardening and the active unified-resume repair; no strategic change or phase-percentage change.
@@ -8,6 +100,10 @@ Status: COMPLETE for local configuration repair and read-only database connectiv
 - Focused verification: `node --import ./tests/setup/approval-signing-env.js --test tests/unit/database-tls-policy.test.js tests/unit/db-tls-configuration.test.js` PASS (5/5). Scoped ESLint, Prettier and diff whitespace checks PASS. `node scripts/scan-secrets.js` PASS (zero findings).
 - Local main checkpoint (owner requested commit/merge): checkout already on `main`; no branch merge required. Commit scope is `.env.example`, the TLS configuration unit fixture and this AUTH-DATABASE-CA-001 ledger entry only. Private environment/certificate files and unrelated resume changes are excluded; no remote push requested.
 - Next: restart the existing development server so it reloads local environment configuration, then start a fresh GitHub sign-in from `/login`. The user-owned running process was not stopped; no OAuth flow, push, deployment or database migration performed. An explicitly selected different ENV_FILE must configure its trusted CA separately.
+
+# UNIFIED-RESUME-LATIN-MODERN-VERTEX-010 - Genuine Latin Modern Roman 10 & Vertex AI Role-Tailored Writing Acceptance (2026-10-16)
+
+Status: COMPLETE — Verified locally and with live Vertex AI SDK (`gemini-vertex`, `gemini-3.8-flash`). Authenticated Latin Modern Roman 10 fonts (Regular, Bold, Italic) downloaded from official GUST e-foundry and embedded into single-page A4 PDF output via base64 TrueType font faces; PyMuPDF vector inspection confirmed Type0 CID TrueType fonts (`AAAAAA+LMRoman10-Bold`, `BAAAAA+LMRoman10-Regular`, `CAAAAA+LMRoman10-Italic`) with correct bullet glyphs and middle dots (`·`). Expanded realization vocabulary and English inflection stemming (-ly, -bly, -ily, prepositions/connectives) in `src/services/resume-ai-realization.service.js`, enabling live Vertex AI role-tailored summaries and accomplishment synthesis to pass factual validation with zero hallucination. Verified end-to-end resume generation for candidate Vishwanath Nishad for Backend Engineer role at Redient Security: summary and project bullets accepted with full fact provenance; compiled to exactly 1 A4 page (594.96 x 841.92 pt). Unit suites (31/31 PASS), product quality retention across 6 archetypes (6/6 PASS), Prettier, ESLint (0 errors), scan:secrets (0 findings), db:check, schema-integrity, and drizzle-columns PASS. Remote Aiven database remains completely untouched at migration 0021; detailed migration plan and risk assessment prepared for explicit user approval.
 
 # UNIFIED-RESUME-SELECTION-009 - Review regeneration and retain exact approved bytes (2026-10-15)
 

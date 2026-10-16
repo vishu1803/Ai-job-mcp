@@ -88,7 +88,7 @@ export function estimateProjectCapacity({
   explicitBudget = null,
 }) {
   if (typeof explicitBudget === 'number' && explicitBudget > 0) {
-    return explicitBudget;
+    return Math.min(3, Math.max(2, explicitBudget));
   }
 
   const expCount = Array.isArray(experience) ? experience.length : 0;
@@ -101,14 +101,9 @@ export function estimateProjectCapacity({
     return 2;
   }
 
-  // Professional experience: 1+ roles allocate 2 projects to preserve 1-page budget
-  if (expCount >= 1) {
-    return 2;
-  }
-
-  // Fresher / 0 experience entries:
-  // Dynamically expand project slots up to 4 if space permits and no heavy DSA footprint
-  return hasMeaningfulDsa ? 3 : 4;
+  // Fresher or light experience (<= 1 role, <= 3 bullets):
+  // Dynamically allocate 3 projects (max 3), fitting engine will condense to 2 if needed
+  return 3;
 }
 
 /**
@@ -567,13 +562,18 @@ export function buildStructuredResumeDocument({
     explicitBudget:
       options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
   });
-  const effectiveProjectCapacity =
-    options?.projectBudget ||
-    options?.maxProjects ||
-    incomingPlan?.projectBudget ||
-    dynamicProjectBudget ||
-    structuralProjectCapacity ||
-    2;
+  const effectiveProjectCapacity = Math.min(
+    3,
+    Math.max(
+      Math.min(2, (rawProjects || []).length),
+      options?.projectBudget ||
+        options?.maxProjects ||
+        incomingPlan?.projectBudget ||
+        dynamicProjectBudget ||
+        structuralProjectCapacity ||
+        2
+    )
+  );
 
   /**
    * Evaluates whether a candidate project has authentic content strength to occupy a slot.
@@ -865,9 +865,10 @@ export function buildStructuredResumeDocument({
             const token = String(skill.slug || skill.name || '')
               .toLowerCase()
               .replace(/[^a-z0-9+#.]/g, '');
+            const skillScore = skill.score ?? skill.relevanceScore ?? 0;
             return (
               skill.matchedRequirementId ||
-              skill.relevanceScore >= 20 ||
+              skillScore >= 20 ||
               [...jobSkillTerms].some(
                 (term) => term === token || term.includes(token) || token.includes(term)
               ) ||
@@ -877,8 +878,10 @@ export function buildStructuredResumeDocument({
           return (
             bounded.length > 0 || canonicalJob ? bounded : skillSelectionResult.selectedSkills || []
           )
-            .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
-            .slice(0, options?.maxSkills || 12);
+            .sort(
+              (a, b) => ((b.score ?? b.relevanceScore) || 0) - ((a.score ?? a.relevanceScore) || 0)
+            )
+            .slice(0, options?.maxSkills || 16);
         })();
 
   const selectedSkills = (rawCandidateSelectedSkills || []).filter(isAuthorizedCandidateSkill);
@@ -1481,7 +1484,7 @@ export function buildStructuredResumeDocument({
               : item.provenanceStatus === 'VERIFIED' || item.truthCategory === 'VERIFIED'
                 ? 1.0
                 : 0.5,
-          relevanceScore: item.relevanceScore ?? 0,
+          relevanceScore: item.score ?? item.relevanceScore ?? 0,
           matchedRequirementId: item.matchedRequirementId || null,
         })),
       });
@@ -1676,12 +1679,22 @@ export function buildStructuredResumeDocument({
     sectionOrder: parsedPlan.sectionOrder,
     candidateIdentity: {
       ...candidateIdentity,
-      // A target job is an objective, never authority for a held role or proficiency.
-      headline:
-        authoredHeadline ||
-        (isTailoredJob ? `Target role: ${parsedPlan.targetRoleTitle}` : 'Candidate Profile'),
-      masterHeadline: authoredHeadline || null,
-      tailoredHeadline: isTailoredJob ? `Target role: ${parsedPlan.targetRoleTitle}` : null,
+      headline: isTailoredJob
+        ? tailoredHeadingInfo.tailoredHeadline ||
+          tailoredHeadingInfo.heading ||
+          candidateIdentity.headline ||
+          authoredHeadline ||
+          'Software Engineer'
+        : authoredHeadline ||
+          candidateIdentity.headline ||
+          tailoredHeadingInfo.masterHeadline ||
+          'Candidate Profile',
+      masterHeadline: authoredHeadline || candidateIdentity.masterHeadline || null,
+      tailoredHeadline: isTailoredJob
+        ? tailoredHeadingInfo.tailoredHeadline ||
+          tailoredHeadingInfo.heading ||
+          parsedPlan.targetRoleTitle
+        : null,
     },
     summary,
     writing: options.aiContent?.writing || {

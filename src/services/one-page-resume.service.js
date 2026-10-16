@@ -44,6 +44,7 @@ function allowedPath(path) {
     /^projects\.\d+\.description$/.test(path) ||
     /^skills\.categories\.\d+\.skills\.\d+$/.test(path) ||
     /^dsa\.bullets\.\d+$/.test(path) ||
+    path === 'dsa.hasSection' ||
     path === 'summary.text' ||
     (/^optionalSections\.[a-zA-Z]+\.\d+$/.test(path) && OPTIONAL.has(path.split('.')[1]))
   );
@@ -113,7 +114,10 @@ export function onePageResumeView(source) {
   };
   const view = visit(source);
   view.candidateIdentity.headline =
-    source.candidateIdentity.masterHeadline || `Target role: ${source.targetRole}`;
+    source.candidateIdentity.headline ||
+    source.candidateIdentity.tailoredHeadline ||
+    source.candidateIdentity.masterHeadline ||
+    `Target role: ${source.targetRole}`;
   for (const condensation of contract.condensations || []) {
     const sourceSentences = sentences(source.summary?.text);
     const indices = condensation.sentenceIndices;
@@ -164,23 +168,30 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
   const decisions = [];
   const condensations = [];
   const omit = (path, reason) => decisions.push({ path, action: 'OMITTED', reason });
+  // Approved project policy: MINIMUM 2, MAXIMUM 3 relevant projects when at least 2 source projects exist.
+  // Pass 0: 3 projects, 3 bullets (measured space permitting, up to 24 skills)
+  // Pass 1: 3 projects, 2 bullets (condensed fitting, up to 20 skills)
+  // Pass 2: 2 projects, 3 bullets (baseline 2 projects, up to 18 skills)
+  // Pass 3: 2 projects, 2 bullets (tightest safe 2-project single page, up to 14 skills)
   const caps = [
-    { projects: 4, roles: 6, bullets: 4, skills: 24, optional: 3 },
-    { projects: 3, roles: 4, bullets: 3, skills: 18, optional: 2 },
-    { projects: 2, roles: 3, bullets: 2, skills: 12, optional: 1 },
-    { projects: 1, roles: 2, bullets: 1, skills: 8, optional: 0 },
+    { projects: 3, roles: 6, bullets: 3, dsaBullets: 0, skills: 24, optional: 3 },
+    { projects: 3, roles: 4, bullets: 2, dsaBullets: 0, skills: 20, optional: 2 },
+    { projects: 2, roles: 3, bullets: 3, dsaBullets: 0, skills: 18, optional: 1 },
+    { projects: 2, roles: 2, bullets: 2, dsaBullets: 0, skills: 14, optional: 0 },
   ][pass];
   if (!caps) throw new ValidationError('Invalid fitting pass.', 'ONE_PAGE_CONTRACT_INVALID');
+  const availableProjects = (source.projects || []).length;
+  const minProjectCap = Math.min(2, availableProjects);
+  const maxProjectCap = Math.min(3, availableProjects);
   const fresher =
     source.tailoringPlan?.candidateArchetype === 'FRESHER' || !(source.experience || []).length;
+
   for (const field of ['experience', 'projects']) {
     const items = source[field] || [];
     const capacity =
       field === 'experience'
         ? caps.roles
-        : fresher
-          ? caps.projects
-          : Math.max(1, caps.projects - 1);
+        : Math.min(maxProjectCap, Math.max(minProjectCap, caps.projects));
     // Keep the latest authored position and deterministic relevant entries; never reorder dates.
     const latest =
       field === 'experience' && items.length
@@ -241,7 +252,6 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
       });
       if (
         field === 'projects' &&
-        pass > 0 &&
         item.description &&
         bullets.some((bullet, b) => selected.has(b) && textOf(bullet).trim())
       )
@@ -250,6 +260,30 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
           'Detailed description retained in the full resume; selected factual bullets provide the presentation.'
         );
     });
+  }
+  if (source.dsa?.bullets?.length) {
+    const dsaBullets = source.dsa.bullets;
+    const maxDsa = caps.dsaBullets ?? caps.bullets;
+    if (maxDsa === 0) {
+      omit(
+        'dsa.hasSection',
+        'DSA section omitted to preserve professional experience, project accomplishments, and spoken languages on a single page.'
+      );
+      dsaBullets.forEach((_bullet, b) => {
+        omit(
+          `dsa.bullets.${b}`,
+          'DSA bullets omitted to preserve higher-priority resume sections under one-page budget.'
+        );
+      });
+    } else {
+      const dsaRanked = rank(dsaBullets);
+      const keepDsa = new Set(dsaRanked.slice(0, maxDsa));
+      dsaBullets.forEach((_bullet, b) => {
+        if (!keepDsa.has(b)) {
+          omit(`dsa.bullets.${b}`, 'Lower relevance under the one-page bullet budget.');
+        }
+      });
+    }
   }
   const skills = (source.skills?.categories || []).flatMap((category, c) =>
     (category.skills || []).map((skill, s) => ({
@@ -354,16 +388,29 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
       (item.bullets || []).map((bullet) => textOf(bullet).trim())
     )
   );
-  const preserveWrittenSummary =
-    source.writing?.summaryStatus === 'ACCEPTED' ||
-    (source.writing?.summaryStatus && source.summary?.composedFromFactIds?.length > 0);
+  const tokenOverlap = (textA, textB) => {
+    const setA = words(textA);
+    const setB = words(textB);
+    if (!setA.size || !setB.size) return 0;
+    let inter = 0;
+    for (const w of setA) if (setB.has(w)) inter++;
+    return inter / new Set([...setA, ...setB]).size;
+  };
+  const isDuplicateBullet = (sentence, bulletsList) => {
+    const sLower = sentence.toLowerCase().trim();
+    return bulletsList.some((b) => {
+      const bLower = b.toLowerCase().trim();
+      return bLower === sLower || tokenOverlap(sLower, bLower) >= 0.55;
+    });
+  };
+  const preserveWrittenSummary = source.writing?.summaryStatus === 'ACCEPTED';
   const generatedAccomplishmentSummary =
     source.summary?.composedFromFactIds?.length > 0 &&
     summarySentences.length > 0 &&
-    summarySentences.some((sentence) => sourceBullets.includes(sentence));
+    summarySentences.some((sentence) => isDuplicateBullet(sentence, sourceBullets));
   const nonRepeated = summarySentences
     .map((text, index) => ({ text, index }))
-    .filter((item) => !displayedBullets.includes(item.text))
+    .filter((item) => !isDuplicateBullet(item.text, displayedBullets))
     .map((item) => item.index);
   if (
     !preserveWrittenSummary &&
@@ -398,10 +445,11 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
         'SUMMARY',
         'SKILLS',
         'PROJECTS',
-        'DSA',
         'EXPERIENCE',
         'EDUCATION',
         'CERTIFICATIONS',
+        'LANGUAGES',
+        'DSA',
       ]
     : [
         'HEADER',
@@ -409,9 +457,10 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
         'SKILLS',
         'EXPERIENCE',
         'PROJECTS',
-        'DSA',
         'EDUCATION',
         'CERTIFICATIONS',
+        'LANGUAGES',
+        'DSA',
       ];
   const order = source.sectionOrder || [];
   const sectionOrder = [

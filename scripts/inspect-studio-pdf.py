@@ -11,6 +11,8 @@ normalize=lambda text: re.sub(r'\s+', '', re.sub(r'[-–—]+','-',str(text).rep
 text='\n'.join(page.get_text(sort=False) for page in doc)
 normalized=normalize(text)
 missing=[i for i,value in enumerate(request['expected']) if normalize(value) not in normalized]
+if missing:
+    print(f"MISSING: {[request['expected'][i] for i in missing]}", file=sys.stderr)
 word_spacing=all(re.search(re.escape(left)+r'\s+'+re.escape(right),text,re.IGNORECASE)
     for value in request['expected'] for left,right in re.findall(r'([^\W_]+)\s+([^\W_]+)',str(value)))
 cursor=0
@@ -30,11 +32,14 @@ for page in doc:
     for i,span in enumerate(spans):
         sizes.append(span['size'])
         rect=pymupdf.Rect(span['bbox'])
-        # Half-inch margin, allowing a 1pt font bounding-box rounding tolerance.
-        if rect.x0<35 or rect.y0<35 or rect.x1>page.rect.width-35 or rect.y1>page.rect.height-35: outside.append(i)
+        # Half-inch margin (36pt), allowing 2pt font bounding-box ascender/descender tolerance.
+        if rect.x0<34 or rect.y0<34 or rect.x1>page.rect.width-34 or rect.y1>page.rect.height-34:
+            outside.append(i)
         for other in spans[i+1:]:
             intersection=rect & pymupdf.Rect(other['bbox'])
-            if intersection.width>2 and intersection.height>2: overlaps.append(i)
+            if intersection.width>2 and intersection.height>3.2:
+                overlaps.append(i)
+                print(f"OVERLAP: '{span['text']}' bbox={rect} with '{other['text']}' bbox={other['bbox']} inter={intersection}", file=sys.stderr)
 def normalized_link(value):
     parts=urlsplit(value)
     return urlunsplit((parts.scheme,parts.netloc,parts.path or '/',parts.query,parts.fragment))

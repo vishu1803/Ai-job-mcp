@@ -1110,26 +1110,33 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   const hasPublications = Boolean(
     Array.isArray(profile.publications) && profile.publications.length > 0
   );
+  const hasLanguages = Boolean(
+    (Array.isArray(profile.languages) && profile.languages.length > 0) ||
+    (Array.isArray(meta.languages) && meta.languages.length > 0) ||
+    (Array.isArray(meta.userCustom?.languages) && meta.userCustom.languages.length > 0) ||
+    (Array.isArray(profile.optionalSections?.languages) &&
+      profile.optionalSections.languages.length > 0)
+  );
 
   const sectionOrder = ['HEADER', 'SUMMARY', 'SKILLS'];
 
   if (candidateArchetype === 'FRESHER' || candidateArchetype === 'CAREER_CHANGER') {
     // Project-heavy fresher / career changer: Projects precede Experience
     sectionOrder.push('PROJECTS');
-    if (hasDsa) sectionOrder.push('DSA');
     sectionOrder.push('EXPERIENCE');
     sectionOrder.push('EDUCATION');
   } else {
     // Experienced: Experience precedes Projects
     sectionOrder.push('EXPERIENCE');
     sectionOrder.push('PROJECTS');
-    if (hasDsa) sectionOrder.push('DSA');
     sectionOrder.push('EDUCATION');
   }
 
   if (hasCertifications) sectionOrder.push('CERTIFICATIONS');
   if (hasCoursework) sectionOrder.push('COURSEWORK');
   if (hasPublications) sectionOrder.push('PUBLICATIONS');
+  if (hasLanguages) sectionOrder.push('LANGUAGES');
+  if (hasDsa) sectionOrder.push('DSA');
 
   return {
     sectionOrder,

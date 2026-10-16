@@ -45,7 +45,7 @@ export async function generateResumeContent({
   const snapshot = buildStructuredResumeSnapshot({
     candidateProfile,
     jobPosting,
-    options: { projectRankings, matchAnalysis, aiContent },
+    options: { projectRankings, matchAnalysis, aiContent, maxProjects: 3 },
   });
   StructuredResumeDocumentSchema.parse(snapshot.structuredResume);
   ResumeTailoringPlanSchema.parse(snapshot.tailoringPlan);

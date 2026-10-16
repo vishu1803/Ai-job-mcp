@@ -30,6 +30,7 @@ import { LatexDocumentGenerator } from './latex-document-generator.service.js';
 import { LatexCompilerService } from './latex-compiler.service.js';
 import { DocumentStorageService } from './document-storage.service.js';
 import { sealGeneratedPackage, packageBodyHash } from './evidence/artifact-policy.js';
+import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
 import {
   AuthorizationError,
   ConflictError,
@@ -130,7 +131,7 @@ export function buildGenerationProfile(source, view) {
 export class ResumeGenerationService {
   constructor({
     database = defaultDb,
-    aiProvider,
+    aiProvider = getDefaultAiProvider(),
     compileDocument = compileStudioDocument,
     storage,
     generator = new LatexDocumentGenerator(),
@@ -265,7 +266,7 @@ export class ResumeGenerationService {
       context,
       job,
       profile.projects,
-      { candidateId: source.owner.id, skills: profile.skills }
+      { candidateId: source.owner.id, skills: profile.skills, maxProjects: 3 }
     );
     const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(context, job, {
       ...profile,
@@ -321,11 +322,17 @@ export class ResumeGenerationService {
         'glyphsSafe',
         'docxTextPreserved',
       ].every((key) => verification.data[key])
-    )
+    ) {
+      console.error('DOCUMENT_REVIEW_REQUIRED details:', {
+        success: verification.success,
+        failedChecks: verification.data?.failedChecks,
+        verification: verification.data,
+      });
       throw new ValidationError(
         'Generated document requires content or layout review',
         'DOCUMENT_REVIEW_REQUIRED'
       );
+    }
     const sealed = await sealGeneratedPackage(
       this.db,
       { tenantId: context.tenantId, candidateId: source.owner.id },

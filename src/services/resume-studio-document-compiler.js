@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -27,7 +28,7 @@ class StudioPreviewCompiler extends LatexCompilerService {
       l = this.layout;
     return html.replace(
       '</style>',
-      `@page {margin:${l.marginIn}in;} html,body,li {line-height:${l.lineHeight};} .candidate-name {line-height:1.35;} .candidate-headline,.contact-line {line-height:1.30;} li {margin-bottom:${l.spacingPt}pt;} .section {margin-top:${l.spacingPt + 2}pt;} .section-title {margin:${l.spacingPt + 2}pt 0 ${l.spacingPt}pt;} p {margin-bottom:${l.spacingPt}pt;} </style>`
+      `@page {margin:${l.marginIn}in;} html,body,li {line-height:${l.lineHeight};} .candidate-name {line-height:1.35;} .candidate-headline,.contact-line,.links-line {line-height:1.30;} li {margin-bottom:${l.spacingPt}pt;} .section {margin-top:${l.spacingPt + 2}pt;} .section-title {margin:${l.spacingPt + 2}pt 0 ${l.spacingPt}pt;} p {margin-bottom:${l.spacingPt}pt;} </style>`
     );
   }
   // Preview may expose measured overflow. The export gate below is independent,
@@ -39,18 +40,21 @@ class StudioPreviewCompiler extends LatexCompilerService {
 
 function inspect(root) {
   return new Promise((resolve, reject) => {
+    const defaultPythonPath = path.join(os.tmpdir(), 'product-pdf-inspection');
+    const pythonPath =
+      process.env.STUDIO_PDF_PYTHONPATH ||
+      (fsSync.existsSync(defaultPythonPath) ? defaultPythonPath : undefined);
     const child = spawn(process.env.STUDIO_PDF_PYTHON || 'python', [inspector, root], {
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'pipe'],
       env: {
         ...process.env,
-        ...(process.env.STUDIO_PDF_PYTHONPATH
-          ? { PYTHONPATH: process.env.STUDIO_PDF_PYTHONPATH }
-          : {}),
+        ...(pythonPath ? { PYTHONPATH: pythonPath } : {}),
       },
     });
     let size = 0;
     child.stderr.on('data', (chunk) => {
+      process.stderr.write(chunk);
       size += chunk.length;
       if (size > 65536) child.kill();
     });
@@ -121,7 +125,13 @@ export async function compileStudioDocument(draft) {
           jobName: 'studio-resume',
           strictOnePage: true,
         });
-      } catch {
+      } catch (compileErr) {
+        console.error(
+          '[STUDIO COMPILE ERROR]:',
+          compileErr?.message,
+          compileErr?.code,
+          compileErr?.stack
+        );
         throw new AppError(
           'Document compiler unavailable. Retry or check the configured Chrome renderer.',
           503,

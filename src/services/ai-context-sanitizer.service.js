@@ -441,7 +441,7 @@ export function buildResumeAiContext({
     additionalScrubTokens
   );
   const targetReqs = (Array.isArray(job.requirements) ? job.requirements : [])
-    .map((r) => (typeof r === 'string' ? r : r.text || r.concept || ''))
+    .map((r) => (typeof r === 'string' ? r : r?.text || r?.concept || ''))
     .filter(Boolean)
     .map((r) => scrubTextPii(r, additionalScrubTokens));
 

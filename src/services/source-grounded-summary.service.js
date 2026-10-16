@@ -148,6 +148,24 @@ export function composeSourceGroundedSummary({
   for (const item of candidates) {
     if (selected.length >= 2) break;
     const words = item.text.split(/\s+/).length;
+
+    // Cross-section redundancy prevention:
+    // Do not select two facts from the same experience role when distinct project facts exist
+    const isSameExperienceRole =
+      (item.fact.ownerType === 'EXPERIENCE' || item.fact.surface === 'experience') &&
+      selected.some(
+        (s) =>
+          (s.fact.ownerType === 'EXPERIENCE' || s.fact.surface === 'experience') &&
+          (s.fact.ownerId === item.fact.ownerId || !item.fact.ownerId)
+      );
+    const hasOtherCandidateFacts = candidates.some(
+      (c) =>
+        c.fact.ownerType !== 'EXPERIENCE' &&
+        c.fact.surface !== 'experience' &&
+        !selected.some((s) => s.factId === c.factId)
+    );
+    if (isSameExperienceRole && hasOtherCandidateFacts) continue;
+
     if (
       wordCount + words > wordBudget ||
       selected.some(

@@ -227,3 +227,24 @@ test('source-grounded fallback summary is used honestly instead of cloning the m
   assert.equal(result.safeStructuredResume.writing.method, 'SOURCE_GROUNDED_DETERMINISTIC');
   assert.equal(candidate.summary, 'Original generic master summary.');
 });
+
+test('professional technical paraphrasing with active verbs and authorized vocabulary is accepted', async () => {
+  const candidate = profile();
+  const provider = fixtureProvider((data) => {
+    if (data.summaryText) {
+      return {
+        ...data,
+        summaryText:
+          'Engineered book search and lending REST endpoints in Node.js for backend services.',
+      };
+    }
+    return data;
+  });
+  const res = await generate(job(), provider);
+  assert.equal(
+    res.summary.text,
+    'Engineered book search and lending REST endpoints in Node.js for backend services.'
+  );
+  assert.equal(res.writing.summaryStatus, 'ACCEPTED');
+  assert.equal(res.writing.providerUsed, true);
+});

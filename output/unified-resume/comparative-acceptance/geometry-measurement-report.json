@@ -1,0 +1,124 @@
+{
+  "software-engineer": {
+    "pdfFile": "software-engineer.pdf",
+    "pngFile": "software-engineer.png",
+    "pageCount": 1,
+    "isExactlyOnePage": true,
+    "dimensions": {
+      "widthPt": 594.96,
+      "heightPt": 841.92,
+      "widthMm": 209.89,
+      "heightMm": 297.01,
+      "isA4": true
+    },
+    "typography": {
+      "minimumFontPt": 10.0,
+      "maximumFontPt": 18.0,
+      "fontFloorPass": true,
+      "embeddedFontsCount": 3,
+      "allFontsEmbedded": true,
+      "fonts": [
+        {
+          "xref": 4,
+          "name": "AAAAAA+LMRoman10-Bold",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        },
+        {
+          "xref": 5,
+          "name": "BAAAAA+LMRoman10-Regular",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        },
+        {
+          "xref": 6,
+          "name": "CAAAAA+LMRoman10-Italic",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        }
+      ]
+    },
+    "margins": {
+      "topMarginMm": 11.59,
+      "bottomMarginMm": 37.15,
+      "leftMarginMm": 11.91,
+      "rightMarginMm": 11.72,
+      "topMarginStatus": "PASS",
+      "bottomMarginStatus": "WARN",
+      "verticalOccupancyRatio": 0.87
+    },
+    "textSummary": {
+      "totalSpans": 66,
+      "contentBoundingBox": {
+        "x0_pt": 33.75,
+        "y0_pt": 32.86,
+        "x1_pt": 561.75,
+        "y1_pt": 736.6
+      }
+    }
+  },
+  "senior-backend-engineer": {
+    "pdfFile": "senior-backend-engineer.pdf",
+    "pngFile": "senior-backend-engineer.png",
+    "pageCount": 1,
+    "isExactlyOnePage": true,
+    "dimensions": {
+      "widthPt": 594.96,
+      "heightPt": 841.92,
+      "widthMm": 209.89,
+      "heightMm": 297.01,
+      "isA4": true
+    },
+    "typography": {
+      "minimumFontPt": 10.0,
+      "maximumFontPt": 18.0,
+      "fontFloorPass": true,
+      "embeddedFontsCount": 3,
+      "allFontsEmbedded": true,
+      "fonts": [
+        {
+          "xref": 4,
+          "name": "AAAAAA+LMRoman10-Bold",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        },
+        {
+          "xref": 5,
+          "name": "BAAAAA+LMRoman10-Regular",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        },
+        {
+          "xref": 6,
+          "name": "CAAAAA+LMRoman10-Italic",
+          "extension": "",
+          "embedded": true,
+          "toUnicode": true
+        }
+      ]
+    },
+    "margins": {
+      "topMarginMm": 11.59,
+      "bottomMarginMm": 18.1,
+      "leftMarginMm": 11.91,
+      "rightMarginMm": 11.72,
+      "topMarginStatus": "PASS",
+      "bottomMarginStatus": "PASS",
+      "verticalOccupancyRatio": 0.937
+    },
+    "textSummary": {
+      "totalSpans": 70,
+      "contentBoundingBox": {
+        "x0_pt": 33.75,
+        "y0_pt": 32.86,
+        "x1_pt": 561.75,
+        "y1_pt": 790.6
+      }
+    }
+  }
+}

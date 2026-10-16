@@ -1249,10 +1249,9 @@ export class ProjectRelevanceService {
     const mainExplanation = `${relevanceBand} relevance (${totalScore}/100): Covers ${matchedRequirementIds.length} requirement(s) via ${topSkillsStr}. Demonstrates ${detectedDimensions.size} architectural dimension(s) in project '${project.name}'.`;
 
     const matchedTechnologies = Array.from(contributingSkillSlugs).sort();
-    const selectionStatus =
-      isZeroMatchGated || totalScore < 25.0 || relevanceBand === 'MINIMAL'
-        ? 'REJECTED'
-        : 'ELIGIBLE';
+    const isMinimalWithoutMatch =
+      (totalScore < 20.0 || relevanceBand === 'MINIMAL') && matchedRequirementIds.length === 0;
+    const selectionStatus = isZeroMatchGated || isMinimalWithoutMatch ? 'REJECTED' : 'ELIGIBLE';
     const selectionReason = selectionStatus === 'ELIGIBLE' ? mainExplanation : null;
     const rejectionReason =
       selectionStatus === 'REJECTED'
@@ -1333,7 +1332,7 @@ export class ProjectRelevanceService {
       return a.projectId.localeCompare(b.projectId);
     });
 
-    const maxProjects = options.maxProjects || options.projectBudget || 2;
+    const maxProjects = options.maxProjects || options.projectBudget || 3;
     let rankCounter = 1;
     for (const r of projectRankings) {
       r.rank = rankCounter++;

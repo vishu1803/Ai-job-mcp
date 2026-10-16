@@ -1,5 +1,5 @@
 {
-  "documentId": "984efdd0-7463-4f09-9e75-8bfa307e1702",
+  "documentId": "4f43c3a0-11f0-4188-8cd3-4e6ba00390dc",
   "schemaVersion": "2.0.0",
   "targetRole": "Backend Engineering",
   "sectionOrder": [
@@ -11,9 +11,9 @@
   ],
   "candidateIdentity": {
     "displayName": "Synthetic junior Candidate",
-    "headline": "Target role: Backend Engineering",
-    "masterHeadline": null,
-    "tailoredHeadline": "Target role: Backend Engineering",
+    "headline": "Backend Engineer",
+    "masterHeadline": "Full-Stack Software Engineer",
+    "tailoredHeadline": "Backend Engineer",
     "email": "candidate@example.test",
     "phone": null,
     "location": null,
@@ -135,7 +135,7 @@
       "projectId": "00000000-0000-4000-8000-000000000004",
       "name": "Library API",
       "displayName": "Library API",
-      "description": "An API for a library lending workflow.",
+      "description": "",
       "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
       "liveUrl": null,
       "technologies": [
@@ -217,7 +217,7 @@
   },
   "sourceWarnings": [],
   "tailoringPlan": {
-    "planId": "c268b215-0526-4ca7-a47d-ad00e6ccc27b",
+    "planId": "93cb04ce-3b75-4d9f-a52c-a02f578521c4",
     "targetJobId": null,
     "targetRoleTitle": "Backend Engineering",
     "targetCompany": null,
@@ -239,7 +239,6 @@
       "postgresql",
       "nestjs",
       "flask",
-      "rust",
       "python",
       "docker"
     ],
@@ -293,18 +292,6 @@
         "order": 4
       },
       {
-        "slug": "rust",
-        "name": "Rust",
-        "category": "Languages",
-        "provenanceStatus": "INFERRED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 70,
-        "matchedRequirementId": "req-8371f0dfee49",
-        "confidenceScore": 0.5,
-        "order": 5
-      },
-      {
         "slug": "python",
         "name": "Python",
         "category": "Languages",
@@ -314,7 +301,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-44407571a645",
         "confidenceScore": 0.5,
-        "order": 6
+        "order": 5
       },
       {
         "slug": "postgresql",
@@ -326,7 +313,7 @@
         "relevanceScore": 95,
         "matchedRequirementId": "req-34e85e1313e6",
         "confidenceScore": 0.5,
-        "order": 7
+        "order": 6
       },
       {
         "slug": "docker",
@@ -338,7 +325,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-319a32d333db",
         "confidenceScore": 0.5,
-        "order": 8
+        "order": 7
       }
     ],
     "skillCategoryOrder": [
@@ -368,7 +355,7 @@
     "providerStatus": "UNAVAILABLE",
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-15T09:35:43.969Z",
+  "createdAt": "2026-10-16T14:02:02.216Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack Software Engineer",
     "targetRole": "Backend Engineering",

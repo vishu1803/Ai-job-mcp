@@ -79,9 +79,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.1",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"
@@ -166,9 +166,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.2",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"
@@ -198,12 +198,12 @@
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
-      "totalFacts": 5,
-      "distinctFacts": 5,
+      "totalFacts": 8,
+      "distinctFacts": 8,
       "factsByType": {
         "education": 1,
         "project-description": 1,
-        "candidate-authored": 3
+        "candidate-authored": 6
       },
       "composedBullets": [
         {
@@ -254,9 +254,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.1",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"
@@ -286,12 +286,12 @@
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
-      "totalFacts": 5,
-      "distinctFacts": 5,
+      "totalFacts": 8,
+      "distinctFacts": 8,
       "factsByType": {
         "education": 1,
         "project-description": 1,
-        "candidate-authored": 3
+        "candidate-authored": 6
       },
       "composedBullets": [
         {
@@ -342,9 +342,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.2",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"
@@ -374,12 +374,12 @@
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
-      "totalFacts": 5,
-      "distinctFacts": 5,
+      "totalFacts": 8,
+      "distinctFacts": 8,
       "factsByType": {
         "education": 1,
         "project-description": 1,
-        "candidate-authored": 3
+        "candidate-authored": 6
       },
       "composedBullets": [
         {
@@ -430,9 +430,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.1",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"
@@ -462,12 +462,12 @@
     "receipt": "PASS",
     "factCompositionReport": {
       "usedFactComposition": true,
-      "totalFacts": 5,
-      "distinctFacts": 5,
+      "totalFacts": 8,
+      "distinctFacts": 8,
       "factsByType": {
         "education": 1,
         "project-description": 1,
-        "candidate-authored": 3
+        "candidate-authored": 6
       },
       "composedBullets": [
         {
@@ -518,9 +518,9 @@
     },
     "presentationDecisions": [
       {
-        "path": "skills.categories.1.skills.2",
+        "path": "projects.0.description",
         "action": "OMITTED",
-        "reason": "Duplicate, unsupported, repository-inferred or lower relevance skill; inventory is preserved. Repository associations do not establish proficiency."
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       }
     ],
     "renderer": "CHROME_FALLBACK_FORCED"

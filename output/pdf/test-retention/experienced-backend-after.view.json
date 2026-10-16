@@ -1,5 +1,5 @@
 {
-  "documentId": "fcc9b0a5-47b4-418f-b77d-94847f162b26",
+  "documentId": "0e8ddb7c-80e1-4c27-8f86-4bf647ffe733",
   "schemaVersion": "2.0.0",
   "targetRole": "Backend Engineering",
   "sectionOrder": [
@@ -12,9 +12,9 @@
   ],
   "candidateIdentity": {
     "displayName": "Synthetic experienced Candidate",
-    "headline": "Target role: Backend Engineering",
-    "masterHeadline": null,
-    "tailoredHeadline": "Target role: Backend Engineering",
+    "headline": "Backend Engineer",
+    "masterHeadline": "Full-Stack Software Engineer",
+    "tailoredHeadline": "Backend Engineer",
     "email": "candidate@example.test",
     "phone": null,
     "location": null,
@@ -136,7 +136,7 @@
       "projectId": "00000000-0000-4000-8000-000000000004",
       "name": "Library API",
       "displayName": "Library API",
-      "description": "An API for a library lending workflow.",
+      "description": "",
       "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
       "liveUrl": null,
       "technologies": [
@@ -273,7 +273,7 @@
   },
   "sourceWarnings": [],
   "tailoringPlan": {
-    "planId": "e65249ea-af63-445c-aa1b-54b713efa857",
+    "planId": "636451dd-4239-4dbb-9ed4-88a6f7dd9aad",
     "targetJobId": null,
     "targetRoleTitle": "Backend Engineering",
     "targetCompany": null,
@@ -296,7 +296,6 @@
       "postgresql",
       "nestjs",
       "flask",
-      "rust",
       "python",
       "docker"
     ],
@@ -350,18 +349,6 @@
         "order": 4
       },
       {
-        "slug": "rust",
-        "name": "Rust",
-        "category": "Languages",
-        "provenanceStatus": "INFERRED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 70,
-        "matchedRequirementId": "req-8371f0dfee49",
-        "confidenceScore": 0.5,
-        "order": 5
-      },
-      {
         "slug": "python",
         "name": "Python",
         "category": "Languages",
@@ -371,7 +358,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-44407571a645",
         "confidenceScore": 0.5,
-        "order": 6
+        "order": 5
       },
       {
         "slug": "postgresql",
@@ -383,7 +370,7 @@
         "relevanceScore": 95,
         "matchedRequirementId": "req-34e85e1313e6",
         "confidenceScore": 0.5,
-        "order": 7
+        "order": 6
       },
       {
         "slug": "docker",
@@ -395,7 +382,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-319a32d333db",
         "confidenceScore": 0.5,
-        "order": 8
+        "order": 7
       }
     ],
     "skillCategoryOrder": [
@@ -425,7 +412,7 @@
     "providerStatus": "UNAVAILABLE",
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-15T09:36:12.582Z",
+  "createdAt": "2026-10-16T14:02:49.715Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack Software Engineer",
     "targetRole": "Backend Engineering",
@@ -458,6 +445,33 @@
         "agencySource": "PROJECT_DESCRIPTION",
         "contributionClass": "DESCRIPTION",
         "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "28f2496e3be40c09834119ba",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "411fe3996b6c4117293abbf5",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "4d601165430f29b4c54a8bd8",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "RESPONSIBILITY"
       },
       {
         "factId": "a1386829f15d7b8e870cf328",
@@ -792,6 +806,36 @@
         "evidenceStrength": 0.8,
         "confidence": 0.7200000000000001,
         "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "28f2496e3be40c09834119ba",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "411fe3996b6c4117293abbf5",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Docker' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "4d601165430f29b4c54a8bd8",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
       },
       {
         "requirementId": "req-2809b2f2ff81",

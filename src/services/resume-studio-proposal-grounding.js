@@ -71,10 +71,47 @@ export function buildStudioProposalScope(row, payload, request) {
   if (facts.length !== 1 || payload.nodeProvenance[node.nodeId]?.truthState !== 'CLAIMED')
     refuse('SOURCE_FACT_UNAVAILABLE');
   const finish = (text) => (/[.!?]$/.test(text) ? text : text + '.');
+  const actionAlternates = [
+    [/^Implemented\b/i, 'Engineered'],
+    [/^Engineered\b/i, 'Implemented'],
+    [/^Developed\b/i, 'Engineered'],
+    [/^Architected\b/i, 'Designed'],
+    [/^Designed\b/i, 'Architected'],
+    [/^Built\b/i, 'Engineered'],
+    [/^Maintained\b/i, 'Operated'],
+    [/^Operated\b/i, 'Maintained'],
+    [/^Documented\b/i, 'Cataloged'],
+    [/^Cataloged\b/i, 'Documented'],
+    [/^Reviewed\b/i, 'Audited'],
+    [/^Audited\b/i, 'Reviewed'],
+    [/^Optimized\b/i, 'Streamlined'],
+    [/^Streamlined\b/i, 'Optimized'],
+    [/^Configured\b/i, 'Provisioned'],
+    [/^Provisioned\b/i, 'Configured'],
+    [/^Created\b/i, 'Engineered'],
+    [/^Automated\b/i, 'Streamlined'],
+    [/^Led\b/i, 'Directed'],
+    [/^Directed\b/i, 'Led'],
+    [/^Authored\b/i, 'Produced'],
+    [/^Produced\b/i, 'Authored'],
+    [/^Analyzed\b/i, 'Evaluated'],
+    [/^Evaluated\b/i, 'Analyzed'],
+    [/^Resolved\b/i, 'Remediated'],
+    [/^Remediated\b/i, 'Resolved'],
+  ];
+  const rephrased = [];
+  if (originalText.split(/\s+/).filter(Boolean).length > 3) {
+    for (const [pattern, replacement] of actionAlternates) {
+      if (pattern.test(originalText)) {
+        rephrased.push(finish(sentenceCase(originalText.replace(pattern, replacement))));
+      }
+    }
+  }
   const variants = [
     ...new Set([
       finish(sentenceCase(normalizeWhitespace(originalText))),
       finish(sentenceCase(compressProfessionalBullet(originalText))),
+      ...rephrased,
     ]),
   ].filter((text) => text !== originalText);
   if (!variants.length) refuse('NO_WORDING_CHANGE');
@@ -97,7 +134,12 @@ export function buildStudioProposalScope(row, payload, request) {
   const jobRequirement = requirement
     ? {
         id: requirement.id,
-        text: requirement.extractedValue || requirement.originalText || requirement.rawSnippet,
+        text:
+          requirement.extractedValue ||
+          requirement.originalText ||
+          requirement.rawSnippet ||
+          requirement.text ||
+          '',
         category: requirement.category,
         importance: requirement.importance,
         sourceCovered: cover(requirement),

@@ -1,0 +1,174 @@
+{
+  "software_engineer": {
+    "name": "software-engineer",
+    "page_count": 1,
+    "dimensions": "594.96 x 841.92 pt",
+    "top_y": 24.61,
+    "bottom_y": 782.35,
+    "bottom_margin_pt": 59.57,
+    "bottom_margin_pct": 7.08,
+    "png_path": "output/unified-resume/comparative-acceptance/software-engineer.png",
+    "links_count": 8,
+    "links": [
+      {
+        "uri": "mailto:vishwanatnishad@gmail.com",
+        "from": [
+          318.8,
+          61.5,
+          443.2,
+          75.8
+        ]
+      },
+      {
+        "uri": "https://linkedin.com/in/vishwanath-nishad",
+        "from": [
+          207.8,
+          75.8,
+          246.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803",
+        "from": [
+          255.8,
+          75.8,
+          289.5,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://my-portfolio-kappa-beige-71.vercel.app/",
+        "from": [
+          298.5,
+          75.8,
+          336.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://leetcode.com/u/vishwanatnishad",
+        "from": [
+          345.8,
+          75.8,
+          387.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Product-Data-Explorer",
+        "from": [
+          523.5,
+          260.2,
+          561.0,
+          274.5
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Collaborative-task-manager",
+        "from": [
+          523.5,
+          369.0,
+          561.0,
+          383.2
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Ai-powered-code-review-assistant",
+        "from": [
+          523.5,
+          451.5,
+          561.0,
+          465.8
+        ]
+      }
+    ],
+    "full_text": "Vishwanath Nishad\nSoftware Engineer\n+91 7905087928 | Gorakhpur, India | vishwanatnishad@gmail.com\nLinkedIn | GitHub | Portfolio | LeetCode\nProfessional Summary\nFull-stack software engineer experienced in building web applications and modular services using TypeScript, Next.js,\nand Node.js. Implemented secure RESTful APIs and database architectures with PostgreSQL, Prisma ORM, and\nTypeORM, alongside Redis caching layers and containerized deployments via Docker Compose. Developed automated\ncode analysis tools in Python utilizing FastAPI and Flask with Git webhook integrations to inspect pull requests.\nTechnical Skills\nLanguages: TypeScript, Python, JavaScript\nBackend & APIs: Node.js, FastAPI, NestJS, Express.js, Flask\nCloud, DevOps & Systems: Docker, Git\nFrontend & Web: Next.js, React\nDatabases & ORMs: PostgreSQL, Redis\nTechnical Projects\nProduct Data Explorer\nGitHub\nTypeScript, NestJS, Next.js, PostgreSQL, TypeORM, Docker\nArchitected a full-stack product exploration platform featuring server-side rendering with Next.js 14 and Tailwind\nCSS to streamline catalog browsing.\nEngineered a modular NestJS backend integrated with TypeORM, PostgreSQL persistence, and a Redis caching\nlayer to accelerate query response times.\nContainerized multi-service workloads with Docker Compose, integrating OpenAPI documentation and automated\nGitHub Actions CD pipelines.\nCollaborative Task Manager\nGitHub\nTypeScript, Next.js, Express.js, Prisma ORM, PostgreSQL, Node.js\nArchitected a responsive full-stack task management platform using TypeScript and Next.js, integrating JWT\nauthentication and fine-grained role-based access control (RBAC) to secure collaborative workflows.\nImplemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex\nPostgreSQL queries to support real-time data updates.\nAI-Powered Code Review Assistant\nGitHub\nPython, FastAPI, Flask, OpenAI API, Git\nEngineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code\nanti-patterns.\nConfigured Git and GitHub webhook integration to post automated review feedback directly on code changes.\nImplemented rule-based validation to detect security vulnerabilities, code smells, and syntax issues in pull requests.\nProfessional Experience\nFull Stack Developer Intern \u2014 FTV Saloon\nJun 2024 \u2013 Sep 2024\nRemote | Internship\nImplemented a secure authentication system featuring role-based access control (RBAC) and specialized admin\ndashboards to govern administrative workflows.\nDesigned and deployed RESTful APIs for core salon operations to establish robust integration and ensure reliable\ndata consistency.\nOptimized critical backend database queries and frontend asset loading to streamline data retrieval and improve\napplication efficiency.\nEducation\nBachelor of Technology in Electronics Engineering\nAug 2021 \u2013 Jul 2025\nRajkiya Engineering College | Sonbhadra, India\nRelevant Coursework: Data Structures & Algorithms, Python, C, System Modeling, Operating Systems, DBMS,\nComputer Networks\nGrade: 7.5 CGPA\nLanguages\nEnglish (Professional), Hindi (Professional)\n"
+  },
+  "senior_backend_engineer": {
+    "name": "senior-backend-engineer",
+    "page_count": 1,
+    "dimensions": "594.96 x 841.92 pt",
+    "top_y": 24.61,
+    "bottom_y": 771.85,
+    "bottom_margin_pt": 70.07,
+    "bottom_margin_pct": 8.32,
+    "png_path": "output/unified-resume/comparative-acceptance/senior-backend-engineer.png",
+    "links_count": 8,
+    "links": [
+      {
+        "uri": "mailto:vishwanatnishad@gmail.com",
+        "from": [
+          318.8,
+          61.5,
+          443.2,
+          75.8
+        ]
+      },
+      {
+        "uri": "https://linkedin.com/in/vishwanath-nishad",
+        "from": [
+          207.8,
+          75.8,
+          246.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803",
+        "from": [
+          255.8,
+          75.8,
+          289.5,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://my-portfolio-kappa-beige-71.vercel.app/",
+        "from": [
+          298.5,
+          75.8,
+          336.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://leetcode.com/u/vishwanatnishad",
+        "from": [
+          345.8,
+          75.8,
+          387.8,
+          90.0
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Product-Data-Explorer",
+        "from": [
+          523.5,
+          248.2,
+          561.0,
+          262.5
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Collaborative-task-manager",
+        "from": [
+          523.5,
+          357.0,
+          561.0,
+          371.2
+        ]
+      },
+      {
+        "uri": "https://github.com/vishu1803/Ai-powered-code-review-assistant",
+        "from": [
+          523.5,
+          453.0,
+          561.0,
+          467.2
+        ]
+      }
+    ],
+    "full_text": "Vishwanath Nishad\nBackend Engineer\n+91 7905087928 | Gorakhpur, India | vishwanatnishad@gmail.com\nLinkedIn | GitHub | Portfolio | LeetCode\nProfessional Summary\nDeveloped a secure authentication system featuring role-based access control (RBAC) and specialized admin\ndashboards. Designed and implemented robust RESTful APIs for core salon operations, ensuring reliable data\nconsistency.\nTechnical Skills\nBackend & APIs: Node.js, FastAPI, Flask, NestJS, Express.js\nDatabases & ORMs: PostgreSQL, Redis, MongoDB\nLanguages: Python, TypeScript, JavaScript\nCloud, DevOps & Systems: Docker, Git\nFrontend & Web: Next.js\nTechnical Projects\nProduct Data Explorer\nGitHub\nTypeScript, NestJS, Next.js, PostgreSQL, TypeORM, Docker\nEngineered a modular NestJS backend featuring TypeORM and PostgreSQL persistence, integrating a Redis caching\nlayer to accelerate query response times.\nIntegrated OpenAPI documentation and containerized application services using Docker Compose, establishing\nautomated deployment through GitHub Actions CD.\nArchitected a full-stack product explorer leveraging Next.js 14 with server-side rendering and Tailwind CSS for\nefficient catalog browsing.\nCollaborative Task Manager\nGitHub\nTypeScript, Next.js, Express.js, Prisma ORM, PostgreSQL, Node.js\nDesigned and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing\ncomplex PostgreSQL queries to support real-time updates.\nProvided a responsive interface with real-time updates and an optimized database structure.\nBuilt a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based\nAccess Control (RBAC) for collaboration.\nAI-Powered Code Review Assistant\nGitHub\nPython, FastAPI, Flask, OpenAI API, Git\nEngineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code\nanti-patterns.\nConfigured Git and GitHub webhook integration to post automated review feedback directly on code changes.\nImplemented rule-based validation to detect security vulnerabilities, code smells, and syntax issues in pull requests.\nProfessional Experience\nFull Stack Developer Intern \u2014 FTV Saloon\nJun 2024 \u2013 Sep 2024\nRemote | Internship\nDeveloped a secure authentication system featuring role-based access control (RBAC) and specialized admin\ndashboards.\nDesigned and implemented robust RESTful APIs for core salon operations, ensuring reliable data consistency.\nOptimized critical backend database queries and frontend asset loading, resulting in a 40% reduction in page load\ntime.\nEducation\nBachelor of Technology in Electronics Engineering\nAug 2021 \u2013 Jul 2025\nRajkiya Engineering College | Sonbhadra, India\nRelevant Coursework: Data Structures & Algorithms, Python, C, System Modeling, Operating Systems, DBMS,\nComputer Networks\nGrade: 7.5 CGPA\nLanguages\nEnglish (Professional), Hindi (Professional)\n"
+  }
+}

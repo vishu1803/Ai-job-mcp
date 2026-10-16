@@ -23,8 +23,22 @@ foreach ($var in @('GEMINI_API_KEY','GOOGLE_CLOUD_PROJECT','GITHUB_CLIENT_ID','G
     Remove-Item -LiteralPath ('Env:' + $var) -ErrorAction SilentlyContinue
 }
 
+$pgData = 'C:\Users\VISHW\AppData\Local\Temp\career-resume-studio-pgdata'
+$pidFile = Join-Path $pgData 'postmaster.pid'
+if (Test-Path $pidFile) {
+    Remove-Item -Force $pidFile -ErrorAction SilentlyContinue
+}
+$pgLog = 'C:\Users\VISHW\AppData\Local\Temp\career-resume-studio-pg.log'
+$pgCtl = 'C:\Program Files\PostgreSQL\17\bin\pg_ctl.exe'
+
 Push-Location $repoRoot
 try {
+    Write-Host "Ensuring disposable PostgreSQL 17 cluster running on port 55447..."
+    & $pgCtl -D $pgData -l $pgLog -o '-p 55447' -w start
+
+    Write-Host "Applying migrations to disposable database..."
+    & node.exe --import ./tests/setup/studio-isolated-env.js src/db/migrate.js
+
     if ($ServerOnly) {
         & node.exe --import ./tests/setup/studio-isolated-env.js --import ./tests/setup/approval-signing-env.js ./scripts/serve-browser-acceptance.mjs
     } else {
@@ -35,4 +49,6 @@ try {
     }
 } finally {
     Pop-Location
+    Write-Host "Stopping disposable PostgreSQL 17 cluster..."
+    & $pgCtl -D $pgData stop -m fast
 }

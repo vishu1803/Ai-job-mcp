@@ -60,7 +60,12 @@ export function studioDocumentContent(draft) {
   expected.push(...[identity.phone, identity.location, identity.email].filter(Boolean));
   for (const link of identity.links) {
     add(link.url, 'Normal', false);
-    expected.push(link.url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, ''));
+    let label = link.label || link.platform || '';
+    if (/^linkedin$/i.test(label)) label = 'LinkedIn';
+    else if (/^github$/i.test(label)) label = 'GitHub';
+    else if (/^portfolio$/i.test(label)) label = 'Portfolio';
+    else if (/^leetcode$/i.test(label)) label = 'LeetCode';
+    expected.push(label || link.url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, ''));
     links.push(link.url);
   }
   if (content.summary.text) {

@@ -1,0 +1,476 @@
+{
+  "software-engineer": {
+    "timestamp": "2026-10-16T14:22:56.110Z",
+    "hardConstraints": {
+      "pageCount": 1,
+      "pageCountStatus": "PASS",
+      "minimumFontPt": 10,
+      "fontFloorStatus": "PASS",
+      "projectCount": 3,
+      "projectCountStatus": "PASS"
+    },
+    "sections": {
+      "HEADER": {
+        "name": "Vishwanath Nishad",
+        "targetRole": "Software Engineer",
+        "phone": "+91 7905087928",
+        "location": "Gorakhpur, India",
+        "email": "vishwanatnishad@gmail.com",
+        "linksCount": 4,
+        "rowsExpected": 4,
+        "status": "PASS"
+      },
+      "SUMMARY": {
+        "wordCount": 56,
+        "estimatedLines": 4,
+        "targetRange": "40-70 words",
+        "status": "PASS",
+        "text": "Software engineer experienced in developing full-stack web applications and modular backend services using TypeScript, Node.js, Next.js, and Python. Demonstrates hands-on capability in architecting RESTful APIs, managing PostgreSQL databases with Prisma and TypeORM, and integrating Redis caching alongside role-based access control. Skilled in containerizing multi-tier environments using Docker and automating development workflows with Git and GitHub Actions."
+      },
+      "TECHNICAL_SKILLS": {
+        "categoryCount": 5,
+        "totalSkillsCount": 14,
+        "renderedLines": 5,
+        "categoryOrder": [
+          "Languages",
+          "Backend & APIs",
+          "Cloud, DevOps & Systems",
+          "Frontend & Web",
+          "Databases & ORMs"
+        ],
+        "status": "PASS"
+      },
+      "PROJECTS": {
+        "projectCount": 3,
+        "projects": [
+          {
+            "name": "Product Data Explorer",
+            "bulletCount": 3,
+            "technologiesCount": 6,
+            "bullets": [
+              {
+                "wordCount": 18,
+                "estimatedLines": 2,
+                "text": "Architected a full-stack product explorer utilizing Next.js 14 and Tailwind CSS with server-side rendering to enable catalog browsing."
+              },
+              {
+                "wordCount": 19,
+                "estimatedLines": 2,
+                "text": "Engineered a modular NestJS backend utilizing TypeORM, PostgreSQL persistence, and a Redis caching layer to accelerate query response times."
+              },
+              {
+                "wordCount": 16,
+                "estimatedLines": 2,
+                "text": "Containerized application services using Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery."
+              }
+            ]
+          },
+          {
+            "name": "Collaborative Task Manager",
+            "bulletCount": 2,
+            "technologiesCount": 6,
+            "bullets": [
+              {
+                "wordCount": 23,
+                "estimatedLines": 2,
+                "text": "Engineered a full-stack task management platform using TypeScript, Next.js, and Express.js, implementing JWT authentication and role-based access control (RBAC) to ensure secure collaboration."
+              },
+              {
+                "wordCount": 22,
+                "estimatedLines": 2,
+                "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing PostgreSQL queries to support real-time updates and responsive data retrieval."
+              }
+            ]
+          },
+          {
+            "name": "AI-Powered Code Review Assistant",
+            "bulletCount": 3,
+            "technologiesCount": 5,
+            "bullets": [
+              {
+                "wordCount": 19,
+                "estimatedLines": 2,
+                "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns."
+              },
+              {
+                "wordCount": 16,
+                "estimatedLines": 2,
+                "text": "Implemented rule-based validation mechanisms to detect security vulnerabilities, code smells, and syntax issues within pull requests."
+              },
+              {
+                "wordCount": 13,
+                "estimatedLines": 1,
+                "text": "Configured Git webhook integrations to deliver automated review feedback directly onto code changes."
+              }
+            ]
+          }
+        ],
+        "status": "PASS"
+      },
+      "EXPERIENCE": {
+        "rolesCount": 1,
+        "roles": [
+          {
+            "company": "FTV Saloon",
+            "title": "Full Stack Developer Intern",
+            "bulletCount": 3,
+            "hasQuantitativeMetric": true,
+            "bullets": [
+              {
+                "wordCount": 14,
+                "estimatedLines": 1,
+                "text": "Designed and implemented robust RESTful APIs for core salon operations, ensuring reliable data consistency."
+              },
+              {
+                "wordCount": 14,
+                "estimatedLines": 1,
+                "text": "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards."
+              },
+              {
+                "wordCount": 18,
+                "estimatedLines": 2,
+                "text": "Optimized critical backend database queries and frontend asset loading, resulting in a 40% reduction in page load time."
+              }
+            ]
+          }
+        ],
+        "status": "PASS"
+      },
+      "EDUCATION": {
+        "recordsCount": 1,
+        "records": [
+          {
+            "institution": "Rajkiya Engineering College | Sonbhadra",
+            "degree": "Bachelor of Technology",
+            "courseworkCount": 7,
+            "hasGrade": true
+          }
+        ],
+        "status": "PASS"
+      },
+      "LANGUAGES": {
+        "entriesCount": 2,
+        "languages": [
+          "English (PROFESSIONAL)",
+          "Hindi (PROFESSIONAL)"
+        ],
+        "status": "PASS"
+      }
+    },
+    "geometry": {
+      "topMarginMm": 11.59,
+      "bottomMarginMm": 37.15,
+      "topMarginStatus": "PASS",
+      "bottomMarginStatus": "PASS",
+      "bottomOccupancyRatio": 0.87
+    },
+    "redundancyAudit": {
+      "hasRedundancy": false,
+      "duplicatePairs": []
+    },
+    "geometryMeasurements": {
+      "pdfFile": "software-engineer.pdf",
+      "pngFile": "software-engineer.png",
+      "pageCount": 1,
+      "isExactlyOnePage": true,
+      "dimensions": {
+        "widthPt": 594.96,
+        "heightPt": 841.92,
+        "widthMm": 209.89,
+        "heightMm": 297.01,
+        "isA4": true
+      },
+      "typography": {
+        "minimumFontPt": 10,
+        "maximumFontPt": 18,
+        "fontFloorPass": true,
+        "embeddedFontsCount": 3,
+        "allFontsEmbedded": true,
+        "fonts": [
+          {
+            "xref": 4,
+            "name": "AAAAAA+LMRoman10-Bold",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          },
+          {
+            "xref": 5,
+            "name": "BAAAAA+LMRoman10-Regular",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          },
+          {
+            "xref": 6,
+            "name": "CAAAAA+LMRoman10-Italic",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          }
+        ]
+      },
+      "margins": {
+        "topMarginMm": 11.59,
+        "bottomMarginMm": 37.15,
+        "leftMarginMm": 11.91,
+        "rightMarginMm": 11.72,
+        "topMarginStatus": "PASS",
+        "bottomMarginStatus": "WARN",
+        "verticalOccupancyRatio": 0.87
+      },
+      "textSummary": {
+        "totalSpans": 66,
+        "contentBoundingBox": {
+          "x0_pt": 33.75,
+          "y0_pt": 32.86,
+          "x1_pt": 561.75,
+          "y1_pt": 736.6
+        }
+      }
+    },
+    "provenanceVerification": {
+      "writingMethod": "AI_FACT_BOUND",
+      "provider": "vertex",
+      "summaryStatus": "ACCEPTED",
+      "modelId": "gemini-3.8-flash"
+    }
+  },
+  "senior-backend-engineer": {
+    "timestamp": "2026-10-16T14:22:56.235Z",
+    "hardConstraints": {
+      "pageCount": 1,
+      "pageCountStatus": "PASS",
+      "minimumFontPt": 10,
+      "fontFloorStatus": "PASS",
+      "projectCount": 3,
+      "projectCountStatus": "PASS"
+    },
+    "sections": {
+      "HEADER": {
+        "name": "Vishwanath Nishad",
+        "targetRole": "Backend Engineer",
+        "phone": "+91 7905087928",
+        "location": "Gorakhpur, India",
+        "email": "vishwanatnishad@gmail.com",
+        "linksCount": 4,
+        "rowsExpected": 4,
+        "status": "PASS"
+      },
+      "SUMMARY": {
+        "wordCount": 54,
+        "estimatedLines": 4,
+        "targetRange": "40-70 words",
+        "status": "PASS",
+        "text": "Backend engineer experienced in designing modular REST APIs and distributed services using Node.js, Express, and Python frameworks including FastAPI and Flask. Proficient in relational data modeling with PostgreSQL and Prisma, query optimization, and latency reduction through Redis caching layers and Docker containerization. Builds secure backend architectures incorporating token-based authentication and fine-grained role-based access control."
+      },
+      "TECHNICAL_SKILLS": {
+        "categoryCount": 5,
+        "totalSkillsCount": 14,
+        "renderedLines": 5,
+        "categoryOrder": [
+          "Backend & APIs",
+          "Databases & ORMs",
+          "Languages",
+          "Cloud, DevOps & Systems",
+          "Frontend & Web"
+        ],
+        "status": "PASS"
+      },
+      "PROJECTS": {
+        "projectCount": 3,
+        "projects": [
+          {
+            "name": "Product Data Explorer",
+            "bulletCount": 3,
+            "technologiesCount": 6,
+            "bullets": [
+              {
+                "wordCount": 20,
+                "estimatedLines": 2,
+                "text": "Engineered a modular NestJS backend utilizing TypeORM and PostgreSQL persistence, integrating a Redis caching layer to accelerate query response times."
+              },
+              {
+                "wordCount": 16,
+                "estimatedLines": 2,
+                "text": "Containerized multi-service architecture using Docker Compose and established OpenAPI documentation alongside automated GitHub Actions continuous delivery."
+              },
+              {
+                "wordCount": 17,
+                "estimatedLines": 2,
+                "text": "Architected full-stack product exploration platform leveraging Next.js 14 and Tailwind CSS with server-side rendering for catalog browsing."
+              }
+            ]
+          },
+          {
+            "name": "Collaborative Task Manager",
+            "bulletCount": 2,
+            "technologiesCount": 6,
+            "bullets": [
+              {
+                "wordCount": 19,
+                "estimatedLines": 2,
+                "text": "Engineered high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time platform updates."
+              },
+              {
+                "wordCount": 18,
+                "estimatedLines": 2,
+                "text": "Implemented JWT-based authentication and fine-grained Role-Based Access Control (RBAC) using Express.js and TypeScript to enable secure multi-user collaboration."
+              }
+            ]
+          },
+          {
+            "name": "AI-Powered Code Review Assistant",
+            "bulletCount": 3,
+            "technologiesCount": 5,
+            "bullets": [
+              {
+                "wordCount": 19,
+                "estimatedLines": 2,
+                "text": "Engineered an automated code analysis service using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns."
+              },
+              {
+                "wordCount": 18,
+                "estimatedLines": 2,
+                "text": "Implemented rule-based validation mechanisms in Python to detect security vulnerabilities, code smells, and syntax issues across pull requests."
+              },
+              {
+                "wordCount": 15,
+                "estimatedLines": 2,
+                "text": "Configured Git and GitHub webhook integrations to post automated review feedback directly onto code changes."
+              }
+            ]
+          }
+        ],
+        "status": "PASS"
+      },
+      "EXPERIENCE": {
+        "rolesCount": 1,
+        "roles": [
+          {
+            "company": "FTV Saloon",
+            "title": "Full Stack Developer Intern",
+            "bulletCount": 3,
+            "hasQuantitativeMetric": true,
+            "bullets": [
+              {
+                "wordCount": 14,
+                "estimatedLines": 1,
+                "text": "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards."
+              },
+              {
+                "wordCount": 14,
+                "estimatedLines": 1,
+                "text": "Designed and implemented robust RESTful APIs for core salon operations, ensuring reliable data consistency."
+              },
+              {
+                "wordCount": 18,
+                "estimatedLines": 2,
+                "text": "Optimized critical backend database queries and frontend asset loading, resulting in a 40% reduction in page load time."
+              }
+            ]
+          }
+        ],
+        "status": "PASS"
+      },
+      "EDUCATION": {
+        "recordsCount": 1,
+        "records": [
+          {
+            "institution": "Rajkiya Engineering College | Sonbhadra",
+            "degree": "Bachelor of Technology",
+            "courseworkCount": 7,
+            "hasGrade": true
+          }
+        ],
+        "status": "PASS"
+      },
+      "LANGUAGES": {
+        "entriesCount": 2,
+        "languages": [
+          "English (PROFESSIONAL)",
+          "Hindi (PROFESSIONAL)"
+        ],
+        "status": "PASS"
+      }
+    },
+    "geometry": {
+      "topMarginMm": 11.59,
+      "bottomMarginMm": 18.1,
+      "topMarginStatus": "PASS",
+      "bottomMarginStatus": "PASS",
+      "bottomOccupancyRatio": 0.937
+    },
+    "redundancyAudit": {
+      "hasRedundancy": false,
+      "duplicatePairs": []
+    },
+    "geometryMeasurements": {
+      "pdfFile": "senior-backend-engineer.pdf",
+      "pngFile": "senior-backend-engineer.png",
+      "pageCount": 1,
+      "isExactlyOnePage": true,
+      "dimensions": {
+        "widthPt": 594.96,
+        "heightPt": 841.92,
+        "widthMm": 209.89,
+        "heightMm": 297.01,
+        "isA4": true
+      },
+      "typography": {
+        "minimumFontPt": 10,
+        "maximumFontPt": 18,
+        "fontFloorPass": true,
+        "embeddedFontsCount": 3,
+        "allFontsEmbedded": true,
+        "fonts": [
+          {
+            "xref": 4,
+            "name": "AAAAAA+LMRoman10-Bold",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          },
+          {
+            "xref": 5,
+            "name": "BAAAAA+LMRoman10-Regular",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          },
+          {
+            "xref": 6,
+            "name": "CAAAAA+LMRoman10-Italic",
+            "extension": "",
+            "embedded": true,
+            "toUnicode": true
+          }
+        ]
+      },
+      "margins": {
+        "topMarginMm": 11.59,
+        "bottomMarginMm": 18.1,
+        "leftMarginMm": 11.91,
+        "rightMarginMm": 11.72,
+        "topMarginStatus": "PASS",
+        "bottomMarginStatus": "PASS",
+        "verticalOccupancyRatio": 0.937
+      },
+      "textSummary": {
+        "totalSpans": 70,
+        "contentBoundingBox": {
+          "x0_pt": 33.75,
+          "y0_pt": 32.86,
+          "x1_pt": 561.75,
+          "y1_pt": 790.6
+        }
+      }
+    },
+    "provenanceVerification": {
+      "writingMethod": "AI_FACT_BOUND",
+      "provider": "vertex",
+      "summaryStatus": "ACCEPTED",
+      "modelId": "gemini-3.8-flash"
+    }
+  }
+}

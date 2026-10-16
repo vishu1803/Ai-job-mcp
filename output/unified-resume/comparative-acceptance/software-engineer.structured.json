@@ -1,0 +1,2350 @@
+{
+  "documentId": "3acd0259-f5fb-4b7d-b2ee-644b05eb1c51",
+  "schemaVersion": "2.0.0",
+  "targetRole": "Software Engineer",
+  "sectionOrder": [
+    "HEADER",
+    "SUMMARY",
+    "SKILLS",
+    "PROJECTS",
+    "DSA",
+    "EXPERIENCE",
+    "EDUCATION",
+    "COURSEWORK",
+    "LANGUAGES"
+  ],
+  "candidateIdentity": {
+    "displayName": "Vishwanath Nishad",
+    "headline": "Software Engineer",
+    "masterHeadline": "Full-Stack & Backend Developer",
+    "tailoredHeadline": "Software Engineer",
+    "email": "vishwanatnishad@gmail.com",
+    "phone": "+91 7905087928",
+    "location": "Gorakhpur, India",
+    "links": [
+      {
+        "label": "LinkedIn",
+        "url": "https://linkedin.com/in/vishwanath-nishad",
+        "platform": "LINKEDIN"
+      },
+      {
+        "label": "GitHub",
+        "url": "https://github.com/vishu1803",
+        "platform": "GITHUB"
+      },
+      {
+        "label": "Portfolio",
+        "url": "https://my-portfolio-kappa-beige-71.vercel.app",
+        "platform": "PORTFOLIO"
+      },
+      {
+        "label": "LeetCode",
+        "url": "https://leetcode.com/u/vishwanatnishad",
+        "platform": "LEETCODE"
+      }
+    ]
+  },
+  "summary": {
+    "text": "Software engineer experienced in developing full-stack web applications and modular backend services using TypeScript, Node.js, Next.js, and Python. Demonstrates hands-on capability in architecting RESTful APIs, managing PostgreSQL databases with Prisma and TypeORM, and integrating Redis caching alongside role-based access control. Skilled in containerizing multi-tier environments using Docker and automating development workflows with Git and GitHub Actions.",
+    "referencedSkillSlugs": [],
+    "referencedProjectIds": [
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000003"
+    ],
+    "evidenceRefs": [
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "128a2a945857af7aee12b8fd",
+        "sourceRef": "128a2a945857af7aee12b8fd",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "292b2814310a89c67a12b05e",
+        "sourceRef": "292b2814310a89c67a12b05e",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "sourceRef": "3f00a4d4d6621b0e4904ca2a",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "6d8c69d737a9938984937eed",
+        "sourceRef": "6d8c69d737a9938984937eed",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "96644a800921e6f697f0fc84",
+        "sourceRef": "96644a800921e6f697f0fc84",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "sourceRef": "b387bfe17b0b8d29e6af35ef",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "be3d8873b923808234b05849",
+        "sourceRef": "be3d8873b923808234b05849",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "d2e04446d8d0407dfb5b246a",
+        "sourceRef": "d2e04446d8d0407dfb5b246a",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      }
+    ],
+    "matchedRequirementIds": [],
+    "composedFromFactIds": [
+      "128a2a945857af7aee12b8fd",
+      "292b2814310a89c67a12b05e",
+      "3f00a4d4d6621b0e4904ca2a",
+      "6d8c69d737a9938984937eed",
+      "96644a800921e6f697f0fc84",
+      "b387bfe17b0b8d29e6af35ef",
+      "be3d8873b923808234b05849",
+      "d2e04446d8d0407dfb5b246a"
+    ],
+    "provenanceStatus": "CLAIMED",
+    "provenance": null,
+    "sourceFact": [
+      "Built a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based Access Control (RBAC) for collaboration.",
+      "Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing.",
+      "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
+      "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
+      "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
+      "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
+      "Configured Git and GitHub webhook integration to post automated review feedback directly on code changes.",
+      "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
+    ],
+    "transformationType": "REWRITE",
+    "sentences": [
+      {
+        "text": "Software engineer experienced in developing full-stack web applications and modular backend services using TypeScript, Node.js, Next.js, and Python. Demonstrates hands-on capability in architecting RESTful APIs, managing PostgreSQL databases with Prisma and TypeORM, and integrating Redis caching alongside role-based access control. Skilled in containerizing multi-tier environments using Docker and automating development workflows with Git and GitHub Actions.",
+        "factIds": [
+          "128a2a945857af7aee12b8fd",
+          "292b2814310a89c67a12b05e",
+          "3f00a4d4d6621b0e4904ca2a",
+          "6d8c69d737a9938984937eed",
+          "96644a800921e6f697f0fc84",
+          "b387bfe17b0b8d29e6af35ef",
+          "be3d8873b923808234b05849",
+          "d2e04446d8d0407dfb5b246a"
+        ],
+        "projectIds": [],
+        "skillSlugs": [],
+        "evidenceRefs": [
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "128a2a945857af7aee12b8fd",
+            "sourceRef": "128a2a945857af7aee12b8fd",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "292b2814310a89c67a12b05e",
+            "sourceRef": "292b2814310a89c67a12b05e",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "3f00a4d4d6621b0e4904ca2a",
+            "sourceRef": "3f00a4d4d6621b0e4904ca2a",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "6d8c69d737a9938984937eed",
+            "sourceRef": "6d8c69d737a9938984937eed",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "96644a800921e6f697f0fc84",
+            "sourceRef": "96644a800921e6f697f0fc84",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "b387bfe17b0b8d29e6af35ef",
+            "sourceRef": "b387bfe17b0b8d29e6af35ef",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "be3d8873b923808234b05849",
+            "sourceRef": "be3d8873b923808234b05849",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "d2e04446d8d0407dfb5b246a",
+            "sourceRef": "d2e04446d8d0407dfb5b246a",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          }
+        ],
+        "matchedRequirementIds": [],
+        "provenanceStatus": "CLAIMED",
+        "jobRelevance": 1,
+        "composedFromFactIds": [
+          "128a2a945857af7aee12b8fd",
+          "292b2814310a89c67a12b05e",
+          "3f00a4d4d6621b0e4904ca2a",
+          "6d8c69d737a9938984937eed",
+          "96644a800921e6f697f0fc84",
+          "b387bfe17b0b8d29e6af35ef",
+          "be3d8873b923808234b05849",
+          "d2e04446d8d0407dfb5b246a"
+        ],
+        "sourceFact": [
+          "Built a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based Access Control (RBAC) for collaboration.",
+          "Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing.",
+          "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
+          "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
+          "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
+          "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
+          "Configured Git and GitHub webhook integration to post automated review feedback directly on code changes.",
+          "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
+        ],
+        "transformationType": "REWRITE"
+      }
+    ]
+  },
+  "skills": {
+    "categories": [
+      {
+        "categoryName": "Languages",
+        "skills": [
+          {
+            "name": "TypeScript",
+            "slug": "typescript",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-2809b2f2ff81"
+          },
+          {
+            "name": "Python",
+            "slug": "python",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-44407571a645"
+          },
+          {
+            "name": "JavaScript",
+            "slug": "javascript",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 55,
+            "matchedRequirementId": "req-635cf2d1b57b"
+          }
+        ]
+      },
+      {
+        "categoryName": "Backend & APIs",
+        "skills": [
+          {
+            "name": "Node.js",
+            "slug": "node-js",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-acded19bfc43"
+          },
+          {
+            "name": "FastAPI",
+            "slug": "fastapi",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 60,
+            "matchedRequirementId": "req-529724ee23d6"
+          },
+          {
+            "name": "NestJS",
+            "slug": "nestjs",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          },
+          {
+            "name": "Express.js",
+            "slug": "express-js",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          },
+          {
+            "name": "Flask",
+            "slug": "flask",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          }
+        ]
+      },
+      {
+        "categoryName": "Cloud, DevOps & Systems",
+        "skills": [
+          {
+            "name": "Docker",
+            "slug": "docker",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-319a32d333db"
+          },
+          {
+            "name": "Git",
+            "slug": "git",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-881212b7aa54"
+          }
+        ]
+      },
+      {
+        "categoryName": "Frontend & Web",
+        "skills": [
+          {
+            "name": "Next.js",
+            "slug": "next-js",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-4c76c8e972f7"
+          },
+          {
+            "name": "React",
+            "slug": "react",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 55,
+            "matchedRequirementId": "req-6c6a47e31602"
+          }
+        ]
+      },
+      {
+        "categoryName": "Databases & ORMs",
+        "skills": [
+          {
+            "name": "PostgreSQL",
+            "slug": "postgresql",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-34e85e1313e6"
+          },
+          {
+            "name": "Redis",
+            "slug": "redis",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          }
+        ]
+      }
+    ]
+  },
+  "projects": [
+    {
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "name": "Product Data Explorer",
+      "displayName": "Product Data Explorer",
+      "description": "Architected a full-stack product explorer with Next.js 14 frontend, Tailwind CSS, modular NestJS backend, PostgreSQL persistence, and Redis caching.",
+      "repositoryUrl": "https://github.com/vishu1803/Product-Data-Explorer",
+      "liveUrl": null,
+      "technologies": [
+        "TypeScript",
+        "NestJS",
+        "Next.js",
+        "PostgreSQL",
+        "TypeORM",
+        "Docker"
+      ],
+      "bullets": [
+        {
+          "text": "Architected a full-stack product explorer utilizing Next.js 14 and Tailwind CSS with server-side rendering to enable catalog browsing.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "292b2814310a89c67a12b05e",
+              "sourceRef": "292b2814310a89c67a12b05e",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "292b2814310a89c67a12b05e"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Engineered a modular NestJS backend utilizing TypeORM, PostgreSQL persistence, and a Redis caching layer to accelerate query response times.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "3f00a4d4d6621b0e4904ca2a",
+              "sourceRef": "3f00a4d4d6621b0e4904ca2a",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "3f00a4d4d6621b0e4904ca2a"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Containerized application services using Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "6d8c69d737a9938984937eed",
+              "sourceRef": "6d8c69d737a9938984937eed",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "6d8c69d737a9938984937eed"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD."
+          ],
+          "transformationType": "REWRITE"
+        }
+      ],
+      "relevanceScore": 46.23,
+      "rank": 1,
+      "selectionSource": "AUTHORITATIVE_RANKING",
+      "authoritativeRankingRank": 1,
+      "selectedBecause": "LOW relevance (46.23/100): Covers 8 requirement(s) via typescript, next-js, nestjs, postgresql. Demonstrates 5 architectural dimension(s) in project 'Product Data Explorer'.",
+      "projectMatchedRequirements": [
+        "req-skill-typescript",
+        "req-skill-javascript",
+        "req-skill-react",
+        "req-skill-next-js",
+        "req-skill-node-js",
+        "req-skill-postgresql",
+        "req-skill-rest-api",
+        "req-skill-docker"
+      ],
+      "selectedBulletFactIds": [
+        "292b2814310a89c67a12b05e",
+        "3f00a4d4d6621b0e4904ca2a",
+        "6d8c69d737a9938984937eed"
+      ]
+    },
+    {
+      "projectId": "00000000-0000-4000-8000-000000000002",
+      "name": "Collaborative Task Manager",
+      "displayName": "Collaborative Task Manager",
+      "description": "Built full-stack task management platform with role-based access control, secure authentication, PostgreSQL, and Prisma ORM.",
+      "repositoryUrl": "https://github.com/vishu1803/Collaborative-task-manager",
+      "liveUrl": null,
+      "technologies": [
+        "TypeScript",
+        "Next.js",
+        "Express.js",
+        "Node.js",
+        "Prisma ORM",
+        "PostgreSQL"
+      ],
+      "bullets": [
+        {
+          "text": "Engineered a full-stack task management platform using TypeScript, Next.js, and Express.js, implementing JWT authentication and role-based access control (RBAC) to ensure secure collaboration.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "128a2a945857af7aee12b8fd",
+              "sourceRef": "128a2a945857af7aee12b8fd",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "128a2a945857af7aee12b8fd"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Built a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based Access Control (RBAC) for collaboration."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing PostgreSQL queries to support real-time updates and responsive data retrieval.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "b387bfe17b0b8d29e6af35ef",
+              "sourceRef": "b387bfe17b0b8d29e6af35ef",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            },
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "b6836e2fd8c73445b6c6acc3",
+              "sourceRef": "b6836e2fd8c73445b6c6acc3",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "b387bfe17b0b8d29e6af35ef",
+            "b6836e2fd8c73445b6c6acc3"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
+            "Provided a responsive interface with real-time updates and an optimized database structure."
+          ],
+          "transformationType": "COMBINE"
+        }
+      ],
+      "relevanceScore": 33.64,
+      "rank": 2,
+      "selectionSource": "AUTHORITATIVE_RANKING",
+      "authoritativeRankingRank": 2,
+      "selectedBecause": "LOW relevance (33.64/100): Covers 7 requirement(s) via typescript, next-js, node-js, postgresql. Demonstrates 2 architectural dimension(s) in project 'Collaborative Task Manager'.",
+      "projectMatchedRequirements": [
+        "req-skill-typescript",
+        "req-skill-javascript",
+        "req-skill-react",
+        "req-skill-next-js",
+        "req-skill-node-js",
+        "req-skill-postgresql",
+        "req-skill-rest-api"
+      ],
+      "selectedBulletFactIds": [
+        "128a2a945857af7aee12b8fd",
+        "b387bfe17b0b8d29e6af35ef",
+        "b6836e2fd8c73445b6c6acc3"
+      ]
+    },
+    {
+      "projectId": "00000000-0000-4000-8000-000000000003",
+      "name": "AI-Powered Code Review Assistant",
+      "displayName": "AI-Powered Code Review Assistant",
+      "description": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect anti-patterns.",
+      "repositoryUrl": "https://github.com/vishu1803/Ai-powered-code-review-assistant",
+      "liveUrl": null,
+      "technologies": [
+        "Python",
+        "FastAPI",
+        "Flask",
+        "Git",
+        "OpenAI API"
+      ],
+      "bullets": [
+        {
+          "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "d2e04446d8d0407dfb5b246a",
+              "sourceRef": "d2e04446d8d0407dfb5b246a",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "d2e04446d8d0407dfb5b246a"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Implemented rule-based validation mechanisms to detect security vulnerabilities, code smells, and syntax issues within pull requests.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "8dca2ef83c193333f035943b",
+              "sourceRef": "8dca2ef83c193333f035943b",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "8dca2ef83c193333f035943b"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Implemented rule-based validation to detect security vulnerabilities, code smells, and syntax issues in pull requests."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Configured Git webhook integrations to deliver automated review feedback directly onto code changes.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "be3d8873b923808234b05849",
+              "sourceRef": "be3d8873b923808234b05849",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "be3d8873b923808234b05849"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Configured Git and GitHub webhook integration to post automated review feedback directly on code changes."
+          ],
+          "transformationType": "REWRITE"
+        }
+      ],
+      "relevanceScore": 16.36,
+      "rank": 3,
+      "selectionSource": "AUTHORITATIVE_RANKING",
+      "authoritativeRankingRank": 3,
+      "selectedBecause": "MINIMAL relevance (16.36/100): Covers 3 requirement(s) via python, fastapi, git. Demonstrates 2 architectural dimension(s) in project 'AI-Powered Code Review Assistant'.",
+      "projectMatchedRequirements": [
+        "req-skill-python",
+        "req-skill-rest-api",
+        "req-skill-git"
+      ],
+      "selectedBulletFactIds": [
+        "d2e04446d8d0407dfb5b246a",
+        "8dca2ef83c193333f035943b",
+        "be3d8873b923808234b05849"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "company": "FTV Saloon",
+      "title": "Full Stack Developer Intern",
+      "startDate": "2024-06",
+      "endDate": "2024-09",
+      "isCurrent": false,
+      "location": "Remote",
+      "employmentType": "INTERNSHIP",
+      "technologies": [],
+      "rawDateRange": null,
+      "bullets": [
+        "Designed and implemented robust RESTful APIs for core salon operations, ensuring reliable data consistency.",
+        "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
+        "Optimized critical backend database queries and frontend asset loading, resulting in a 40% reduction in page load time."
+      ],
+      "provenanceStatus": "CLAIMED"
+    }
+  ],
+  "education": [
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "institution": "Rajkiya Engineering College | Sonbhadra",
+      "degree": "Bachelor of Technology",
+      "fieldOfStudy": "Electronics Engineering",
+      "startDate": "2021-08",
+      "endDate": "2025-07",
+      "isCurrent": false,
+      "location": "Sonbhadra, India",
+      "grade": "7.5 CGPA",
+      "coursework": [
+        "Data Structures & Algorithms",
+        "Python",
+        "C",
+        "System Modeling",
+        "Operating Systems",
+        "DBMS",
+        "Computer Networks"
+      ],
+      "honors": [],
+      "bullets": [],
+      "rawDateRange": null,
+      "provenanceStatus": "USER_PROVIDED"
+    }
+  ],
+  "certifications": [],
+  "dsa": {
+    "hasSection": true,
+    "profileUrl": "https://leetcode.com/u/vishwanatnishad",
+    "bullets": [
+      "300+ LeetCode problems solved across core computer science topics (Dynamic Programming, Graphs, Trees, Arrays, Binary Search).",
+      "Daily competitive programming and DSA practice to maintain interview readiness and a strong analytical foundation.",
+      "Demonstrated proficiency in translating complex algorithmic solutions into production code for system optimization."
+    ],
+    "provenanceStatus": "USER_PROVIDED"
+  },
+  "optionalSections": {
+    "coursework": [],
+    "publications": [],
+    "achievements": [],
+    "additionalSkills": [],
+    "awards": [],
+    "languages": [
+      {
+        "id": "languages-62ec4755cd015c97d64f",
+        "language": "English",
+        "proficiency": "PROFESSIONAL",
+        "isCurrent": false,
+        "authors": [],
+        "bullets": [],
+        "items": [],
+        "provenanceStatus": "USER_PROVIDED"
+      },
+      {
+        "id": "languages-326d19e15e80f9a0e6dc",
+        "language": "Hindi",
+        "proficiency": "PROFESSIONAL",
+        "isCurrent": false,
+        "authors": [],
+        "bullets": [],
+        "items": [],
+        "provenanceStatus": "USER_PROVIDED"
+      }
+    ],
+    "volunteerExperience": [],
+    "leadership": [],
+    "customSections": []
+  },
+  "sourceWarnings": [],
+  "tailoringPlan": {
+    "planId": "1c1d2259-26af-4a0a-b5a1-8847cf8888ae",
+    "targetJobId": "00000000-0000-5000-a000-000000000001",
+    "targetRoleTitle": "Software Engineer",
+    "targetCompany": "TechCorp Solutions",
+    "candidateArchetype": "FRESHER",
+    "pageTarget": "ONE_PAGE_STRICT",
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "DSA",
+      "EXPERIENCE",
+      "EDUCATION",
+      "COURSEWORK",
+      "LANGUAGES"
+    ],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003"
+    ],
+    "selectedSkillSlugs": [
+      "typescript",
+      "python",
+      "node-js",
+      "docker",
+      "git",
+      "next-js",
+      "postgresql",
+      "fastapi",
+      "javascript",
+      "react",
+      "nestjs",
+      "express-js",
+      "flask",
+      "redis"
+    ],
+    "selectedSkills": [
+      {
+        "slug": "typescript",
+        "name": "TypeScript",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-2809b2f2ff81",
+        "confidenceScore": 0.5,
+        "order": 1
+      },
+      {
+        "slug": "python",
+        "name": "Python",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-44407571a645",
+        "confidenceScore": 0.5,
+        "order": 2
+      },
+      {
+        "slug": "javascript",
+        "name": "JavaScript",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 55,
+        "matchedRequirementId": "req-635cf2d1b57b",
+        "confidenceScore": 0.5,
+        "order": 3
+      },
+      {
+        "slug": "node-js",
+        "name": "Node.js",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-acded19bfc43",
+        "confidenceScore": 0.5,
+        "order": 5
+      },
+      {
+        "slug": "fastapi",
+        "name": "FastAPI",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 60,
+        "matchedRequirementId": "req-529724ee23d6",
+        "confidenceScore": 0.5,
+        "order": 6
+      },
+      {
+        "slug": "nestjs",
+        "name": "NestJS",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 8
+      },
+      {
+        "slug": "express-js",
+        "name": "Express.js",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 9
+      },
+      {
+        "slug": "flask",
+        "name": "Flask",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 10
+      },
+      {
+        "slug": "docker",
+        "name": "Docker",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-319a32d333db",
+        "confidenceScore": 0.5,
+        "order": 11
+      },
+      {
+        "slug": "git",
+        "name": "Git",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-881212b7aa54",
+        "confidenceScore": 0.5,
+        "order": 12
+      },
+      {
+        "slug": "next-js",
+        "name": "Next.js",
+        "category": "Frontend & Web",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-4c76c8e972f7",
+        "confidenceScore": 0.5,
+        "order": 13
+      },
+      {
+        "slug": "react",
+        "name": "React",
+        "category": "Frontend & Web",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 55,
+        "matchedRequirementId": "req-6c6a47e31602",
+        "confidenceScore": 0.5,
+        "order": 14
+      },
+      {
+        "slug": "postgresql",
+        "name": "PostgreSQL",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-34e85e1313e6",
+        "confidenceScore": 0.5,
+        "order": 15
+      },
+      {
+        "slug": "redis",
+        "name": "Redis",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 17
+      }
+    ],
+    "skillCategoryOrder": [
+      "Languages",
+      "Backend & APIs",
+      "Cloud, DevOps & Systems",
+      "Frontend & Web",
+      "Databases & ORMs"
+    ],
+    "optionalSections": {
+      "includeDsa": true,
+      "includeCertifications": false,
+      "includeCoursework": true,
+      "includePublications": false,
+      "includeAchievements": false,
+      "includeAdditionalSkills": false,
+      "includeAwards": false
+    },
+    "summaryDirectives": {
+      "focusAreas": [],
+      "keyHighlightedProjectIds": [],
+      "keyMatchedSkillSlugs": []
+    }
+  },
+  "writing": {
+    "method": "AI_FACT_BOUND",
+    "providerUsed": true,
+    "providerStatus": "ACCEPTED",
+    "summaryStatus": "ACCEPTED",
+    "provider": "vertex",
+    "modelId": "gemini-3.8-flash",
+    "sections": [
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "REJECTED",
+        "reason": "UNSUPPORTED_OUTCOME"
+      }
+    ],
+    "missingDataGuidance": []
+  },
+  "createdAt": "2026-10-16T14:19:52.544Z",
+  "debugTrace": {
+    "candidateHeadline": "Full-Stack & Backend Developer",
+    "targetRole": "Software Engineer",
+    "targetRoleFamily": "FULL_STACK",
+    "dsaDecision": {
+      "hasCandidateBullets": true,
+      "hasProfileUrl": true,
+      "sectionIncluded": true
+    },
+    "syntheticContentBlocked": [
+      "DSA_HARDCODED_PROSE",
+      "DOMAIN_LABEL_REWRITING",
+      "HEADLINE_JOB_TITLE_LEAK"
+    ],
+    "factInventorySummary": [
+      {
+        "factId": "06a88887fa4ac4dae84c81a3",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "1075d7be1632240421d5262f",
+        "sourceType": "summary",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "DSA"
+      },
+      {
+        "factId": "128a2a945857af7aee12b8fd",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "1cc4a94b8d1cc8a7001ec68c",
+        "sourceType": "summary",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "DSA"
+      },
+      {
+        "factId": "292b2814310a89c67a12b05e",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_DESIGN_DECISION",
+        "evidenceRole": "DESIGN_DECISION"
+      },
+      {
+        "factId": "30506e0359b47d3cf4ed5210",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "3453d800cfc9336dae14c202",
+        "sourceType": "education",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "43ba339bb28b39ea60a9262b",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "696f03c507ddc0de141123ec",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "6d8c69d737a9938984937eed",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "8b5beada75a8643df632eed5",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "8dca2ef83c193333f035943b",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "96644a800921e6f697f0fc84",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "a61256f69620df26b38ab672",
+        "sourceType": "link",
+        "candidateAuthored": true
+      },
+      {
+        "factId": "a6655d60d4dca64ecc7c5696",
+        "sourceType": "summary",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "DSA"
+      },
+      {
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_DESIGN_DECISION",
+        "evidenceRole": "DESIGN_DECISION"
+      },
+      {
+        "factId": "b6836e2fd8c73445b6c6acc3",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "be3d8873b923808234b05849",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "c6f0631c333b6d37f7349330",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "CONTEXT",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "d2e04446d8d0407dfb5b246a",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "da6e439f3e3d0c8a62163983",
+        "sourceType": "coursework",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "e4c562c4ff29aea1e2eb6a92",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_DESIGN_DECISION",
+        "evidenceRole": "DESIGN_DECISION"
+      },
+      {
+        "factId": "ea9de21a0c4adcbd3ffba733",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_OUTCOME",
+        "evidenceRole": "OPTIMIZATION"
+      },
+      {
+        "factId": "ef3da77ab67acfc12a3c2549",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "DESCRIPTION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "efe2ff964e7992e4b379b63a",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "CONTEXT",
+        "evidenceRole": "DESIGN_DECISION"
+      }
+    ],
+    "claimPlanSummary": [],
+    "realizationSummary": [
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-1",
+        "text": "Architected a full-stack product explorer utilizing Next.js 14 and Tailwind CSS with server-side rendering to enable catalog browsing.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-2",
+        "text": "Engineered a modular NestJS backend utilizing TypeORM, PostgreSQL persistence, and a Redis caching layer to accelerate query response times.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-3",
+        "text": "Containerized application services using Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-1",
+        "text": "Engineered a full-stack task management platform using TypeScript, Next.js, and Express.js, implementing JWT authentication and role-based access control (RBAC) to ensure secure collaboration.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-2",
+        "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing PostgreSQL queries to support real-time updates and responsive data retrieval.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-1",
+        "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-2",
+        "text": "Implemented rule-based validation mechanisms to detect security vulnerabilities, code smells, and syntax issues within pull requests.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-3",
+        "text": "Configured Git webhook integrations to deliver automated review feedback directly onto code changes.",
+        "validationResult": "VALID"
+      }
+    ],
+    "pdfSummary": {
+      "renderedClaimIds": [
+        "ai-bullet-00000000-0000-4000-8000-000000000001-1",
+        "ai-bullet-00000000-0000-4000-8000-000000000001-2",
+        "ai-bullet-00000000-0000-4000-8000-000000000001-3",
+        "ai-bullet-00000000-0000-4000-8000-000000000002-1",
+        "ai-bullet-00000000-0000-4000-8000-000000000002-2",
+        "ai-bullet-00000000-0000-4000-8000-000000000003-1",
+        "ai-bullet-00000000-0000-4000-8000-000000000003-2",
+        "ai-bullet-00000000-0000-4000-8000-000000000003-3"
+      ],
+      "renderedFactIds": [
+        "292b2814310a89c67a12b05e",
+        "3f00a4d4d6621b0e4904ca2a",
+        "6d8c69d737a9938984937eed",
+        "128a2a945857af7aee12b8fd",
+        "b387bfe17b0b8d29e6af35ef",
+        "b6836e2fd8c73445b6c6acc3",
+        "d2e04446d8d0407dfb5b246a",
+        "8dca2ef83c193333f035943b",
+        "be3d8873b923808234b05849",
+        "96644a800921e6f697f0fc84"
+      ]
+    },
+    "requirementCoverage": {
+      "requirements": [
+        {
+          "id": "req-2809b2f2ff81",
+          "text": "TypeScript",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "128a2a945857af7aee12b8fd",
+            "292b2814310a89c67a12b05e",
+            "3f00a4d4d6621b0e4904ca2a",
+            "6d8c69d737a9938984937eed",
+            "b387bfe17b0b8d29e6af35ef",
+            "b6836e2fd8c73445b6c6acc3",
+            "c6f0631c333b6d37f7349330",
+            "efe2ff964e7992e4b379b63a"
+          ]
+        },
+        {
+          "id": "req-635cf2d1b57b",
+          "text": "JavaScript",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-6c6a47e31602",
+          "text": "React",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-4c76c8e972f7",
+          "text": "Next.js",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "128a2a945857af7aee12b8fd",
+            "292b2814310a89c67a12b05e",
+            "3f00a4d4d6621b0e4904ca2a",
+            "6d8c69d737a9938984937eed",
+            "b387bfe17b0b8d29e6af35ef",
+            "b6836e2fd8c73445b6c6acc3",
+            "c6f0631c333b6d37f7349330",
+            "efe2ff964e7992e4b379b63a"
+          ]
+        },
+        {
+          "id": "req-acded19bfc43",
+          "text": "Node.js",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "128a2a945857af7aee12b8fd",
+            "b387bfe17b0b8d29e6af35ef",
+            "b6836e2fd8c73445b6c6acc3",
+            "c6f0631c333b6d37f7349330"
+          ]
+        },
+        {
+          "id": "req-44407571a645",
+          "text": "Python",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "8dca2ef83c193333f035943b",
+            "be3d8873b923808234b05849",
+            "d2e04446d8d0407dfb5b246a",
+            "ef3da77ab67acfc12a3c2549"
+          ]
+        },
+        {
+          "id": "req-34e85e1313e6",
+          "text": "PostgreSQL",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "128a2a945857af7aee12b8fd",
+            "292b2814310a89c67a12b05e",
+            "3f00a4d4d6621b0e4904ca2a",
+            "6d8c69d737a9938984937eed",
+            "b387bfe17b0b8d29e6af35ef",
+            "b6836e2fd8c73445b6c6acc3",
+            "c6f0631c333b6d37f7349330",
+            "efe2ff964e7992e4b379b63a"
+          ]
+        },
+        {
+          "id": "req-529724ee23d6",
+          "text": "REST APIs",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-319a32d333db",
+          "text": "Docker",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "292b2814310a89c67a12b05e",
+            "3f00a4d4d6621b0e4904ca2a",
+            "6d8c69d737a9938984937eed",
+            "efe2ff964e7992e4b379b63a"
+          ]
+        },
+        {
+          "id": "req-881212b7aa54",
+          "text": "Git",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "8dca2ef83c193333f035943b",
+            "be3d8873b923808234b05849",
+            "d2e04446d8d0407dfb5b246a",
+            "ef3da77ab67acfc12a3c2549"
+          ]
+        }
+      ],
+      "selectedProjectIds": [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000002",
+        "00000000-0000-4000-8000-000000000003"
+      ],
+      "selectedFactIds": [
+        "128a2a945857af7aee12b8fd",
+        "292b2814310a89c67a12b05e",
+        "3f00a4d4d6621b0e4904ca2a",
+        "6d8c69d737a9938984937eed",
+        "8dca2ef83c193333f035943b",
+        "b387bfe17b0b8d29e6af35ef",
+        "b6836e2fd8c73445b6c6acc3",
+        "be3d8873b923808234b05849",
+        "c6f0631c333b6d37f7349330",
+        "d2e04446d8d0407dfb5b246a",
+        "ef3da77ab67acfc12a3c2549",
+        "efe2ff964e7992e4b379b63a"
+      ]
+    },
+    "jobFingerprint": "39ae5c11f1fa6bc6c0d1b7db91c5920391a87b214bb96b557c40261e6782f19d",
+    "normalizedRequirements": [
+      {
+        "id": "req-2809b2f2ff81",
+        "text": "TypeScript",
+        "normalizedConcept": "typescript",
+        "aliases": [
+          "typescript"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-635cf2d1b57b",
+        "text": "JavaScript",
+        "normalizedConcept": "javascript",
+        "aliases": [
+          "javascript"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-6c6a47e31602",
+        "text": "React",
+        "normalizedConcept": "react",
+        "aliases": [
+          "react"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-4c76c8e972f7",
+        "text": "Next.js",
+        "normalizedConcept": "next.js",
+        "aliases": [
+          "next.js"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-acded19bfc43",
+        "text": "Node.js",
+        "normalizedConcept": "node.js",
+        "aliases": [
+          "node.js"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-44407571a645",
+        "text": "Python",
+        "normalizedConcept": "python",
+        "aliases": [
+          "python"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-34e85e1313e6",
+        "text": "PostgreSQL",
+        "normalizedConcept": "postgresql",
+        "aliases": [
+          "postgresql"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-529724ee23d6",
+        "text": "REST APIs",
+        "normalizedConcept": "rest api",
+        "aliases": [
+          "rest",
+          "api"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-319a32d333db",
+        "text": "Docker",
+        "normalizedConcept": "docker",
+        "aliases": [
+          "docker"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-881212b7aa54",
+        "text": "Git",
+        "normalizedConcept": "git",
+        "aliases": [
+          "git"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      }
+    ],
+    "matches": [
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "128a2a945857af7aee12b8fd",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "128a2a945857af7aee12b8fd",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "128a2a945857af7aee12b8fd",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "128a2a945857af7aee12b8fd",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "292b2814310a89c67a12b05e",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "292b2814310a89c67a12b05e",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "292b2814310a89c67a12b05e",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "292b2814310a89c67a12b05e",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Docker' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "30506e0359b47d3cf4ed5210",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "3f00a4d4d6621b0e4904ca2a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Docker' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "6d8c69d737a9938984937eed",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "6d8c69d737a9938984937eed",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "6d8c69d737a9938984937eed",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "6d8c69d737a9938984937eed",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Docker' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "8dca2ef83c193333f035943b",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-881212b7aa54",
+        "factId": "8dca2ef83c193333f035943b",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Git' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "b387bfe17b0b8d29e6af35ef",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "b6836e2fd8c73445b6c6acc3",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "b6836e2fd8c73445b6c6acc3",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "b6836e2fd8c73445b6c6acc3",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "b6836e2fd8c73445b6c6acc3",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "be3d8873b923808234b05849",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-881212b7aa54",
+        "factId": "be3d8873b923808234b05849",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Git' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "c6f0631c333b6d37f7349330",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "c6f0631c333b6d37f7349330",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "c6f0631c333b6d37f7349330",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "c6f0631c333b6d37f7349330",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "d2e04446d8d0407dfb5b246a",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-881212b7aa54",
+        "factId": "d2e04446d8d0407dfb5b246a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Git' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "ef3da77ab67acfc12a3c2549",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-881212b7aa54",
+        "factId": "ef3da77ab67acfc12a3c2549",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Git' to candidate fact"
+      },
+      {
+        "requirementId": "req-2809b2f2ff81",
+        "factId": "efe2ff964e7992e4b379b63a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'TypeScript' to candidate fact"
+      },
+      {
+        "requirementId": "req-4c76c8e972f7",
+        "factId": "efe2ff964e7992e4b379b63a",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'Next.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "efe2ff964e7992e4b379b63a",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "efe2ff964e7992e4b379b63a",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Docker' to candidate fact"
+      }
+    ],
+    "projectRemovalRecords": [],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003"
+    ],
+    "renderedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003"
+    ],
+    "selectedFactIds": [
+      "128a2a945857af7aee12b8fd",
+      "292b2814310a89c67a12b05e",
+      "3f00a4d4d6621b0e4904ca2a",
+      "6d8c69d737a9938984937eed",
+      "8dca2ef83c193333f035943b",
+      "b387bfe17b0b8d29e6af35ef",
+      "b6836e2fd8c73445b6c6acc3",
+      "be3d8873b923808234b05849",
+      "c6f0631c333b6d37f7349330",
+      "d2e04446d8d0407dfb5b246a",
+      "ef3da77ab67acfc12a3c2549",
+      "efe2ff964e7992e4b379b63a"
+    ],
+    "renderedFactIds": [
+      "292b2814310a89c67a12b05e",
+      "3f00a4d4d6621b0e4904ca2a",
+      "6d8c69d737a9938984937eed",
+      "128a2a945857af7aee12b8fd",
+      "b387bfe17b0b8d29e6af35ef",
+      "b6836e2fd8c73445b6c6acc3",
+      "d2e04446d8d0407dfb5b246a",
+      "8dca2ef83c193333f035943b",
+      "be3d8873b923808234b05849",
+      "96644a800921e6f697f0fc84"
+    ],
+    "authoritativeEligibleProjectCount": 3
+  },
+  "presentation": {
+    "mode": "ONE_PAGE",
+    "paperSize": "A4",
+    "minimumFontPt": 10,
+    "rendererVersion": "chrome-ats-a4-v2",
+    "pass": 1,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EXPERIENCE",
+      "EDUCATION",
+      "LANGUAGES",
+      "DSA",
+      "COURSEWORK"
+    ],
+    "condensations": [],
+    "decisions": [
+      {
+        "path": "experience.0.bullets.1",
+        "action": "OMITTED",
+        "reason": "Lower relevance under the one-page bullet budget."
+      },
+      {
+        "path": "projects.0.bullets.2",
+        "action": "OMITTED",
+        "reason": "Lower relevance under the one-page bullet budget."
+      },
+      {
+        "path": "projects.0.description",
+        "action": "OMITTED",
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
+      },
+      {
+        "path": "projects.1.description",
+        "action": "OMITTED",
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
+      },
+      {
+        "path": "projects.2.bullets.2",
+        "action": "OMITTED",
+        "reason": "Lower relevance under the one-page bullet budget."
+      },
+      {
+        "path": "projects.2.description",
+        "action": "OMITTED",
+        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
+      },
+      {
+        "path": "dsa.hasSection",
+        "action": "OMITTED",
+        "reason": "DSA section omitted to preserve professional experience, project accomplishments, and spoken languages on a single page."
+      },
+      {
+        "path": "dsa.bullets.0",
+        "action": "OMITTED",
+        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
+      },
+      {
+        "path": "dsa.bullets.1",
+        "action": "OMITTED",
+        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
+      },
+      {
+        "path": "dsa.bullets.2",
+        "action": "OMITTED",
+        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
+      }
+    ]
+  }
+}

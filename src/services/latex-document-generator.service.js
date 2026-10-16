@@ -248,6 +248,33 @@ function optionalEntryLatex(entry) {
 }
 
 /**
+ * Normalizes and deduplicates institution and location string combinations.
+ * Prevents redundant display like "Rajkiya Engineering College | Sonbhadra | Sonbhadra, India".
+ *
+ * @param {string|null} institution
+ * @param {string|null} location
+ * @returns {string} Clean, deduplicated institution | location representation
+ */
+export function formatInstitutionLocation(institution, location) {
+  let cleanInst = (institution || '').trim();
+  const cleanLoc = (location || '').trim();
+  if (!cleanInst) return cleanLoc;
+  if (!cleanLoc) return cleanInst;
+
+  const locTokens = cleanLoc
+    .split(/[,|]/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length >= 3);
+
+  for (const tok of locTokens) {
+    const pipeRegex = new RegExp(`\\s*\\|\\s*${tok}\\s*$`, 'i');
+    const commaRegex = new RegExp(`\\s*,\\s*${tok}\\s*$`, 'i');
+    cleanInst = cleanInst.replace(pipeRegex, '').replace(commaRegex, '').trim();
+  }
+  return `${cleanInst} | ${cleanLoc}`;
+}
+
+/**
  * Formats compact human-readable project link labels for LaTeX rendering:
  * "GitHub" / "GitHub $\\cdot$ Live Demo" (or "GitLab", "Repository", etc.)
  * Underlying hyperlink target remains the authentic candidate URL.
@@ -480,9 +507,9 @@ export class LatexDocumentGenerator {
         `\\href{mailto:${escapeLatexUrl(candidateEmail)}}{${escapeLatex(candidateEmail)}}`
       );
     }
-    const contactLine = contactElements.join(' $\\cdot$ ');
+    const contactLine = contactElements.join(' $|$ ');
 
-    // Profile links directly from snapshot with parseable visible URLs (Section 18.C)
+    // Profile links directly from snapshot with short descriptive labels and real target URLs
     const profileLinkElements = [];
     const links =
       (Array.isArray(identity.links) && identity.links.length > 0 && identity.links) ||
@@ -497,14 +524,10 @@ export class LatexDocumentGenerator {
         else if (/^portfolio$/i.test(label)) label = 'Portfolio';
         else if (/^leetcode$/i.test(label)) label = 'LeetCode';
 
-        let visibleUrl = link.url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, '');
-        if (!visibleUrl.toLowerCase().includes(label.toLowerCase())) {
-          visibleUrl = `${label}: ${visibleUrl}`;
-        }
-        profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(visibleUrl)}}`);
+        profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(label)}}`);
       }
     }
-    const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
+    const profileLinksLine = profileLinkElements.join(' $|$ ');
 
     // 2. Summary
     const summaryText = structuredResume.summary?.text || '';
@@ -589,32 +612,34 @@ export class LatexDocumentGenerator {
     // 5. DSA — included ONLY when meaningful candidate-owned evidence exists (Req G & 14, P16-006).
     let dsaLatexSection = '';
     const dsa = structuredResume.dsa;
-    if (dsa && isMeaningfulDsa(dsa)) {
+    if (dsa && isMeaningfulDsa(dsa) && dsa.hasSection !== false && dsa.hasSection !== '') {
       const dsaBullets = Array.isArray(dsa.bullets)
         ? dsa.bullets.map((b) => String(b || '').trim()).filter(Boolean)
         : [];
-      const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
-      const dsaTitle = dsa.title || 'LeetCode Profile';
-      const dsaSubtitle =
-        typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
-          ? dsa.subtitle.trim()
-          : 'Data Structures & Algorithms';
+      if (dsaBullets.length > 0) {
+        const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
+        const dsaTitle = dsa.title || 'LeetCode Profile';
+        const dsaSubtitle =
+          typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
+            ? dsa.subtitle.trim()
+            : 'Data Structures & Algorithms';
 
-      let headerRight = '';
-      if (dsaUrl) {
-        let dsaLabel = 'LeetCode';
-        if (/hackerrank/i.test(dsaUrl)) dsaLabel = 'HackerRank';
-        else if (/codeforces/i.test(dsaUrl)) dsaLabel = 'Codeforces';
-        else if (!/leetcode/i.test(dsaUrl)) dsaLabel = 'Profile';
-        headerRight = `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(dsaLabel)}}}`;
-      }
+        let headerRight = '';
+        if (dsaUrl) {
+          let dsaLabel = 'LeetCode';
+          if (/hackerrank/i.test(dsaUrl)) dsaLabel = 'HackerRank';
+          else if (/codeforces/i.test(dsaUrl)) dsaLabel = 'Codeforces';
+          else if (!/leetcode/i.test(dsaUrl)) dsaLabel = 'Profile';
+          headerRight = `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(dsaLabel)}}}`;
+        }
 
-      const bulletTex = formatLatexBullets(dsaBullets);
+        const bulletTex = formatLatexBullets(dsaBullets);
 
-      dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
+        dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
 \\textbf{${escapeLatex(dsaTitle)}}${dsaSubtitle ? ` | \\textit{${escapeLatex(dsaSubtitle)}}` : ''}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par
 \\vspace{\\atsMetadataToBullets}
 ${bulletTex}`;
+      }
     }
 
     // 6. Professional Experience: candidate-owned snapshot records
@@ -670,9 +695,7 @@ ${bulletTex}`;
         const fieldAlreadyInDegree =
           rawField && rawDegree.toLowerCase().includes(rawField.toLowerCase());
         const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
-        const institution = escapeLatex(
-          [edu.institution, edu.location].filter(Boolean).join(' | ')
-        );
+        const institution = escapeLatex(formatInstitutionLocation(edu.institution, edu.location));
         const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
         const dates = formatNormalizedDateRange(edu.startDate, endDate);
         const coursework =
@@ -815,9 +838,24 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
       ADDITIONAL_SKILLS: additionalSkillsLatexSection,
       AWARDS: awardsLatexSection,
     };
-    for (const key of ['LANGUAGES', 'VOLUNTEER', 'LEADERSHIP']) {
+    if (Array.isArray(optional.languages) && optional.languages.length > 0) {
+      const langEntries = optional.languages
+        .map((l) => {
+          if (typeof l === 'string') return escapeLatex(l);
+          const name = l.language || l.name || '';
+          const prof = l.proficiency
+            ? ` (${escapeLatex(l.proficiency.charAt(0).toUpperCase() + l.proficiency.slice(1).toLowerCase())})`
+            : '';
+          return name ? `${escapeLatex(name)}${prof}` : null;
+        })
+        .filter(Boolean);
+      sectionBlocks.LANGUAGES =
+        langEntries.length > 0 ? `\\atssection{Languages}\n${langEntries.join(', ')}\\par` : '';
+    } else {
+      sectionBlocks.LANGUAGES = '';
+    }
+    for (const key of ['VOLUNTEER', 'LEADERSHIP']) {
       const [field, title] = {
-        LANGUAGES: ['languages', 'Languages'],
         VOLUNTEER: ['volunteerExperience', 'Volunteer Experience'],
         LEADERSHIP: ['leadership', 'Leadership'],
       }[key];
@@ -878,23 +916,13 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
         authoritativeOrder.push(key);
     }
 
-    // DSA safety net (mirrors the legacy renderer's explicit-selection rule):
-    // if the structured snapshot carries real candidate-owned DSA content, DSA must
-    // reach the PDF even if the ordering derivation missed it. The page-budget logic
-    // governs PROJECTS, not whether candidate-owned DSA survives. No content is
-    // synthesized here: dsaLatexSection is empty unless structuredResume.dsa has
-    // candidate-owned bullets/URL, so an empty DSA block adds nothing.
+    // DSA safety net: append DSA at the end if omitted by ordering
     if (!authoritativeOrder.includes('DSA')) {
       const dsaHasRealContent = Boolean(
         dsaLatexSection && typeof dsaLatexSection === 'string' && dsaLatexSection.trim().length > 0
       );
       if (dsaHasRealContent) {
-        const projIdx = authoritativeOrder.indexOf('PROJECTS');
-        if (projIdx !== -1) {
-          authoritativeOrder.splice(projIdx + 1, 0, 'DSA');
-        } else {
-          authoritativeOrder.push('DSA');
-        }
+        authoritativeOrder.push('DSA');
       }
     }
 

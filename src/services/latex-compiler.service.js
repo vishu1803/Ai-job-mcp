@@ -25,8 +25,61 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { logger } from '../utils/logger.js';
 import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
+
+let cachedFontFaces = null;
+function getLatinModernFontFaces() {
+  if (cachedFontFaces !== null) return cachedFontFaces;
+  try {
+    const fontsDir = fileURLToPath(new URL('../assets/fonts/latin-modern', import.meta.url));
+    const reg = fsSync
+      .readFileSync(path.join(fontsDir, 'lmroman-regular-webfont.ttf'))
+      .toString('base64');
+    const bold = fsSync
+      .readFileSync(path.join(fontsDir, 'lmroman-bold-webfont.ttf'))
+      .toString('base64');
+    const italic = fsSync
+      .readFileSync(path.join(fontsDir, 'lmroman-italic-webfont.ttf'))
+      .toString('base64');
+    const boldItalic = fsSync
+      .readFileSync(path.join(fontsDir, 'lmroman-bolditalic-webfont.ttf'))
+      .toString('base64');
+    cachedFontFaces = `
+    @font-face {
+      font-family: 'Latin Modern Roman';
+      src: url('data:font/truetype;base64,${reg}') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Latin Modern Roman';
+      src: url('data:font/truetype;base64,${bold}') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Latin Modern Roman';
+      src: url('data:font/truetype;base64,${italic}') format('truetype');
+      font-weight: 400;
+      font-style: italic;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Latin Modern Roman';
+      src: url('data:font/truetype;base64,${boldItalic}') format('truetype');
+      font-weight: 700;
+      font-style: italic;
+      font-display: swap;
+    }`;
+  } catch {
+    cachedFontFaces = '';
+  }
+  return cachedFontFaces;
+}
 
 /**
  * Locates an executable on the system PATH without shelling out.
@@ -525,6 +578,8 @@ export class LatexCompilerService {
           .replace(/\\textasciicircum\{\}/g, '^')
           .replace(/\\textbar\{\}/g, ' · ')
           .replace(/\\textbar\b/g, ' · ')
+          .replace(/\$\\\|\$/g, ' | ')
+          .replace(/\$\|\$/g, ' | ')
           .replace(/\$\\cdot\$/g, '·')
           .replace(/\\cdot\b/g, '·')
           .replace(/---/g, '—')
@@ -596,7 +651,6 @@ export class LatexCompilerService {
     }
 
     // Extract contact line from preHeader
-    let contactHtml = '';
     const contactLines = preHeader
       .split('\n')
       .map((l) => l.trim())
@@ -606,11 +660,14 @@ export class LatexCompilerService {
           (nameMatch ? !l.includes(nameMatch[0]) : !l.includes(candidateName)) &&
           (!headlineMatch || !l.includes(headlineMatch[0]))
       );
-    if (contactLines.length > 0) {
-      // Preserve selectable link text and actual URL annotations in the PDF.
-      // Distinguish the TeX contact/profile paragraphs when the compact Chrome
-      // header flows across lines; never glue the email to the first profile URL.
-      contactHtml = contactLines.map(cleanLatexText).filter(Boolean).join(' · ');
+    const cleanedContactLines = contactLines.map(cleanLatexText).filter(Boolean);
+    let contactLineHtml = '';
+    let linksLineHtml = '';
+    if (cleanedContactLines.length === 1) {
+      contactLineHtml = cleanedContactLines[0];
+    } else if (cleanedContactLines.length > 1) {
+      contactLineHtml = cleanedContactLines[0];
+      linksLineHtml = cleanedContactLines.slice(1).join(' | ');
     }
 
     let match;
@@ -628,7 +685,8 @@ export class LatexCompilerService {
     let htmlBody = `<div class="header">
     <h1 class="candidate-name">${candidateName}</h1>
     ${headline ? `<div class="candidate-headline">${headline}</div>` : ''}
-    ${contactHtml ? `<div class="contact-line">${contactHtml}</div>` : ''}
+    ${contactLineHtml ? `<div class="contact-line">${contactLineHtml}</div>` : ''}
+    ${linksLineHtml ? `<div class="links-line">${linksLineHtml}</div>` : ''}
   </div>`;
 
     if (sections.length === 0) {
@@ -674,7 +732,13 @@ export class LatexCompilerService {
                 }
                 const cleanedP = cleanLatexText(p);
                 if (cleanedP) {
-                  htmlBody += `<p>${cleanedP}</p>`;
+                  const subLines = cleanedP
+                    .split('<br>')
+                    .map((l) => l.trim())
+                    .filter(Boolean);
+                  for (const line of subLines) {
+                    htmlBody += `<p>${line}</p>`;
+                  }
                 }
               }
             }
@@ -690,9 +754,10 @@ export class LatexCompilerService {
   <meta charset="utf-8">
   <title>${candidateName} - Resume</title>
   <style>
+${getLatinModernFontFaces()}
     @page {
       size: A4;
-      margin: 12mm 14mm;
+      margin: 13mm 12mm 14mm 12mm;
     }
     * {
       box-sizing: border-box;
@@ -702,7 +767,7 @@ export class LatexCompilerService {
       padding: 0;
       background: #ffffff;
       color: #000000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: "Latin Modern Roman", "LMRoman10", "Computer Modern", "CMU Serif", serif;
       font-size: 10pt;
       line-height: 1.24;
       overflow-wrap: anywhere;
@@ -726,11 +791,19 @@ export class LatexCompilerService {
       margin: 0 0 1pt;
       text-align: center;
     }
-    .contact-line {
+    .contact-line, .links-line {
       font-size: 10pt;
       color: #222222;
-      margin: 0 0 3pt;
+      margin: 0 0 2pt;
       text-align: center;
+      line-height: 1.2;
+    }
+    .contact-line a, .links-line a {
+      color: #000000;
+      text-decoration: none;
+    }
+    .links-line {
+      margin-top: 1pt;
     }
     .section {
       margin-top: 5pt;
@@ -740,7 +813,7 @@ export class LatexCompilerService {
       font-weight: 700;
       border-bottom: 0.5pt solid #000000;
       padding-bottom: 1pt;
-      margin: 5pt 0 3pt;
+      margin: 4pt 0 2pt;
       break-after: avoid;
     }
     p {

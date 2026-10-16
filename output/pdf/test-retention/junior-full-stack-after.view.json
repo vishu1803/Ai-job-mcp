@@ -1,5 +1,5 @@
 {
-  "documentId": "d807f445-dcfb-4772-9154-d11c7b2e4ec4",
+  "documentId": "1270260e-1ffd-46ac-8a68-ea7ff14bd91c",
   "schemaVersion": "2.0.0",
   "targetRole": "Full-stack Developer",
   "sectionOrder": [
@@ -11,9 +11,9 @@
   ],
   "candidateIdentity": {
     "displayName": "Synthetic junior Candidate",
-    "headline": "Target role: Full-stack Developer",
-    "masterHeadline": null,
-    "tailoredHeadline": "Target role: Full-stack Developer",
+    "headline": "Full-Stack Developer",
+    "masterHeadline": "Full-Stack Software Engineer",
+    "tailoredHeadline": "Full-Stack Developer",
     "email": "candidate@example.test",
     "phone": null,
     "location": null,
@@ -135,7 +135,7 @@
       "projectId": "00000000-0000-4000-8000-000000000004",
       "name": "Library API",
       "displayName": "Library API",
-      "description": "An API for a library lending workflow.",
+      "description": "",
       "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
       "liveUrl": null,
       "technologies": [
@@ -217,7 +217,7 @@
   },
   "sourceWarnings": [],
   "tailoringPlan": {
-    "planId": "37007fbf-28bb-4121-80ad-408246da8ff3",
+    "planId": "d33e0059-4d14-4e82-87d8-d61d240182ca",
     "targetJobId": null,
     "targetRoleTitle": "Full-stack Developer",
     "targetCompany": null,
@@ -240,8 +240,7 @@
       "nestjs",
       "flask",
       "python",
-      "docker",
-      "rust"
+      "docker"
     ],
     "selectedSkills": [
       {
@@ -305,18 +304,6 @@
         "order": 5
       },
       {
-        "slug": "rust",
-        "name": "Rust",
-        "category": "Languages",
-        "provenanceStatus": "INFERRED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 20,
-        "matchedRequirementId": null,
-        "confidenceScore": 0.5,
-        "order": 6
-      },
-      {
         "slug": "postgresql",
         "name": "PostgreSQL",
         "category": "Databases & ORMs",
@@ -326,7 +313,7 @@
         "relevanceScore": 95,
         "matchedRequirementId": "req-34e85e1313e6",
         "confidenceScore": 0.5,
-        "order": 7
+        "order": 6
       },
       {
         "slug": "docker",
@@ -338,7 +325,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-319a32d333db",
         "confidenceScore": 0.5,
-        "order": 8
+        "order": 7
       }
     ],
     "skillCategoryOrder": [
@@ -368,7 +355,7 @@
     "providerStatus": "UNAVAILABLE",
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-15T09:35:49.153Z",
+  "createdAt": "2026-10-16T14:02:08.053Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack Software Engineer",
     "targetRole": "Full-stack Developer",

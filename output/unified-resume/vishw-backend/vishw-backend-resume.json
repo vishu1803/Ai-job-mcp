@@ -1,0 +1,1478 @@
+{
+  "documentId": "56f8f905-0e57-4529-a9d5-818dbcd12ed9",
+  "schemaVersion": "2.0.0",
+  "targetRole": "Backend Engineer",
+  "sectionOrder": [
+    "HEADER",
+    "SUMMARY",
+    "SKILLS",
+    "PROJECTS",
+    "EXPERIENCE",
+    "EDUCATION"
+  ],
+  "candidateIdentity": {
+    "displayName": "Vishwanath Nishad",
+    "headline": "Backend Engineer | Node.js, Python, PostgreSQL",
+    "masterHeadline": "Backend Engineer | Node.js, Python, PostgreSQL",
+    "tailoredHeadline": "Target role: Backend Engineer",
+    "email": "vishwanath.nishad@gmail.com",
+    "phone": "+91 9876543210",
+    "location": "India",
+    "links": [
+      {
+        "label": "LinkedIn",
+        "url": "https://linkedin.com/in/vishwanath-nishad",
+        "platform": "LINKEDIN"
+      },
+      {
+        "label": "GitHub",
+        "url": "https://github.com/vishu1803",
+        "platform": "GITHUB"
+      }
+    ]
+  },
+  "summary": {
+    "text": "Backend engineer experienced in developing RESTful APIs and backend services using Node.js and Python. Designed relational database schemas and managed migrations utilizing PostgreSQL and Prisma ORM alongside secure authentication and role-based access control. Engineered automated code analysis workflows using FastAPI and Git integration to evaluate pull requests against validation rules.",
+    "referencedSkillSlugs": [],
+    "referencedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "evidenceRefs": [
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "0af4f148a98112bb6013d100",
+        "sourceRef": "0af4f148a98112bb6013d100",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "0f2e2c85432b75514554a7a9",
+        "sourceRef": "0f2e2c85432b75514554a7a9",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "5959478cf22a2789abe93509",
+        "sourceRef": "5959478cf22a2789abe93509",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "6db48a6a9f9a782b5d72a3e8",
+        "sourceRef": "6db48a6a9f9a782b5d72a3e8",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
+        "factId": "8e0001b60c056103b920934e",
+        "sourceRef": "8e0001b60c056103b920934e",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      }
+    ],
+    "matchedRequirementIds": [],
+    "composedFromFactIds": [
+      "0af4f148a98112bb6013d100",
+      "0f2e2c85432b75514554a7a9",
+      "5959478cf22a2789abe93509",
+      "6db48a6a9f9a782b5d72a3e8",
+      "8e0001b60c056103b920934e"
+    ],
+    "provenanceStatus": "CLAIMED",
+    "provenance": null,
+    "sourceFact": [
+      "Designed relational schema and optimized migrations using PostgreSQL and Prisma ORM.",
+      "Developed RESTful APIs and backend services using Node.js.",
+      "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests.",
+      "Built full-stack task management platform with role-based access control and secure authentication.",
+      "Configured Git integration to post automated review feedback on code changes."
+    ],
+    "transformationType": "REWRITE",
+    "sentences": [
+      {
+        "text": "Backend engineer experienced in developing RESTful APIs and backend services using Node.js and Python. Designed relational database schemas and managed migrations utilizing PostgreSQL and Prisma ORM alongside secure authentication and role-based access control. Engineered automated code analysis workflows using FastAPI and Git integration to evaluate pull requests against validation rules.",
+        "factIds": [
+          "0af4f148a98112bb6013d100",
+          "0f2e2c85432b75514554a7a9",
+          "5959478cf22a2789abe93509",
+          "6db48a6a9f9a782b5d72a3e8",
+          "8e0001b60c056103b920934e"
+        ],
+        "projectIds": [],
+        "skillSlugs": [],
+        "evidenceRefs": [
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "0af4f148a98112bb6013d100",
+            "sourceRef": "0af4f148a98112bb6013d100",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "0f2e2c85432b75514554a7a9",
+            "sourceRef": "0f2e2c85432b75514554a7a9",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "5959478cf22a2789abe93509",
+            "sourceRef": "5959478cf22a2789abe93509",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "6db48a6a9f9a782b5d72a3e8",
+            "sourceRef": "6db48a6a9f9a782b5d72a3e8",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
+            "factId": "8e0001b60c056103b920934e",
+            "sourceRef": "8e0001b60c056103b920934e",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          }
+        ],
+        "matchedRequirementIds": [],
+        "provenanceStatus": "CLAIMED",
+        "jobRelevance": 1,
+        "composedFromFactIds": [
+          "0af4f148a98112bb6013d100",
+          "0f2e2c85432b75514554a7a9",
+          "5959478cf22a2789abe93509",
+          "6db48a6a9f9a782b5d72a3e8",
+          "8e0001b60c056103b920934e"
+        ],
+        "sourceFact": [
+          "Designed relational schema and optimized migrations using PostgreSQL and Prisma ORM.",
+          "Developed RESTful APIs and backend services using Node.js.",
+          "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests.",
+          "Built full-stack task management platform with role-based access control and secure authentication.",
+          "Configured Git integration to post automated review feedback on code changes."
+        ],
+        "transformationType": "REWRITE"
+      }
+    ]
+  },
+  "skills": {
+    "categories": [
+      {
+        "categoryName": "Backend & APIs",
+        "skills": [
+          {
+            "name": "Node.js",
+            "slug": "node-js",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-acded19bfc43"
+          },
+          {
+            "name": "FastAPI",
+            "slug": "fastapi",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-529724ee23d6"
+          },
+          {
+            "name": "Flask",
+            "slug": "flask",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          }
+        ]
+      },
+      {
+        "categoryName": "Databases & ORMs",
+        "skills": [
+          {
+            "name": "PostgreSQL",
+            "slug": "postgresql",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-34e85e1313e6"
+          },
+          {
+            "name": "Redis",
+            "slug": "redis",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 20,
+            "matchedRequirementId": null
+          }
+        ]
+      },
+      {
+        "categoryName": "Languages",
+        "skills": [
+          {
+            "name": "Python",
+            "slug": "python",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-44407571a645"
+          },
+          {
+            "name": "TypeScript",
+            "slug": "typescript",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          },
+          {
+            "name": "JavaScript",
+            "slug": "javascript",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 20,
+            "matchedRequirementId": null
+          }
+        ]
+      },
+      {
+        "categoryName": "Cloud, DevOps & Systems",
+        "skills": [
+          {
+            "name": "Docker",
+            "slug": "docker",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 55,
+            "matchedRequirementId": "req-319a32d333db"
+          },
+          {
+            "name": "Git",
+            "slug": "git",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 25,
+            "matchedRequirementId": null
+          }
+        ]
+      }
+    ]
+  },
+  "projects": [
+    {
+      "projectId": "00000000-0000-4000-8000-000000000001",
+      "name": "Collaborative Task Manager",
+      "displayName": "Collaborative Task Manager",
+      "description": "A full-stack task management web application with role-based access control and real-time collaboration.",
+      "repositoryUrl": "https://github.com/vishu1803/task-manager",
+      "liveUrl": null,
+      "technologies": [
+        "Node.js",
+        "Prisma ORM",
+        "PostgreSQL",
+        "TypeScript"
+      ],
+      "bullets": [
+        {
+          "text": "Built a task management platform with role-based access control and secure authentication using Node.js and TypeScript.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "6db48a6a9f9a782b5d72a3e8",
+              "sourceRef": "6db48a6a9f9a782b5d72a3e8",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "6db48a6a9f9a782b5d72a3e8"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Built full-stack task management platform with role-based access control and secure authentication."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Designed relational database schemas and executed structured migrations utilizing PostgreSQL and Prisma ORM.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "0af4f148a98112bb6013d100",
+              "sourceRef": "0af4f148a98112bb6013d100",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "0af4f148a98112bb6013d100"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Designed relational schema and optimized migrations using PostgreSQL and Prisma ORM."
+          ],
+          "transformationType": "REWRITE"
+        },
+        {
+          "text": "Implemented RESTful endpoints to enable real-time collaboration features across multi-user task workflows.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "0e4c18fb34d61b1f4f726e8c",
+              "sourceRef": "0e4c18fb34d61b1f4f726e8c",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "0e4c18fb34d61b1f4f726e8c"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": [
+            "Implemented RESTful endpoints and real-time collaboration features for multi-user task workflows."
+          ],
+          "transformationType": "REWRITE"
+        }
+      ],
+      "relevanceScore": 95,
+      "rank": 1,
+      "selectionSource": "DYNAMIC_LAYOUT",
+      "authoritativeRankingRank": 1,
+      "selectedBecause": "Ranked #1 for target role",
+      "projectMatchedRequirements": [],
+      "selectedBulletFactIds": [
+        "6db48a6a9f9a782b5d72a3e8",
+        "0af4f148a98112bb6013d100",
+        "0e4c18fb34d61b1f4f726e8c"
+      ]
+    },
+    {
+      "projectId": "00000000-0000-4000-8000-000000000002",
+      "name": "AI-Powered Code Review Assistant",
+      "displayName": "AI-Powered Code Review Assistant",
+      "description": "An automated code review developer tool using Python and FastAPI to analyze source code quality.",
+      "repositoryUrl": "https://github.com/vishu1803/code-review-assistant",
+      "liveUrl": null,
+      "technologies": [
+        "Python",
+        "FastAPI",
+        "Flask",
+        "Git"
+      ],
+      "bullets": [
+        {
+          "text": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "5959478cf22a2789abe93509",
+              "sourceRef": "5959478cf22a2789abe93509",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "5959478cf22a2789abe93509"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests.",
+          "transformationType": "EMPHASIZE"
+        },
+        {
+          "text": "Implemented rule-based validation to detect anti-patterns, code smells, and syntax issues.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "47ec74d185ddd101b332f853",
+              "sourceRef": "47ec74d185ddd101b332f853",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "47ec74d185ddd101b332f853"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": "Implemented rule-based validation to detect anti-patterns, code smells, and syntax issues.",
+          "transformationType": "EMPHASIZE"
+        },
+        {
+          "text": "Configured Git integration to post automated review feedback on code changes.",
+          "evidenceRefs": [
+            {
+              "sourceType": "CLAIMED",
+              "evidenceId": null,
+              "resourceId": null,
+              "resourceName": null,
+              "filePath": null,
+              "commitSha": null,
+              "evidenceType": null,
+              "matchedRequirementId": null,
+              "factId": "8e0001b60c056103b920934e",
+              "sourceRef": "8e0001b60c056103b920934e",
+              "confidenceScore": 1,
+              "provenanceTrustClass": null,
+              "notes": null
+            }
+          ],
+          "matchedRequirementIds": [],
+          "composedFromFactIds": [
+            "8e0001b60c056103b920934e"
+          ],
+          "provenanceStatus": "CLAIMED",
+          "sourceFact": "Configured Git integration to post automated review feedback on code changes.",
+          "transformationType": "EMPHASIZE"
+        }
+      ],
+      "relevanceScore": 90,
+      "rank": 2,
+      "selectionSource": "DYNAMIC_LAYOUT",
+      "authoritativeRankingRank": 2,
+      "selectedBecause": "Ranked #2 for target role",
+      "projectMatchedRequirements": [],
+      "selectedBulletFactIds": [
+        "5959478cf22a2789abe93509",
+        "47ec74d185ddd101b332f853",
+        "8e0001b60c056103b920934e"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "company": "FTV Saloon",
+      "title": "Full Stack Developer Intern",
+      "startDate": "2024-06",
+      "endDate": "2024-09",
+      "isCurrent": false,
+      "location": "Remote",
+      "employmentType": "INTERNSHIP",
+      "technologies": [],
+      "rawDateRange": null,
+      "bullets": [
+        "Developed RESTful APIs and backend services using Node.js.",
+        "Implemented database queries and data validation for customer workflows.",
+        "Collaborated with engineering team to test endpoints and fix regression bugs."
+      ],
+      "provenanceStatus": "CLAIMED"
+    }
+  ],
+  "education": [
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "institution": "Rajkiya Engineering College (REC), Sonbhadra",
+      "degree": "B.Tech",
+      "fieldOfStudy": "Electronics Engineering",
+      "startDate": "2021-08",
+      "endDate": "2025-06",
+      "isCurrent": false,
+      "location": "Sonbhadra, India",
+      "grade": "7.5 CGPA",
+      "coursework": [],
+      "honors": [],
+      "bullets": [],
+      "rawDateRange": null,
+      "provenanceStatus": "USER_PROVIDED"
+    }
+  ],
+  "certifications": [],
+  "dsa": null,
+  "optionalSections": {
+    "coursework": [],
+    "publications": [],
+    "achievements": [],
+    "additionalSkills": [],
+    "awards": [],
+    "languages": [],
+    "volunteerExperience": [],
+    "leadership": [],
+    "customSections": []
+  },
+  "sourceWarnings": [],
+  "tailoringPlan": {
+    "planId": "de154da7-54a1-4e96-80c2-d9b6f477955c",
+    "targetJobId": null,
+    "targetRoleTitle": "Backend Engineer",
+    "targetCompany": "Redient Security",
+    "candidateArchetype": "FRESHER",
+    "pageTarget": "ONE_PAGE_STRICT",
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EXPERIENCE",
+      "EDUCATION"
+    ],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "selectedSkillSlugs": [
+      "node-js",
+      "fastapi",
+      "postgresql",
+      "python",
+      "docker",
+      "flask",
+      "typescript",
+      "git",
+      "redis",
+      "javascript"
+    ],
+    "selectedSkills": [
+      {
+        "slug": "node-js",
+        "name": "Node.js",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-acded19bfc43",
+        "confidenceScore": 0.5,
+        "order": 1
+      },
+      {
+        "slug": "fastapi",
+        "name": "FastAPI",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-529724ee23d6",
+        "confidenceScore": 0.5,
+        "order": 2
+      },
+      {
+        "slug": "flask",
+        "name": "Flask",
+        "category": "Backend & APIs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 4
+      },
+      {
+        "slug": "postgresql",
+        "name": "PostgreSQL",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-34e85e1313e6",
+        "confidenceScore": 0.5,
+        "order": 5
+      },
+      {
+        "slug": "redis",
+        "name": "Redis",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 20,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 7
+      },
+      {
+        "slug": "python",
+        "name": "Python",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-44407571a645",
+        "confidenceScore": 0.5,
+        "order": 8
+      },
+      {
+        "slug": "typescript",
+        "name": "TypeScript",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 9
+      },
+      {
+        "slug": "javascript",
+        "name": "JavaScript",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 20,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 10
+      },
+      {
+        "slug": "docker",
+        "name": "Docker",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 55,
+        "matchedRequirementId": "req-319a32d333db",
+        "confidenceScore": 0.5,
+        "order": 12
+      },
+      {
+        "slug": "git",
+        "name": "Git",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 25,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 13
+      }
+    ],
+    "skillCategoryOrder": [
+      "Backend & APIs",
+      "Databases & ORMs",
+      "Languages",
+      "Cloud, DevOps & Systems"
+    ],
+    "optionalSections": {
+      "includeDsa": false,
+      "includeCertifications": false,
+      "includeCoursework": false,
+      "includePublications": false,
+      "includeAchievements": false,
+      "includeAdditionalSkills": false,
+      "includeAwards": false
+    },
+    "summaryDirectives": {
+      "focusAreas": [],
+      "keyHighlightedProjectIds": [],
+      "keyMatchedSkillSlugs": []
+    }
+  },
+  "writing": {
+    "method": "AI_FACT_BOUND",
+    "providerUsed": true,
+    "providerStatus": "ACCEPTED",
+    "summaryStatus": "ACCEPTED",
+    "provider": "vertex",
+    "modelId": "gemini-3.8-flash",
+    "sections": [
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "ACCEPTED"
+      },
+      {
+        "status": "REJECTED",
+        "reason": "UNSUPPORTED_MATERIAL_WORDING"
+      },
+      {
+        "status": "REJECTED",
+        "reason": "UNSUPPORTED_MATERIAL_WORDING"
+      }
+    ],
+    "missingDataGuidance": []
+  },
+  "createdAt": "2026-10-15T20:35:59.443Z",
+  "debugTrace": {
+    "candidateHeadline": "Backend Engineer | Node.js, Python, PostgreSQL",
+    "targetRole": "Backend Engineer",
+    "targetRoleFamily": "FULL_STACK",
+    "dsaDecision": {
+      "hasCandidateBullets": false,
+      "hasProfileUrl": false,
+      "sectionIncluded": false
+    },
+    "syntheticContentBlocked": [
+      "DSA_HARDCODED_PROSE",
+      "DOMAIN_LABEL_REWRITING",
+      "HEADLINE_JOB_TITLE_LEAK"
+    ],
+    "factInventorySummary": [
+      {
+        "factId": "0af4f148a98112bb6013d100",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_DESIGN_DECISION",
+        "evidenceRole": "DESIGN_DECISION"
+      },
+      {
+        "factId": "0e4c18fb34d61b1f4f726e8c",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "0f2e2c85432b75514554a7a9",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "41f1e161b7a74f027eea9df9",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_ACTION",
+        "evidenceRole": "RESPONSIBILITY"
+      },
+      {
+        "factId": "47ec74d185ddd101b332f853",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "555f4c3f85606e645c207d09",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "DESCRIPTION",
+        "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "5959478cf22a2789abe93509",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "6db48a6a9f9a782b5d72a3e8",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "7ef61d8c3b6dec11f87c3287",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "7f6fc76768028fe01947d3e3",
+        "sourceType": "education",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_AUTHORED",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "EDUCATION"
+      },
+      {
+        "factId": "8e0001b60c056103b920934e",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "ddbea9eb746aa02f2ac719b0",
+        "sourceType": "description",
+        "candidateAuthored": false,
+        "agencyLevel": "NONE",
+        "agencySource": "PROJECT_DESCRIPTION",
+        "contributionClass": "CONTEXT",
+        "evidenceRole": "PROJECT_DESCRIPTION"
+      }
+    ],
+    "claimPlanSummary": [],
+    "realizationSummary": [
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-1",
+        "text": "Built a task management platform with role-based access control and secure authentication using Node.js and TypeScript.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-2",
+        "text": "Designed relational database schemas and executed structured migrations utilizing PostgreSQL and Prisma ORM.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-3",
+        "text": "Implemented RESTful endpoints to enable real-time collaboration features across multi-user task workflows.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-1",
+        "text": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-2",
+        "text": "Implemented rule-based validation to detect anti-patterns, code smells, and syntax issues.",
+        "validationResult": "VALID"
+      },
+      {
+        "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-3",
+        "text": "Configured Git integration to post automated review feedback on code changes.",
+        "validationResult": "VALID"
+      }
+    ],
+    "pdfSummary": {
+      "renderedClaimIds": [
+        "ai-bullet-00000000-0000-4000-8000-000000000001-1",
+        "ai-bullet-00000000-0000-4000-8000-000000000001-2",
+        "ai-bullet-00000000-0000-4000-8000-000000000001-3",
+        "ai-bullet-00000000-0000-4000-8000-000000000002-1",
+        "ai-bullet-00000000-0000-4000-8000-000000000002-2",
+        "ai-bullet-00000000-0000-4000-8000-000000000002-3"
+      ],
+      "renderedFactIds": [
+        "6db48a6a9f9a782b5d72a3e8",
+        "0af4f148a98112bb6013d100",
+        "0e4c18fb34d61b1f4f726e8c",
+        "5959478cf22a2789abe93509",
+        "47ec74d185ddd101b332f853",
+        "8e0001b60c056103b920934e",
+        "0f2e2c85432b75514554a7a9"
+      ]
+    },
+    "requirementCoverage": {
+      "requirements": [
+        {
+          "id": "req-acded19bfc43",
+          "text": "Node.js",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "0af4f148a98112bb6013d100",
+            "0e4c18fb34d61b1f4f726e8c",
+            "6db48a6a9f9a782b5d72a3e8",
+            "ddbea9eb746aa02f2ac719b0"
+          ]
+        },
+        {
+          "id": "req-44407571a645",
+          "text": "Python",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "47ec74d185ddd101b332f853",
+            "555f4c3f85606e645c207d09",
+            "5959478cf22a2789abe93509",
+            "8e0001b60c056103b920934e"
+          ]
+        },
+        {
+          "id": "req-34e85e1313e6",
+          "text": "PostgreSQL",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "0af4f148a98112bb6013d100",
+            "0e4c18fb34d61b1f4f726e8c",
+            "6db48a6a9f9a782b5d72a3e8",
+            "ddbea9eb746aa02f2ac719b0"
+          ]
+        },
+        {
+          "id": "req-529724ee23d6",
+          "text": "REST APIs",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-0b4d3458fb08",
+          "text": "Prisma",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "0af4f148a98112bb6013d100",
+            "0e4c18fb34d61b1f4f726e8c",
+            "6db48a6a9f9a782b5d72a3e8",
+            "ddbea9eb746aa02f2ac719b0"
+          ]
+        },
+        {
+          "id": "req-3647d304ed5c",
+          "text": "FastAPI",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": [
+            "47ec74d185ddd101b332f853",
+            "555f4c3f85606e645c207d09",
+            "5959478cf22a2789abe93509",
+            "8e0001b60c056103b920934e"
+          ]
+        },
+        {
+          "id": "req-319a32d333db",
+          "text": "Docker",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        },
+        {
+          "id": "req-a55536dd29b1",
+          "text": "Authentication",
+          "importance": "REQUIRED",
+          "category": "TECHNOLOGY",
+          "coveredByFactIds": []
+        }
+      ],
+      "selectedProjectIds": [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000002"
+      ],
+      "selectedFactIds": [
+        "0af4f148a98112bb6013d100",
+        "0e4c18fb34d61b1f4f726e8c",
+        "47ec74d185ddd101b332f853",
+        "555f4c3f85606e645c207d09",
+        "5959478cf22a2789abe93509",
+        "6db48a6a9f9a782b5d72a3e8",
+        "8e0001b60c056103b920934e",
+        "ddbea9eb746aa02f2ac719b0"
+      ]
+    },
+    "jobFingerprint": "5bd2e87faffa955c96610d219ab771f51e6e4605b52534dce9f25ead0911c224",
+    "normalizedRequirements": [
+      {
+        "id": "req-acded19bfc43",
+        "text": "Node.js",
+        "normalizedConcept": "node.js",
+        "aliases": [
+          "node.js"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-44407571a645",
+        "text": "Python",
+        "normalizedConcept": "python",
+        "aliases": [
+          "python"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-34e85e1313e6",
+        "text": "PostgreSQL",
+        "normalizedConcept": "postgresql",
+        "aliases": [
+          "postgresql"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-529724ee23d6",
+        "text": "REST APIs",
+        "normalizedConcept": "rest api",
+        "aliases": [
+          "rest",
+          "api"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-0b4d3458fb08",
+        "text": "Prisma",
+        "normalizedConcept": "prisma",
+        "aliases": [
+          "prisma"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-3647d304ed5c",
+        "text": "FastAPI",
+        "normalizedConcept": "fastapi",
+        "aliases": [
+          "fastapi"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-319a32d333db",
+        "text": "Docker",
+        "normalizedConcept": "docker",
+        "aliases": [
+          "docker"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      },
+      {
+        "id": "req-a55536dd29b1",
+        "text": "Authentication",
+        "normalizedConcept": "authentication",
+        "aliases": [
+          "authentication"
+        ],
+        "class": "TECHNOLOGY",
+        "importance": "REQUIRED",
+        "weight": 1,
+        "confidence": 1,
+        "source": "JOB_POSTING"
+      }
+    ],
+    "matches": [
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "0af4f148a98112bb6013d100",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "0af4f148a98112bb6013d100",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-0b4d3458fb08",
+        "factId": "0af4f148a98112bb6013d100",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Prisma' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "0e4c18fb34d61b1f4f726e8c",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "0e4c18fb34d61b1f4f726e8c",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-0b4d3458fb08",
+        "factId": "0e4c18fb34d61b1f4f726e8c",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Prisma' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "47ec74d185ddd101b332f853",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-3647d304ed5c",
+        "factId": "47ec74d185ddd101b332f853",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'FastAPI' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "555f4c3f85606e645c207d09",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-3647d304ed5c",
+        "factId": "555f4c3f85606e645c207d09",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.8,
+        "explanation": "EXACT_CONCEPT matched 'FastAPI' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "5959478cf22a2789abe93509",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-3647d304ed5c",
+        "factId": "5959478cf22a2789abe93509",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'FastAPI' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "6db48a6a9f9a782b5d72a3e8",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "6db48a6a9f9a782b5d72a3e8",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-0b4d3458fb08",
+        "factId": "6db48a6a9f9a782b5d72a3e8",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Prisma' to candidate fact"
+      },
+      {
+        "requirementId": "req-44407571a645",
+        "factId": "8e0001b60c056103b920934e",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'Python' to candidate fact"
+      },
+      {
+        "requirementId": "req-3647d304ed5c",
+        "factId": "8e0001b60c056103b920934e",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.45,
+        "explanation": "NORMALIZED_ALIAS matched 'FastAPI' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "ddbea9eb746aa02f2ac719b0",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "ddbea9eb746aa02f2ac719b0",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-0b4d3458fb08",
+        "factId": "ddbea9eb746aa02f2ac719b0",
+        "matchType": "NORMALIZED_ALIAS",
+        "matchStrength": 0.9,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.8,
+        "confidence": 0.7200000000000001,
+        "explanation": "NORMALIZED_ALIAS matched 'Prisma' to candidate fact"
+      }
+    ],
+    "projectRemovalRecords": [],
+    "selectedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "renderedProjectIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "selectedFactIds": [
+      "0af4f148a98112bb6013d100",
+      "0e4c18fb34d61b1f4f726e8c",
+      "47ec74d185ddd101b332f853",
+      "555f4c3f85606e645c207d09",
+      "5959478cf22a2789abe93509",
+      "6db48a6a9f9a782b5d72a3e8",
+      "8e0001b60c056103b920934e",
+      "ddbea9eb746aa02f2ac719b0"
+    ],
+    "renderedFactIds": [
+      "6db48a6a9f9a782b5d72a3e8",
+      "0af4f148a98112bb6013d100",
+      "0e4c18fb34d61b1f4f726e8c",
+      "5959478cf22a2789abe93509",
+      "47ec74d185ddd101b332f853",
+      "8e0001b60c056103b920934e",
+      "0f2e2c85432b75514554a7a9"
+    ],
+    "authoritativeEligibleProjectCount": 2
+  },
+  "presentation": {
+    "mode": "ONE_PAGE",
+    "paperSize": "A4",
+    "minimumFontPt": 10,
+    "rendererVersion": "chrome-ats-a4-v2",
+    "pass": 0,
+    "sectionOrder": [
+      "HEADER",
+      "SUMMARY",
+      "SKILLS",
+      "PROJECTS",
+      "EXPERIENCE",
+      "EDUCATION"
+    ],
+    "condensations": [],
+    "decisions": []
+  }
+}

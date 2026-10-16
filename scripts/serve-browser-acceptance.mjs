@@ -594,7 +594,7 @@ export async function startBrowserAcceptanceHarness({ port = 0, storageDir = nul
           },
           {
             institution: 'University of California, Berkeley',
-            degree: 'Bachelor of Science',
+            degree: 'Bachelor of Science in Electrical Engineering & Computer Science',
             fieldOfStudy: 'Electrical Engineering & Computer Science',
             startDate: '2010',
             endDate: '2014',

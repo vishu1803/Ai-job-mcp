@@ -169,6 +169,23 @@ export class MasterResumeStructureService {
         seenCanonical.add('DSA');
       }
 
+      // Ensure EDUCATION is positioned after PROJECTS/EXPERIENCE per career stage ordering
+      if (seenCanonical.has('EDUCATION')) {
+        const eduIdx = derivedOrder.indexOf('EDUCATION');
+        if (eduIdx !== -1) {
+          const lastCoreIdx = Math.max(
+            derivedOrder.indexOf('EXPERIENCE'),
+            derivedOrder.indexOf('PROJECTS'),
+            derivedOrder.indexOf('DSA'),
+            derivedOrder.indexOf('SKILLS')
+          );
+          if (lastCoreIdx > eduIdx) {
+            derivedOrder.splice(eduIdx, 1);
+            derivedOrder.splice(lastCoreIdx, 0, 'EDUCATION');
+          }
+        }
+      }
+
       // If key sections were missing from parse, append them in standard order
       for (const stdKey of DEFAULT_MASTER_SECTION_ORDER) {
         if (!seenCanonical.has(stdKey)) {

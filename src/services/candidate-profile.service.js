@@ -679,6 +679,7 @@ export class CandidateProfileService {
     const experience = meta.experience || meta.userCustom?.experience || [];
     const education = meta.education || meta.userCustom?.education || [];
     const certifications = meta.certifications || meta.userCustom?.certifications || [];
+    const languages = meta.languages || meta.userCustom?.languages || [];
 
     const profileView = {
       candidate: {
@@ -702,6 +703,7 @@ export class CandidateProfileService {
       experience,
       education,
       certifications,
+      languages,
       portfolioLinks,
       links: portfolioLinks,
       dsa,

@@ -1,5 +1,5 @@
 {
-  "documentId": "92db355c-5cc0-4f82-baed-4ffe4ece1272",
+  "documentId": "eefeb464-95d7-4f6b-9c19-2b21f9b5d0da",
   "schemaVersion": "2.0.0",
   "targetRole": "Full-stack Developer",
   "sectionOrder": [
@@ -12,9 +12,9 @@
   ],
   "candidateIdentity": {
     "displayName": "Synthetic experienced Candidate",
-    "headline": "Target role: Full-stack Developer",
-    "masterHeadline": null,
-    "tailoredHeadline": "Target role: Full-stack Developer",
+    "headline": "Full-Stack Developer",
+    "masterHeadline": "Full-Stack Software Engineer",
+    "tailoredHeadline": "Full-Stack Developer",
     "email": "candidate@example.test",
     "phone": null,
     "location": null,
@@ -136,7 +136,7 @@
       "projectId": "00000000-0000-4000-8000-000000000004",
       "name": "Library API",
       "displayName": "Library API",
-      "description": "An API for a library lending workflow.",
+      "description": "",
       "repositoryUrl": "https://github.com/synthetic-fixture/library-api",
       "liveUrl": null,
       "technologies": [
@@ -273,7 +273,7 @@
   },
   "sourceWarnings": [],
   "tailoringPlan": {
-    "planId": "da80ef84-43cc-46f0-9f4f-722837023e09",
+    "planId": "ae0f979d-6adc-45a5-adaf-4f5a1e89758a",
     "targetJobId": null,
     "targetRoleTitle": "Full-stack Developer",
     "targetCompany": null,
@@ -297,8 +297,7 @@
       "nestjs",
       "flask",
       "python",
-      "docker",
-      "rust"
+      "docker"
     ],
     "selectedSkills": [
       {
@@ -362,18 +361,6 @@
         "order": 5
       },
       {
-        "slug": "rust",
-        "name": "Rust",
-        "category": "Languages",
-        "provenanceStatus": "INFERRED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 20,
-        "matchedRequirementId": null,
-        "confidenceScore": 0.5,
-        "order": 6
-      },
-      {
         "slug": "postgresql",
         "name": "PostgreSQL",
         "category": "Databases & ORMs",
@@ -383,7 +370,7 @@
         "relevanceScore": 95,
         "matchedRequirementId": "req-34e85e1313e6",
         "confidenceScore": 0.5,
-        "order": 7
+        "order": 6
       },
       {
         "slug": "docker",
@@ -395,7 +382,7 @@
         "relevanceScore": 70,
         "matchedRequirementId": "req-319a32d333db",
         "confidenceScore": 0.5,
-        "order": 8
+        "order": 7
       }
     ],
     "skillCategoryOrder": [
@@ -425,7 +412,7 @@
     "providerStatus": "UNAVAILABLE",
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-15T09:36:19.070Z",
+  "createdAt": "2026-10-16T14:03:04.947Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack Software Engineer",
     "targetRole": "Full-stack Developer",
@@ -458,6 +445,33 @@
         "agencySource": "PROJECT_DESCRIPTION",
         "contributionClass": "DESCRIPTION",
         "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "28f2496e3be40c09834119ba",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "411fe3996b6c4117293abbf5",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "ACTION"
+      },
+      {
+        "factId": "4d601165430f29b4c54a8bd8",
+        "sourceType": "bullet",
+        "candidateAuthored": true,
+        "agencyLevel": "CANDIDATE",
+        "agencySource": "CANDIDATE_PROJECT_BULLET",
+        "contributionClass": "CANDIDATE_IMPLEMENTATION",
+        "evidenceRole": "RESPONSIBILITY"
       },
       {
         "factId": "a1386829f15d7b8e870cf328",
@@ -772,6 +786,36 @@
         "evidenceStrength": 0.8,
         "confidence": 0.7200000000000001,
         "explanation": "NORMALIZED_ALIAS matched 'PostgreSQL' to candidate fact"
+      },
+      {
+        "requirementId": "req-acded19bfc43",
+        "factId": "28f2496e3be40c09834119ba",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Node.js' to candidate fact"
+      },
+      {
+        "requirementId": "req-319a32d333db",
+        "factId": "411fe3996b6c4117293abbf5",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Docker' to candidate fact"
+      },
+      {
+        "requirementId": "req-34e85e1313e6",
+        "factId": "4d601165430f29b4c54a8bd8",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'PostgreSQL' to candidate fact"
       },
       {
         "requirementId": "req-2809b2f2ff81",

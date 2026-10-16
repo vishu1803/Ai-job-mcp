@@ -43,7 +43,10 @@ test('all omissions are explicit, present source paths and protected identity/ed
   const view = onePageResumeView({ ...full, presentation });
   assert.deepEqual(view.candidateIdentity, {
     ...full.candidateIdentity,
-    headline: full.candidateIdentity.masterHeadline || `Target role: ${full.targetRole}`,
+    headline:
+      full.candidateIdentity.headline ||
+      full.candidateIdentity.masterHeadline ||
+      `Target role: ${full.targetRole}`,
   });
   assert.deepEqual(view.education, full.education);
   assert.match(onePageResumeMarkdown({ ...full, presentation }), /Synthetic Software Company/);
