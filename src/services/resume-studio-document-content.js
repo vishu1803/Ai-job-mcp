@@ -1,8 +1,15 @@
 import {
   formatNormalizedDateRange,
   formatEmploymentMetadata,
+  formatInstitutionLocation,
 } from './latex-document-generator.service.js';
 import { formatResumeSourceEntry } from '../utils/resume-source-normalizer.js';
+import {
+  displayUrlForLink,
+  isValidProfileUrl,
+  normalizeHyperlinkDestination,
+  cleanResumeFacingTechnologies,
+} from './candidate-artifact-content.service.js';
 
 /** Projection only: include explicit selections, preserve all other source sections. */
 export function studioDocumentContent(draft) {
@@ -33,9 +40,9 @@ export function studioDocumentContent(draft) {
   const blocks = [],
     expected = [],
     links = [];
-  const add = (text, style = 'Normal', verify = true) => {
+  const add = (text, style = 'Normal', verify = true, extra = {}) => {
     if (text) {
-      blocks.push({ text, style });
+      blocks.push({ text, style, ...extra });
       if (verify) expected.push(text);
     }
   };
@@ -58,15 +65,35 @@ export function studioDocumentContent(draft) {
     false
   );
   expected.push(...[identity.phone, identity.location, identity.email].filter(Boolean));
-  for (const link of identity.links) {
-    add(link.url, 'Normal', false);
-    let label = link.label || link.platform || '';
-    if (/^linkedin$/i.test(label)) label = 'LinkedIn';
-    else if (/^github$/i.test(label)) label = 'GitHub';
-    else if (/^portfolio$/i.test(label)) label = 'Portfolio';
-    else if (/^leetcode$/i.test(label)) label = 'LeetCode';
-    expected.push(label || link.url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, ''));
-    links.push(link.url);
+  const validLinks = (identity.links || []).filter((l) => l && l.url && isValidProfileUrl(l.url));
+  const seenLinks = new Set();
+  const linkItems = [];
+  for (const link of validLinks) {
+    const rawUrl = String(link.url).trim();
+    const cleanDisplay = displayUrlForLink(rawUrl);
+    if (!cleanDisplay) continue;
+    const normKey = cleanDisplay.toLowerCase();
+    if (seenLinks.has(normKey)) continue;
+    seenLinks.add(normKey);
+    expected.push(cleanDisplay);
+    links.push(normalizeHyperlinkDestination(rawUrl));
+    linkItems.push({ text: cleanDisplay, url: normalizeHyperlinkDestination(rawUrl) });
+  }
+
+  if (linkItems.length > 0) {
+    const totalChars = linkItems.reduce((s, l) => s + l.text.length, 0);
+    const separatorsWidthPt = Math.max(0, linkItems.length - 1) * 10;
+    const estimatedWidth = totalChars * 4.16 + separatorsWidthPt;
+    if (estimatedWidth <= 520 || linkItems.length <= 4) {
+      const rowText = linkItems.map((l) => l.text).join(' | ');
+      add(rowText, 'Normal', false, { hyperlinks: linkItems });
+    } else {
+      const mid = Math.ceil(linkItems.length / 2);
+      const r1 = linkItems.slice(0, mid);
+      const r2 = linkItems.slice(mid);
+      add(r1.map((l) => l.text).join(' | '), 'Normal', false, { hyperlinks: r1 });
+      add(r2.map((l) => l.text).join(' | '), 'Normal', false, { hyperlinks: r2 });
+    }
   }
   if (content.summary.text) {
     heading('Professional Summary');
@@ -89,7 +116,8 @@ export function studioDocumentContent(draft) {
       add(p.name, 'Heading2');
       links.push(...p.urls);
       add(p.description);
-      if (p.technologies.length) add(p.technologies.join(', '));
+      const cleanTechs = cleanResumeFacingTechnologies(p.technologies);
+      if (cleanTechs.length) add(cleanTechs.join(', '));
       p.bullets.forEach((text) => add(text, 'Bullet'));
       p.urls.forEach((url) => add(url, 'Normal', false));
     }
@@ -117,7 +145,7 @@ export function studioDocumentContent(draft) {
         'Heading2'
       );
       add(date(e));
-      add([e.institution, e.location].filter(Boolean).join(' | '));
+      add(formatInstitutionLocation(e.institution, e.location));
       if (e.coursework?.length) add('Relevant Coursework: ' + e.coursework.join(', '));
       if (e.isCurrent && e.endDate)
         add('Expected completion: ' + formatNormalizedDateRange(e.endDate, ''));
@@ -157,42 +185,59 @@ export function studioDocumentContent(draft) {
     leadership: 'Leadership',
     customSections: 'Additional Information',
   };
-  for (const [key, entries] of Object.entries(content.optionalSections || {}))
+  for (const [key, entries] of Object.entries(content.optionalSections || {})) {
     if (entries.length) {
       heading(titles[key] || key);
-      for (const entry of entries) {
-        const parts =
-          typeof entry === 'string'
-            ? [entry]
-            : [
-                entry.title,
-                entry.name,
-                entry.language,
-                entry.proficiency,
-                entry.organization,
-                entry.category,
-                entry.issuer,
-                entry.publisher,
-                entry.authors?.join(', '),
-                entry.date ? formatNormalizedDateRange(entry.date, '') : '',
-                formatNormalizedDateRange(
-                  entry.startDate,
-                  entry.isCurrent ? 'Present' : entry.endDate
-                ),
-                entry.location,
-                entry.description,
-                entry.summary,
-                ...(entry.bullets || []),
-                ...(entry.items || []),
-                entry.url,
-              ];
-        add(
-          [...new Set(parts.filter(Boolean))].join(' | ') || formatResumeSourceEntry(entry),
-          'Bullet'
-        );
-        if (entry.url) links.push(entry.url);
+      if (key === 'languages') {
+        const langEntries = entries
+          .map((entry) => {
+            if (typeof entry === 'string') return entry;
+            const name = entry.language || entry.name || '';
+            const prof = entry.proficiency
+              ? ` (${entry.proficiency.charAt(0).toUpperCase() + entry.proficiency.slice(1).toLowerCase()})`
+              : '';
+            return name ? `${name}${prof}` : null;
+          })
+          .filter(Boolean);
+        if (langEntries.length) {
+          add(langEntries.join(', '));
+        }
+      } else {
+        for (const entry of entries) {
+          const parts =
+            typeof entry === 'string'
+              ? [entry]
+              : [
+                  entry.title,
+                  entry.name,
+                  entry.language,
+                  entry.proficiency,
+                  entry.organization,
+                  entry.category,
+                  entry.issuer,
+                  entry.publisher,
+                  entry.authors?.join(', '),
+                  entry.date ? formatNormalizedDateRange(entry.date, '') : '',
+                  formatNormalizedDateRange(
+                    entry.startDate,
+                    entry.isCurrent ? 'Present' : entry.endDate
+                  ),
+                  entry.location,
+                  entry.description,
+                  entry.summary,
+                  ...(entry.bullets || []),
+                  ...(entry.items || []),
+                  entry.url,
+                ];
+          add(
+            [...new Set(parts.filter(Boolean))].join(' | ') || formatResumeSourceEntry(entry),
+            'Bullet'
+          );
+          if (entry.url) links.push(entry.url);
+        }
       }
     }
+  }
   if (content.dsa?.hasSection) {
     heading('Problem Solving');
     content.dsa.bullets.forEach((bullet) =>

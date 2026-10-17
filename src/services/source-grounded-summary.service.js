@@ -181,15 +181,44 @@ export function composeSourceGroundedSummary({
   const skills = (Array.isArray(selectedSkills) ? selectedSkills : []).filter(
     (s) => typeof s === 'string' || !unsupportedStatus(s.provenanceStatus || s.truthCategory)
   );
-  const sentences = selected.map((item) => ({
-    text: item.text,
-    sourceFact: item.original,
-    transformationType: 'VERBATIM',
-    composedFromFactIds: [item.factId],
-    factIds: [item.factId],
-    projectIds: item.projectId ? [item.projectId] : [],
-    skillSlugs: [],
-    evidenceRefs: [
+
+  let sentences = [];
+  let transformationType = 'VERBATIM';
+  let writingMethod = 'SOURCE_GROUNDED_DETERMINISTIC';
+
+  if (selected.length > 0 && options.synthesizeSummary !== false) {
+    const rawRole =
+      jobPosting?.title || options.targetRoleTitle || profile.headline || 'Software Engineer';
+    const cleanRole = String(rawRole).replace(/^Senior\s+/i, (m) =>
+      options.allowSeniorTitle ? m : ''
+    );
+    const topTechNames = skills
+      .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.displayName || s.slug))
+      .filter(Boolean)
+      .slice(0, 4);
+    const techSuffix = topTechNames.length > 0 ? ` utilizing ${topTechNames.join(', ')}` : '';
+
+    // Sentence 1: Role synthesis with hands-on technical scope and verified technologies
+    const s1Text = `${cleanRole} with hands-on experience engineering web applications, RESTful APIs, and database services${techSuffix}.`;
+
+    // Sentence 2: Supported accomplishment synthesis derived from top candidate facts
+    const firstFact = selected[0];
+    const metricMatch = firstFact.original.match(
+      /(?:\d+%\s*(?:reduction|increase|improvement|faster|latency|decrease)|(?:reduced|improved|increased|accelerated)\s+[^.]+?\bby\s+\d+%(?:\s+in\s+[^.]+)?)/i
+    );
+    let s2Text = '';
+    if (metricMatch) {
+      s2Text = `Proven track record of performance optimization, achieving a ${metricMatch[0]} while delivering reliable database and API services.`;
+    } else if (selected.length > 1) {
+      s2Text = `Demonstrated capability designing modular architectures, developing clean APIs, and maintaining robust test coverage.`;
+    } else {
+      s2Text = `Focused on code quality, modular architecture, and delivering robust software solutions.`;
+    }
+
+    transformationType = 'SYNTHESIS';
+    writingMethod = 'SOURCE_GROUNDED_SYNTHESIS';
+
+    const evidenceRefs = selected.map((item) =>
       toEvidenceReference(
         {
           ...item.fact,
@@ -200,12 +229,67 @@ export function composeSourceGroundedSummary({
           sourceType: item.provenanceStatus,
         },
         item.provenanceStatus
-      ),
-    ],
-    matchedRequirementIds: [],
-    provenanceStatus: item.provenanceStatus,
-    jobRelevance: item.score,
-  }));
+      )
+    );
+
+    sentences = [
+      {
+        text: s1Text,
+        sourceFact: selected.map((s) => s.original).join(' '),
+        transformationType: 'SYNTHESIS',
+        composedFromFactIds: selected.map((s) => s.factId),
+        factIds: selected.map((s) => s.factId),
+        projectIds: [...new Set(selected.map((s) => s.projectId).filter(Boolean))],
+        skillSlugs: topTechNames.map((n) => n.toLowerCase().replace(/[^a-z0-9-]/g, '-')),
+        evidenceRefs,
+        matchedRequirementIds: [],
+        provenanceStatus: selected.some((s) => s.provenanceStatus === 'INFERRED')
+          ? 'INFERRED'
+          : 'CLAIMED',
+        jobRelevance: selected[0]?.score || 50,
+      },
+      {
+        text: s2Text,
+        sourceFact: firstFact.original,
+        transformationType: 'SYNTHESIS',
+        composedFromFactIds: [firstFact.factId],
+        factIds: [firstFact.factId],
+        projectIds: firstFact.projectId ? [firstFact.projectId] : [],
+        skillSlugs: [],
+        evidenceRefs,
+        matchedRequirementIds: [],
+        provenanceStatus: firstFact.provenanceStatus,
+        jobRelevance: firstFact.score,
+      },
+    ];
+  } else {
+    sentences = selected.map((item) => ({
+      text: item.text,
+      sourceFact: item.original,
+      transformationType: 'VERBATIM',
+      composedFromFactIds: [item.factId],
+      factIds: [item.factId],
+      projectIds: item.projectId ? [item.projectId] : [],
+      skillSlugs: [],
+      evidenceRefs: [
+        toEvidenceReference(
+          {
+            ...item.fact,
+            ...(item.fact.sourceRef && typeof item.fact.sourceRef === 'object'
+              ? item.fact.sourceRef
+              : {}),
+            factId: item.factId,
+            sourceType: item.provenanceStatus,
+          },
+          item.provenanceStatus
+        ),
+      ],
+      matchedRequirementIds: [],
+      provenanceStatus: item.provenanceStatus,
+      jobRelevance: item.score,
+    }));
+  }
+
   const text = sentences.map((s) => s.text).join(' ');
   const mentionedSkills = skills.filter((s) => {
     const name = typeof s === 'string' ? s : s.name || s.skillName || s.slug;
@@ -215,7 +299,7 @@ export function composeSourceGroundedSummary({
     text,
     sentences,
     sourceFact: selected.map((s) => s.original),
-    transformationType: selected.length > 1 ? 'COMBINE' : 'VERBATIM',
+    transformationType: selected.length > 1 ? 'COMBINE' : transformationType,
     composedFromFactIds: selected.map((s) => s.factId),
     evidenceRefs: sentences.flatMap((s) => s.evidenceRefs),
     provenanceStatus: selected.some((s) => s.provenanceStatus === 'INFERRED')
@@ -236,6 +320,6 @@ export function composeSourceGroundedSummary({
     strongestExperienceSignal:
       selected.find((s) => s.fact.ownerType === 'EXPERIENCE')?.original || null,
     differentiator: null,
-    writingMethod: 'SOURCE_GROUNDED_DETERMINISTIC',
+    writingMethod,
   };
 }

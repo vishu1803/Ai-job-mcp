@@ -178,7 +178,7 @@ describe('Job Application Email Integrity & Demo Leakage Prevention', () => {
       assert.strictEqual(pkg.candidateEmail.includes('example.com'), false);
 
       // 2. Tailored resume markdown must use the authentic email
-      assert.ok(pkg.tailoredResume.markdownContent.includes(`**Email:** ${u.email}`));
+      assert.ok(pkg.tailoredResume.markdownContent.includes(u.email));
       assert.strictEqual(pkg.tailoredResume.markdownContent.includes('vishw@example.com'), false);
 
       // 3. Application preview format

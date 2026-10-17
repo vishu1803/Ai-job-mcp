@@ -139,7 +139,14 @@ const TECHNICAL_VOCABULARY = new Set(
     'reinforced reinforce reinforces reinforcing targeted target targets targeting streamline streamlines streamlined streamlining ' +
     'accelerate accelerates accelerated accelerating safeguard safeguards safeguarded enhance enhances enhanced enhancing ' +
     'foster fosters fostering leverage leveraging leveraged orchestrate orchestrated orchestrating ' +
-    'strengthen strengthens strengthened strengthening empower empowers empowered elevate elevates elevated elevating'
+    'strengthen strengthens strengthened strengthening empower empowers empowered elevate elevates elevated elevating ' +
+    'performant generate generates generating generated generation generator generators ' +
+    'suggest suggests suggesting suggested suggestion suggestions fix fixes fixing fixed ' +
+    'flag flags flagging flagged issue issues review reviews reviewing reviewed reviewer reviewers ' +
+    'board boards search searches searching searched assistant assistants ' +
+    'recommend recommends recommending recommended recommendation recommendations ' +
+    'candidate candidates collaborative collaboration collaborations explore explores exploring explored explorer explorers ' +
+    'filter filters filtering filtered prompt prompts prompting prompted metric metrics tailor tailors tailoring tailored'
   ).split(/\s+/)
 );
 

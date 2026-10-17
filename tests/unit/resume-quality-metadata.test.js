@@ -93,7 +93,11 @@ test('Chrome header separates contact/profile groups and preserves working links
   const { html } = rendered();
   assert.match(
     html,
-    /candidate@example\.test<\/a> · <a href="https:\/\/github\.com\/synthetic-fixture"/
+    /<div class="contact-line">[\s\S]*?<a href="mailto:candidate@example\.test">candidate@example\.test<\/a><\/div>/
+  );
+  assert.match(
+    html,
+    /<div class="links-line"><a href="https:\/\/github\.com\/synthetic-fixture">github\.com\/synthetic-fixture<\/a><\/div>/
   );
   assert.equal((html.match(/href="mailto:candidate@example.test"/g) || []).length, 1);
   assert.equal((html.match(/href="https:\/\/github.com\/synthetic-fixture"/g) || []).length, 1);

@@ -1,6 +1,7 @@
 import { ResumeStudioDraftService } from '../services/resume-studio-draft.service.js';
 import { StudioJobTargetSchema } from '../domain/career/resume-studio.schemas.js';
 import { buildArtifactContentDisposition } from '../utils/artifact-filename-builder.js';
+import { isSyntheticEmail } from '../utils/candidate-email-resolver.js';
 /**
  * @file Web Application View Routes (P13.5-002).
  *
@@ -167,6 +168,9 @@ async function getOrCreateCandidate(database, tenantId, user) {
     .limit(1);
 
   if (candidate) {
+    if (isSyntheticEmail(candidate.canonicalEmail) && user.email && !isSyntheticEmail(user.email)) {
+      candidate.canonicalEmail = user.email;
+    }
     return candidate;
   }
 

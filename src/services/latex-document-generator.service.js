@@ -21,12 +21,15 @@
  */
 
 import { ValidationError } from '../errors/index.js';
+import { isSyntheticEmail } from '../utils/candidate-email-resolver.js';
 import { onePageResumeView } from './one-page-resume.service.js';
 import {
   curateProfessionalSummary,
   curateCandidateHeadline,
   isRealUrl,
   displayUrlForLink,
+  isValidProfileUrl,
+  normalizeHyperlinkDestination,
   cleanResumeFacingTechnologies,
   formatProjectDisplayName,
   groundAndSanitizeProject,
@@ -58,9 +61,11 @@ export function resolveCandidateIdentity(applicationPackage = {}) {
       applicationPackage.candidateName ||
       '',
     email:
+      (!isSyntheticEmail(resume.candidateIdentity?.email) && resume.candidateIdentity?.email) ||
+      (!isSyntheticEmail(applicationPackage.candidateEmail) && applicationPackage.candidateEmail) ||
+      (!isSyntheticEmail(resume.candidate?.email) && resume.candidate?.email) ||
+      (!isSyntheticEmail(resume.email) && resume.email) ||
       resume.candidateIdentity?.email ||
-      resume.candidate?.email ||
-      resume.email ||
       applicationPackage.candidateEmail ||
       '',
     phone:
@@ -73,6 +78,12 @@ export function resolveCandidateIdentity(applicationPackage = {}) {
       resume.candidateIdentity?.headline ||
       resume.headline ||
       applicationPackage.candidateHeadline ||
+      '',
+    location:
+      resume.candidateIdentity?.location ||
+      resume.candidate?.location ||
+      resume.location ||
+      applicationPackage.candidateLocation ||
       '',
     links:
       (Array.isArray(resume.candidateIdentity?.links) && resume.candidateIdentity.links) ||
@@ -494,7 +505,8 @@ export class LatexDocumentGenerator {
     }
 
     const candidatePhone = identity.phone || structuredResume.candidateIdentity?.phone || '';
-    const candidateLocation = structuredResume.candidateIdentity?.location || '';
+    const candidateLocation =
+      identity.location || structuredResume.candidateIdentity?.location || '';
     const candidateHeadline =
       structuredResume.candidateIdentity?.headline || identity.headline || targetRole || '';
 
@@ -509,25 +521,73 @@ export class LatexDocumentGenerator {
     }
     const contactLine = contactElements.join(' $|$ ');
 
-    // Profile links directly from snapshot with short descriptive labels and real target URLs
-    const profileLinkElements = [];
-    const links =
+    // Profile links: render raw clean profile URLs (omitting https:// and www.) as visible text,
+    // preserving the full, validated original URL as the hyperlink destination.
+    const rawLinks =
       (Array.isArray(identity.links) && identity.links.length > 0 && identity.links) ||
       (Array.isArray(structuredResume.candidateIdentity?.links) &&
         structuredResume.candidateIdentity.links) ||
       [];
-    for (const link of links) {
-      if (link && link.url && sourceResumeUrl(link.url)) {
-        let label = link.label || link.platform || 'Link';
-        if (/^linkedin$/i.test(label)) label = 'LinkedIn';
-        else if (/^github$/i.test(label)) label = 'GitHub';
-        else if (/^portfolio$/i.test(label)) label = 'Portfolio';
-        else if (/^leetcode$/i.test(label)) label = 'LeetCode';
+    const seenLinks = new Set();
+    const validProfileLinks = [];
+    for (const link of rawLinks) {
+      if (!link || !link.url) continue;
+      const rawUrl = String(link.url).trim();
+      if (!rawUrl || !sourceResumeUrl(rawUrl)) continue;
+      if (!isValidProfileUrl(rawUrl)) continue;
+      const displayUrl = displayUrlForLink(rawUrl);
+      if (!displayUrl) continue;
+      const normKey = displayUrl.toLowerCase();
+      if (seenLinks.has(normKey)) continue;
+      seenLinks.add(normKey);
+      const destinationUrl = normalizeHyperlinkDestination(rawUrl);
+      validProfileLinks.push({
+        displayUrl,
+        destinationUrl,
+        rawUrl,
+        element: `\\href{${escapeLatexUrl(destinationUrl)}}{${escapeLatex(displayUrl)}}`,
+      });
+    }
 
-        profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(label)}}`);
+    // Layout calculation: measure approximate rendered header width for profile links.
+    // Printable width on A4 with 0.52in margins is ~520pt.
+    // At Latin Modern Roman ~8.5pt, average character width is ~4.16pt, separator is ~10pt.
+    const maxRowWidthPt = 520;
+    const totalChars = validProfileLinks.reduce((sum, l) => sum + l.displayUrl.length, 0);
+    const separatorsWidthPt = Math.max(0, validProfileLinks.length - 1) * 10;
+
+    // Determine optimal font size (8.5pt default, down to 8.2pt if needed to fit one line)
+    let linkFontSize = '8.5pt';
+    let linkLineHeight = '10.5pt';
+    let estimatedWidth = totalChars * 4.16 + separatorsWidthPt;
+    if (estimatedWidth > maxRowWidthPt && estimatedWidth <= 545) {
+      linkFontSize = '8.2pt';
+      linkLineHeight = '10pt';
+      estimatedWidth = totalChars * 3.95 + separatorsWidthPt;
+    }
+
+    let profileLinksLatex = '';
+    let profileLinksLine = '';
+    if (validProfileLinks.length > 0) {
+      if (estimatedWidth <= maxRowWidthPt || validProfileLinks.length <= 2) {
+        // Fits comfortably on a single centered row
+        profileLinksLine = validProfileLinks.map((l) => l.element).join(' \\enspace$|$\\enspace ');
+        profileLinksLatex = `  {\\fontsize{${linkFontSize}}{${linkLineHeight}}\\selectfont ${profileLinksLine}}\\par`;
+      } else {
+        // Controlled, centered 2-row layout only when extreme link volume exceeds single-line threshold
+        const mid = Math.ceil(validProfileLinks.length / 2);
+        const row1 = validProfileLinks
+          .slice(0, mid)
+          .map((l) => l.element)
+          .join(' \\enspace$|$\\enspace ');
+        const row2 = validProfileLinks
+          .slice(mid)
+          .map((l) => l.element)
+          .join(' \\enspace$|$\\enspace ');
+        profileLinksLine = `${row1} $|$ ${row2}`;
+        profileLinksLatex = `  {\\fontsize{${linkFontSize}}{${linkLineHeight}}\\selectfont ${row1}}\\par\n  \\vspace{2pt}\n  {\\fontsize{${linkFontSize}}{${linkLineHeight}}\\selectfont ${row2}}\\par`;
       }
     }
-    const profileLinksLine = profileLinkElements.join(' $|$ ');
 
     // 2. Summary
     const summaryText = structuredResume.summary?.text || '';
@@ -592,7 +652,13 @@ export class LatexDocumentGenerator {
         const pBullets = formatLatexBullets(cleanBullets);
 
         const entryLines = [`${headerLine}\\par`];
-        if (p.description && !cleanBullets.some((bullet) => bullet === p.description.trim()))
+        const isDescriptionRedundant =
+          cleanBullets.length > 0 ||
+          !p.description ||
+          cleanBullets.some(
+            (bullet) => p.description.includes(bullet) || bullet.includes(p.description)
+          );
+        if (p.description && !isDescriptionRedundant)
           entryLines.push(`${escapeLatex(p.description)}\\par`);
         if (techs) {
           entryLines.push('\\vspace{\\atsProjectTitleToTech}');
@@ -961,6 +1027,7 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
       candidateHeadline,
       contactLine,
       profileLinksLine,
+      profileLinksLatex,
       bodyLatex,
       layoutProfile,
     });
@@ -1011,6 +1078,7 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
     candidateHeadline,
     contactLine,
     profileLinksLine,
+    profileLinksLatex,
     bodyLatex,
     layoutProfile,
   }) {
@@ -1024,6 +1092,9 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
     //   ligatures DISABLED so "fi"/"fl" extract as real letters (Cloudflare,
     //   workflows), and fontspec writes correct ToUnicode CMaps for full extraction fidelity.
     // - pdfLaTeX fallback keeps T1 + lmodern + glyphtounicode.
+    const linksBlock =
+      profileLinksLatex || (profileLinksLine ? `  {\\small ${profileLinksLine}}\\par` : '');
+
     return `\\documentclass[10pt,a4paper]{article}
 \\usepackage{iftex}
 \\ifxetex
@@ -1101,7 +1172,7 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
   \\vspace{3pt}
 ${candidateHeadline ? `  {\\large \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{3pt}\n` : ''}\
   {\\small ${contactLine}}\\par
-${profileLinksLine ? `  \\vspace{2pt}\n  {\\small ${profileLinksLine}}\\par\n` : ''}\
+${linksBlock ? `  \\vspace{2pt}\n${linksBlock}\n` : ''}\
 }
 
 % ---------------- BODY SECTIONS ----------------

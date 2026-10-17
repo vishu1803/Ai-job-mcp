@@ -107,7 +107,8 @@ export function onePageResumeView(source) {
       return Object.fromEntries(
         Object.entries(node).map(([key, value]) => {
           const child = path ? `${path}.${key}` : key;
-          return [key, omitted.has(child) ? '' : visit(value, child)];
+          const omittedValue = typeof value === 'boolean' ? false : '';
+          return [key, omitted.has(child) ? omittedValue : visit(value, child)];
         })
       );
     return node;
@@ -403,7 +404,10 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
       return bLower === sLower || tokenOverlap(sLower, bLower) >= 0.55;
     });
   };
-  const preserveWrittenSummary = source.writing?.summaryStatus === 'ACCEPTED';
+  const preserveWrittenSummary =
+    source.writing?.summaryStatus === 'ACCEPTED' ||
+    source.summary?.writingMethod === 'SOURCE_GROUNDED_SYNTHESIS' ||
+    source.summary?.transformationType === 'SYNTHESIS';
   const generatedAccomplishmentSummary =
     source.summary?.composedFromFactIds?.length > 0 &&
     summarySentences.length > 0 &&

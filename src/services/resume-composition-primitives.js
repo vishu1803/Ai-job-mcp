@@ -1025,13 +1025,6 @@ export function determineProjectBulletCapacity({
 
   let capacity = Math.min(MAX_BULLETS_PER_PROJECT, distinctFactCount);
 
-  const allLowTrust = facts.every(
-    (f) => f.provenance === 'CLAIMED' || f.provenance === 'SELF_DECLARED'
-  );
-  if (distinctFactCount >= 3 && allLowTrust && !strongEvidence && !someEvidence) {
-    capacity = Math.min(capacity, 2);
-  }
-
   if (typeof explicitBudget === 'number' && explicitBudget >= 0) {
     capacity = Math.min(capacity, explicitBudget);
   }

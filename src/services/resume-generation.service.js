@@ -37,6 +37,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../errors/index.js';
+import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 
 const inputSchema = z
   .object({
@@ -79,7 +80,20 @@ export function buildGenerationProfile(source, view) {
       'displayName'
     ),
     canonicalEmail:
-      source.owner.canonicalEmail || masterIdentity.email || view.candidate.canonicalEmail,
+      (!isSyntheticEmail(view.candidate?.canonicalEmail) && view.candidate.canonicalEmail) ||
+      (!isSyntheticEmail(masterIdentity.email) && masterIdentity.email) ||
+      (!isSyntheticEmail(source.owner?.canonicalEmail) && source.owner.canonicalEmail) ||
+      resolveCandidateEmail(
+        {
+          ...view.candidate,
+          ...source.owner,
+          profileMetadata: metadata,
+        },
+        view.userEmail || source.owner?.userEmail,
+        { allowNullable: true }
+      ) ||
+      source.owner?.canonicalEmail ||
+      null,
     phone: resumeSourceValue(masterInput, 'phone', ['canonicalPhone', 'phoneNumber']),
     location: resumeSourceValue(masterInput, 'location'),
     headline: resumeSourceValue(masterInput, 'headline'),
@@ -385,7 +399,12 @@ export class ResumeGenerationService {
             verification: compiled.verification,
             artifactPackageHash: sealed.packageHash,
             jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
-            sourceProfileSnapshot: profile,
+            sourceProfileSnapshot: {
+              id: profile.id,
+              displayName: profile.displayName,
+              canonicalEmail: profile.canonicalEmail,
+              skills: profile.skills || [],
+            },
             projectRanking: ranking,
             matchAnalysis,
             writing: content.safeStructuredResume.writing || null,

@@ -31,6 +31,7 @@ import {
 } from '../domain/candidate/career-preferences.schemas.js';
 import { ValidationError, NotFoundError, AuthorizationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 
 export class JobApplicationFlowService {
   /**
@@ -670,7 +671,11 @@ export class JobApplicationFlowService {
       },
       candidateIdentity: {
         name: cand.displayName || 'Candidate',
-        email: cand.canonicalEmail || cand.userEmail || '—',
+        email:
+          (!isSyntheticEmail(cand.canonicalEmail) && cand.canonicalEmail) ||
+          (!isSyntheticEmail(cand.userEmail) && cand.userEmail) ||
+          resolveCandidateEmail(cand, cand.userEmail, { allowNullable: true }) ||
+          '—',
         phone: cand.profileMetadata?.userCustom?.phone || cand.phone || '—',
         location: cand.profileMetadata?.userCustom?.location || '—',
       },

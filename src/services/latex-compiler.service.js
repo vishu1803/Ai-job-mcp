@@ -556,6 +556,8 @@ export class LatexCompilerService {
           .replace(/\\Huge\b/g, '')
           .replace(/\\LARGE\b/g, '')
           .replace(/\\normalsize\b/g, '')
+          .replace(/\\fontsize\{[^}]+\}\{[^}]+\}/g, '')
+          .replace(/\\selectfont\b/g, '')
           .replace(/\\scshape\b/g, '')
           .replace(/\\bfseries\b/g, '')
           .replace(/\\itshape\b/g, '')
@@ -667,7 +669,10 @@ export class LatexCompilerService {
       contactLineHtml = cleanedContactLines[0];
     } else if (cleanedContactLines.length > 1) {
       contactLineHtml = cleanedContactLines[0];
-      linksLineHtml = cleanedContactLines.slice(1).join(' | ');
+      linksLineHtml = cleanedContactLines
+        .slice(1)
+        .map((line) => `<div class="links-line">${line}</div>`)
+        .join('\n    ');
     }
 
     let match;
@@ -686,7 +691,7 @@ export class LatexCompilerService {
     <h1 class="candidate-name">${candidateName}</h1>
     ${headline ? `<div class="candidate-headline">${headline}</div>` : ''}
     ${contactLineHtml ? `<div class="contact-line">${contactLineHtml}</div>` : ''}
-    ${linksLineHtml ? `<div class="links-line">${linksLineHtml}</div>` : ''}
+    ${linksLineHtml || ''}
   </div>`;
 
     if (sections.length === 0) {
@@ -791,19 +796,24 @@ ${getLatinModernFontFaces()}
       margin: 0 0 1pt;
       text-align: center;
     }
-    .contact-line, .links-line {
+    .contact-line {
       font-size: 10pt;
       color: #222222;
       margin: 0 0 2pt;
       text-align: center;
       line-height: 1.2;
     }
+    .links-line {
+      font-size: 8.5pt;
+      color: #222222;
+      margin: 1pt 0 2pt;
+      text-align: center;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
     .contact-line a, .links-line a {
       color: #000000;
       text-decoration: none;
-    }
-    .links-line {
-      margin-top: 1pt;
     }
     .section {
       margin-top: 5pt;

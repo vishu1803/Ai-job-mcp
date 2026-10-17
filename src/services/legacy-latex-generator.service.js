@@ -10,6 +10,7 @@ import {
   curateProfessionalSummary,
   curateCandidateHeadline,
   isRealUrl,
+  displayUrlForLink,
   cleanResumeFacingTechnologies,
   formatProjectDisplayName,
   groundAndSanitizeProject,
@@ -241,7 +242,9 @@ export class LegacyLatexGenerator {
         /linkedin/i.test(l.label || l.platform || '') || (l.url && /linkedin\.com/i.test(l.url))
     );
     if (linkedInLink?.url) {
-      profileLinkElements.push(`\\href{${escapeLatexUrl(linkedInLink.url)}}{LinkedIn}`);
+      profileLinkElements.push(
+        `\\href{${escapeLatexUrl(linkedInLink.url)}}{${escapeLatex(displayUrlForLink(linkedInLink.url))}}`
+      );
     }
 
     // Candidate's canonical profile-level GitHub URL (never a project repository URL)
@@ -276,7 +279,9 @@ export class LegacyLatexGenerator {
       if (mdGhMatch?.[1]) profileGithubUrl = mdGhMatch[1];
     }
     if (profileGithubUrl && isRealUrl(profileGithubUrl)) {
-      profileLinkElements.push(`\\href{${escapeLatexUrl(profileGithubUrl)}}{GitHub}`);
+      profileLinkElements.push(
+        `\\href{${escapeLatexUrl(profileGithubUrl)}}{${escapeLatex(displayUrlForLink(profileGithubUrl))}}`
+      );
     }
 
     const portfolioLink = customLinks.find(
@@ -287,7 +292,9 @@ export class LegacyLatexGenerator {
         (l.url && !/github\.com|linkedin\.com|leetcode\.com/i.test(l.url))
     );
     if (portfolioLink?.url && isRealUrl(portfolioLink.url)) {
-      profileLinkElements.push(`\\href{${escapeLatexUrl(portfolioLink.url)}}{Portfolio}`);
+      profileLinkElements.push(
+        `\\href{${escapeLatexUrl(portfolioLink.url)}}{${escapeLatex(displayUrlForLink(portfolioLink.url))}}`
+      );
     }
 
     const leetcodeLink = customLinks.find(
@@ -295,7 +302,9 @@ export class LegacyLatexGenerator {
         /leetcode/i.test(l.label || l.platform || '') || (l.url && /leetcode\.com/i.test(l.url))
     );
     if (leetcodeLink?.url && isRealUrl(leetcodeLink.url)) {
-      profileLinkElements.push(`\\href{${escapeLatexUrl(leetcodeLink.url)}}{LeetCode}`);
+      profileLinkElements.push(
+        `\\href{${escapeLatexUrl(leetcodeLink.url)}}{${escapeLatex(displayUrlForLink(leetcodeLink.url))}}`
+      );
     }
 
     const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');

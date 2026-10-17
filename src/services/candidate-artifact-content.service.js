@@ -296,8 +296,58 @@ export function isRealUrl(url) {
  * @returns {string}
  */
 export function displayUrlForLink(url) {
-  const trimmed = String(url || '').trim();
-  return trimmed.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  let cleaned = trimmed.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  cleaned = cleaned.replace(/\/+(?:([?#])|$)/, '$1');
+  return cleaned;
+}
+
+/**
+ * Validates that a profile URL uses a safe web scheme (HTTP/HTTPS) and has a valid host.
+ *
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function isValidProfileUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (/^(?:javascript|data|file|vbscript):/i.test(trimmed)) return false;
+  if (/^(?:dummy|placeholder|foo\.bar)$/i.test(trimmed)) return false;
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const parsed = new URL(withScheme);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    if (!parsed.hostname || !parsed.hostname.includes('.')) return false;
+    const hostParts = parsed.hostname.toLowerCase().split('.');
+    const tld = hostParts[hostParts.length - 1];
+    if (['invalid', 'localhost', 'local'].includes(tld)) return false;
+    if (
+      ['example.com', 'example.org', 'example.net', 'foo.bar'].includes(
+        parsed.hostname.toLowerCase()
+      )
+    )
+      return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Guarantees that a hyperlink target carries a safe, fully qualified protocol (https:// or http://).
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export function normalizeHyperlinkDestination(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 export const NOISY_TECH_SET = CENTRAL_NOISY_TECH_SET;
@@ -2539,10 +2589,30 @@ export class CandidateArtifactContentService {
       categoryScores[cat] = maxScore * 2 + topSum + directMatches * 25;
     }
 
-    // Role-based baseline weights for deterministic tie-breaking
+    // Role-based baseline weights for role-appropriate section order
+    const isInfrastructureRole =
+      /devops|sre|site reliability|cloud|platform|infrastructure|systems? engineer/i.test(jobTitle);
+    const getRoleCategoryWeight = (cat) => {
+      if (isInfrastructureRole) {
+        if (cat === 'Cloud, DevOps & Systems') return 500;
+        if (cat === 'Languages') return 400;
+        if (cat === 'Backend & APIs') return 300;
+        if (cat === 'Databases & ORMs') return 200;
+        return 100;
+      }
+      if (cat === 'Languages') return 500;
+      if (cat === 'Backend & APIs') return 400;
+      if (cat === 'Frontend & Web') return 300;
+      if (cat === 'Databases & ORMs') return 200;
+      if (cat === 'Cloud, DevOps & Systems') return 100;
+      return 50;
+    };
+
     const sortedCategories = Object.keys(categoryGroups)
       .filter((cat) => categoryGroups[cat].length > 0)
       .sort((a, b) => {
+        const weightDiff = getRoleCategoryWeight(b) - getRoleCategoryWeight(a);
+        if (weightDiff !== 0) return weightDiff;
         const scoreDiff = (categoryScores[b] || 0) - (categoryScores[a] || 0);
         if (scoreDiff !== 0) return scoreDiff;
         return a.localeCompare(b);

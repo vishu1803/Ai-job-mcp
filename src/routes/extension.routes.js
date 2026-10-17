@@ -29,7 +29,7 @@ import {
 } from '../utils/url-normalizer.js';
 import { isRequirementRequired } from '../domain/career/job-requirement.schemas.js';
 import { normalizeTruthCategory } from '../domain/career/truth-category.js';
-import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
+import { resolveCandidateEmail, isSyntheticEmail } from '../utils/candidate-email-resolver.js';
 import { generateCanonicalJobId } from '../services/job-discovery.service.js';
 import { SecretScrubber } from '../extractors/github/security/secret-scrubber.js';
 import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
@@ -307,6 +307,9 @@ async function getOrCreateCandidate(database, tenantId, user) {
     .limit(1);
 
   if (candidate) {
+    if (isSyntheticEmail(candidate.canonicalEmail) && user.email && !isSyntheticEmail(user.email)) {
+      candidate.canonicalEmail = user.email;
+    }
     return candidate;
   }
 
@@ -641,12 +644,12 @@ export default async function extensionRoutes(app, opts = {}) {
         mcpContext,
         {
           jobDescriptionText,
-          jobTitle: title,
-          companyName: company,
+          jobTitle: title || undefined,
+          companyName: company || undefined,
           sourceUrl: sourceUrl || undefined,
           url: sourceUrl || undefined,
-          provider: job.provider,
-          externalJobId: job.externalJobId,
+          provider: job.provider || undefined,
+          externalJobId: job.externalJobId || undefined,
           applicationUrl: job.applicationUrl || sourceUrl || undefined,
         },
         { db: database, candidateProfileService }

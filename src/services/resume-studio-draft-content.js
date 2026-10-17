@@ -8,7 +8,7 @@ import {
   StudioDraftSelectionSchema,
 } from '../domain/career/resume-studio-draft.schemas.js';
 
-export const MAX_STUDIO_PAYLOAD_BYTES = 1024 * 1024;
+export const MAX_STUDIO_PAYLOAD_BYTES = 4 * 1024 * 1024;
 export const hashStudioContent = (value) =>
   crypto.createHash('sha256').update(canonicalPackageJson(value)).digest('hex');
 
@@ -64,28 +64,60 @@ function strings(values) {
 export function normalizeStudioMaster(source, documentId) {
   const sections = normalizeResumeSourceSections(source);
   const identity = source.identity || {};
+  const displayName = identity.name || identity.displayName || source.displayName || source.name;
+  const headline = identity.headline || source.headline;
+  const email = identity.email || source.email;
+  const phone = identity.phone || source.phone;
+  const location = identity.location || source.location;
   const nullable = (value) => (value == null || value === '' ? null : value);
+
   const links = [];
+  const seenUrls = new Set();
+  const addLink = (label, url) => {
+    if (!url || typeof url !== 'string') return;
+    const trimmed = url.trim();
+    if (!trimmed || seenUrls.has(trimmed.toLowerCase())) return;
+    seenUrls.add(trimmed.toLowerCase());
+    links.push({ label: String(label || 'LINK').toUpperCase(), url: trimmed });
+  };
+
   for (const key of ['github', 'linkedin', 'leetcode']) {
-    if (identity[key]) links.push({ label: key.toUpperCase(), url: identity[key] });
+    if (identity[key]) addLink(key.toUpperCase(), identity[key]);
   }
-  for (const url of identity.portfolioUrls || []) links.push({ label: 'PORTFOLIO', url });
+  for (const url of identity.portfolioUrls || []) addLink('PORTFOLIO', url);
+
+  const rawCandidateLinks = identity.links || source.links || [];
+  if (Array.isArray(rawCandidateLinks)) {
+    for (const l of rawCandidateLinks) {
+      if (l && l.url) addLink(l.label || l.platform || 'LINK', l.url);
+    }
+  }
+
+  const rawSkills = Array.isArray(source.skills)
+    ? source.skills
+    : Array.isArray(source.skills?.categories)
+      ? source.skills.categories.flatMap((cat) => cat.skills || [])
+      : [];
+
+  const summaryText =
+    typeof source.summary === 'string' ? source.summary : (source.summary?.text ?? '');
+
   const content = {
     documentId,
     schemaVersion: 'studio-draft/1.0.0',
     candidateIdentity: {
-      displayName: nullable(identity.name),
-      headline: nullable(identity.headline),
-      email: nullable(identity.email),
-      phone: nullable(identity.phone),
-      location: nullable(identity.location),
+      displayName: nullable(displayName),
+      headline: nullable(headline),
+      email: nullable(email),
+      phone: nullable(phone),
+      location: nullable(location),
       links,
     },
-    summary: { text: source.summary ?? '', provenanceStatus: 'CLAIMED' },
+    summary: { text: summaryText, provenanceStatus: 'CLAIMED' },
     ...sections,
     projects: (source.projects || []).map((project, index) => ({
       id: project.id || project.projectId || `${documentId}:project:${index}`,
-      name: project.name || project.title || project.canonicalName,
+      name: project.name || project.title || project.displayName || project.canonicalName,
       description: project.description ?? project.summary ?? null,
       technologies: strings(project.technologies),
       bullets: strings(project.bullets),
@@ -93,7 +125,7 @@ export function normalizeStudioMaster(source, documentId) {
       provenanceStatus: 'CLAIMED',
       sourceFields: structuredClone(project),
     })),
-    skills: (source.skills || []).map((skill, index) => ({
+    skills: rawSkills.map((skill, index) => ({
       id:
         typeof skill === 'object'
           ? skill.id || skill.slug || `${documentId}:skill:${index}`

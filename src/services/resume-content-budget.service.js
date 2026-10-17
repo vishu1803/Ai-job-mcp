@@ -29,9 +29,9 @@ export const SOFT_TARGETS = Object.freeze({
     ROWS: 4,
     ROW_1_NAME: 'Full name (one line, centered, ~18pt bold)',
     ROW_2_ROLE: 'Professional target role (one line, centered, ~10.5pt bold)',
-    ROW_3_CONTACT: 'Phone | Location | Email (one line, centered, 10pt)',
-    ROW_4_LINKS: 'LinkedIn | GitHub | Portfolio | LeetCode (one line, centered, 10pt)',
-    MAX_ROWS: 4,
+    ROW_4_LINKS:
+      'Actual candidate profile URLs without scheme/www (one or two controlled centered lines, 10pt)',
+    MAX_ROWS: 5,
   },
   SUMMARY: {
     PREFERRED_WORD_COUNT_MIN: 40,

@@ -666,11 +666,18 @@ export const AnalyzeJobFitInputSchema = z
     jobTitle: z
       .string()
       .max(100)
+      .nullable()
       .optional()
       .describe('Optional job title for contextual parsing (e.g. "Senior Backend Engineer").'),
-    companyName: z.string().max(100).optional().describe('Optional hiring company name.'),
+    companyName: z
+      .string()
+      .max(100)
+      .nullable()
+      .optional()
+      .describe('Optional hiring company name.'),
     targetRoleLevel: z
       .enum(['INTERN', 'JUNIOR', 'MID', 'SENIOR', 'STAFF', 'LEAD', 'PRINCIPAL', 'DIRECTOR'])
+      .nullable()
       .optional()
       .describe('Target seniority level override.'),
     maxRecommendedProjects: z
@@ -687,15 +694,26 @@ export const AnalyzeJobFitInputSchema = z
       .max(10)
       .default(5)
       .describe('Maximum number of prioritized skill gaps to return (maximum 10).'),
-    sourceUrl: z.string().max(2048).optional().describe('Optional source posting URL.'),
-    url: z.string().max(2048).optional().describe('Optional URL alias for sourceUrl.'),
-    applicationUrl: z.string().max(2048).optional().describe('Optional direct application URL.'),
+    sourceUrl: z.string().max(2048).nullable().optional().describe('Optional source posting URL.'),
+    url: z.string().max(2048).nullable().optional().describe('Optional URL alias for sourceUrl.'),
+    applicationUrl: z
+      .string()
+      .max(2048)
+      .nullable()
+      .optional()
+      .describe('Optional direct application URL.'),
     provider: z
       .string()
       .max(50)
+      .nullable()
       .optional()
       .describe('Optional job provider name (e.g. GREENHOUSE, LEVER, LINKEDIN).'),
-    externalJobId: z.string().max(100).optional().describe('Optional external job identifier.'),
+    externalJobId: z
+      .string()
+      .max(100)
+      .nullable()
+      .optional()
+      .describe('Optional external job identifier.'),
   })
   .strict()
   .refine(

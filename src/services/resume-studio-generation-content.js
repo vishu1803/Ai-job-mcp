@@ -1,4 +1,4 @@
-﻿import { StudioDraftContentSchema } from '../domain/career/resume-studio-draft.schemas.js';
+import { StudioDraftContentSchema } from '../domain/career/resume-studio-draft.schemas.js';
 import { onePageResumeView } from './one-page-resume.service.js';
 
 /** Representation adapter only; never selects source-master facts or calls an AI writer. */
@@ -22,7 +22,12 @@ export function generatedResumeStudioContent(generated, documentId) {
     education: resume.education,
     certifications: resume.certifications,
     optionalSections: resume.optionalSections,
-    dsa: resume.dsa,
+    dsa: resume.dsa
+      ? {
+          ...resume.dsa,
+          hasSection: Boolean(resume.dsa.hasSection),
+        }
+      : null,
     skills: resume.skills.categories.flatMap((category) =>
       category.skills.map((skill) => ({
         id: skill.slug,

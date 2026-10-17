@@ -881,7 +881,13 @@ export class ProjectRelevanceService {
                 matchingSkillSlug = candSlug;
                 matchingEvidence = entry.bestEvidence;
               }
-            } else if (relations.builtOn?.includes(targetSlug)) {
+            } else if (
+              relations.builtOn?.includes(targetSlug) &&
+              !(
+                ['cpp', 'c', 'rust', 'assembly', 'java'].includes(targetSlug) &&
+                ['mongodb', 'redis', 'sqlite', 'mysql', 'postgres', 'postgresql'].includes(candSlug)
+              )
+            ) {
               if (0.9 > relMultiplier) {
                 matched = true;
                 relMultiplier = 0.9;
@@ -955,7 +961,13 @@ export class ProjectRelevanceService {
                 matchingSkillSlug = candSlug;
                 matchingEvidence = entry.bestEvidence;
               }
-            } else if (relations.builtOn?.includes(targetSlug)) {
+            } else if (
+              relations.builtOn?.includes(targetSlug) &&
+              !(
+                ['cpp', 'c', 'rust', 'assembly', 'java'].includes(targetSlug) &&
+                ['mongodb', 'redis', 'sqlite', 'mysql', 'postgres', 'postgresql'].includes(candSlug)
+              )
+            ) {
               if (0.9 > relMultiplier) {
                 matched = true;
                 relMultiplier = 0.9;

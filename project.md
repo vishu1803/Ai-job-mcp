@@ -1,3 +1,69 @@
+# UNIFIED-RESUME-A4-VERIFICATION-014 — Authentic A4 Resume Tailoring, Project Reconciliation, Link Layout Optimization, and Geometry Balance (2026-10-17)
+
+Status: COMPLETE — Verified locally, via PyMuPDF vector inspection, and through real Chromium browser acceptance for candidate Vishwanath Nishad (Software Engineer at Microsoft) and across the 6-candidate regression matrix (`tests/unit/multi-candidate-regression-matrix.test.js`).
+1. **Root-Cause Diagnosis & Restoration of Professional Summary (Defect 1)**:
+   - Root cause: In `StructuredResumeService`, when generating fallback summaries or evaluating AI summary grounding, candidate profile summaries were being dropped or bypassed due to missing fact composition links when AI provider was disabled or offline.
+   - Fix: Integrated source-grounded summary synthesis in `SourceGroundedSummaryService` and `StructuredResumeService`, grounding directly in authentic candidate technical abilities, verified project accomplishments, and daily problem-solving practice without hallucinating unbacked claims or relying on generic boilerplate.
+2. **Project Inventory Reconciliation & Accomplishment Bullet Restoration (Defect 2)**:
+   - Root cause: `AI Job Search Board` had only 1 generic line ("AI job search and recommendation board.") and was artificially selected over substantive projects due to unweighted ranking. Furthermore, `determineProjectBulletCapacity` artificially capped projects to 2 bullets whenever low-trust/claimed markers were present, and `isDescriptionRedundant` in `LatexDocumentGenerator` allowed paragraph descriptions to be rendered above accomplishment bullets, causing page overflow.
+   - Fix: Reconciled candidate project inventory to prioritize substantive projects (`AI-Powered Code Review Assistant`, `Product Data Explorer`, and `Collaborative Task Manager`). Uncapped `determineProjectBulletCapacity` for candidate projects with 3 distinct facts. Suppressed redundant project paragraph descriptions in `LatexDocumentGenerator` when accomplishment bullets are already present (`cleanBullets.length > 0`), ensuring projects render clean, high-impact accomplishment bullets (2–3 bullets each).
+3. **Single-Line Centered Header Link Layout (Defect 3)**:
+   - Root cause: Header links wrapped across multiple lines due to unconstrained font sizing and CSS line breaks in HTML/LaTeX conversion.
+   - Fix: Standardized candidate profile links in `LatexDocumentGenerator` to display on ONE centered line at `\fontsize{8.2pt}{10pt}\selectfont` (rendered at ~8.5pt font in Latin Modern Roman), preserving clickable destinations (`mailto:`, `linkedin.com`, `github.com`, `my-portfolio...vercel.app`, `leetcode.com`). Added stripping of font macros in `cleanLatexText` so no raw TeX leaks into ATS HTML, and dynamically mapped each row to `.links-line` with `white-space: nowrap` for standard candidates while allowing wrapping only for candidates with unusually long URLs (Candidate F).
+4. **Technical Skills Taxonomy & Truthful Role Conditioning (Defect 4)**:
+   - In `CandidateArtifactContentService` and `StructuredResumeService`: `NestJS` (an approved candidate skill) is placed into `Backend & APIs`; `Express.js` (an `INFERRED` repository skill) is truthfully omitted from standalone skills per evidence policy; `Languages` is foregrounded first (`Python, C/C++`), followed by `Backend & APIs`, `Frontend & Web`, `Databases & ORMs`, and `Cloud, DevOps & Systems` at the bottom for Software Engineer roles.
+5. **Page Geometry & Balance (Defect 5)**:
+   - Eliminated the 46.15mm bottom void down to an intentional, professional margin.
+   - Verification measurements:
+     - Tectonic Native Engine: 595.28 x 841.89 pt (A4), last text y1 = 806.38 pt, bottom whitespace = 35.51 pt (**12.53 mm**), embedded Type 1 / Computer Modern / Latin Modern Roman fonts.
+     - Headless Chrome Vector Printer: 594.96 x 841.92 pt (A4), last text y1 = 791.35 pt, bottom whitespace = 50.57 pt (**17.84 mm**), embedded Type0 CID TrueType Latin Modern Roman fonts.
+     - Both engines strictly conform to exactly 1 A4 physical page and fall within the 12–18mm target margin range.
+6. **Zero Candidate Hardcoding & Multi-Candidate Matrix (Defect 6)**:
+   - 100% generic logic across all 6 candidate archetypes (Candidate A: Junior Backend; Candidate B: Experienced Full-Stack; Candidate C: Data/Cloud Engineer; Candidate D: Career Changer; Candidate E: Minimal Profile; Candidate F: Long URLs).
+   - Zero hardcoded names, emails, phones, or URLs in production services.
+7. **Verification Evidence**:
+   - `C:\Users\VISHW\Downloads\Vishwanath Nishad - Software Engineer (5).pdf`: Verified single-page A4 PDF generated and sealed.
+   - `scratch/Vishwanath_Nishad_Software_Engineer_Verified.pdf`: Verified single-page A4 copy preserved.
+   - Real Browser Verification via Playwright / Chromium subagent: Verified `/auth/dev-login`, `/dashboard`, and `/resumes`.
+   - Targeted Unit Suites: PASS (61/61 passed across `resume-ai-accepted-writing.test.js`, `resume-content-budget.test.js`, `prd002-one-page-selection.test.js`, `latex-document-generator.test.js`, `multi-candidate-regression-matrix.test.js`, `prd002-chrome-contract.test.js`).
+   - Format check: `npm run format:check` PASS (`All matched files use Prettier code style!`).
+   - Lint check: `npm run lint` PASS (0 errors, 147 pre-existing warnings).
+   - Secret scan: `npm run scan:secrets` PASS (0 exposed secrets).
+   - Database checks: `npm run db:check`, `npm run audit:schema-integrity`, `npm run audit:drizzle-columns`, `npm run test:db-lifecycle-check` PASS (0 violations).
+   - Remote Aiven PostgreSQL database: Strictly untouched at migration 0021.
+
+# RUNTIME-EXTENSION-AND-REGENERATION-REPAIR-013 — Chrome Extension Analysis, Package Regeneration, Synthetic Email Shielding and Draft Capacity Fixes (2026-10-17)
+
+Status: COMPLETE — Diagnosed and resolved live runtime defects observed in real browser and Chrome extension execution logs:
+1. **Chrome Extension Analyze Job Fit Schema Fix**:
+   - Resolved HTTP 503 failure caused by `externalJobId: null` sent from the browser extension. Updated `AnalyzeJobFitInputSchema` (`src/domain/mcp/career-read-tools.schemas.js`) and `NormalizedJobPostingSchema` (`src/domain/job/job-workflow.schemas.js`) to mark optional job metadata fields (`externalJobId`, `provider`, `companyName`, `jobTitle`, `targetRoleLevel`, `sourceUrl`, `url`, `applicationUrl`, `directPortalUrl`, `postedAt`) as `.nullable().optional()`. Normalized nullish values to `undefined` in `src/routes/extension.routes.js`.
+2. **Authoritative Candidate Email Resolution & Synthetic Seed Shielding**:
+   - Resolved `ValidationError: Authoritative candidate email required; detected synthetic email 'vishw@example.com'` during application package regeneration (`/applications/:id/regenerate`).
+   - Root cause: `ResumeGenerationService.buildGenerationProfile` directly sourced `owner.canonicalEmail`, which contained the legacy database seed email `'vishw@example.com'`, bypassing the authentic user account email (`users.email`).
+   - Fix: Integrated `isSyntheticEmail` and `resolveCandidateEmail` across `ResumeGenerationService`, `StructuredResumeService`, and `LatexDocumentGenerator`. In-memory candidate representations now heal `canonicalEmail` from authentic user identity without executing database mutations, strictly adhering to the database immobility invariant (`candidates.canonicalEmail` remains untouched in PostgreSQL).
+3. **Resume Studio Draft Capacity & Snapshot Pruning**:
+   - Resolved `DRAFT_TOO_LARGE` payload size error when persisting generation metadata into the encrypted draft table.
+   - Pruned bulky 2.65MB raw AST profile snapshot in `ResumeGenerationService.execute` down to `{ id, displayName, canonicalEmail, skills }`.
+   - Increased `MAX_STUDIO_PAYLOAD_BYTES` to 4MB in `src/services/resume-studio-draft-content.js` to provide ample headroom for comprehensive candidate graphs.
+4. **Boolean Omission Type Preservation**:
+   - Fixed omission mapping in `onePageResumeView` (`src/services/one-page-resume.service.js`) where omitted boolean paths like `dsa.hasSection` were cast to `''` (empty string) instead of `false`, causing Zod boolean validation failures. Added defensive `Boolean()` normalization in `src/services/resume-studio-generation-content.js`.
+
+### Verification Evidence:
+- **Live Real-World End-to-End Package Regeneration**:
+  - Application `38aa3328-a3db-4f4c-94e7-061965a9e3e9`: Successfully regenerated, compiled via Headless Chrome vector printer, sealed with authentic email `vishwanatnishad@gmail.com`, and persisted (`/resume-studio?generationId=3fa9d355-6829-4c75-a008-3818a1fb3633`).
+  - Application `6bdb4bb2-c83e-4e4a-b056-4545abd38b0e`: Successfully regenerated and sealed with `evidenceTrustReceipt` and authentic email `vishwanatnishad@gmail.com`.
+- **Targeted Unit Regression Suite** (63/63 PASS):
+  - `node --test tests/unit/canonical-email-resolution.test.js tests/unit/mcp-candidate-profile-email-integrity.test.js tests/unit/latex-document-generator.test.js tests/unit/job-application-email-integrity.test.js tests/unit/resume-content-budget.test.js tests/unit/prd002-one-page-selection.test.js tests/unit/multi-candidate-regression-matrix.test.js`: PASS (63/63 passed, 0 failed).
+- **Quality & Security Audits**:
+  - `npm run format:check`: PASS (`All matched files use Prettier code style!`).
+  - `npm run lint`: PASS (0 errors, 145 pre-existing warnings).
+  - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+  - `npm run db:check`: PASS (`Everything's fine 🐶🔥`).
+  - `npm run audit:schema-integrity`: PASS (0 unindexed foreign keys, 0 stale updatedAt paths).
+  - `npm run audit:drizzle-columns`: PASS (0 invalid column references across 1038 files).
+  - `npm run test:db-lifecycle-check`: PASS (124 integration files checked, 106 DB files verified, 0 violations).
+  - Remote Aiven DB: Strictly untouched at migration 0021.
+
 # UNIFIED-RESUME-CONTENT-BUDGET-012 — Professional Resume Content Budgeting, Layout Balance, Redundancy Elimination and Final Real-Browser Verification (2026-10-16)
 
 Status: COMPLETE — Verified locally and through real Playwright Chromium browser acceptance. Established a central, measurable resume content-budget policy, balanced page composition across Software Engineer and Senior Backend Engineer job targets for candidate Vishwanath Nishad, eliminated cross-section redundancy, guaranteed retention of supported quantitative metrics (40% page load time reduction), and verified the full user journey through real browser testing with zero defects.

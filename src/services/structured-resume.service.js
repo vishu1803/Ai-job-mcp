@@ -69,6 +69,7 @@ import {
   validateClaimEvidenceGrounding,
   hasUnsupportedOutcomeOrMetric,
 } from './resume-claim-validation.service.js';
+import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -97,7 +98,7 @@ export function estimateProjectCapacity({
     : 0;
 
   // Heavy professional experience: allocate 2 projects to leave room for experience
-  if (expCount >= 2 || expBullets >= 4) {
+  if (expCount >= 2 || (expCount >= 1 && expBullets >= 5)) {
     return 2;
   }
 
@@ -395,11 +396,17 @@ export function buildStructuredResumeDocument({
       ? tailoredHeadingInfo.tailoredHeadline || tailoredHeadingInfo.heading || null
       : null,
     email:
+      (!isSyntheticEmail(source.canonicalEmail) && source.canonicalEmail) ||
+      (!isSyntheticEmail(source.email) && source.email) ||
+      (!isSyntheticEmail(source.userEmail) && source.userEmail) ||
+      (!isSyntheticEmail(source.candidate?.canonicalEmail) && source.candidate?.canonicalEmail) ||
+      (!isSyntheticEmail(source.candidate?.email) && source.candidate?.email) ||
+      resolveCandidateEmail(source, source.userEmail || source.candidate?.userEmail, {
+        allowNullable: true,
+      }) ||
       source.canonicalEmail ||
       source.email ||
-      source.userEmail ||
-      source.candidate?.canonicalEmail ||
-      source.candidate?.email,
+      '',
     phone:
       suppliedPhone !== undefined
         ? suppliedPhone || null
@@ -730,6 +737,23 @@ export function buildStructuredResumeDocument({
           eligibleAuthoritativeProjectIds.push(candProjId);
         }
       }
+      // Prioritize projects with substantive candidate accomplishment bullets over projects with only a generic purpose statement
+      const hasSubstantiveAccomplishments = (id) => {
+        const p = candProjMap.get(id);
+        if (!p) return 0;
+        const bulletsCount =
+          (Array.isArray(p.bullets) ? p.bullets.length : 0) ||
+          (Array.isArray(p.metadata?.bullets) ? p.metadata.bullets.length : 0) ||
+          (Array.isArray(p.highlights) ? p.highlights.length : 0);
+        const isFeatured =
+          p.portfolioStatus === 'FEATURED' || p.metadata?.portfolioStatus === 'FEATURED';
+        return bulletsCount >= 2 || isFeatured ? 1 : 0;
+      };
+
+      eligibleAuthoritativeProjectIds.sort((a, b) => {
+        return hasSubstantiveAccomplishments(b) - hasSubstantiveAccomplishments(a);
+      });
+
       authoritativeEligibleProjectCount = eligibleAuthoritativeProjectIds.length;
       selectedProjectIds = eligibleAuthoritativeProjectIds.slice(0, effectiveProjectCapacity);
     } else if (

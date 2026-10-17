@@ -63,11 +63,12 @@ export const SearchJobsInputSchema = z.object({
 
 export const NormalizedJobPostingSchema = z.object({
   id: z.string().min(1, 'id is required'),
-  canonicalJobId: z.string().optional().describe('Canonical job identifier'),
+  canonicalJobId: z.string().nullable().optional().describe('Canonical job identifier'),
   source: JobSourceEnum,
-  provider: JobSourceEnum.optional().describe('Provider that supplied the job'),
+  provider: JobSourceEnum.nullable().optional().describe('Provider that supplied the job'),
   externalJobId: z
     .string()
+    .nullable()
     .optional()
     .describe('Provider-specific external job identifier (e.g. gh-vercel-5430088004)'),
   company: z.string().min(1),
@@ -88,9 +89,9 @@ export const NormalizedJobPostingSchema = z.object({
     })
     .optional(),
   applicationUrl: z.string().url(),
-  directPortalUrl: z.string().optional().describe('Direct portal application URL'),
-  sourceUrl: z.string().url().optional(),
-  postedAt: z.string().optional(),
+  directPortalUrl: z.string().nullable().optional().describe('Direct portal application URL'),
+  sourceUrl: z.string().url().nullable().optional(),
+  postedAt: z.string().nullable().optional(),
   retrievedAt: z.string(),
 });
 
