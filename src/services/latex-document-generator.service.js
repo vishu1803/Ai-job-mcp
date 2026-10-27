@@ -653,10 +653,12 @@ export class LatexDocumentGenerator {
 
         const entryLines = [`${headerLine}\\par`];
         const isDescriptionRedundant =
-          cleanBullets.length > 0 ||
           !p.description ||
           cleanBullets.some(
-            (bullet) => p.description.includes(bullet) || bullet.includes(p.description)
+            (bullet) =>
+              p.description.trim() === bullet.trim() ||
+              p.description.includes(bullet) ||
+              bullet.includes(p.description)
           );
         if (p.description && !isDescriptionRedundant)
           entryLines.push(`${escapeLatex(p.description)}\\par`);
@@ -675,16 +677,23 @@ export class LatexDocumentGenerator {
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
-    // 5. DSA — included ONLY when meaningful candidate-owned evidence exists (Req G & 14, P16-006).
+    // 5. DSA — included ONLY when meaningful candidate-owned evidence exists (Req 2).
     let dsaLatexSection = '';
     const dsa = structuredResume.dsa;
     if (dsa && isMeaningfulDsa(dsa) && dsa.hasSection !== false && dsa.hasSection !== '') {
       const dsaBullets = Array.isArray(dsa.bullets)
         ? dsa.bullets.map((b) => String(b || '').trim()).filter(Boolean)
         : [];
-      if (dsaBullets.length > 0) {
+      const hasDsaStats = Boolean(
+        (typeof dsa.problemsSolved === 'number' && dsa.problemsSolved > 0) ||
+        (typeof dsa.rating === 'number' && dsa.rating > 0) ||
+        (typeof dsa.ranking === 'string' && dsa.ranking.trim().length > 0)
+      );
+      // Independent DSA section requires meaningful accomplishment bullets or authentic stats.
+      // A bare profile URL alone is retained in the header link row and must not render an empty section.
+      if (dsaBullets.length > 0 || hasDsaStats) {
         const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
-        const dsaTitle = dsa.title || 'LeetCode Profile';
+        const dsaTitle = dsa.title || 'Problem Solving & Algorithmic Practice';
         const dsaSubtitle =
           typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
             ? dsa.subtitle.trim()
@@ -699,12 +708,10 @@ export class LatexDocumentGenerator {
           headerRight = `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(dsaLabel)}}}`;
         }
 
-        const bulletTex = formatLatexBullets(dsaBullets);
+        const bulletTex = dsaBullets.length > 0 ? formatLatexBullets(dsaBullets) : '';
 
         dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{${escapeLatex(dsaTitle)}}${dsaSubtitle ? ` | \\textit{${escapeLatex(dsaSubtitle)}}` : ''}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par
-\\vspace{\\atsMetadataToBullets}
-${bulletTex}`;
+\\textbf{${escapeLatex(dsaTitle)}}${dsaSubtitle ? ` | \\textit{${escapeLatex(dsaSubtitle)}}` : ''}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par${bulletTex ? `\n\\vspace{\\atsMetadataToBullets}\n${bulletTex}` : ''}`;
       }
     }
 
@@ -806,27 +813,53 @@ ${bulletTex}`;
     let certLatexSection = '';
     if (certRecords.length > 0) {
       const certNames = certRecords
-        .map((c) =>
-          typeof c === 'string'
-            ? escapeLatex(c)
-            : [
-                escapeLatex(c.name || c.title || ''),
-                escapeLatex(c.issuingOrganization || c.issuer || ''),
-                c.issueDate
-                  ? `Issued: ${escapeLatex(formatNormalizedDateRange(c.issueDate, ''))}`
-                  : '',
-                c.expirationDate || c.expiryDate
-                  ? `Expires: ${escapeLatex(formatNormalizedDateRange(c.expirationDate || c.expiryDate, ''))}`
-                  : '',
-                c.credentialId ? `ID: ${escapeLatex(c.credentialId)}` : '',
-                escapeLatex(c.notes || ''),
-                c.credentialUrl
-                  ? `\\href{${escapeLatex(c.credentialUrl)}}{${escapeLatex(c.credentialUrl)}}`
-                  : '',
-              ]
-                .filter(Boolean)
-                .join(' | ')
-        )
+        .map((c) => {
+          if (typeof c === 'string') return escapeLatex(c);
+          const name = (c.name || c.title || '').trim();
+          if (!name) return null;
+          const issuer = (c.issuingOrganization || c.issuer || '').trim();
+          const rawUrl =
+            c.credentialUrl && isRealUrl(c.credentialUrl) ? c.credentialUrl.trim() : null;
+          const url = rawUrl ? normalizeHyperlinkDestination(rawUrl) : null;
+
+          let titleText = escapeLatex(name);
+          if (url) {
+            titleText = `\\href{${escapeLatexUrl(url)}}{${titleText}}`;
+          }
+          if (issuer) {
+            titleText = `\\textbf{${titleText}} — ${escapeLatex(issuer)}`;
+          } else {
+            titleText = `\\textbf{${titleText}}`;
+          }
+
+          const parts = [titleText];
+
+          // Year / date representation
+          if (c.issueDate) {
+            const issueNorm = formatNormalizedDateRange(c.issueDate, '');
+            if (issueNorm) parts.push(escapeLatex(issueNorm));
+          }
+
+          // Handle expiration status clearly without silently representing expired as current
+          const expDate = c.expirationDate || c.expiryDate;
+          if (expDate) {
+            const expNorm = formatNormalizedDateRange(expDate, '');
+            let isExpired = false;
+            try {
+              const expTime = new Date(expDate).getTime();
+              if (!Number.isNaN(expTime) && expTime < Date.now()) {
+                isExpired = true;
+              }
+            } catch {
+              // Ignore date parsing failure
+            }
+            if (isExpired) {
+              parts.push(`\\textit{Expired: ${escapeLatex(expNorm)}}`);
+            }
+          }
+
+          return parts.join(' $|$ ');
+        })
         .filter(Boolean);
       if (certNames.length > 0) {
         certLatexSection = `\\atssection{Certifications}
@@ -909,9 +942,11 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
         .map((l) => {
           if (typeof l === 'string') return escapeLatex(l);
           const name = l.language || l.name || '';
-          const prof = l.proficiency
-            ? ` (${escapeLatex(l.proficiency.charAt(0).toUpperCase() + l.proficiency.slice(1).toLowerCase())})`
+          const rawProf = l.proficiency ? String(l.proficiency).trim() : '';
+          const profTitleCase = rawProf
+            ? rawProf.charAt(0).toUpperCase() + rawProf.slice(1).toLowerCase()
             : '';
+          const prof = profTitleCase ? ` (${escapeLatex(profTitleCase)})` : '';
           return name ? `${escapeLatex(name)}${prof}` : null;
         })
         .filter(Boolean);
@@ -948,8 +983,8 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
     const rawOrder = Array.isArray(structuredResume.sectionOrder)
       ? structuredResume.sectionOrder
       : hasRealExperience
-        ? ['SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'EDUCATION']
-        : ['SUMMARY', 'SKILLS', 'PROJECTS', 'EDUCATION'];
+        ? ['SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'EDUCATION', 'CERTIFICATIONS']
+        : ['SUMMARY', 'SKILLS', 'PROJECTS', 'EDUCATION', 'CERTIFICATIONS'];
 
     const authoritativeOrder = [
       ...new Set(
@@ -982,13 +1017,35 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
         authoritativeOrder.push(key);
     }
 
-    // DSA safety net: append DSA at the end if omitted by ordering
+    // Certifications safety net: place after EDUCATION if present and omitted
+    if (!authoritativeOrder.includes('CERTIFICATIONS')) {
+      const certHasRealContent = Boolean(
+        certLatexSection &&
+          typeof certLatexSection === 'string' &&
+          certLatexSection.trim().length > 0
+      );
+      if (certHasRealContent) {
+        const eduIdx = authoritativeOrder.indexOf('EDUCATION');
+        if (eduIdx !== -1) {
+          authoritativeOrder.splice(eduIdx + 1, 0, 'CERTIFICATIONS');
+        } else {
+          authoritativeOrder.push('CERTIFICATIONS');
+        }
+      }
+    }
+
+    // DSA safety net: place DSA after PROJECTS if omitted by ordering
     if (!authoritativeOrder.includes('DSA')) {
       const dsaHasRealContent = Boolean(
         dsaLatexSection && typeof dsaLatexSection === 'string' && dsaLatexSection.trim().length > 0
       );
       if (dsaHasRealContent) {
-        authoritativeOrder.push('DSA');
+        const projIdx = authoritativeOrder.indexOf('PROJECTS');
+        if (projIdx !== -1) {
+          authoritativeOrder.splice(projIdx + 1, 0, 'DSA');
+        } else {
+          authoritativeOrder.push('DSA');
+        }
       }
     }
 
@@ -1168,10 +1225,10 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
 
 % ---------------- HEADER (4-tier) ----------------
 {\\centering
-  {\\Huge \\textbf{${escapeLatex(candidateName)}}}\\par
+  {\\fontsize{21pt}{25pt}\\selectfont \\textbf{${escapeLatex(candidateName)}}}\\par
   \\vspace{3pt}
-${candidateHeadline ? `  {\\large \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{3pt}\n` : ''}\
-  {\\small ${contactLine}}\\par
+${candidateHeadline ? `  {\\fontsize{12.5pt}{15pt}\\selectfont \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{3pt}\n` : ''}\
+  {\\fontsize{9.5pt}{11.5pt}\\selectfont ${contactLine}}\\par
 ${linksBlock ? `  \\vspace{2pt}\n${linksBlock}\n` : ''}\
 }
 

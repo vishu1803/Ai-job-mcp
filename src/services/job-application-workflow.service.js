@@ -12,6 +12,7 @@
 
 import crypto from 'node:crypto';
 import { assertCurrentPackage, sealGeneratedPackage } from './evidence/artifact-policy.js';
+import { isApplicationPackageHealthy } from '../domain/career/resume.schemas.js';
 import { config } from '../config/env.js';
 import { getApprovalSecret } from '../config/approval-secrets.js';
 import {
@@ -864,7 +865,8 @@ export class JobApplicationWorkflowService {
         currentPkgRow?.packagePayload &&
         currentPkgRow.packageHash === computeApplicationPackageHash(currentPkgRow.packagePayload) &&
         canonicalPackageJson({ ...currentPkgRow.packagePayload.answers, ...answers }) ===
-          canonicalPackageJson(currentPkgRow.packagePayload.answers || {})
+          canonicalPackageJson(currentPkgRow.packagePayload.answers || {}) &&
+        isApplicationPackageHealthy(currentPkgRow.packagePayload)
       ) {
         const payload = currentPkgRow.packagePayload;
         // Never resurrect a legacy CURRENT version. Explicit regeneration creates
@@ -1024,7 +1026,9 @@ export class JobApplicationWorkflowService {
       requirements:
         Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0
           ? jobPosting.requirements
-          : canonicalJob.requirements,
+          : canonicalJob.requirements ||
+            canonicalJob.normalizedRequirements?.map((r) => r.text) ||
+            [],
       responsibilities:
         Array.isArray(jobPosting?.responsibilities) && jobPosting.responsibilities.length > 0
           ? jobPosting.responsibilities
@@ -1115,6 +1119,7 @@ export class JobApplicationWorkflowService {
           aiProvider: this.aiProvider,
           projectRankings: authoritativeRankings,
           matchAnalysis: jobFitAnalysis?.matchAnalysis,
+          forceRegenerate: Boolean(answers?.forceRegenerate),
         },
       }
     );
@@ -1359,6 +1364,7 @@ export class JobApplicationWorkflowService {
           candidateId,
           applicationPackage: validatedPackage,
           applicationId: persisted.applicationId,
+          persist: true,
         });
 
         const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);

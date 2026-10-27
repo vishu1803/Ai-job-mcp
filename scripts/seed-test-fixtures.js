@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pool, closeDatabase } from '../src/db/index.js';
 import { SkillCatalogService } from '../src/services/skill-catalog.service.js';
+import { DocumentStorageService } from '../src/services/document-storage.service.js';
 
 async function seedTestFixtures() {
   const seedFile = path.resolve('src/db/seeds/test-fixtures.json');
@@ -68,6 +69,50 @@ async function seedTestFixtures() {
     console.log(
       `  ✓ skill_catalog: ${catalogResult.inserted} inserted (${catalogResult.existing} existing)`
     );
+
+    // Seed canonical base resume for candidate fixtures if not already present
+    const baseResumeId = 'fb8d151d-4282-4471-bd18-67e5b4a60a2a';
+    const tenantId = '24d53f53-780e-4431-b065-32180c354175';
+    const candidateId = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
+    const checkResume = await client.query('SELECT id FROM "resumes" WHERE id = $1', [
+      baseResumeId,
+    ]);
+    if (checkResume.rowCount === 0) {
+      const storage = new DocumentStorageService();
+      const rawBytes = Buffer.from('Vishwanath Nishad Authentic Master Resume Document');
+      const stored = await storage.storeEncryptedDocument({
+        tenantId,
+        candidateId,
+        buffer: rawBytes,
+      });
+      await client.query(
+        `INSERT INTO "resumes" (
+          id, "tenantId", "candidateId", version, "fileName", "mimeType",
+          "storagePath", "storageBucket", "contentHash", "encryptionKeyId", "encryptionAlgorithm", "iv", "authTag",
+          "isBaseResume", "lifecycleState", metadata
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ON CONFLICT (id) DO NOTHING`,
+        [
+          baseResumeId,
+          tenantId,
+          candidateId,
+          1,
+          'Vishwanath_Nishad_Resume.pdf',
+          'application/pdf',
+          stored.storagePath,
+          stored.storageBucket,
+          stored.contentHash,
+          stored.encryptionKeyId,
+          stored.encryptionAlgorithm,
+          stored.iv,
+          stored.authTag,
+          true,
+          'BASE_RESUME',
+          JSON.stringify({ source: 'CANONICAL_MASTER_SEED', seededAt: new Date().toISOString() }),
+        ]
+      );
+      console.log(`  ✓ resumes: canonical base resume ${baseResumeId} seeded`);
+    }
 
     console.log('✅ Test fixtures successfully seeded.');
   } catch (err) {

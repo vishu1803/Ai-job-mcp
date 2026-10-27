@@ -159,21 +159,55 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
   const listValue = (values) =>
     Array.isArray(values) ? values.map(textValue).filter(Boolean) : [];
 
-  const rawReqs = Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : [];
+  const isFreeTextJob = Boolean(args?.jobDescriptionText && !args?.jobId);
+  const explicitReqs =
+    Array.isArray(args?.requirements) && args.requirements.length > 0
+      ? args.requirements
+      : !isFreeTextJob && Array.isArray(jobPosting?.requirements)
+        ? jobPosting.requirements
+        : undefined;
+
+  const explicitSkills =
+    Array.isArray(args?.skills) && args.skills.length > 0
+      ? args.skills
+      : !isFreeTextJob && Array.isArray(jobPosting?.skills)
+        ? jobPosting.skills
+        : undefined;
+
+  const explicitResponsibilities =
+    Array.isArray(args?.responsibilities) && args.responsibilities.length > 0
+      ? args.responsibilities
+      : !isFreeTextJob && Array.isArray(jobPosting?.responsibilities)
+        ? jobPosting.responsibilities
+        : undefined;
+
+  const resolvedCompany =
+    args?.companyName ||
+    args?.company ||
+    (jobPosting?.company && jobPosting.company !== 'Target Company' ? jobPosting.company : undefined);
+
+  const {
+    requirements: _rawReqs,
+    skills: _rawSkills,
+    responsibilities: _rawResps,
+    normalizedRequirements: _rawNormReqs,
+    ...cleanPosting
+  } = jobPosting || {};
 
   return {
-    ...jobPosting,
-    id: jobPosting?.id || crypto.randomUUID(),
-    title: jobPosting?.title || args?.jobTitle || 'Target Role',
-    company: jobPosting?.company || args?.companyName || args?.company || 'Target Company',
-    description: jobPosting?.description || args?.jobDescriptionText || '',
-    requirements: listValue(rawReqs),
-    skills: listValue(jobPosting?.skills),
-    responsibilities: listValue(jobPosting?.responsibilities),
-    normalizedRequirements: Array.isArray(jobPosting?.normalizedRequirements)
-      ? jobPosting.normalizedRequirements
-      : jobPosting?.normalizedRequirements,
-    jobFingerprint: jobPosting?.jobFingerprint,
+    ...cleanPosting,
+    id: cleanPosting?.id || crypto.randomUUID(),
+    title: args?.jobTitle || cleanPosting?.title || 'Target Role',
+    ...(resolvedCompany ? { company: resolvedCompany } : {}),
+    description: args?.jobDescriptionText || cleanPosting?.description || '',
+    ...(explicitReqs ? { requirements: listValue(explicitReqs) } : {}),
+    ...(explicitSkills ? { skills: listValue(explicitSkills) } : {}),
+    ...(explicitResponsibilities ? { responsibilities: listValue(explicitResponsibilities) } : {}),
+    normalizedRequirements:
+      !isFreeTextJob && Array.isArray(jobPosting?.normalizedRequirements)
+        ? jobPosting.normalizedRequirements
+        : undefined,
+    jobFingerprint: !isFreeTextJob ? jobPosting?.jobFingerprint : undefined,
     role: jobPosting?.role,
   };
 }
@@ -889,7 +923,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
     role: context.role,
     candidateId,
     jobPosting: normalizeWorkflowJobPosting(jobDescription, args),
-    answers: {},
+    answers: { ...(rawArgs?.answers || {}), forceRegenerate: true },
   });
   const structured = prepared.tailoredResume?.structuredResume;
   if (!structured) {

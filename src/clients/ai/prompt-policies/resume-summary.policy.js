@@ -65,6 +65,7 @@ export class ResumeSummaryPolicy extends BasePromptPolicy {
 3. PROHIBITED PHRASING & TEMPLATE BOILERPLATE:
    - NEVER use hollow filler: "results-driven professional", "dynamic self-starter", "passionate developer looking for opportunities", "proven track record of success".
    - NEVER use mechanical sentence templates like: "Software Engineer specializing in X and Y with verified competencies in A, B, C. Demonstrated delivery of scalable software solutions proven through project Z."
+   - NEVER use the following ungrounded buzzwords unless explicitly present in <candidate_facts>: scalable, low-latency, high availability, high concurrency, low latency, fault tolerant, fault-tolerant, test-driven, millions of users, large-scale, enterprise architecture, leadership, architecture ownership, production-ready, enterprise-scale.
    - Write like an experienced technical writer introducing an engineer based strictly on what they have built.
 
 4. SENIORITY & CANDIDATE ARCHETYPE:

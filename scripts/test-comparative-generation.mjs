@@ -151,16 +151,34 @@ const candidateProfile = {
     { language: 'English', proficiency: 'PROFESSIONAL' },
     { language: 'Hindi', proficiency: 'PROFESSIONAL' },
   ],
+  certifications: [
+    {
+      id: 'cert-001',
+      name: 'AWS Certified Cloud Practitioner',
+      issuingOrganization: 'Amazon Web Services',
+      issueDate: '2024',
+      expirationDate: null,
+      doesNotExpire: true,
+      credentialId: 'AWS-CCP-98472',
+      credentialUrl: 'https://aws.amazon.com/verification',
+    },
+    {
+      id: 'cert-002',
+      name: 'Meta Backend Developer Professional Certificate',
+      issuingOrganization: 'Meta / Coursera',
+      issueDate: '2023',
+      expirationDate: null,
+      doesNotExpire: true,
+      credentialId: 'COURSERA-META-7821',
+      credentialUrl: 'https://coursera.org/verify/meta-backend',
+    },
+  ],
   dsa: {
     hasSection: true,
     profileUrl: 'https://leetcode.com/u/vishwanatnishad',
     title: 'LeetCode Profile',
     subtitle: 'Data Structures & Algorithms',
-    bullets: [
-      '300+ LeetCode problems solved across core computer science topics (Dynamic Programming, Graphs, Trees, Arrays, Binary Search).',
-      'Daily competitive programming and DSA practice to maintain interview readiness and a strong analytical foundation.',
-      'Demonstrated proficiency in translating complex algorithmic solutions into production code for system optimization.',
-    ],
+    bullets: [],
   },
 };
 

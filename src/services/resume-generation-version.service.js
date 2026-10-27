@@ -1,13 +1,15 @@
-﻿import crypto from 'node:crypto';
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import { and, eq, desc } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { candidates, resumes } from '../db/schema.js';
 import { resumeGenerations } from '../db/resume-generation.schema.js';
+import { resumeStudioDrafts } from '../db/resume-studio.schema.js';
 import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
   EvidenceValidationReceiptSchema,
+  isGenerationHealthy,
 } from '../domain/career/resume.schemas.js';
 import {
   encryptStudioPayload,
@@ -41,6 +43,7 @@ const requestSchema = z
     applicationId: z.string().uuid().nullable().default(null),
     applicationPackageId: z.string().uuid().nullable().default(null),
     idempotencyKey: z.string().trim().min(1).max(200),
+    forceRegenerate: z.boolean().optional(),
     jobSnapshot: z
       .object({ title: z.string().trim().min(1), description: z.string().max(100000).optional() })
       .passthrough(),
@@ -227,9 +230,33 @@ export class ResumeGenerationVersionService {
           )
         );
       if (existing) {
-        if (existing.requestHash !== requestHash)
-          throw new ConflictError('Idempotency key belongs to a different generation request');
-        return this.decode(existing);
+        let isHealthy = false;
+        try {
+          const decoded = this.decode(existing);
+          isHealthy = !request.forceRegenerate && isGenerationHealthy(decoded);
+          if (isHealthy) {
+            if (existing.requestHash !== requestHash)
+              throw new ConflictError('Idempotency key belongs to a different generation request');
+            return decoded;
+          }
+        } catch (err) {
+          if (err instanceof ConflictError) throw err;
+          isHealthy = false;
+        }
+        const deleteGenerationCascade = async (genId) => {
+          const children = await tx
+            .select({ id: resumeGenerations.id })
+            .from(resumeGenerations)
+            .where(eq(resumeGenerations.parentGenerationId, genId));
+          for (const child of children) {
+            await deleteGenerationCascade(child.id);
+          }
+          await tx
+            .delete(resumeStudioDrafts)
+            .where(eq(resumeStudioDrafts.generationId, genId));
+          await tx.delete(resumeGenerations).where(eq(resumeGenerations.id, genId));
+        };
+        await deleteGenerationCascade(existing.id);
       }
       const [master] = await tx
         .select()
@@ -258,7 +285,11 @@ export class ResumeGenerationVersionService {
         id: crypto.randomUUID(),
         tenantId: context.tenantId,
         userId: context.userId,
-        ...Object.fromEntries(Object.entries(request).filter(([key]) => key !== 'jobSnapshot')),
+        ...Object.fromEntries(
+          Object.entries(request).filter(
+            ([key]) => key !== 'jobSnapshot' && key !== 'forceRegenerate'
+          )
+        ),
         requestHash,
         contentHash: hashStudioContent(bundle.structuredResume),
       };

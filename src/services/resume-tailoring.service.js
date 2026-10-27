@@ -804,6 +804,7 @@ export class ResumeTailoringService {
             jobPosting: jobDescription,
             selectedProjects: topProject ? [topProject] : [],
             selectedSkills: topVerifiedRequiredSkills,
+            options: { synthesizeSummary: false },
           });
     const summary = grounded.text;
     if (!summary) return { headline, summary: '', summaryBullets: [] };

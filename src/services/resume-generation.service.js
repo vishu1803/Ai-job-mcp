@@ -1,5 +1,6 @@
 import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { StudioDocumentResponseSchema } from '../domain/career/resume-studio-document.schemas.js';
+import { isGenerationHealthy } from '../domain/career/resume.schemas.js';
 import { resumeSkillInputs } from './structured-resume.service.js';
 import { reconcileCandidateProjects } from './candidate-artifact-content.service.js';
 import {
@@ -56,6 +57,7 @@ const inputSchema = z
     idempotencyKey: z.string().trim().min(1).max(200).optional(),
     reason: z.string().trim().max(1000).optional(),
     template: z.literal('CLASSIC_LATIN_MODERN_A4').default('CLASSIC_LATIN_MODERN_A4'),
+    forceRegenerate: z.boolean().optional(),
   })
   .strict();
 const json = (value) => JSON.parse(JSON.stringify(value));
@@ -236,7 +238,7 @@ export class ResumeGenerationService {
     });
     const key = body.idempotencyKey || inputHash;
     const existing = await this.versions.findByKey(context, source.owner.id, key);
-    if (existing) {
+    if (existing && !body.forceRegenerate && isGenerationHealthy(existing)) {
       if (existing.bundle.metadata.inputHash !== inputHash)
         throw new ConflictError('Idempotency key belongs to a different generation request');
       return existing;
@@ -384,6 +386,7 @@ export class ResumeGenerationService {
           parentGenerationId: body.parentGenerationId,
           applicationId: body.applicationId,
           idempotencyKey: key,
+          forceRegenerate: body.forceRegenerate,
           jobSnapshot: job,
         },
         {

@@ -1,5 +1,5 @@
 {
-  "documentId": "3acd0259-f5fb-4b7d-b2ee-644b05eb1c51",
+  "documentId": "57699f63-4b54-4303-a593-593c67812480",
   "schemaVersion": "2.0.0",
   "targetRole": "Software Engineer",
   "sectionOrder": [
@@ -10,8 +10,7 @@
     "DSA",
     "EXPERIENCE",
     "EDUCATION",
-    "COURSEWORK",
-    "LANGUAGES"
+    "CERTIFICATIONS"
   ],
   "candidateIdentity": {
     "displayName": "Vishwanath Nishad",
@@ -45,7 +44,7 @@
     ]
   },
   "summary": {
-    "text": "Software engineer experienced in developing full-stack web applications and modular backend services using TypeScript, Node.js, Next.js, and Python. Demonstrates hands-on capability in architecting RESTful APIs, managing PostgreSQL databases with Prisma and TypeORM, and integrating Redis caching alongside role-based access control. Skilled in containerizing multi-tier environments using Docker and automating development workflows with Git and GitHub Actions.",
+    "text": "Software engineer experienced in developing full-stack web applications and REST APIs using TypeScript, Next.js, Node.js, and Python. Demonstrates hands-on capability in architecting modular backend services with PostgreSQL persistence, TypeORM, and Docker containerization. Proven technical background in implementing role-based authentication systems, automated code review tools, and Git integration workflows.",
     "referencedSkillSlugs": [],
     "referencedProjectIds": [
       "00000000-0000-4000-8000-000000000002",
@@ -122,21 +121,6 @@
         "commitSha": null,
         "evidenceType": null,
         "matchedRequirementId": null,
-        "factId": "96644a800921e6f697f0fc84",
-        "sourceRef": "96644a800921e6f697f0fc84",
-        "confidenceScore": 1,
-        "provenanceTrustClass": null,
-        "notes": null
-      },
-      {
-        "sourceType": "CLAIMED",
-        "evidenceId": null,
-        "resourceId": null,
-        "resourceName": null,
-        "filePath": null,
-        "commitSha": null,
-        "evidenceType": null,
-        "matchedRequirementId": null,
         "factId": "b387bfe17b0b8d29e6af35ef",
         "sourceRef": "b387bfe17b0b8d29e6af35ef",
         "confidenceScore": 1,
@@ -180,7 +164,6 @@
       "292b2814310a89c67a12b05e",
       "3f00a4d4d6621b0e4904ca2a",
       "6d8c69d737a9938984937eed",
-      "96644a800921e6f697f0fc84",
       "b387bfe17b0b8d29e6af35ef",
       "be3d8873b923808234b05849",
       "d2e04446d8d0407dfb5b246a"
@@ -192,7 +175,6 @@
       "Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing.",
       "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
       "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
-      "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
       "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
       "Configured Git and GitHub webhook integration to post automated review feedback directly on code changes.",
       "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
@@ -200,13 +182,12 @@
     "transformationType": "REWRITE",
     "sentences": [
       {
-        "text": "Software engineer experienced in developing full-stack web applications and modular backend services using TypeScript, Node.js, Next.js, and Python. Demonstrates hands-on capability in architecting RESTful APIs, managing PostgreSQL databases with Prisma and TypeORM, and integrating Redis caching alongside role-based access control. Skilled in containerizing multi-tier environments using Docker and automating development workflows with Git and GitHub Actions.",
+        "text": "Software engineer experienced in developing full-stack web applications and REST APIs using TypeScript, Next.js, Node.js, and Python. Demonstrates hands-on capability in architecting modular backend services with PostgreSQL persistence, TypeORM, and Docker containerization. Proven technical background in implementing role-based authentication systems, automated code review tools, and Git integration workflows.",
         "factIds": [
           "128a2a945857af7aee12b8fd",
           "292b2814310a89c67a12b05e",
           "3f00a4d4d6621b0e4904ca2a",
           "6d8c69d737a9938984937eed",
-          "96644a800921e6f697f0fc84",
           "b387bfe17b0b8d29e6af35ef",
           "be3d8873b923808234b05849",
           "d2e04446d8d0407dfb5b246a"
@@ -283,21 +264,6 @@
             "commitSha": null,
             "evidenceType": null,
             "matchedRequirementId": null,
-            "factId": "96644a800921e6f697f0fc84",
-            "sourceRef": "96644a800921e6f697f0fc84",
-            "confidenceScore": 1,
-            "provenanceTrustClass": null,
-            "notes": null
-          },
-          {
-            "sourceType": "CLAIMED",
-            "evidenceId": null,
-            "resourceId": null,
-            "resourceName": null,
-            "filePath": null,
-            "commitSha": null,
-            "evidenceType": null,
-            "matchedRequirementId": null,
             "factId": "b387bfe17b0b8d29e6af35ef",
             "sourceRef": "b387bfe17b0b8d29e6af35ef",
             "confidenceScore": 1,
@@ -343,7 +309,6 @@
           "292b2814310a89c67a12b05e",
           "3f00a4d4d6621b0e4904ca2a",
           "6d8c69d737a9938984937eed",
-          "96644a800921e6f697f0fc84",
           "b387bfe17b0b8d29e6af35ef",
           "be3d8873b923808234b05849",
           "d2e04446d8d0407dfb5b246a"
@@ -353,7 +318,6 @@
           "Architected full-stack product explorer with Next.js 14 frontend, Tailwind CSS, and server-side rendering for catalog browsing.",
           "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
           "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
-          "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
           "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
           "Configured Git and GitHub webhook integration to post automated review feedback directly on code changes.",
           "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
@@ -455,31 +419,6 @@
         ]
       },
       {
-        "categoryName": "Cloud, DevOps & Systems",
-        "skills": [
-          {
-            "name": "Docker",
-            "slug": "docker",
-            "provenanceStatus": "CLAIMED",
-            "evidenceId": null,
-            "sourceSkillId": null,
-            "confidenceScore": 0.5,
-            "relevanceScore": 80,
-            "matchedRequirementId": "req-319a32d333db"
-          },
-          {
-            "name": "Git",
-            "slug": "git",
-            "provenanceStatus": "CLAIMED",
-            "evidenceId": null,
-            "sourceSkillId": null,
-            "confidenceScore": 0.5,
-            "relevanceScore": 80,
-            "matchedRequirementId": "req-881212b7aa54"
-          }
-        ]
-      },
-      {
         "categoryName": "Frontend & Web",
         "skills": [
           {
@@ -528,6 +467,31 @@
             "matchedRequirementId": null
           }
         ]
+      },
+      {
+        "categoryName": "Cloud, DevOps & Systems",
+        "skills": [
+          {
+            "name": "Docker",
+            "slug": "docker",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-319a32d333db"
+          },
+          {
+            "name": "Git",
+            "slug": "git",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-881212b7aa54"
+          }
+        ]
       }
     ]
   },
@@ -539,17 +503,10 @@
       "description": "Architected a full-stack product explorer with Next.js 14 frontend, Tailwind CSS, modular NestJS backend, PostgreSQL persistence, and Redis caching.",
       "repositoryUrl": "https://github.com/vishu1803/Product-Data-Explorer",
       "liveUrl": null,
-      "technologies": [
-        "TypeScript",
-        "NestJS",
-        "Next.js",
-        "PostgreSQL",
-        "TypeORM",
-        "Docker"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Architected a full-stack product explorer utilizing Next.js 14 and Tailwind CSS with server-side rendering to enable catalog browsing.",
+          "text": "Architected a full-stack product catalog explorer using Next.js 14, TypeScript, and server-side rendering with Tailwind CSS to facilitate responsive catalog browsing.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -607,7 +564,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Containerized application services using Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+          "text": "Containerized application services using Docker Compose and established automated GitHub Actions continuous delivery pipelines alongside OpenAPI documentation.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -664,17 +621,10 @@
       "description": "Built full-stack task management platform with role-based access control, secure authentication, PostgreSQL, and Prisma ORM.",
       "repositoryUrl": "https://github.com/vishu1803/Collaborative-task-manager",
       "liveUrl": null,
-      "technologies": [
-        "TypeScript",
-        "Next.js",
-        "Express.js",
-        "Node.js",
-        "Prisma ORM",
-        "PostgreSQL"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Engineered a full-stack task management platform using TypeScript, Next.js, and Express.js, implementing JWT authentication and role-based access control (RBAC) to ensure secure collaboration.",
+          "text": "Engineered a full-stack collaborative task management application using Next.js and TypeScript, integrating JWT authentication and fine-grained Role-Based Access Control (RBAC) to enforce secure multi-user collaboration.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -703,7 +653,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing PostgreSQL queries to support real-time updates and responsive data retrieval.",
+          "text": "Implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates across the platform.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -776,16 +726,10 @@
       "description": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect anti-patterns.",
       "repositoryUrl": "https://github.com/vishu1803/Ai-powered-code-review-assistant",
       "liveUrl": null,
-      "technologies": [
-        "Python",
-        "FastAPI",
-        "Flask",
-        "Git",
-        "OpenAI API"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+          "text": "Engineered an automated code analysis service using Python, FastAPI, and Flask to evaluate pull requests and detect code anti-patterns.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -814,7 +758,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Implemented rule-based validation mechanisms to detect security vulnerabilities, code smells, and syntax issues within pull requests.",
+          "text": "Implemented rule-based validation logic to identify security vulnerabilities, code smells, and syntax issues across pull requests.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -843,7 +787,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Configured Git webhook integrations to deliver automated review feedback directly onto code changes.",
+          "text": "Configured Git webhook event integrations to deliver automated review feedback directly onto code changes.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -935,15 +879,40 @@
       "provenanceStatus": "USER_PROVIDED"
     }
   ],
-  "certifications": [],
+  "certifications": [
+    {
+      "id": "cert-001",
+      "name": "AWS Certified Cloud Practitioner",
+      "issuingOrganization": "Amazon Web Services",
+      "issueDate": "2024",
+      "expirationDate": null,
+      "credentialId": "AWS-CCP-98472",
+      "credentialUrl": "https://aws.amazon.com/verification",
+      "notes": null,
+      "legacyFields": {
+        "doesNotExpire": true
+      },
+      "provenanceStatus": "USER_PROVIDED"
+    },
+    {
+      "id": "cert-002",
+      "name": "Meta Backend Developer Professional Certificate",
+      "issuingOrganization": "Meta / Coursera",
+      "issueDate": "2023",
+      "expirationDate": null,
+      "credentialId": "COURSERA-META-7821",
+      "credentialUrl": "https://coursera.org/verify/meta-backend",
+      "notes": null,
+      "legacyFields": {
+        "doesNotExpire": true
+      },
+      "provenanceStatus": "USER_PROVIDED"
+    }
+  ],
   "dsa": {
-    "hasSection": true,
+    "hasSection": false,
     "profileUrl": "https://leetcode.com/u/vishwanatnishad",
-    "bullets": [
-      "300+ LeetCode problems solved across core computer science topics (Dynamic Programming, Graphs, Trees, Arrays, Binary Search).",
-      "Daily competitive programming and DSA practice to maintain interview readiness and a strong analytical foundation.",
-      "Demonstrated proficiency in translating complex algorithmic solutions into production code for system optimization."
-    ],
+    "bullets": [],
     "provenanceStatus": "USER_PROVIDED"
   },
   "optionalSections": {
@@ -978,9 +947,12 @@
     "leadership": [],
     "customSections": []
   },
-  "sourceWarnings": [],
+  "sourceWarnings": [
+    "Unrendered legacy fields retained for review on cert-001: doesNotExpire",
+    "Unrendered legacy fields retained for review on cert-002: doesNotExpire"
+  ],
   "tailoringPlan": {
-    "planId": "1c1d2259-26af-4a0a-b5a1-8847cf8888ae",
+    "planId": "9d0acb24-9c5f-4b5b-9e3e-9e6a8a4d539b",
     "targetJobId": "00000000-0000-5000-a000-000000000001",
     "targetRoleTitle": "Software Engineer",
     "targetCompany": "TechCorp Solutions",
@@ -994,8 +966,7 @@
       "DSA",
       "EXPERIENCE",
       "EDUCATION",
-      "COURSEWORK",
-      "LANGUAGES"
+      "CERTIFICATIONS"
     ],
     "selectedProjectIds": [
       "00000000-0000-4000-8000-000000000001",
@@ -1006,10 +977,10 @@
       "typescript",
       "python",
       "node-js",
-      "docker",
-      "git",
       "next-js",
       "postgresql",
+      "docker",
+      "git",
       "fastapi",
       "javascript",
       "react",
@@ -1116,30 +1087,6 @@
         "order": 10
       },
       {
-        "slug": "docker",
-        "name": "Docker",
-        "category": "Cloud, DevOps & Systems",
-        "provenanceStatus": "CLAIMED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 80,
-        "matchedRequirementId": "req-319a32d333db",
-        "confidenceScore": 0.5,
-        "order": 11
-      },
-      {
-        "slug": "git",
-        "name": "Git",
-        "category": "Cloud, DevOps & Systems",
-        "provenanceStatus": "CLAIMED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 80,
-        "matchedRequirementId": "req-881212b7aa54",
-        "confidenceScore": 0.5,
-        "order": 12
-      },
-      {
         "slug": "next-js",
         "name": "Next.js",
         "category": "Frontend & Web",
@@ -1149,7 +1096,7 @@
         "relevanceScore": 80,
         "matchedRequirementId": "req-4c76c8e972f7",
         "confidenceScore": 0.5,
-        "order": 13
+        "order": 11
       },
       {
         "slug": "react",
@@ -1161,7 +1108,7 @@
         "relevanceScore": 55,
         "matchedRequirementId": "req-6c6a47e31602",
         "confidenceScore": 0.5,
-        "order": 14
+        "order": 12
       },
       {
         "slug": "postgresql",
@@ -1173,7 +1120,7 @@
         "relevanceScore": 80,
         "matchedRequirementId": "req-34e85e1313e6",
         "confidenceScore": 0.5,
-        "order": 15
+        "order": 13
       },
       {
         "slug": "redis",
@@ -1185,20 +1132,44 @@
         "relevanceScore": 25,
         "matchedRequirementId": null,
         "confidenceScore": 0.5,
+        "order": 15
+      },
+      {
+        "slug": "docker",
+        "name": "Docker",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-319a32d333db",
+        "confidenceScore": 0.5,
         "order": 17
+      },
+      {
+        "slug": "git",
+        "name": "Git",
+        "category": "Cloud, DevOps & Systems",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-881212b7aa54",
+        "confidenceScore": 0.5,
+        "order": 18
       }
     ],
     "skillCategoryOrder": [
       "Languages",
       "Backend & APIs",
-      "Cloud, DevOps & Systems",
       "Frontend & Web",
-      "Databases & ORMs"
+      "Databases & ORMs",
+      "Cloud, DevOps & Systems"
     ],
     "optionalSections": {
-      "includeDsa": true,
-      "includeCertifications": false,
-      "includeCoursework": true,
+      "includeDsa": false,
+      "includeCertifications": true,
+      "includeCoursework": false,
       "includePublications": false,
       "includeAchievements": false,
       "includeAdditionalSkills": false,
@@ -1237,15 +1208,15 @@
     ],
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-16T14:19:52.544Z",
+  "createdAt": "2026-10-26T20:42:37.560Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack & Backend Developer",
     "targetRole": "Software Engineer",
     "targetRoleFamily": "FULL_STACK",
     "dsaDecision": {
-      "hasCandidateBullets": true,
+      "hasCandidateBullets": false,
       "hasProfileUrl": true,
-      "sectionIncluded": true
+      "sectionIncluded": false
     },
     "syntheticContentBlocked": [
       "DSA_HARDCODED_PROSE",
@@ -1263,15 +1234,6 @@
         "evidenceRole": "EDUCATION"
       },
       {
-        "factId": "1075d7be1632240421d5262f",
-        "sourceType": "summary",
-        "candidateAuthored": true,
-        "agencyLevel": "CANDIDATE",
-        "agencySource": "CANDIDATE_AUTHORED",
-        "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
-      },
-      {
         "factId": "128a2a945857af7aee12b8fd",
         "sourceType": "bullet",
         "candidateAuthored": true,
@@ -1281,13 +1243,13 @@
         "evidenceRole": "ACTION"
       },
       {
-        "factId": "1cc4a94b8d1cc8a7001ec68c",
-        "sourceType": "summary",
+        "factId": "13f3282993ae4182700a3702",
+        "sourceType": "certification",
         "candidateAuthored": true,
         "agencyLevel": "CANDIDATE",
         "agencySource": "CANDIDATE_AUTHORED",
         "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
+        "evidenceRole": "PROJECT_DESCRIPTION"
       },
       {
         "factId": "292b2814310a89c67a12b05e",
@@ -1380,18 +1342,18 @@
         "evidenceRole": "ACTION"
       },
       {
-        "factId": "a61256f69620df26b38ab672",
-        "sourceType": "link",
-        "candidateAuthored": true
-      },
-      {
-        "factId": "a6655d60d4dca64ecc7c5696",
-        "sourceType": "summary",
+        "factId": "9ae32a3dd10f97f0449d4aa4",
+        "sourceType": "certification",
         "candidateAuthored": true,
         "agencyLevel": "CANDIDATE",
         "agencySource": "CANDIDATE_AUTHORED",
         "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
+        "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "a61256f69620df26b38ab672",
+        "sourceType": "link",
+        "candidateAuthored": true
       },
       {
         "factId": "b387bfe17b0b8d29e6af35ef",
@@ -1488,7 +1450,7 @@
     "realizationSummary": [
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-1",
-        "text": "Architected a full-stack product explorer utilizing Next.js 14 and Tailwind CSS with server-side rendering to enable catalog browsing.",
+        "text": "Architected a full-stack product catalog explorer using Next.js 14, TypeScript, and server-side rendering with Tailwind CSS to facilitate responsive catalog browsing.",
         "validationResult": "VALID"
       },
       {
@@ -1498,32 +1460,32 @@
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-3",
-        "text": "Containerized application services using Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+        "text": "Containerized application services using Docker Compose and established automated GitHub Actions continuous delivery pipelines alongside OpenAPI documentation.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-1",
-        "text": "Engineered a full-stack task management platform using TypeScript, Next.js, and Express.js, implementing JWT authentication and role-based access control (RBAC) to ensure secure collaboration.",
+        "text": "Engineered a full-stack collaborative task management application using Next.js and TypeScript, integrating JWT authentication and fine-grained Role-Based Access Control (RBAC) to enforce secure multi-user collaboration.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-2",
-        "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing PostgreSQL queries to support real-time updates and responsive data retrieval.",
+        "text": "Implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates across the platform.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-1",
-        "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+        "text": "Engineered an automated code analysis service using Python, FastAPI, and Flask to evaluate pull requests and detect code anti-patterns.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-2",
-        "text": "Implemented rule-based validation mechanisms to detect security vulnerabilities, code smells, and syntax issues within pull requests.",
+        "text": "Implemented rule-based validation logic to identify security vulnerabilities, code smells, and syntax issues across pull requests.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-3",
-        "text": "Configured Git webhook integrations to deliver automated review feedback directly onto code changes.",
+        "text": "Configured Git webhook event integrations to deliver automated review feedback directly onto code changes.",
         "validationResult": "VALID"
       }
     ],
@@ -1547,8 +1509,7 @@
         "b6836e2fd8c73445b6c6acc3",
         "d2e04446d8d0407dfb5b246a",
         "8dca2ef83c193333f035943b",
-        "be3d8873b923808234b05849",
-        "96644a800921e6f697f0fc84"
+        "be3d8873b923808234b05849"
       ]
     },
     "requirementCoverage": {
@@ -2271,8 +2232,7 @@
       "b6836e2fd8c73445b6c6acc3",
       "d2e04446d8d0407dfb5b246a",
       "8dca2ef83c193333f035943b",
-      "be3d8873b923808234b05849",
-      "96644a800921e6f697f0fc84"
+      "be3d8873b923808234b05849"
     ],
     "authoritativeEligibleProjectCount": 3
   },
@@ -2289,9 +2249,8 @@
       "PROJECTS",
       "EXPERIENCE",
       "EDUCATION",
-      "LANGUAGES",
-      "DSA",
-      "COURSEWORK"
+      "CERTIFICATIONS",
+      "DSA"
     ],
     "condensations": [],
     "decisions": [
@@ -2324,26 +2283,6 @@
         "path": "projects.2.description",
         "action": "OMITTED",
         "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
-      },
-      {
-        "path": "dsa.hasSection",
-        "action": "OMITTED",
-        "reason": "DSA section omitted to preserve professional experience, project accomplishments, and spoken languages on a single page."
-      },
-      {
-        "path": "dsa.bullets.0",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
-      },
-      {
-        "path": "dsa.bullets.1",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
-      },
-      {
-        "path": "dsa.bullets.2",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
       }
     ]
   }

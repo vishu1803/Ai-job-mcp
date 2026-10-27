@@ -291,9 +291,10 @@ export function generateGroundedSummary({
   const result = composeProfessionalSummary({
     candidateProfile,
     jobPosting,
-    selectedSkills,
-    selectedProjects,
+    selectedSkills: selectedSkills || candidateProfile.skills || [],
+    selectedProjects: selectedProjects || candidateProfile.projects || [],
     options: {
+      synthesizeSummary: true,
       ...options,
       matchAnalysis,
       targetRoleTitle: tailoringPlan?.targetRoleTitle || options.targetRoleTitle,
@@ -816,6 +817,13 @@ export function deriveTargetRoleHeading({
   let heading = '';
   let seniorityAdjusted = false;
 
+  const hasSoftwareExperience = experiences.some((e) =>
+    /\b(engineer|developer|programmer|coder|architect|software|backend|frontend|full[- ]?stack|systems|data|cloud|devops|sre|qa|test)\b/i.test(
+      e.title || e.role || ''
+    )
+  );
+  const defaultNonEngineeringHeadline = experiences[0]?.title || 'Candidate Profile';
+
   if (rawJobTitle) {
     let normalized = normalizeTargetRoleTitle(rawJobTitle);
 
@@ -964,8 +972,10 @@ export function deriveTargetRoleHeading({
       heading = 'Backend Engineer';
     } else if (hasFrontendEvidence) {
       heading = 'Frontend Engineer';
-    } else {
+    } else if (allCandidateCapabilities.length > 0 || hasSoftwareExperience) {
       heading = 'Software Engineer';
+    } else {
+      heading = defaultNonEngineeringHeadline;
     }
   }
 
@@ -982,7 +992,8 @@ export function deriveTargetRoleHeading({
     if (hasFullStackEvidence) candidateHeadline = 'Full-Stack Software Engineer';
     else if (hasBackendEvidence) candidateHeadline = 'Backend Engineer';
     else if (hasFrontendEvidence) candidateHeadline = 'Frontend Engineer';
-    else candidateHeadline = 'Software Engineer';
+    else if (allCandidateCapabilities.length > 0 || hasSoftwareExperience) candidateHeadline = 'Software Engineer';
+    else candidateHeadline = defaultNonEngineeringHeadline;
   }
 
   // P19: targetRoleFamily — normalized domain classification from evidence
@@ -1034,7 +1045,13 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   const meta = profile.profileMetadata || {};
   const experiences = meta.experience || profile.experience || profile.workExperience || [];
   const education = meta.education || profile.education || [];
-  const certifications = meta.certifications || profile.certifications || [];
+  const certifications =
+    meta.certifications ||
+    profile.certifications ||
+    meta.resumeData?.certifications ||
+    meta.userCustom?.certifications ||
+    profile.optionalSections?.certifications ||
+    [];
   // DSA detection MUST match the structured snapshot builder's alias resolution
   // (structured-resume.service.js: meta.dsa || source.dsa || source.problemSolving || meta.problemSolving).
   // The real candidate flow attaches DSA under the top-level 'problemSolving' alias;
@@ -1123,12 +1140,14 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   if (candidateArchetype === 'FRESHER' || candidateArchetype === 'CAREER_CHANGER') {
     // Project-heavy fresher / career changer: Projects precede Experience
     sectionOrder.push('PROJECTS');
+    if (hasDsa) sectionOrder.push('DSA');
     sectionOrder.push('EXPERIENCE');
     sectionOrder.push('EDUCATION');
   } else {
     // Experienced: Experience precedes Projects
     sectionOrder.push('EXPERIENCE');
     sectionOrder.push('PROJECTS');
+    if (hasDsa) sectionOrder.push('DSA');
     sectionOrder.push('EDUCATION');
   }
 
@@ -1136,7 +1155,6 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   if (hasCoursework) sectionOrder.push('COURSEWORK');
   if (hasPublications) sectionOrder.push('PUBLICATIONS');
   if (hasLanguages) sectionOrder.push('LANGUAGES');
-  if (hasDsa) sectionOrder.push('DSA');
 
   return {
     sectionOrder,

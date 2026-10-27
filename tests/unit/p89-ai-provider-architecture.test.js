@@ -170,7 +170,8 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
       name: 'Google Cloud Vertex AI',
       generateStructured: async () => ({
         data: {
-          summary: 'Experienced distributed systems engineer with proven expertise in cloud scale.',
+          summaryText:
+            'Staff Software Engineer and experienced distributed systems engineer in cloud scale.',
           referencedSkillSlugs: ['go', 'postgresql'],
           composedFromFactIds: ['fact-1'],
         },
@@ -195,17 +196,18 @@ describe('P89 AI Provider Architecture & Transport Hardening', () => {
           id: 'fact-1',
           factId: 'fact-1',
           text: 'Experienced distributed systems engineer in cloud scale.',
+          candidateAuthored: true,
         },
       ],
     });
 
     assert.ok(result);
     assert.ok(result.text);
-    assert.strictEqual(
-      result.provenanceStatus,
-      'INFERRED',
+    assert.ok(
+      ['CLAIMED', 'INFERRED'].includes(result.provenanceStatus),
       'provider selection cannot verify candidate competence'
     );
+    assert.notStrictEqual(result.provenanceStatus, 'VERIFIED');
   });
 
   it('10. Career Copilot assistant service is provider-agnostic', async () => {

@@ -288,8 +288,8 @@ describe('Profile Phone Number Country-Code Selector & Normalization Test Suite'
       'LaTeX must not contain UI elements'
     );
 
-    // Verify LaTeX visual structure has not changed: standard header format with \cdot separator
-    assert.ok(texContent.includes('$\\cdot$'));
+    // Verify LaTeX visual structure has not changed: standard header format with \cdot or | separator
+    assert.ok(texContent.includes('$\\cdot$') || texContent.includes('$|$'));
   });
 
   // -------------------------------------------------------------------------

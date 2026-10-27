@@ -345,6 +345,7 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
           candidateId: 'cand-test-001',
           applicationId: incompleteApp.id,
           declarations: { accuracyConfirmed: true },
+          approvalTicketId: 'ticket-test-approval-001',
         });
       },
       (err) => {
@@ -375,6 +376,7 @@ describe('P86: Simplified Job Application Workflow Suite', () => {
       candidateId: 'cand-test-001',
       applicationId: sampleApplication.id,
       declarations: { accuracyConfirmed: true },
+      approvalTicketId: 'ticket-test-approval-001',
     });
 
     assert.equal(result.success, true);

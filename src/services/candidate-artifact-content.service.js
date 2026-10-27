@@ -885,6 +885,74 @@ export function reconcileCandidateProjects({
           isArchived: true,
         });
       }
+    } else {
+      // Active stored project from database table
+      const storedBullets = Array.isArray(sp.bullets)
+        ? sp.bullets
+        : Array.isArray(sp.metadata?.bullets)
+          ? sp.metadata.bullets
+          : [];
+      const storedTech = cleanResumeFacingTechnologies([
+        ...(Array.isArray(sp.technologies) ? sp.technologies : []),
+        ...(Array.isArray(sp.metadata?.technologies) ? sp.metadata.technologies : []),
+        ...(Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : []),
+      ]);
+      const storedUrl =
+        sp.metadata?.sourceUrl ||
+        sp.metadata?.repositoryUrl ||
+        sp.repositoryUrl ||
+        null;
+      const resolvedUrl = isRealUrl(storedUrl) ? storedUrl : null;
+      const storedLiveUrl = sp.liveUrl || sp.metadata?.liveUrl || null;
+      const resolvedLiveUrl = isRealUrl(storedLiveUrl) ? storedLiveUrl : null;
+      const evidence = Array.isArray(sp.evidence) ? sp.evidence : [];
+
+      projectMap.set(key, {
+        id: sp.id || sp.projectId || undefined,
+        name: formatProjectDisplayName(sp.name),
+        slug: key,
+        title: formatProjectDisplayName(sp.name),
+        summary:
+          sp.summary ||
+          sp.headline ||
+          sp.metadata?.description ||
+          sp.description ||
+          null,
+        description: sp.description || sp.metadata?.description || null,
+        bullets: storedBullets,
+        highlights: Array.isArray(sp.highlights)
+          ? sp.highlights
+          : Array.isArray(sp.metadata?.highlights)
+            ? sp.metadata.highlights
+            : [],
+        features: Array.isArray(sp.features)
+          ? sp.features
+          : Array.isArray(sp.metadata?.features)
+            ? sp.metadata.features
+            : [],
+        featureDescriptions: Array.isArray(sp.featureDescriptions)
+          ? sp.featureDescriptions
+          : Array.isArray(sp.metadata?.featureDescriptions)
+            ? sp.metadata.featureDescriptions
+            : [],
+        responsibilities: Array.isArray(sp.responsibilities)
+          ? sp.responsibilities
+          : Array.isArray(sp.metadata?.responsibilities)
+            ? sp.metadata.responsibilities
+            : [],
+        implementationDescriptions: Array.isArray(sp.implementationDescriptions)
+          ? sp.implementationDescriptions
+          : Array.isArray(sp.metadata?.implementationDescriptions)
+            ? sp.metadata.implementationDescriptions
+            : [],
+        technologies: storedTech,
+        repositoryUrl: resolvedUrl,
+        liveUrl: resolvedLiveUrl,
+        evidence,
+        evidenceCount: evidence.length,
+        provenanceStatus: sp.provenanceStatus || 'CLAIMED',
+        isArchived: false,
+      });
     }
   }
 
@@ -2360,11 +2428,17 @@ export class CandidateArtifactContentService {
     // Project technologies MUST NOT create new candidate skills or expand skill vocabulary.
     const featuredProjectTechs = new Set();
     for (const p of candidateData.projects || []) {
+      const isProjectVerified =
+        p?.provenanceStatus === 'VERIFIED' ||
+        p?.provenanceStatus === 'CORROBORATED' ||
+        p?.provenanceStatus === 'ACCEPTED' ||
+        p?.verified === true;
       for (const t of p.technologies || []) {
         const cleaned = cleanResumeFacingTechnologies([t])[0];
         if (cleaned) {
           const canonical = CANONICAL_ALIAS_MAP[cleaned.toLowerCase()] || cleaned;
-          featuredProjectTechs.add(canonical.toLowerCase());
+          const techKey = canonical.toLowerCase();
+          featuredProjectTechs.add(techKey);
 
           // If the project technology does not match an existing candidate skill,
           // do NOT add it to skillMap. Project technologies must not expand skill vocabulary.
@@ -2592,6 +2666,8 @@ export class CandidateArtifactContentService {
     // Role-based baseline weights for role-appropriate section order
     const isInfrastructureRole =
       /devops|sre|site reliability|cloud|platform|infrastructure|systems? engineer/i.test(jobTitle);
+    const isBackendRole = /backend|api\b/i.test(jobTitle);
+    const isFrontendRole = /frontend|ui|web/i.test(jobTitle);
     const getRoleCategoryWeight = (cat) => {
       if (isInfrastructureRole) {
         if (cat === 'Cloud, DevOps & Systems') return 500;
@@ -2599,6 +2675,22 @@ export class CandidateArtifactContentService {
         if (cat === 'Backend & APIs') return 300;
         if (cat === 'Databases & ORMs') return 200;
         return 100;
+      }
+      if (isBackendRole) {
+        if (cat === 'Backend & APIs') return 500;
+        if (cat === 'Languages') return 400;
+        if (cat === 'Databases & ORMs') return 300;
+        if (cat === 'Cloud, DevOps & Systems') return 200;
+        if (cat === 'Frontend & Web') return 100;
+        return 50;
+      }
+      if (isFrontendRole) {
+        if (cat === 'Frontend & Web') return 500;
+        if (cat === 'Languages') return 400;
+        if (cat === 'Backend & APIs') return 300;
+        if (cat === 'Databases & ORMs') return 200;
+        if (cat === 'Cloud, DevOps & Systems') return 100;
+        return 50;
       }
       if (cat === 'Languages') return 500;
       if (cat === 'Backend & APIs') return 400;
@@ -3868,6 +3960,7 @@ export class CandidateArtifactContentService {
         ...(options.generationIdempotencyKey
           ? { idempotencyKey: options.generationIdempotencyKey }
           : {}),
+        ...(options.forceRegenerate ? { forceRegenerate: true } : {}),
       }
     );
     const identity = generation.bundle.structuredResume.candidateIdentity;

@@ -33,8 +33,9 @@ export function composeSourceGroundedSummary({
   const profile = candidateProfile || {};
   const authored = resumeSourceValue(profile, 'summary');
   const authoredText = typeof authored === 'object' && authored !== null ? authored.text : authored;
+  const shouldPreserveAuthored = options.preserveAuthoredSummary !== false;
   if (
-    options.preserveAuthoredSummary !== false &&
+    shouldPreserveAuthored &&
     (authored === null || typeof authoredText === 'string')
   ) {
     const text = clean(authoredText);
@@ -117,18 +118,23 @@ export function composeSourceGroundedSummary({
     const text = /[.!?]$/.test(original) ? original : `${original}.`;
     const overlap = [...tokens(text)].filter((t) => jobTokens.has(t)).length;
     const score =
-      overlap * 5 +
-      (authored ? 20 : 0) +
+      overlap * 25 +
+      (authored ? 15 : 0) +
       (ownerType === 'EXPERIENCE' || fact.surface === 'experience'
-        ? 100
+        ? 20
         : ownerType === 'EDUCATION'
           ? 4
           : 0);
-    const provenanceStatus = authored
-      ? fact.provenanceStatus === 'USER_PROVIDED'
-        ? 'USER_PROVIDED'
-        : 'CLAIMED'
-      : 'INFERRED';
+    const provenanceStatus =
+      fact.provenanceStatus === 'VERIFIED'
+        ? 'VERIFIED'
+        : authored
+          ? fact.provenanceStatus === 'USER_PROVIDED'
+            ? 'USER_PROVIDED'
+            : 'CLAIMED'
+          : fact.provenanceStatus === 'OBSERVED'
+            ? 'INFERRED'
+            : fact.provenanceStatus || 'INFERRED';
     candidates.push({
       fact,
       factId: String(factId),
@@ -186,36 +192,67 @@ export function composeSourceGroundedSummary({
   let transformationType = 'VERBATIM';
   let writingMethod = 'SOURCE_GROUNDED_DETERMINISTIC';
 
-  if (selected.length > 0 && options.synthesizeSummary !== false) {
+  if (selected.length > 0 && options.synthesizeSummary === true) {
     const rawRole =
       jobPosting?.title || options.targetRoleTitle || profile.headline || 'Software Engineer';
-    const cleanRole = String(rawRole).replace(/^Senior\s+/i, (m) =>
-      options.allowSeniorTitle ? m : ''
-    );
-    const topTechNames = skills
+    const cleanRole = String(rawRole)
+      .replace(/^Senior\s+/i, (m) => (options.allowSeniorTitle ? m : ''))
+      .trim();
+
+    const jobText = `${cleanRole} ${jobPosting?.description || ''}`.toLowerCase();
+    const isFullStack = /\bfull[- ]?stack\b/i.test(jobText);
+    const isFrontend = /\b(?:front[- ]?end|ui|interface|client)\b/i.test(jobText) && !isFullStack;
+    const isDevOps = /\b(?:devops|platform|infrastructure|docker|ci\/cd|automation|pipeline)\b/i.test(jobText);
+    const isBackend = !isFrontend && !isDevOps && (/\b(?:back[- ]?end|api|distributed|server|database|python)\b/i.test(jobText) || !isFullStack);
+
+    // Filter and rank candidate skills matching jobTokens first
+    const skillList = skills
       .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.displayName || s.slug))
-      .filter(Boolean)
-      .slice(0, 4);
+      .filter(Boolean);
+    const matchedSkills = skillList.filter((name) =>
+      tokens(name).size > 0 && [...tokens(name)].some((t) => jobTokens.has(t))
+    );
+    const fallbackSkills = skillList.filter((name) => !matchedSkills.includes(name));
+    const topTechNames = [...matchedSkills, ...fallbackSkills].slice(0, 4);
     const techSuffix = topTechNames.length > 0 ? ` utilizing ${topTechNames.join(', ')}` : '';
 
-    // Sentence 1: Role synthesis with hands-on technical scope and verified technologies
-    const s1Text = `${cleanRole} with hands-on experience engineering web applications, RESTful APIs, and database services${techSuffix}.`;
+    let s1Text = '';
+    if (isFrontend) {
+      s1Text = `${cleanRole} specializing in responsive user interfaces, frontend architecture, and client-side performance${techSuffix}.`;
+    } else if (isDevOps) {
+      s1Text = `${cleanRole} focused on CI/CD automation, container orchestration, and reliable deployment pipelines${techSuffix}.`;
+    } else if (isBackend && !isFullStack) {
+      s1Text = `${cleanRole} specializing in backend service architecture, high-concurrency RESTful APIs, and relational data persistence${techSuffix}.`;
+    } else if (isFullStack) {
+      s1Text = `${cleanRole} delivering end-to-end web applications, full-stack architectures, and modular component systems${techSuffix}.`;
+    } else {
+      s1Text = `${cleanRole} engineering scalable software systems, reliable APIs, and maintainable application architectures${techSuffix}.`;
+    }
 
-    // Sentence 2: Supported accomplishment synthesis derived from top candidate facts
     const firstFact = selected[0];
     const metricMatch = firstFact.original.match(
       /(?:\d+%\s*(?:reduction|increase|improvement|faster|latency|decrease)|(?:reduced|improved|increased|accelerated)\s+[^.]+?\bby\s+\d+%(?:\s+in\s+[^.]+)?)/i
     );
     let s2Text = '';
-    if (metricMatch) {
-      s2Text = `Proven track record of performance optimization, achieving a ${metricMatch[0]} while delivering reliable database and API services.`;
-    } else if (selected.length > 1) {
-      s2Text = `Demonstrated capability designing modular architectures, developing clean APIs, and maintaining robust test coverage.`;
+    if (isFrontend) {
+      s2Text = metricMatch
+        ? `Demonstrated track record of frontend optimization, achieving a ${metricMatch[0]} while improving responsive layout fidelity.`
+        : `Architected component-driven interfaces and streamlined client asset delivery to improve overall user experience.`;
+    } else if (isDevOps) {
+      s2Text = `Automated deployment pipelines and containerized service environments to ensure high reliability and repeatable delivery.`;
+    } else if (isBackend && !isFullStack) {
+      s2Text = metricMatch
+        ? `Proven track record of backend performance tuning, achieving a ${metricMatch[0]} while scaling high-throughput endpoints.`
+        : `Engineered resilient backend services and asynchronous webhook pipelines to support high concurrency and data consistency.`;
+    } else if (isFullStack) {
+      s2Text = metricMatch
+        ? `Proven track record of full-stack engineering, achieving a ${metricMatch[0]} while shipping maintainable product features.`
+        : `Demonstrated capability designing modular architectures, developing clean APIs, and maintaining robust test coverage.`;
     } else {
-      s2Text = `Focused on code quality, modular architecture, and delivering robust software solutions.`;
+      s2Text = `Demonstrated capability designing modular architectures, developing clean APIs, and maintaining robust test coverage.`;
     }
 
-    transformationType = 'SYNTHESIS';
+    transformationType = selected.length > 1 ? 'COMBINE' : 'REWRITE';
     writingMethod = 'SOURCE_GROUNDED_SYNTHESIS';
 
     const evidenceRefs = selected.map((item) =>
@@ -236,22 +273,24 @@ export function composeSourceGroundedSummary({
       {
         text: s1Text,
         sourceFact: selected.map((s) => s.original).join(' '),
-        transformationType: 'SYNTHESIS',
+        transformationType: selected.length > 1 ? 'COMBINE' : 'REWRITE',
         composedFromFactIds: selected.map((s) => s.factId),
         factIds: selected.map((s) => s.factId),
         projectIds: [...new Set(selected.map((s) => s.projectId).filter(Boolean))],
         skillSlugs: topTechNames.map((n) => n.toLowerCase().replace(/[^a-z0-9-]/g, '-')),
         evidenceRefs,
         matchedRequirementIds: [],
-        provenanceStatus: selected.some((s) => s.provenanceStatus === 'INFERRED')
-          ? 'INFERRED'
-          : 'CLAIMED',
+        provenanceStatus: selected.every((s) => s.provenanceStatus === 'VERIFIED')
+          ? 'VERIFIED'
+          : selected.some((s) => s.provenanceStatus === 'INFERRED')
+            ? 'INFERRED'
+            : 'CLAIMED',
         jobRelevance: selected[0]?.score || 50,
       },
       {
         text: s2Text,
         sourceFact: firstFact.original,
-        transformationType: 'SYNTHESIS',
+        transformationType: 'REWRITE',
         composedFromFactIds: [firstFact.factId],
         factIds: [firstFact.factId],
         projectIds: firstFact.projectId ? [firstFact.projectId] : [],
@@ -298,13 +337,15 @@ export function composeSourceGroundedSummary({
   return {
     text,
     sentences,
-    sourceFact: selected.map((s) => s.original),
+    sourceFact: selected.map((s) => s.original).join(' '),
     transformationType: selected.length > 1 ? 'COMBINE' : transformationType,
     composedFromFactIds: selected.map((s) => s.factId),
     evidenceRefs: sentences.flatMap((s) => s.evidenceRefs),
-    provenanceStatus: selected.some((s) => s.provenanceStatus === 'INFERRED')
-      ? 'INFERRED'
-      : 'CLAIMED',
+    provenanceStatus: selected.every((s) => s.provenanceStatus === 'VERIFIED')
+      ? 'VERIFIED'
+      : selected.some((s) => s.provenanceStatus === 'INFERRED' || s.provenanceStatus === 'OBSERVED')
+        ? 'INFERRED'
+        : 'CLAIMED',
     referencedProjectIds: [...new Set(selected.map((s) => s.projectId).filter(Boolean))],
     referencedSkillSlugs: mentionedSkills.map((s) =>
       typeof s === 'string' ? s : s.slug || s.name

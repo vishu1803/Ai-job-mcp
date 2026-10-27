@@ -85,6 +85,13 @@ function date(value) {
     throw new ValidationError('Resume dates must be text', 'INVALID_RESUME_SOURCE');
   const raw = value.trim();
   if (isResumeDate(raw) || /^\d{4}-/.test(raw)) return raw;
+  if (/\s+(?:[-–—]|to)\s+/i.test(raw)) {
+    const compact = /^(\d{4})\s*[-–—]\s*(\d{4}|present|current|ongoing)$/i.exec(raw);
+    const parts = compact ? compact.slice(1) : raw.split(/\s+(?:[-–—]|to)\s+/i);
+    if (parts.length >= 1 && parts[0]) {
+      return date(parts[0]);
+    }
+  }
   if (
     !/^(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|\d{1,2}[/-]\d{4})$/i.test(
       raw
@@ -225,7 +232,12 @@ export function normalizeResumeSourceSections(profile) {
       'exp',
       SourceExperienceSnapshotSchema,
       (r) => {
-        const range = sourceRange(r.rawDateRange);
+        const rawRange =
+          r.rawDateRange ||
+          (typeof r.startDate === 'string' && /\s+(?:[-–—]|to)\s+/i.test(r.startDate)
+            ? r.startDate
+            : null);
+        const range = sourceRange(rawRange);
         // Earlier snapshots retained these fields as unknown metadata. Promote
         // only the now-supported keys, preserve metadata/IDs, and honor clears.
         const workText = {};
@@ -237,10 +249,10 @@ export function normalizeResumeSourceSections(profile) {
           id: r.id,
           company: r.company || r.employer || r.organization || null,
           title: r.title || r.role || null,
-          startDate: date(r.startDate || range?.startDate),
+          startDate: range?.startDate || date(r.startDate),
           endDate: /^(present|current|ongoing)$/i.test(r.endDate || '')
             ? null
-            : date(r.endDate || range?.endDate),
+            : date(r.endDate) || range?.endDate || null,
           isCurrent:
             flag(r.isCurrent) ||
             Boolean(range?.isCurrent || /^(present|current|ongoing)$/i.test(r.endDate || '')),
@@ -249,7 +261,7 @@ export function normalizeResumeSourceSections(profile) {
           technologies: lines(r.technologies),
           employmentType: r.employmentType || null,
           ...workText,
-          rawDateRange: r.rawDateRange || null,
+          rawDateRange: r.rawDateRange || rawRange || null,
         };
       }
     );
@@ -265,7 +277,12 @@ export function normalizeResumeSourceSections(profile) {
       'edu',
       SourceEducationSnapshotSchema,
       (r) => {
-        const range = sourceRange(r.rawDateRange);
+        const rawRange =
+          r.rawDateRange ||
+          (typeof r.startDate === 'string' && /\s+(?:[-–—]|to)\s+/i.test(r.startDate)
+            ? r.startDate
+            : null);
+        const range = sourceRange(rawRange);
         const grade = r.grade ?? r.gpa ?? r.gradeOrGpa;
         if (typeof grade === 'number' && !Number.isFinite(grade))
           throw new ValidationError('Resume grade must be finite', 'INVALID_RESUME_SOURCE');
@@ -274,10 +291,12 @@ export function normalizeResumeSourceSections(profile) {
           institution: r.institution || r.school || null,
           degree: r.degree || null,
           fieldOfStudy: r.fieldOfStudy || r.major || r.field || null,
-          startDate: date(r.startDate || range?.startDate),
+          startDate: range?.startDate || date(r.startDate),
           endDate: /^(present|current|ongoing)$/i.test(r.endDate || '')
             ? null
-            : date(r.endDate || range?.endDate || String(r.graduationYear || r.year || '') || null),
+            : date(r.endDate) ||
+              range?.endDate ||
+              date(String(r.graduationYear || r.year || '') || null),
           isCurrent:
             flag(r.isCurrent) ||
             flag(r.currentlyEnrolled) ||
@@ -291,7 +310,7 @@ export function normalizeResumeSourceSections(profile) {
           coursework: lines(r.coursework),
           honors: lines(r.honors),
           bullets: lines(r.bullets),
-          rawDateRange: r.rawDateRange || null,
+          rawDateRange: r.rawDateRange || rawRange || null,
         };
       }
     );

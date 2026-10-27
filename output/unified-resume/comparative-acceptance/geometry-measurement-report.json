@@ -12,8 +12,9 @@
       "isA4": true
     },
     "typography": {
-      "minimumFontPt": 10.0,
-      "maximumFontPt": 18.0,
+      "minimumFontPt": 8.5,
+      "bodyMinimumFontPt": 10.0,
+      "maximumFontPt": 21.0,
       "fontFloorPass": true,
       "embeddedFontsCount": 3,
       "allFontsEmbedded": true,
@@ -42,21 +43,21 @@
       ]
     },
     "margins": {
-      "topMarginMm": 11.59,
-      "bottomMarginMm": 37.15,
+      "topMarginMm": 11.71,
+      "bottomMarginMm": 15.72,
       "leftMarginMm": 11.91,
       "rightMarginMm": 11.72,
       "topMarginStatus": "PASS",
-      "bottomMarginStatus": "WARN",
-      "verticalOccupancyRatio": 0.87
+      "bottomMarginStatus": "PASS",
+      "verticalOccupancyRatio": 0.945
     },
     "textSummary": {
-      "totalSpans": 66,
+      "totalSpans": 67,
       "contentBoundingBox": {
         "x0_pt": 33.75,
-        "y0_pt": 32.86,
+        "y0_pt": 33.21,
         "x1_pt": 561.75,
-        "y1_pt": 736.6
+        "y1_pt": 797.35
       }
     }
   },
@@ -73,8 +74,9 @@
       "isA4": true
     },
     "typography": {
-      "minimumFontPt": 10.0,
-      "maximumFontPt": 18.0,
+      "minimumFontPt": 8.5,
+      "bodyMinimumFontPt": 10.0,
+      "maximumFontPt": 21.0,
       "fontFloorPass": true,
       "embeddedFontsCount": 3,
       "allFontsEmbedded": true,
@@ -103,21 +105,21 @@
       ]
     },
     "margins": {
-      "topMarginMm": 11.59,
-      "bottomMarginMm": 18.1,
+      "topMarginMm": 11.71,
+      "bottomMarginMm": 17.31,
       "leftMarginMm": 11.91,
       "rightMarginMm": 11.72,
       "topMarginStatus": "PASS",
       "bottomMarginStatus": "PASS",
-      "verticalOccupancyRatio": 0.937
+      "verticalOccupancyRatio": 0.939
     },
     "textSummary": {
-      "totalSpans": 70,
+      "totalSpans": 66,
       "contentBoundingBox": {
         "x0_pt": 33.75,
-        "y0_pt": 32.86,
+        "y0_pt": 33.21,
         "x1_pt": 561.75,
-        "y1_pt": 790.6
+        "y1_pt": 792.85
       }
     }
   }

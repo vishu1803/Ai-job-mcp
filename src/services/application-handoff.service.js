@@ -134,9 +134,11 @@ export class ApplicationHandoffService {
       dependencies.geometryAnalyzer || new PdfGeometryAnalyzer({ resumeParser: this.resumeParser });
     this.documentStorage = dependencies.documentStorage || new DocumentStorageService();
     this.candidateProfileService =
-      dependencies.candidateProfileService || new CandidateProfileService();
+      dependencies.candidateProfileService ||
+      new CandidateProfileService(dependencies.database ? { database: dependencies.database } : undefined);
     this.applicationTrackingService =
-      dependencies.applicationTrackingService || new ApplicationTrackingService();
+      dependencies.applicationTrackingService ||
+      new ApplicationTrackingService(dependencies.database ? { database: dependencies.database } : {});
     this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
     this.resumeOptimizer =
       dependencies.resumeOptimizer ||

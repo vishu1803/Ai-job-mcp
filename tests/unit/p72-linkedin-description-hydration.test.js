@@ -77,6 +77,13 @@ function createMockController(options = {}) {
       scrollIntoView() {},
       innerHTML: '',
     }),
+    createElement: (tag) => ({
+      tagName: tag.toUpperCase(),
+      className: '',
+      textContent: '',
+      appendChild() {},
+      classList: { add() {}, remove() {}, contains: () => false },
+    }),
     readyState: 'complete',
     addEventListener() {},
   };

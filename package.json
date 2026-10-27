@@ -33,7 +33,9 @@
     "db:migrate": "node src/db/migrate.js",
     "db:seed:test": "node scripts/seed-test-fixtures.js",
     "db:check": "drizzle-kit check",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:local:start": "powershell -ExecutionPolicy Bypass -File scripts/start-local-db.ps1",
+    "db:ping": "node scripts/check-db-connection.mjs"
   },
   "keywords": [
     "mcp",

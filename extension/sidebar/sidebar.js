@@ -1492,19 +1492,27 @@ class SidebarController {
       const fields = formData.mappedFields || formData.fields || [];
       let hasSensitive = false;
       fields.forEach((f) => {
-        const pill = document.createElement('span');
+        const pill =
+          typeof document !== 'undefined' && typeof document.createElement === 'function'
+            ? document.createElement('span')
+            : { className: '', textContent: '', appendChild() {} };
         pill.className = 'tag-pill matched';
         const label = f.label || f.name || f.fieldId || 'Field';
         const isVerified = f.verified || f.status === 'PLANNED' || f.status === 'EXECUTED';
         pill.textContent = `${label}: ${isVerified ? '✓' : '?'}`;
         if (f.isSensitive || f.isProtected || f.requiresConfirmation) {
           hasSensitive = true;
-          const sensTag = document.createElement('span');
+          const sensTag =
+            typeof document !== 'undefined' && typeof document.createElement === 'function'
+              ? document.createElement('span')
+              : { className: '', textContent: '' };
           sensTag.className = 'autofill-meta-tag';
           sensTag.textContent = 'Confirm';
           pill.appendChild(sensTag);
         }
-        this.elements.formFieldsSummary.appendChild(pill);
+        if (this.elements.formFieldsSummary?.appendChild) {
+          this.elements.formFieldsSummary.appendChild(pill);
+        }
       });
 
       if (hasSensitive && this.elements.sensitiveConfirmationBox) {

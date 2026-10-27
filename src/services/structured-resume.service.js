@@ -21,6 +21,7 @@
 import crypto from 'node:crypto';
 import { enforceEvidenceTrust, skillTrustStatus } from './evidence/verification-policy.js';
 import { normalizeTruthCategory } from '../domain/career/truth-category.js';
+import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
@@ -51,7 +52,10 @@ import {
   normalizeResumeSourceSections,
   resumeSourceValue,
 } from '../utils/resume-source-normalizer.js';
-import { ensureCandidateSectionIntegrity } from './resume-composition-primitives.js';
+import {
+  ensureCandidateSectionIntegrity,
+  areBulletsSemanticallyRedundant,
+} from './resume-composition-primitives.js';
 import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
@@ -310,23 +314,45 @@ export function resumeSkillInputs(source) {
             : [];
         })
       : [];
-  const key = (skill) =>
-    normalizeTechnologyName(skill?.name || skill?.skillName || '').toLowerCase();
-  const claimed = new Set(claims.map(key));
-  const indexed = new Set(inventory.map(key));
+  const getSkillKeys = (skill) => {
+    const rawName = typeof skill === 'string' ? skill : skill?.name || skill?.skillName || '';
+    const keys = [];
+    if (rawName) {
+      keys.push(normalizeTechnologyName(rawName).toLowerCase());
+      keys.push(rawName.toLowerCase().trim());
+      keys.push(rawName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      try {
+        const norm = SkillTaxonomyEngine.normalizeSkill(rawName);
+        if (norm?.canonicalSlug && norm.canonicalSlug !== 'unknown-tool') {
+          keys.push(norm.canonicalSlug);
+        }
+      } catch {}
+    }
+    const slug =
+      typeof skill === 'object' && skill?.slug ? String(skill.slug).toLowerCase().trim() : null;
+    if (slug) {
+      keys.push(slug);
+      keys.push(slug.replace(/[^a-z0-9]/g, ''));
+    }
+    return keys;
+  };
+
+  const claimedKeys = new Set(claims.flatMap(getSkillKeys));
+  const indexedKeys = new Set(inventory.flatMap(getSkillKeys));
+
   return [
     ...inventory.map((skill) => {
       const status = skillTrustStatus(skill || {});
+      const isClaimed = getSkillKeys(skill).some((k) => claimedKeys.has(k));
       // Keep explicit learning/gap states; a stale master must not override them.
-      if (!claimed.has(key(skill)) || ['LEARNING', 'MISSING_EVIDENCE', 'UNKNOWN'].includes(status))
-        return skill;
+      if (!isClaimed || ['LEARNING', 'MISSING_EVIDENCE', 'UNKNOWN'].includes(status)) return skill;
       return {
         ...skill,
         resumeClaim: true,
         provenanceStatus: skillTrustStatus({ ...skill, resumeClaim: true }),
       };
     }),
-    ...claims.filter((skill) => !indexed.has(key(skill))),
+    ...claims.filter((claim) => !getSkillKeys(claim).some((k) => indexedKeys.has(k))),
   ];
 }
 
@@ -382,11 +408,11 @@ export function buildStructuredResumeDocument({
         tailoredHeadingInfo.heading ||
         tailoredHeadingInfo.masterHeadline ||
         tailoredHeadingInfo.candidateHeadline ||
-        'Software Engineer'
+        'Candidate Profile'
       : tailoredHeadingInfo.masterHeadline ||
         tailoredHeadingInfo.candidateHeadline ||
         source.headline ||
-        'Software Engineer',
+        'Candidate Profile',
     masterHeadline:
       tailoredHeadingInfo.masterHeadline ||
       tailoredHeadingInfo.candidateHeadline ||
@@ -521,12 +547,30 @@ export function buildStructuredResumeDocument({
       ? rawDsa.profileUrl.trim()
       : leetcodeUrl;
 
-  if (dsaUrl || dsaBullets.length > 0 || rawDsa?.hasSection) {
+  const candidateDsaCandidate = {
+    profileUrl: dsaUrl,
+    bullets: dsaBullets,
+    problemsSolved: rawDsa?.problemsSolved,
+    rating: rawDsa?.rating,
+    contests: rawDsa?.contests,
+    topics: rawDsa?.topics,
+    topicCoverage: rawDsa?.topicCoverage,
+    score: rawDsa?.score,
+    rank: rawDsa?.rank,
+    ranking: rawDsa?.ranking,
+    hasSection: rawDsa?.hasSection,
+  };
+  const isMeaningful = isMeaningfulDsa(candidateDsaCandidate);
+
+  if (dsaUrl || dsaBullets.length > 0 || isMeaningful) {
     dsa = {
-      hasSection: true,
+      hasSection: isMeaningful,
       profileUrl: dsaUrl,
       bullets: dsaBullets,
       provenanceStatus: rawDsa?.provenanceStatus || 'USER_PROVIDED',
+      ...(rawDsa?.problemsSolved !== undefined ? { problemsSolved: rawDsa.problemsSolved } : {}),
+      ...(rawDsa?.rating !== undefined ? { rating: rawDsa.rating } : {}),
+      ...(rawDsa?.ranking !== undefined ? { ranking: rawDsa.ranking } : {}),
     };
   }
 
@@ -553,10 +597,9 @@ export function buildStructuredResumeDocument({
       selectionFactsByProject.get(normalized).push(fact);
     }
   }
-  // P16-009: URL-only DSA must render. The renderer inserts DSA after PROJECTS
-  // when dsa content exists; the ordering derivation only sees authored-bullet
-  // DSA, so a URL-only DSA is appended to the order here.
-  const _includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
+  // DSA section inclusion policy: An independent DSA section requires meaningful accomplishments.
+  // URL-only DSA profiles are preserved for the header link row and omitted as a standalone section.
+  const _includeProblemSolving = Boolean(dsa && isMeaningfulDsa(dsa));
 
   // Master Resume Structure: Project capacity is structural, not semantic (Req 1, 6 & 15)
   const masterStructure = MasterResumeStructureService.resolveMasterStructure(source, options);
@@ -1155,19 +1198,30 @@ export function buildStructuredResumeDocument({
               ? [b.factId]
               : [];
 
+        const bulletFactIds =
+          factIds.length > 0
+            ? factIds
+            : [projectFacts[bIdx]?.factId || `fact-${selectedId}-${bIdx + 1}`];
+
         const candidateBullet = {
           text: bText,
           evidenceRefs:
             Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0
               ? b.evidenceRefs
-              : factIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+              : bulletFactIds.map((id) =>
+                  toEvidenceReference({ factId: id, truthCategory: 'CLAIMED' })
+                ),
           matchedRequirementIds: Array.isArray(b.matchedRequirementIds)
             ? b.matchedRequirementIds
             : [],
-          composedFromFactIds: factIds,
+          composedFromFactIds: bulletFactIds,
           provenanceStatus: b.provenanceStatus || 'CLAIMED',
-          ...(b.sourceFact ? { sourceFact: b.sourceFact } : {}),
-          ...(b.transformationType ? { transformationType: b.transformationType } : {}),
+          sourceFact: b.sourceFact || bText,
+          transformationType: ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
+            b.transformationType
+          )
+            ? b.transformationType
+            : 'REWRITE',
         };
 
         const val = validateClaimEvidenceGrounding(candidateBullet, {
@@ -1179,24 +1233,82 @@ export function buildStructuredResumeDocument({
         });
 
         if (val.valid && !hasUnsupportedOutcomeOrMetric(bText, projectFacts)) {
-          candidateAiBullets.push(candidateBullet);
+          // Check semantic & fact redundancy with already accepted AI bullets for this project (Req 3)
+          const isDuplicate = candidateAiBullets.some((accepted) =>
+            areBulletsSemanticallyRedundant(accepted, candidateBullet)
+          );
+          if (!isDuplicate) {
+            candidateAiBullets.push(candidateBullet);
+          } else {
+            projectOmittedFacts.push({
+              factId: bulletFactIds[0] || 'duplicate-fact',
+              text: bText,
+              reason: 'DUPLICATE_PROJECT_ACCOMPLISHMENT',
+            });
+          }
         }
       }
 
       if (candidateAiBullets.length >= 1) {
+        if (candidateAiBullets.length < 3 && projectFacts.length >= candidateAiBullets.length + 1) {
+          const composed = composeProfessionalProjectBullets({
+            facts: projectFacts,
+            project: enrichedProj,
+            jobPosting: canonicalJob,
+            explicitBudget: 3,
+            candidateProfile: source,
+          });
+          for (const cb of composed.bullets) {
+            if (candidateAiBullets.length >= 3) break;
+            const isRedundant = candidateAiBullets.some((accepted) =>
+              areBulletsSemanticallyRedundant(accepted, cb)
+            );
+            if (!isRedundant) {
+              const factIds =
+                Array.isArray(cb.composedFromFactIds) && cb.composedFromFactIds.length > 0
+                  ? cb.composedFromFactIds
+                  : [
+                      projectFacts[candidateAiBullets.length]?.factId ||
+                        `fact-${selectedId}-${candidateAiBullets.length + 1}`,
+                    ];
+              candidateAiBullets.push({
+                ...cb,
+                composedFromFactIds: factIds,
+                evidenceRefs:
+                  Array.isArray(cb.evidenceRefs) && cb.evidenceRefs.length > 0
+                    ? cb.evidenceRefs
+                    : factIds.map((id) =>
+                        toEvidenceReference({ factId: id, truthCategory: 'CLAIMED' })
+                      ),
+                transformationType: [
+                  'REWRITE',
+                  'CONDENSE',
+                  'COMBINE',
+                  'EMPHASIZE',
+                  'VERBATIM',
+                ].includes(cb.transformationType)
+                  ? cb.transformationType
+                  : 'REWRITE',
+                sourceFact: cb.sourceFact || cb.text,
+                provenanceStatus: cb.provenanceStatus || 'CLAIMED',
+              });
+            }
+          }
+        }
         pBullets = candidateAiBullets.map((b, bIdx) => {
+          const { semanticDimensions, realizationSource, claimId, ...schemaBullet } = b;
           factCompositionTrace.push({
             projectId: selectedId,
             projectName: proj.name || proj.title || '',
-            composedFromFactIds: b.composedFromFactIds,
-            semanticDimensions: b.semanticDimensions || [],
+            composedFromFactIds: schemaBullet.composedFromFactIds,
+            semanticDimensions: semanticDimensions || [],
           });
           realizationSummaries.push({
-            claimId: b.claimId || `ai-bullet-${selectedId}-${bIdx + 1}`,
-            text: b.text,
+            claimId: claimId || `ai-bullet-${selectedId}-${bIdx + 1}`,
+            text: schemaBullet.text,
             validationResult: 'VALID',
           });
-          return b;
+          return schemaBullet;
         });
       }
     } else if (useFactComposition && projectFacts.length > 0) {
@@ -1354,6 +1466,19 @@ export function buildStructuredResumeDocument({
       }
     }
 
+    // Final project accomplishment deduplication pass (Req 3):
+    // Ensure bullets within the project do not duplicate each other semantically.
+    const distinctProjectBullets = [];
+    for (const b of pBullets) {
+      const isRedundant = distinctProjectBullets.some((existing) =>
+        areBulletsSemanticallyRedundant(existing, b)
+      );
+      if (!isRedundant) {
+        distinctProjectBullets.push(b);
+      }
+    }
+    pBullets = distinctProjectBullets;
+
     // PRD-002: preserve genuine thin projects; no fabricated three-bullet padding.
     const candidateAvailableBullets = Math.max(
       Array.isArray(proj.bullets) ? proj.bullets.length : 0,
@@ -1405,8 +1530,9 @@ export function buildStructuredResumeDocument({
         ? { description: proj.description || proj.metadata.description }
         : {}),
       liveUrl: proj.liveUrl || null,
-      technologies: rawTechs.length > 0 ? formatTechnologyStack(rawTechs) : [],
-      bullets: pBullets,
+      bullets: pBullets.map(
+        ({ semanticDimensions, realizationSource, claimId, ...cleanBullet }) => cleanBullet
+      ),
       relevanceScore,
       rank: idx + 1,
       selectionSource: ranking?.selectionStatus ? 'AUTHORITATIVE_RANKING' : 'DYNAMIC_LAYOUT',
@@ -1566,7 +1692,13 @@ export function buildStructuredResumeDocument({
   const generatedSummary =
     typeof options?.aiContent?.summary?.text === 'string' &&
     options.aiContent.summary.text.trim().length > 0;
-  if (!generatedSummary && typeof authoredSummaryText === 'string' && authoredSummaryText.trim()) {
+  const shouldPreserveAuthored = options?.preserveAuthoredSummary !== false;
+  if (
+    !generatedSummary &&
+    shouldPreserveAuthored &&
+    typeof authoredSummaryText === 'string' &&
+    authoredSummaryText.trim()
+  ) {
     summary = {
       text: authoredSummaryText.trim(),
       provenanceStatus: 'CLAIMED',
@@ -1581,26 +1713,51 @@ export function buildStructuredResumeDocument({
   ) {
     const rawRefPIds = options.aiContent.summary.referencedProjectIds || [];
     const validRefPIds = rawRefPIds.filter((id) => renderedPIdSet.has(id));
+    const summaryFactIds =
+      Array.isArray(options.aiContent.summary.composedFromFactIds) &&
+      options.aiContent.summary.composedFromFactIds.length > 0
+        ? options.aiContent.summary.composedFromFactIds
+        : [];
     summary = {
       text: options.aiContent.summary.text,
       referencedSkillSlugs: options.aiContent.summary.referencedSkillSlugs || [],
       referencedProjectIds: validRefPIds,
-      evidenceRefs: options.aiContent.summary.evidenceRefs || [],
+      evidenceRefs:
+        Array.isArray(options.aiContent.summary.evidenceRefs) &&
+        options.aiContent.summary.evidenceRefs.length > 0
+          ? options.aiContent.summary.evidenceRefs
+          : summaryFactIds.map((id) =>
+              toEvidenceReference({ factId: id, truthCategory: 'CLAIMED' })
+            ),
       matchedRequirementIds: options.aiContent.summary.matchedRequirementIds || [],
-      composedFromFactIds: options.aiContent.summary.composedFromFactIds || [],
+      composedFromFactIds: summaryFactIds,
       provenanceStatus: options.aiContent.summary.provenanceStatus || 'CLAIMED',
       provenance: options.aiContent.summary.provenance || null,
-      ...(options.aiContent.summary.sourceFact
-        ? { sourceFact: options.aiContent.summary.sourceFact }
-        : {}),
-      ...(options.aiContent.summary.transformationType
-        ? { transformationType: options.aiContent.summary.transformationType }
-        : {}),
+      sourceFact: options.aiContent.summary.sourceFact || options.aiContent.summary.text,
+      transformationType: ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
+        options.aiContent.summary.transformationType
+      )
+        ? options.aiContent.summary.transformationType
+        : 'COMBINE',
       ...(options.aiContent.summary.sentences
         ? {
             sentences: options.aiContent.summary.sentences.map((s) => ({
               ...s,
               projectIds: (s.projectIds || []).filter((id) => renderedPIdSet.has(id)),
+              transformationType: [
+                'REWRITE',
+                'CONDENSE',
+                'COMBINE',
+                'EMPHASIZE',
+                'VERBATIM',
+              ].includes(s.transformationType)
+                ? s.transformationType
+                : 'COMBINE',
+              sourceFact: s.sourceFact || s.text,
+              composedFromFactIds:
+                Array.isArray(s.composedFromFactIds) && s.composedFromFactIds.length > 0
+                  ? s.composedFromFactIds
+                  : summaryFactIds,
             })),
           }
         : {}),
@@ -1708,7 +1865,7 @@ export function buildStructuredResumeDocument({
           tailoredHeadingInfo.heading ||
           candidateIdentity.headline ||
           authoredHeadline ||
-          'Software Engineer'
+          'Candidate Profile'
         : authoredHeadline ||
           candidateIdentity.headline ||
           tailoredHeadingInfo.masterHeadline ||
@@ -1818,6 +1975,17 @@ export function buildStructuredResumeDocument({
     throw new Error(
       `Selected projects disappeared without a removal record: ${unrecordedProjectLoss.join(', ')}`
     );
+  }
+
+  if (Array.isArray(doc.projects)) {
+    doc.projects = doc.projects.map((project) => ({
+      ...project,
+      bullets: Array.isArray(project.bullets)
+        ? project.bullets.map(
+            ({ semanticDimensions, realizationSource, claimId, ...cleanBullet }) => cleanBullet
+          )
+        : [],
+    }));
   }
 
   const built = StructuredResumeDocumentSchema.parse(ensureCandidateSectionIntegrity(doc));

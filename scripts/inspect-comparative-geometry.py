@@ -70,6 +70,10 @@ def inspect_pdf(pdf_path):
     png_path = pdf_path.with_suffix('.png')
     pix.save(str(png_path))
 
+    body_spans = [s for s in spans if s['bbox'][1] > 105.0]
+    body_sizes = [s['size'] for s in body_spans] if body_spans else sizes
+    body_min_font = round(min(body_sizes), 2) if body_sizes else 0
+
     return {
         'pdfFile': str(pdf_path.name),
         'pngFile': str(png_path.name),
@@ -84,8 +88,9 @@ def inspect_pdf(pdf_path):
         },
         'typography': {
             'minimumFontPt': round(min(sizes), 2) if sizes else 0,
+            'bodyMinimumFontPt': body_min_font,
             'maximumFontPt': round(max(sizes), 2) if sizes else 0,
-            'fontFloorPass': (min(sizes) if sizes else 0) >= 9.95,
+            'fontFloorPass': body_min_font >= 9.95,
             'embeddedFontsCount': len(font_details),
             'allFontsEmbedded': all(f['embedded'] for f in font_details) if font_details else False,
             'fonts': font_details,

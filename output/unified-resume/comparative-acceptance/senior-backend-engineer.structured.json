@@ -1,5 +1,5 @@
 {
-  "documentId": "5843dd4e-bd03-42a3-9521-6819aa23fbb7",
+  "documentId": "07901bb3-458c-495b-9066-332ebdb9bfc2",
   "schemaVersion": "2.0.0",
   "targetRole": "Senior Backend Engineer",
   "sectionOrder": [
@@ -10,8 +10,7 @@
     "DSA",
     "EXPERIENCE",
     "EDUCATION",
-    "COURSEWORK",
-    "LANGUAGES"
+    "CERTIFICATIONS"
   ],
   "candidateIdentity": {
     "displayName": "Vishwanath Nishad",
@@ -45,7 +44,7 @@
     ]
   },
   "summary": {
-    "text": "Backend engineer experienced in designing modular REST APIs and distributed services using Node.js, Express, and Python frameworks including FastAPI and Flask. Proficient in relational data modeling with PostgreSQL and Prisma, query optimization, and latency reduction through Redis caching layers and Docker containerization. Builds secure backend architectures incorporating token-based authentication and fine-grained role-based access control.",
+    "text": "Backend engineer with practical experience designing RESTful APIs and backend services using Node.js, NestJS, and Python frameworks including FastAPI and Flask. Proficient in relational data modeling and query optimization with PostgreSQL, Prisma, and TypeORM, complemented by Redis caching layers and Docker containerization. Experienced in implementing secure JWT authentication with fine-grained role-based access control across collaborative web platforms.",
     "referencedSkillSlugs": [],
     "referencedProjectIds": [
       "00000000-0000-4000-8000-000000000002",
@@ -107,6 +106,21 @@
         "commitSha": null,
         "evidenceType": null,
         "matchedRequirementId": null,
+        "factId": "96644a800921e6f697f0fc84",
+        "sourceRef": "96644a800921e6f697f0fc84",
+        "confidenceScore": 1,
+        "provenanceTrustClass": null,
+        "notes": null
+      },
+      {
+        "sourceType": "CLAIMED",
+        "evidenceId": null,
+        "resourceId": null,
+        "resourceName": null,
+        "filePath": null,
+        "commitSha": null,
+        "evidenceType": null,
+        "matchedRequirementId": null,
         "factId": "b387bfe17b0b8d29e6af35ef",
         "sourceRef": "b387bfe17b0b8d29e6af35ef",
         "confidenceScore": 1,
@@ -134,6 +148,7 @@
       "128a2a945857af7aee12b8fd",
       "3f00a4d4d6621b0e4904ca2a",
       "6d8c69d737a9938984937eed",
+      "96644a800921e6f697f0fc84",
       "b387bfe17b0b8d29e6af35ef",
       "d2e04446d8d0407dfb5b246a"
     ],
@@ -143,17 +158,19 @@
       "Built a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based Access Control (RBAC) for collaboration.",
       "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
       "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
+      "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
       "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
       "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
     ],
     "transformationType": "REWRITE",
     "sentences": [
       {
-        "text": "Backend engineer experienced in designing modular REST APIs and distributed services using Node.js, Express, and Python frameworks including FastAPI and Flask. Proficient in relational data modeling with PostgreSQL and Prisma, query optimization, and latency reduction through Redis caching layers and Docker containerization. Builds secure backend architectures incorporating token-based authentication and fine-grained role-based access control.",
+        "text": "Backend engineer with practical experience designing RESTful APIs and backend services using Node.js, NestJS, and Python frameworks including FastAPI and Flask. Proficient in relational data modeling and query optimization with PostgreSQL, Prisma, and TypeORM, complemented by Redis caching layers and Docker containerization. Experienced in implementing secure JWT authentication with fine-grained role-based access control across collaborative web platforms.",
         "factIds": [
           "128a2a945857af7aee12b8fd",
           "3f00a4d4d6621b0e4904ca2a",
           "6d8c69d737a9938984937eed",
+          "96644a800921e6f697f0fc84",
           "b387bfe17b0b8d29e6af35ef",
           "d2e04446d8d0407dfb5b246a"
         ],
@@ -214,6 +231,21 @@
             "commitSha": null,
             "evidenceType": null,
             "matchedRequirementId": null,
+            "factId": "96644a800921e6f697f0fc84",
+            "sourceRef": "96644a800921e6f697f0fc84",
+            "confidenceScore": 1,
+            "provenanceTrustClass": null,
+            "notes": null
+          },
+          {
+            "sourceType": "CLAIMED",
+            "evidenceId": null,
+            "resourceId": null,
+            "resourceName": null,
+            "filePath": null,
+            "commitSha": null,
+            "evidenceType": null,
+            "matchedRequirementId": null,
             "factId": "b387bfe17b0b8d29e6af35ef",
             "sourceRef": "b387bfe17b0b8d29e6af35ef",
             "confidenceScore": 1,
@@ -243,6 +275,7 @@
           "128a2a945857af7aee12b8fd",
           "3f00a4d4d6621b0e4904ca2a",
           "6d8c69d737a9938984937eed",
+          "96644a800921e6f697f0fc84",
           "b387bfe17b0b8d29e6af35ef",
           "d2e04446d8d0407dfb5b246a"
         ],
@@ -250,6 +283,7 @@
           "Built a secure, full-stack task management platform with JWT-based authentication and fine-grained Role-Based Access Control (RBAC) for collaboration.",
           "Engineered modular NestJS backend with TypeORM, PostgreSQL persistence, and Redis caching layer to accelerate query response times.",
           "Integrated Swagger/OpenAPI documentation and containerized services using Docker Compose with automated GitHub Actions CI/CD.",
+          "Developed a secure authentication system featuring role-based access control (RBAC) and specialized admin dashboards.",
           "Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time updates.",
           "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns."
         ],
@@ -315,41 +349,6 @@
         ]
       },
       {
-        "categoryName": "Databases & ORMs",
-        "skills": [
-          {
-            "name": "PostgreSQL",
-            "slug": "postgresql",
-            "provenanceStatus": "CLAIMED",
-            "evidenceId": null,
-            "sourceSkillId": null,
-            "confidenceScore": 0.5,
-            "relevanceScore": 80,
-            "matchedRequirementId": "req-34e85e1313e6"
-          },
-          {
-            "name": "Redis",
-            "slug": "redis",
-            "provenanceStatus": "CLAIMED",
-            "evidenceId": null,
-            "sourceSkillId": null,
-            "confidenceScore": 0.5,
-            "relevanceScore": 80,
-            "matchedRequirementId": "req-21da4598e3be"
-          },
-          {
-            "name": "MongoDB",
-            "slug": "mongodb",
-            "provenanceStatus": "CLAIMED",
-            "evidenceId": null,
-            "sourceSkillId": null,
-            "confidenceScore": 0.5,
-            "relevanceScore": 20,
-            "matchedRequirementId": null
-          }
-        ]
-      },
-      {
         "categoryName": "Languages",
         "skills": [
           {
@@ -381,6 +380,41 @@
             "confidenceScore": 0.5,
             "relevanceScore": 20,
             "matchedRequirementId": null
+          },
+          {
+            "name": "SQL",
+            "slug": "sql",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 20,
+            "matchedRequirementId": null
+          }
+        ]
+      },
+      {
+        "categoryName": "Databases & ORMs",
+        "skills": [
+          {
+            "name": "PostgreSQL",
+            "slug": "postgresql",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-34e85e1313e6"
+          },
+          {
+            "name": "Redis",
+            "slug": "redis",
+            "provenanceStatus": "CLAIMED",
+            "evidenceId": null,
+            "sourceSkillId": null,
+            "confidenceScore": 0.5,
+            "relevanceScore": 80,
+            "matchedRequirementId": "req-21da4598e3be"
           }
         ]
       },
@@ -434,17 +468,10 @@
       "description": "Architected a full-stack product explorer with Next.js 14 frontend, Tailwind CSS, modular NestJS backend, PostgreSQL persistence, and Redis caching.",
       "repositoryUrl": "https://github.com/vishu1803/Product-Data-Explorer",
       "liveUrl": null,
-      "technologies": [
-        "TypeScript",
-        "NestJS",
-        "Next.js",
-        "PostgreSQL",
-        "TypeORM",
-        "Docker"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Engineered a modular NestJS backend utilizing TypeORM and PostgreSQL persistence, integrating a Redis caching layer to accelerate query response times.",
+          "text": "Engineered a modular NestJS backend with TypeORM and PostgreSQL persistence, integrating a Redis caching layer to accelerate query response times.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -473,7 +500,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Containerized multi-service architecture using Docker Compose and established OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+          "text": "Containerized application services with Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery pipelines.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -502,7 +529,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Architected full-stack product exploration platform leveraging Next.js 14 and Tailwind CSS with server-side rendering for catalog browsing.",
+          "text": "Architected a full-stack product exploration platform utilizing Next.js 14 and Tailwind CSS with server-side rendering for catalog browsing.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -556,17 +583,10 @@
       "description": "Built full-stack task management platform with role-based access control, secure authentication, PostgreSQL, and Prisma ORM.",
       "repositoryUrl": "https://github.com/vishu1803/Collaborative-task-manager",
       "liveUrl": null,
-      "technologies": [
-        "TypeScript",
-        "Next.js",
-        "Express.js",
-        "Node.js",
-        "Prisma ORM",
-        "PostgreSQL"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Engineered high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time platform updates.",
+          "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time application updates.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -612,7 +632,7 @@
           "transformationType": "COMBINE"
         },
         {
-          "text": "Implemented JWT-based authentication and fine-grained Role-Based Access Control (RBAC) using Express.js and TypeScript to enable secure multi-user collaboration.",
+          "text": "Built a full-stack task management platform integrating JWT-based authentication and fine-grained Role-Based Access Control (RBAC) to enable secure user collaboration.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -666,16 +686,10 @@
       "description": "Engineered automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect anti-patterns.",
       "repositoryUrl": "https://github.com/vishu1803/Ai-powered-code-review-assistant",
       "liveUrl": null,
-      "technologies": [
-        "Python",
-        "FastAPI",
-        "Flask",
-        "Git",
-        "OpenAI API"
-      ],
+      "technologies": [],
       "bullets": [
         {
-          "text": "Engineered an automated code analysis service using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+          "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -704,7 +718,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Implemented rule-based validation mechanisms in Python to detect security vulnerabilities, code smells, and syntax issues across pull requests.",
+          "text": "Implemented rule-based validation logic to detect security vulnerabilities, code smells, and syntax issues across pull requests.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -733,7 +747,7 @@
           "transformationType": "REWRITE"
         },
         {
-          "text": "Configured Git and GitHub webhook integrations to post automated review feedback directly onto code changes.",
+          "text": "Configured Git and GitHub webhook integrations to post automated review feedback directly on code changes.",
           "evidenceRefs": [
             {
               "sourceType": "CLAIMED",
@@ -826,15 +840,40 @@
       "provenanceStatus": "USER_PROVIDED"
     }
   ],
-  "certifications": [],
+  "certifications": [
+    {
+      "id": "cert-001",
+      "name": "AWS Certified Cloud Practitioner",
+      "issuingOrganization": "Amazon Web Services",
+      "issueDate": "2024",
+      "expirationDate": null,
+      "credentialId": "AWS-CCP-98472",
+      "credentialUrl": "https://aws.amazon.com/verification",
+      "notes": null,
+      "legacyFields": {
+        "doesNotExpire": true
+      },
+      "provenanceStatus": "USER_PROVIDED"
+    },
+    {
+      "id": "cert-002",
+      "name": "Meta Backend Developer Professional Certificate",
+      "issuingOrganization": "Meta / Coursera",
+      "issueDate": "2023",
+      "expirationDate": null,
+      "credentialId": "COURSERA-META-7821",
+      "credentialUrl": "https://coursera.org/verify/meta-backend",
+      "notes": null,
+      "legacyFields": {
+        "doesNotExpire": true
+      },
+      "provenanceStatus": "USER_PROVIDED"
+    }
+  ],
   "dsa": {
-    "hasSection": true,
+    "hasSection": false,
     "profileUrl": "https://leetcode.com/u/vishwanatnishad",
-    "bullets": [
-      "300+ LeetCode problems solved across core computer science topics (Dynamic Programming, Graphs, Trees, Arrays, Binary Search).",
-      "Daily competitive programming and DSA practice to maintain interview readiness and a strong analytical foundation.",
-      "Demonstrated proficiency in translating complex algorithmic solutions into production code for system optimization."
-    ],
+    "bullets": [],
     "provenanceStatus": "USER_PROVIDED"
   },
   "optionalSections": {
@@ -869,9 +908,12 @@
     "leadership": [],
     "customSections": []
   },
-  "sourceWarnings": [],
+  "sourceWarnings": [
+    "Unrendered legacy fields retained for review on cert-001: doesNotExpire",
+    "Unrendered legacy fields retained for review on cert-002: doesNotExpire"
+  ],
   "tailoringPlan": {
-    "planId": "9b695ed7-9d63-4670-abca-37416547d5bc",
+    "planId": "e0ca2b09-2c03-418f-a910-531fb7369897",
     "targetJobId": "00000000-0000-5000-a000-000000000002",
     "targetRoleTitle": "Senior Backend Engineer",
     "targetCompany": "Redient Security",
@@ -885,8 +927,7 @@
       "DSA",
       "EXPERIENCE",
       "EDUCATION",
-      "COURSEWORK",
-      "LANGUAGES"
+      "CERTIFICATIONS"
     ],
     "selectedProjectIds": [
       "00000000-0000-4000-8000-000000000001",
@@ -897,17 +938,17 @@
       "node-js",
       "fastapi",
       "flask",
+      "python",
       "postgresql",
       "redis",
-      "python",
       "docker",
       "nestjs",
       "express-js",
       "typescript",
       "git",
       "next-js",
-      "mongodb",
-      "javascript"
+      "javascript",
+      "sql"
     ],
     "selectedSkills": [
       {
@@ -971,42 +1012,6 @@
         "order": 6
       },
       {
-        "slug": "postgresql",
-        "name": "PostgreSQL",
-        "category": "Databases & ORMs",
-        "provenanceStatus": "CLAIMED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 80,
-        "matchedRequirementId": "req-34e85e1313e6",
-        "confidenceScore": 0.5,
-        "order": 7
-      },
-      {
-        "slug": "redis",
-        "name": "Redis",
-        "category": "Databases & ORMs",
-        "provenanceStatus": "CLAIMED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 80,
-        "matchedRequirementId": "req-21da4598e3be",
-        "confidenceScore": 0.5,
-        "order": 8
-      },
-      {
-        "slug": "mongodb",
-        "name": "MongoDB",
-        "category": "Databases & ORMs",
-        "provenanceStatus": "CLAIMED",
-        "evidenceId": null,
-        "evidenceCount": 0,
-        "relevanceScore": 20,
-        "matchedRequirementId": null,
-        "confidenceScore": 0.5,
-        "order": 10
-      },
-      {
         "slug": "python",
         "name": "Python",
         "category": "Languages",
@@ -1016,7 +1021,7 @@
         "relevanceScore": 80,
         "matchedRequirementId": "req-44407571a645",
         "confidenceScore": 0.5,
-        "order": 11
+        "order": 7
       },
       {
         "slug": "typescript",
@@ -1028,7 +1033,7 @@
         "relevanceScore": 25,
         "matchedRequirementId": null,
         "confidenceScore": 0.5,
-        "order": 12
+        "order": 8
       },
       {
         "slug": "javascript",
@@ -1040,7 +1045,43 @@
         "relevanceScore": 20,
         "matchedRequirementId": null,
         "confidenceScore": 0.5,
-        "order": 13
+        "order": 9
+      },
+      {
+        "slug": "sql",
+        "name": "SQL",
+        "category": "Languages",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 20,
+        "matchedRequirementId": null,
+        "confidenceScore": 0.5,
+        "order": 10
+      },
+      {
+        "slug": "postgresql",
+        "name": "PostgreSQL",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-34e85e1313e6",
+        "confidenceScore": 0.5,
+        "order": 11
+      },
+      {
+        "slug": "redis",
+        "name": "Redis",
+        "category": "Databases & ORMs",
+        "provenanceStatus": "CLAIMED",
+        "evidenceId": null,
+        "evidenceCount": 0,
+        "relevanceScore": 80,
+        "matchedRequirementId": "req-21da4598e3be",
+        "confidenceScore": 0.5,
+        "order": 12
       },
       {
         "slug": "docker",
@@ -1081,15 +1122,15 @@
     ],
     "skillCategoryOrder": [
       "Backend & APIs",
-      "Databases & ORMs",
       "Languages",
+      "Databases & ORMs",
       "Cloud, DevOps & Systems",
       "Frontend & Web"
     ],
     "optionalSections": {
-      "includeDsa": true,
-      "includeCertifications": false,
-      "includeCoursework": true,
+      "includeDsa": false,
+      "includeCertifications": true,
+      "includeCoursework": false,
       "includePublications": false,
       "includeAchievements": false,
       "includeAdditionalSkills": false,
@@ -1123,20 +1164,20 @@
       },
       {
         "status": "REJECTED",
-        "reason": "UNSUPPORTED_MATERIAL_WORDING"
+        "reason": "UNSUPPORTED_OUTCOME"
       }
     ],
     "missingDataGuidance": []
   },
-  "createdAt": "2026-10-16T14:21:40.393Z",
+  "createdAt": "2026-10-26T20:43:38.301Z",
   "debugTrace": {
     "candidateHeadline": "Full-Stack & Backend Developer",
     "targetRole": "Backend Engineer",
     "targetRoleFamily": "FULL_STACK",
     "dsaDecision": {
-      "hasCandidateBullets": true,
+      "hasCandidateBullets": false,
       "hasProfileUrl": true,
-      "sectionIncluded": true
+      "sectionIncluded": false
     },
     "syntheticContentBlocked": [
       "DSA_HARDCODED_PROSE",
@@ -1154,15 +1195,6 @@
         "evidenceRole": "EDUCATION"
       },
       {
-        "factId": "1075d7be1632240421d5262f",
-        "sourceType": "summary",
-        "candidateAuthored": true,
-        "agencyLevel": "CANDIDATE",
-        "agencySource": "CANDIDATE_AUTHORED",
-        "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
-      },
-      {
         "factId": "128a2a945857af7aee12b8fd",
         "sourceType": "bullet",
         "candidateAuthored": true,
@@ -1172,13 +1204,13 @@
         "evidenceRole": "ACTION"
       },
       {
-        "factId": "1cc4a94b8d1cc8a7001ec68c",
-        "sourceType": "summary",
+        "factId": "13f3282993ae4182700a3702",
+        "sourceType": "certification",
         "candidateAuthored": true,
         "agencyLevel": "CANDIDATE",
         "agencySource": "CANDIDATE_AUTHORED",
         "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
+        "evidenceRole": "PROJECT_DESCRIPTION"
       },
       {
         "factId": "292b2814310a89c67a12b05e",
@@ -1271,18 +1303,18 @@
         "evidenceRole": "ACTION"
       },
       {
-        "factId": "a61256f69620df26b38ab672",
-        "sourceType": "link",
-        "candidateAuthored": true
-      },
-      {
-        "factId": "a6655d60d4dca64ecc7c5696",
-        "sourceType": "summary",
+        "factId": "9ae32a3dd10f97f0449d4aa4",
+        "sourceType": "certification",
         "candidateAuthored": true,
         "agencyLevel": "CANDIDATE",
         "agencySource": "CANDIDATE_AUTHORED",
         "contributionClass": "CANDIDATE_IMPLEMENTATION",
-        "evidenceRole": "DSA"
+        "evidenceRole": "PROJECT_DESCRIPTION"
+      },
+      {
+        "factId": "a61256f69620df26b38ab672",
+        "sourceType": "link",
+        "candidateAuthored": true
       },
       {
         "factId": "b387bfe17b0b8d29e6af35ef",
@@ -1379,42 +1411,42 @@
     "realizationSummary": [
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-1",
-        "text": "Engineered a modular NestJS backend utilizing TypeORM and PostgreSQL persistence, integrating a Redis caching layer to accelerate query response times.",
+        "text": "Engineered a modular NestJS backend with TypeORM and PostgreSQL persistence, integrating a Redis caching layer to accelerate query response times.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-2",
-        "text": "Containerized multi-service architecture using Docker Compose and established OpenAPI documentation alongside automated GitHub Actions continuous delivery.",
+        "text": "Containerized application services with Docker Compose and integrated OpenAPI documentation alongside automated GitHub Actions continuous delivery pipelines.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000001-3",
-        "text": "Architected full-stack product exploration platform leveraging Next.js 14 and Tailwind CSS with server-side rendering for catalog browsing.",
+        "text": "Architected a full-stack product exploration platform utilizing Next.js 14 and Tailwind CSS with server-side rendering for catalog browsing.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-1",
-        "text": "Engineered high-performance RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time platform updates.",
+        "text": "Designed and implemented RESTful CRUD APIs using Node.js and Prisma ORM, optimizing complex PostgreSQL queries to support real-time application updates.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000002-2",
-        "text": "Implemented JWT-based authentication and fine-grained Role-Based Access Control (RBAC) using Express.js and TypeScript to enable secure multi-user collaboration.",
+        "text": "Built a full-stack task management platform integrating JWT-based authentication and fine-grained Role-Based Access Control (RBAC) to enable secure user collaboration.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-1",
-        "text": "Engineered an automated code analysis service using Python, FastAPI, and Flask to inspect pull requests and detect code anti-patterns.",
+        "text": "Engineered an automated code analysis tool using Python, FastAPI, and Flask to analyze pull requests and detect code anti-patterns.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-2",
-        "text": "Implemented rule-based validation mechanisms in Python to detect security vulnerabilities, code smells, and syntax issues across pull requests.",
+        "text": "Implemented rule-based validation logic to detect security vulnerabilities, code smells, and syntax issues across pull requests.",
         "validationResult": "VALID"
       },
       {
         "claimId": "ai-bullet-00000000-0000-4000-8000-000000000003-3",
-        "text": "Configured Git and GitHub webhook integrations to post automated review feedback directly onto code changes.",
+        "text": "Configured Git and GitHub webhook integrations to post automated review feedback directly on code changes.",
         "validationResult": "VALID"
       }
     ],
@@ -1438,7 +1470,8 @@
         "128a2a945857af7aee12b8fd",
         "d2e04446d8d0407dfb5b246a",
         "8dca2ef83c193333f035943b",
-        "be3d8873b923808234b05849"
+        "be3d8873b923808234b05849",
+        "96644a800921e6f697f0fc84"
       ]
     },
     "requirementCoverage": {
@@ -1816,6 +1849,16 @@
         "evidenceStrength": 0.5,
         "confidence": 0.35,
         "explanation": "TOKEN_BOUNDARY matched 'Role-Based Access Control' to candidate fact"
+      },
+      {
+        "requirementId": "req-66fcd1670c1a",
+        "factId": "13f3282993ae4182700a3702",
+        "matchType": "EXACT_CONCEPT",
+        "matchStrength": 1,
+        "requirementImportance": "REQUIRED",
+        "evidenceStrength": 0.5,
+        "confidence": 0.5,
+        "explanation": "EXACT_CONCEPT matched 'Backend Engineering' to candidate fact"
       },
       {
         "requirementId": "req-34e85e1313e6",
@@ -2282,7 +2325,8 @@
       "128a2a945857af7aee12b8fd",
       "d2e04446d8d0407dfb5b246a",
       "8dca2ef83c193333f035943b",
-      "be3d8873b923808234b05849"
+      "be3d8873b923808234b05849",
+      "96644a800921e6f697f0fc84"
     ],
     "authoritativeEligibleProjectCount": 3
   },
@@ -2291,7 +2335,7 @@
     "paperSize": "A4",
     "minimumFontPt": 10,
     "rendererVersion": "chrome-ats-a4-v2",
-    "pass": 0,
+    "pass": 2,
     "sectionOrder": [
       "HEADER",
       "SUMMARY",
@@ -2299,9 +2343,8 @@
       "PROJECTS",
       "EXPERIENCE",
       "EDUCATION",
-      "LANGUAGES",
-      "DSA",
-      "COURSEWORK"
+      "CERTIFICATIONS",
+      "DSA"
     ],
     "condensations": [],
     "decisions": [
@@ -2316,29 +2359,14 @@
         "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
       },
       {
-        "path": "projects.2.description",
+        "path": "projects.2",
         "action": "OMITTED",
-        "reason": "Detailed description retained in the full resume; selected factual bullets provide the presentation."
+        "reason": "Lower job relevance under the one-page content budget; full record retained."
       },
       {
-        "path": "dsa.hasSection",
+        "path": "optionalSections.languages.1",
         "action": "OMITTED",
-        "reason": "DSA section omitted to preserve professional experience, project accomplishments, and spoken languages on a single page."
-      },
-      {
-        "path": "dsa.bullets.0",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
-      },
-      {
-        "path": "dsa.bullets.1",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
-      },
-      {
-        "path": "dsa.bullets.2",
-        "action": "OMITTED",
-        "reason": "DSA bullets omitted to preserve higher-priority resume sections under one-page budget."
+        "reason": "Optional entry outside the one-page relevance budget."
       }
     ]
   }

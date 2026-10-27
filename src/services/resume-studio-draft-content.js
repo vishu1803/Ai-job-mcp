@@ -179,7 +179,7 @@ export function defaultStudioSelection(nodes) {
   const collect = (kind) => nodes.filter((node) => node.kind === kind).map((node) => node.nodeId);
   return {
     experienceIds: collect('EXPERIENCE'),
-    projectIds: collect('PROJECT').slice(0, 2),
+    projectIds: collect('PROJECT').slice(0, 3),
     skillIds: collect('SKILL'),
     bulletIds: collect('BULLET'),
   };

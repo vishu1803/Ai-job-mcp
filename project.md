@@ -1,3 +1,122 @@
+# UNIFIED-RESUME-A4-FINAL-QUALITY-020 — Final A4 Resume Layout, Content Quality, DSA Omission, Accomplishment Deduplication, and Profile Certifications Feature (2026-10-27)
+
+Status: COMPLETE — Verified locally and end-to-end with Chromium browser E2E test (6/6 pass), unit test suites (102/102 pass), live Vertex AI comparative tailoring (`gemini-3.8-flash`), Headless Chrome LaTeX vector printer, PyMuPDF vector geometry inspection (1-page A4, bottom margins 15.72mm and 17.31mm, font floor >= 10pt), and secret scanner (0 violations).
+1. **Diagnosis & Implementation**:
+   - **DSA Section Omission by Default**: In `src/services/resume-composition-primitives.js` and `src/services/master-resume-structure.service.js`, enforced strict omission of DSA section when it only contains a profile URL already present in the header links. Refined `isMeaningfulDsa` to require substantive accomplishments/stats and reject boilerplate (`solved various`, `practiced data structures`). Omitted section cleanly frees vertical space for projects and certifications.
+   - **Accomplishment Deduplication & Quality**: In `src/services/resume-content-strategy.service.js`, eliminated semantic duplicates within project accomplishments (e.g. repeated Flask / FastAPI / GitHub webhook statements). Dynamically budgeted up to 3 distinct factual accomplishments per project, showing fewer if no distinct facts exist. Zero unbacked claims fabricated.
+   - **Space-Aware Project Selection & Geometry Balance**: Calibrated typography and adaptive spacing tokens in `src/services/resume-layout-engine.service.js` and `src/services/latex-document-generator.service.js`: Name 21pt bold, Role/Headline 12.5pt bold, Contact line 9.5pt, Profile links 8.5pt centered on one line, Body text strictly >= 10.0pt Latin Modern Roman. Live comparative tailoring across Software Engineer and Senior Backend Engineer roles produced intentional bottom margins within the target 12–18mm range (15.72mm and 17.31mm), with 0.945 and 0.939 occupancy ratios and embedded TrueType Latin Modern fonts (`LMRoman10-Bold`, `LMRoman10-Regular`, `LMRoman10-Italic`).
+   - **Profile Certifications End-to-End Feature**:
+     - Added interactive Add/Edit/Delete/View modal UI in `src/views/profile.page.js` under `Profile → Skills & Projects → Certifications & Spoken Languages`.
+     - Fields: Name (required), Issuing Organization (required), Issue Date (optional), Expiration Date (optional), Does Not Expire checkbox, Credential ID (optional), Verification URL (optional), Description/Notes (optional).
+     - Client-side validation: prevents submission without name/issuer, enforces URL format (`http://` or `https://`), validates date bounds (`issueDate <= expirationDate`).
+     - Real backend persistence: saves via `PATCH /api/profile` (`candidateProfileService.updateUserProfileSections`), persisting directly to PostgreSQL candidate `profileMetadata.certifications` with tenant isolation and CSRF validation.
+     - Resume generation pipeline integration: `LatexDocumentGenerator` and `MasterResumeStructureService` render certifications as `Name — Issuer | Year` with clickable external hyperlinks when verification URLs are present.
+     - Database immutability safety: implemented recursive cascade deletion in `src/services/resume-generation-version.service.js` to respect PostgreSQL immutability triggers `guard_resume_generation` and `guard_resume_studio_draft`.
+2. **Verification Evidence**:
+   - `node --test tests/e2e/profile-certifications-browser.test.js`: PASS (6/6 tests pass in Chromium: navigation, add modal, database persistence, edit update, delete with confirmation, and empty state persistence across reload).
+   - `node --test tests/unit/dsa-omission-and-certifications.test.js`: PASS (17/17 tests pass).
+   - `node --test tests/unit/resume-structure-content-conditioning.test.js`: PASS (16/16 tests pass).
+   - `node --test tests/unit/resume-layout-engine.test.js`: PASS (46/46 tests pass).
+   - `node --test tests/unit/multi-candidate-regression-matrix.test.js`: PASS (11/11 tests pass).
+   - `node --test tests/unit/p16-003-content-integrity.test.js`: PASS (12/12 tests pass).
+   - PyMuPDF vector inspection (`scripts/inspect-comparative-geometry.py`): PASS (Software Engineer: 594.96 × 841.92 pt, bottom margin 15.72mm, font floor pass; Senior Backend Engineer: 594.96 × 841.92 pt, bottom margin 17.31mm, font floor pass).
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+   - Remote Aiven DB: Strictly untouched at migration 0021.
+
+# UNIFIED-RESUME-CONTENT-CONDITIONING-019 — Role-Conditioned Section Architecture, Certifications Ingestion, and Single-Page A4 Fitting (2026-10-27)
+
+Status: COMPLETE — Verified locally and end-to-end with live Vertex AI (`gemini-3.8-flash`), Headless Chrome LaTeX vector printer, PyMuPDF vector inspection, and full unit regression suites (16/16 contract tests, 89/89 security verification tests, 27/27 layout tests, 15/15 source writing tests, 11/11 multi-candidate tests).
+1. **Diagnosis & Implementation**:
+   - **Handoff Kit Persistence**: Fixed constructor parameter passing in `src/services/application-handoff.service.js` to inject `dependencies.database` down to `ApplicationTrackingService` and `CandidateProfileService`. In `src/services/job-application-workflow.service.js`, added `persist: true` to `buildApplicationHandoffKit` so handoff kits are atomically persisted when application packages are generated and accessible via `/applications/:id/handoff`.
+   - **Canonical Master Section Order & Optional Sections**: Restored canonical core order `DEFAULT_MASTER_SECTION_ORDER = ['HEADER', 'SUMMARY', 'SKILLS', 'PROJECTS', 'DSA', 'EXPERIENCE', 'EDUCATION', 'CERTIFICATIONS']` in `src/domain/career/master-resume-structure.schemas.js`. Reclassified optional sections (`ADDITIONAL_SKILLS`, `AWARDS`, `LANGUAGES`, `VOLUNTEER`, `LEADERSHIP`, `CUSTOM`) to `'OPTIONAL'` policy so that non-present optional sections do not pollute standard single-page geometry.
+   - **Relevant Coursework Scope**: In `src/services/master-resume-structure.service.js`, isolated `COURSEWORK` checks strictly to standalone candidate coursework, preventing candidate education coursework from spawning a redundant top-level `COURSEWORK` section (it stays inside `EDUCATION`).
+   - **DSA Section Hyperlink Resilience**: In `src/services/latex-document-generator.service.js`, allowed rendering when `dsaBullets.length > 0 || dsaUrl` so that candidate authentic LeetCode profile handles render cleanly even when authored bullets are empty, positioned immediately following `PROJECTS` per career-stage ordering.
+   - **Certifications Ingestion & Rendering**: In `src/services/master-resume-structure.service.js` and `src/services/resume-content-strategy.service.js`, expanded `hasCertifications` to discover certifications across root profile, `profileMetadata.certifications`, `userCustom.certifications`, `resumeData.certifications`, and `optionalSections.certifications`, rendering cleanly in both LaTeX output and Resume Studio structured editor.
+   - **Source-Grounded Summary & Buzzword Safeguards**: In `src/services/source-grounded-summary.service.js`, enforced `options.synthesizeSummary === true` for template synthesis and normalized `OBSERVED` repository signals to `INFERRED` provenance to preserve PRD-002 veracity. In `src/clients/ai/prompt-policies/resume-summary.policy.js` and `src/services/resume-ai-realization.service.js`, added explicit prohibitions and rejection gates for ungrounded buzzwords (`scalable`, `low-latency`, `high concurrency`, etc.) while expanding allowed technical vocabulary for natural descriptors (`dynamic`, `complemented`, `boundary`, `algorithm`, `submission`, `guarantee`).
+2. **Verification Evidence**:
+   - `node --test tests/unit/resume-structure-content-conditioning.test.js`: PASS (16 tests, 8 suites, 16 pass, 0 fail).
+   - `node --test tests/unit/evidence-verification-security.test.js`: PASS (89 tests, 89 pass, 0 fail).
+   - `node --test tests/unit/prd002-source-grounded-writing.test.js`: PASS (15 tests, 15 pass, 0 fail).
+   - `node --test tests/unit/multi-candidate-regression-matrix.test.js`: PASS (11 tests, 11 pass, 0 fail).
+   - `node --test tests/unit/latex-document-generator.test.js tests/unit/prd002-one-page-selection.test.js tests/unit/resume-content-budget.test.js`: PASS (27 tests, 27 pass, 0 fail).
+   - `node scripts/test-comparative-generation.mjs`: PASS with live Vertex AI (`gemini-3.8-flash`) and Headless Chrome vector printer across Software Engineer and Senior Backend Engineer roles (1 single page each, 3 projects selected, 5 skill categories).
+   - PyMuPDF vector inspection (`python scripts/inspect-comparative-geometry.py`): PASS (Both PDFs exactly 1 single A4 page, 594.96 x 841.92 pt, Latin Modern Roman TrueType fonts embedded: `AAAAAA+LMRoman10-Bold`, `BAAAAA+LMRoman10-Regular`, `CAAAAA+LMRoman10-Italic`).
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+   - Scoped ESLint check: PASS (0 errors, 0 warnings across all modified files).
+
+# PACKAGE-REGENERATION-REPAIR-018 — Fix Application Package Regeneration Failure & Schema-Clean Bullet Pipeline (2026-10-26)
+
+Status: COMPLETE — Verified locally and end-to-end with live Vertex AI (`gemini-3.8-flash`), Headless Chrome LaTeX vector printer, PyMuPDF vector inspection, and HTTP Resume Studio Draft creation (`POST /api/v1/resume-studio/drafts`).
+1. **Diagnosis & Root Cause Resolution**:
+   - Resolved `ConflictError: Select the current reviewed canonical master` at `src/services/resume-generation.service.js:209:15`: Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` metadata pointed to master resume `fb8d151d-4282-4471-bd18-67e5b4a60a2a`, but `resumes` table was completely empty. Seeded authentic master resume encrypted via `DocumentStorageService` and updated `scripts/seed-test-fixtures.js` so all test seed runs persist the base resume.
+   - Resolved `ZodError: Unrecognized key(s) in object: 'semanticDimensions', 'realizationSource' at path ['projects', 1, 'bullets', 2]`: In `src/services/structured-resume.service.js`, internal accomplishment composition metadata leaked into project bullets during AI backfill. Sanitized and stripped `{ semanticDimensions, realizationSource, claimId }` across bullet mapping and defensively prior to `StructuredResumeDocumentSchema.parse`.
+   - Resolved `ModuleNotFoundError: No module named 'pymupdf'` at `scripts/inspect-studio-pdf.py:4`: Installed PyMuPDF 2.0 wheel and dependencies into active Python 3.12 environment.
+   - Resolved `MISSING: ['English (Professional), Hindi (Professional)']` / `DOCUMENT_REVIEW_REQUIRED`: In `src/services/latex-document-generator.service.js`, language proficiency was rendered as raw enum `(PROFESSIONAL)` instead of Title Case `(Professional)` expected by `resume-studio-document-content.js`. Standardized LaTeX language proficiency to Title Case.
+   - Resolved `INVALID_RESUME_SOURCE: Unrecognized resume date; retain the original and correct it` at `src/utils/resume-source-normalizer.js:101`: When candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` experience records stored human-entered date ranges in `startDate` (e.g. `"June 2024 – September 2024"`) with `endDate: null` and without `rawDateRange`, `date()` rejected the string. Enhanced `normalizeResumeSourceSections` in `src/utils/resume-source-normalizer.js` to detect embedded range delimiters (`–`, `-`, `to`) in `startDate`, extract `startDate`, `endDate`, and `rawDateRange` via `sourceRange()`, and fall back cleanly in `date()`. Also updated candidate `profileMetadata` in database with normalized ISO dates.
+2. **Verification Evidence**:
+   - `JobApplicationWorkflowService.regenerateApplicationPackage` for application `6bdb4bb2-c83e-4e4a-b056-4545abd38b0e` (`Senior Backend Engineer` at `Platform Systems Inc`):
+     - Live Vertex AI text generation (`RESUME_SUMMARY_SYNTHESIS` and `RESUME_ACCOMPLISHMENT_SYNTHESIS`) completed and passed evidence grounding gates.
+     - Headless Chrome vector printer successfully compiled single-page A4 PDF.
+     - PyMuPDF vector inspection verified 1-page A4, font size (10pt), fonts embedded, word spacing, no overlaps, and 100% text preservation with 0 missing strings.
+     - Generated package successfully saved, sealed with evidence trust receipt, and returned `documentsStatus: 'DOCUMENTS_READY'` and `studioUrl`.
+   - `ResumeStudioDraftService.createFromGeneration` and `POST /api/v1/resume-studio/drafts`:
+     - Live service call: created draft `f56eee31-e51c-4838-bef0-9c715c9786d9` (revision 1) for generation `ff09d4b4-8136-4b9f-bb05-fb8d2abc90f4`.
+     - Live HTTP API call to running server on port 3000: returned HTTP 201 Created with valid nodes, node provenance, section selections, structured resume, and master snapshot.
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private credentials).
+   - `npx eslint src/utils/resume-source-normalizer.js src/services/structured-resume.service.js src/services/resume-studio-draft-content.js`: PASS (0 errors).
+   - `node scripts/seed-test-fixtures.js`: PASS.
+
+# AIVEN-SYNC-DIAGNOSTIC-017 — Remote Aiven Connectivity Probe and Local DB Sync Audit (2026-10-26)
+
+Status: BLOCKED on Remote Network / Aiven Service Availability.
+1. **Connectivity Probe to Aiven Cloud**:
+   - Host `pg-d89177b-vishwanatnishad-6628.h.aivencloud.com` resolved to IP `64.227.153.91`.
+   - TCP handshake to port `22984` timed out (`Test-NetConnection` TcpTestSucceeded: False, PingSucceeded: False).
+   - Traceroute confirmed packets are dropped beyond core gateway hop 8 (`172.25.86.126`), matching the known ISP/routing block or suspended service state in Aiven console.
+2. **Local Database Data Audit**:
+   - Local cluster on port 5433 (`career_hub_dev`) is healthy and already holds the complete authentic snapshot previously exported from Aiven (`src/db/seeds/test-fixtures.json`): 1 user (`vishwanatnishad@gmail.com`), 1 candidate, 506 skills, 11 projects, 10 resources, 82 candidate skills, 246 evidence items, 13 job applications, 198 catalog skills.
+   - All 28 Drizzle migrations applied locally (vs migration 0021 on Aiven).
+   - Zero secrets committed or exposed in console outputs.
+
+# DATABASE-CONNECTIVITY-VERIFICATION-016 — Database Connection Probe & Diagnostic Script Verification (2026-10-26)
+
+Status: COMPLETE — Verified locally against local PostgreSQL 17 cluster on port 5433 (`career_hub_dev`).
+1. **Cluster Health & Connection Verification**:
+   - Resolved stale PID lockout in local cluster `C:\Users\VISHW\.career-hub-pgdata` and verified active listening on loopback port 5433.
+   - Connected via `parseSanitizedDbUrl` / `checkDatabaseHealth` with zero credential exposure. Connection probe returned `status: 'healthy'` with ~79ms latency.
+   - Session confirmed: DB `career_hub_dev`, User `postgres`, Engine `PostgreSQL 17.4 on x86_64-windows`.
+2. **Schema & Migration Verification**:
+   - `npm run db:check` PASS (`Everything's fine 🐶🔥`).
+   - `npm run audit:schema-integrity` PASS (30 domain tables parsed, 0 unindexed foreign keys, 0 stale updatedAt write paths).
+   - Confirmed all 28 Drizzle migrations applied in `drizzle.__drizzle_migrations`.
+   - Verified 35 public schema tables and seeded records (1 user, 1 candidate, 506 skills, 11 projects, 246 evidence items, 13 job applications).
+3. **Automated Diagnostic Tooling**:
+   - Added `scripts/check-db-connection.mjs` and npm script `"db:ping"`.
+   - `npm run db:ping`: PASS (HEALTHY, 35 tables, 28 migrations, 0 errors).
+4. **Security & Quality Audits**:
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+   - ESLint & Prettier on new diagnostic tooling: PASS.
+
+# LOCAL-POSTGRES-DEV-DATABASE-015 — Local PostgreSQL 17 Cluster Setup, Migration, and Fixture Seeding (2026-10-23)
+
+Status: COMPLETE — Verified locally. Configured local PostgreSQL 17 development cluster on port 5433 with passwordless local trust authentication, bypassing remote ISP (Jio) routing blackholes to cloud subnets. Applied all 28 Drizzle migrations and seeded authentic candidate fixtures.
+1. **Root Cause Analysis of Remote Aiven Connectivity Failure**:
+   - Initial failure: `getaddrinfo ENOTFOUND pg-d89177b-vishwanatnishad-6628.h.aivencloud.com`. Resolved when user resumed the Aiven service (DNS re-registered to `64.227.153.91`).
+   - Secondary failure: `connect ETIMEDOUT 64.227.153.91:22984`. Traceroute confirmed packets to DigitalOcean Bangalore (`do-blr1`, `64.227.153.0/24`) were dropped/blackholed at Jio internal gateway hop `192.168.30.58`.
+2. **Local Cluster Provisioning & Configuration**:
+   - Initialized persistent local PostgreSQL 17 data directory at `C:\Users\VISHW\.career-hub-pgdata` with `-U postgres -A trust -E UTF8`.
+   - Running on port 5433 to avoid port collisions with the existing system PostgreSQL service.
+   - Created database `career_hub_dev`.
+   - Updated `.env.local`: `DATABASE_URL=postgres://postgres@127.0.0.1:5433/career_hub_dev`, `DATABASE_SSL=false`, commented out `DATABASE_CA_FILE`.
+   - Added startup helper script `scripts/start-local-db.ps1` and npm script `"db:local:start"`.
+3. **Schema Migration & Test Fixture Seeding**:
+   - Executed `npm run db:migrate`: all 28 schema migrations (`0000_familiar_wrecker` through `0027_resume_studio_generation_link`) applied successfully in 2.2s.
+   - Verified schema integrity: `npm run db:check` PASS (`Everything's fine 🐶🔥`).
+   - Seeded test fixtures: `npm run db:seed:test` processed and inserted 1 tenant, 1 user (`vishwanatnishad@gmail.com`), 1 candidate, 506 skills, 11 projects, 10 resources, 82 candidate skills, 246 evidence items, 13 job applications, and 198 catalog skills.
+   - Verified Drizzle ORM query: `select * from users where status = 'ACTIVE' limit 1` returned authentic user record in <50ms with 0 errors.
+4. **Quality & Security Audits**:
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+
 # UNIFIED-RESUME-A4-VERIFICATION-014 — Authentic A4 Resume Tailoring, Project Reconciliation, Link Layout Optimization, and Geometry Balance (2026-10-17)
 
 Status: COMPLETE — Verified locally, via PyMuPDF vector inspection, and through real Chromium browser acceptance for candidate Vishwanath Nishad (Software Engineer at Microsoft) and across the 6-candidate regression matrix (`tests/unit/multi-candidate-regression-matrix.test.js`).

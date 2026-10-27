@@ -669,6 +669,79 @@ export function calculateFactSemanticOverlap(textA, textB) {
 }
 
 /**
+ * Determines whether two accomplishment bullets within the same project are semantically redundant.
+ * Compares by:
+ * - Underlying fact IDs (shared source fact).
+ * - High semantic token overlap (Jaccard similarity >= 0.45).
+ * - Shared core engineering actions and mechanisms.
+ *
+ * @param {object|string} bulletA
+ * @param {object|string} bulletB
+ * @returns {boolean}
+ */
+export function areBulletsSemanticallyRedundant(bulletA, bulletB) {
+  if (!bulletA || !bulletB) return false;
+  const textA = (typeof bulletA === 'string' ? bulletA : bulletA.text || '').trim();
+  const textB = (typeof bulletB === 'string' ? bulletB : bulletB.text || '').trim();
+  if (!textA || !textB) return false;
+  if (textA.toLowerCase() === textB.toLowerCase()) return true;
+
+  // 1. Check underlying fact IDs
+  const factIdsA = new Set(
+    (Array.isArray(bulletA?.composedFromFactIds)
+      ? bulletA.composedFromFactIds
+      : [bulletA?.factId]
+    )
+      .filter(Boolean)
+      .map(String)
+  );
+  const factIdsB = new Set(
+    (Array.isArray(bulletB?.composedFromFactIds)
+      ? bulletB.composedFromFactIds
+      : [bulletB?.factId]
+    )
+      .filter(Boolean)
+      .map(String)
+  );
+  if (factIdsA.size > 0 && factIdsB.size > 0) {
+    for (const id of factIdsA) {
+      if (factIdsB.has(id)) return true;
+    }
+  }
+
+  // 2. Semantic token overlap (Jaccard similarity)
+  const overlap = calculateFactSemanticOverlap(textA, textB);
+  if (overlap >= 0.45) return true;
+
+  // 3. Substantive mechanism & action overlap (e.g. both describe Flask backend / FastAPI webhook handling)
+  const tokensA = extractSubstantiveFactTokens(textA);
+  const tokensB = extractSubstantiveFactTokens(textB);
+  const keyMechanismTokens = [
+    'flask',
+    'fastapi',
+    'webhook',
+    'webhooks',
+    'prisma',
+    'typeorm',
+    'jwt',
+    'rbac',
+    'docker',
+    'ci/cd',
+    'redis',
+    'anti-pattern',
+    'anti-patterns',
+  ];
+  let sharedMechanisms = 0;
+  for (const m of keyMechanismTokens) {
+    if (tokensA.has(m) && tokensB.has(m)) sharedMechanisms++;
+  }
+  if (sharedMechanisms >= 2 && overlap >= 0.25) return true;
+  if (sharedMechanisms >= 1 && overlap >= 0.38) return true;
+
+  return false;
+}
+
+/**
  * Counts distinct canonical facts across candidate text items (bullets, highlights,
  * features, descriptions). Semantically duplicate descriptions (token overlap >= 0.60)
  * count as 1 distinct fact only when their contribution roles are compatible.
@@ -835,12 +908,10 @@ export function isClaimSafeToRender(
  * @param {object} dsa
  * @returns {boolean}
  */
-export function isMeaningfulDsa(dsa) {
+export function isMeaningfulDsa(dsa, options = {}) {
   if (!dsa || typeof dsa !== 'object') return false;
   if (dsa.hasSection === false) return false;
 
-  const validUrl =
-    typeof dsa.profileUrl === 'string' && /^https?:\/\//i.test(dsa.profileUrl.trim());
   const rawBullets = Array.isArray(dsa.bullets) ? dsa.bullets : [];
   const cleanBullets = rawBullets
     .map((b) => (typeof b === 'string' ? b.trim() : String(b?.text || '').trim()))
@@ -849,7 +920,7 @@ export function isMeaningfulDsa(dsa) {
   const nonFillerBullets = cleanBullets.filter((b) => {
     if (b.length < 25) return false;
     if (
-      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online|daily problem solving practice|problem solving enthusiast|built analytical foundation)\b/i.test(
+      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online|daily problem solving practice|problem solving enthusiast|built analytical foundation|solved various|practiced data structures)\b/i.test(
         b
       )
     ) {
@@ -862,12 +933,20 @@ export function isMeaningfulDsa(dsa) {
     (typeof dsa.problemsSolved === 'number' && dsa.problemsSolved > 0) ||
     (typeof dsa.rating === 'number' && dsa.rating > 0) ||
     (typeof dsa.contests === 'number' && dsa.contests > 0) ||
-    (Array.isArray(dsa.topics) && dsa.topics.length > 0) ||
+    (Array.isArray(dsa.topics) &&
+      dsa.topics.length > 0 &&
+      dsa.topics.some((t) => typeof t === 'string' && t.trim().length > 0)) ||
     (Array.isArray(dsa.topicCoverage) && dsa.topicCoverage.length > 0) ||
-    (typeof dsa.score === 'number' && dsa.score > 0)
+    (typeof dsa.score === 'number' && dsa.score > 0) ||
+    (typeof dsa.rank === 'string' && dsa.rank.trim().length > 0) ||
+    (typeof dsa.ranking === 'string' && dsa.ranking.trim().length > 0)
   );
 
-  return validUrl || nonFillerBullets.length > 0 || hasStats;
+  // An independent DSA section requires meaningful accomplishments: substantive non-filler bullets or authentic stats/rankings.
+  // A bare profile URL alone is already displayed in the header link row and must not force a redundant section.
+  const hasSubstantiveContent = nonFillerBullets.length > 0 || hasStats;
+
+  return Boolean(hasSubstantiveContent);
 }
 
 /** Facts whose text matches these contexts may keep their measured values. */
@@ -1075,7 +1154,6 @@ export const PROTECTED_SECTION_ANCHOR_ORDER = Object.freeze([
   'EXPERIENCE',
   'EDUCATION',
   'CERTIFICATIONS',
-  ...Object.values(OPTIONAL_RESUME_SECTIONS),
 ]);
 
 export function hasRenderableSection(sectionKey, doc) {
@@ -1390,10 +1468,18 @@ export function toEvidenceReference(rawRef, defaultSourceType = 'INFERRED') {
 
   const filePath = rawRef.filePath || rawRef.sourceLocation?.filePath || null;
 
+  const validTypes = new Set(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'USER_PROVIDED', 'INFERRED']);
+  let candidateType = rawRef.provenanceStatus;
+  if (!validTypes.has(candidateType)) candidateType = rawRef.sourceType;
+  if (!validTypes.has(candidateType)) candidateType = defaultSourceType;
+  if (!validTypes.has(candidateType)) candidateType = 'CLAIMED';
+
+  const finalSourceType = ['VERIFIED', 'CORROBORATED'].includes(candidateType)
+    ? 'INFERRED'
+    : candidateType;
+
   return {
-    sourceType: ['VERIFIED', 'CORROBORATED'].includes(rawRef.sourceType || defaultSourceType)
-      ? 'INFERRED'
-      : rawRef.sourceType || defaultSourceType,
+    sourceType: finalSourceType,
     evidenceId,
     resourceId: rawRef.resourceId || null,
     resourceName: rawRef.resourceName || null,

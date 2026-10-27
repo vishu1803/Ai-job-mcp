@@ -19,7 +19,7 @@ export const StudioJobTargetSchema = z
         return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
       }, 'Use an HTTP(S) URL without credentials')
       .optional(),
-    rawDescription: z.string().trim().min(100).max(250000),
+    rawDescription: z.string().trim().min(1).max(250000),
   })
   .strict();
 

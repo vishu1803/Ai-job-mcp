@@ -69,7 +69,7 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
     assert.equal(result[0].relevanceScore, 88.5);
     assert.equal(result[0].relevanceBand, 'HIGH');
     assert.deepEqual(result[0].matchedRequirements, ['TypeScript', 'PostgreSQL']);
-    assert.equal(result[0].verificationStatus, 'VERIFIED');
+    assert.equal(result[0].verificationStatus, 'OBSERVED');
   });
 
   it('2. falls back to fitAnalysis.topRelevantProjects when featuredProjects is empty', () => {
@@ -103,7 +103,7 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
       'FastAPI microservices',
       'Docker containerization',
     ]);
-    assert.equal(result[0].verificationStatus, 'VERIFIED');
+    assert.equal(result[0].verificationStatus, 'OBSERVED');
   });
 
   it('3. falls back to candidate verified projects when both tool results are empty', () => {
@@ -117,7 +117,7 @@ describe('P57.1: Authoritative Recommended Projects Data Flow', () => {
     assert.equal(result[0].projectId, 'proj-uuid-1');
     assert.equal(result[0].name, 'task-runner');
     assert.deepEqual(result[0].technologies, ['TypeScript', 'Node.js', 'PostgreSQL']);
-    assert.equal(result[0].verificationStatus, 'VERIFIED');
+    assert.equal(result[0].verificationStatus, 'OBSERVED');
   });
 
   it('4. BackendClient._normalizeProjects preserves recommendedProjects and backfills if missing', () => {

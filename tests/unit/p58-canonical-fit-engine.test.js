@@ -207,14 +207,14 @@ Requirements:
       candidate
     );
 
-    // Verify Skill Matches
+    // Verify Skill Matches (Under ISSUE-06, unauthenticated repository signals evaluate to PARTIAL/INFERRED)
     const matchedSkills = matchAnalysis.requirementMatches
-      .filter((m) => m.category === 'SKILL' && m.matchStatus === 'MATCHED')
+      .filter((m) => m.category === 'SKILL' && ['MATCHED', 'PARTIAL'].includes(m.matchStatus))
       .map((m) => m.skillSlug);
 
-    assert.ok(matchedSkills.includes('python'), 'Python must be MATCHED');
-    assert.ok(matchedSkills.includes('fastapi'), 'FastAPI must be MATCHED');
-    assert.ok(matchedSkills.includes('postgresql'), 'PostgreSQL must be MATCHED');
+    assert.ok(matchedSkills.includes('python'), 'Python must be matched');
+    assert.ok(matchedSkills.includes('fastapi'), 'FastAPI must be matched');
+    assert.ok(matchedSkills.includes('postgresql'), 'PostgreSQL must be matched');
 
     // Verify Missing Skill
     const missingSkills = matchAnalysis.requirementMatches

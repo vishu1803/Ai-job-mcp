@@ -613,8 +613,10 @@ export class LatexCompilerService {
     // not the closing delimiter of the surrounding TeX command.
     const fieldPattern = String.raw`((?:\\[a-zA-Z]+\{\}|\\[{}]|[^{}])+)`;
     const nameMatch =
-      body.match(new RegExp(String.raw`\\(?:Huge|LARGE|large)\s*\\textbf\{${fieldPattern}\}`)) ||
+      body.match(new RegExp(String.raw`\\fontsize\{(?:2[0-9]|1[8-9])(?:\.[0-9]+)?pt\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`)) ||
+      body.match(new RegExp(String.raw`\\(?:Huge|LARGE)\s*\\textbf\{${fieldPattern}\}`)) ||
       body.match(new RegExp(String.raw`\\textbf\{\\Huge\s+${fieldPattern}\}`)) ||
+      body.match(new RegExp(String.raw`\\fontsize\{[0-9.]+(?:pt)?\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`)) ||
       body.match(new RegExp(String.raw`\\textbf\{${fieldPattern}\}`));
     if (nameMatch) {
       candidateName = cleanLatexText(nameMatch[1]);
@@ -627,13 +629,32 @@ export class LatexCompilerService {
       candidateName = cleanLatexText(firstLine) || 'Candidate';
     }
 
-    // Extract headline if present
+    // Extract headline if present (typically 12-14pt or large/normalsize)
     let headline = '';
-    const headlineMatch = body.match(
-      new RegExp(String.raw`\\(?:large|normalsize)\s*\\textbf\{${fieldPattern}\}`)
-    );
-    if (headlineMatch && cleanLatexText(headlineMatch[1]) !== candidateName) {
-      headline = cleanLatexText(headlineMatch[1]);
+    let headlineMatch = null;
+    const allFontsizeMatches = [
+      ...body.matchAll(
+        new RegExp(
+          String.raw`\\fontsize\{[0-9.]+(?:pt)?\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`,
+          'g'
+        )
+      ),
+    ];
+    for (const m of allFontsizeMatches) {
+      if (cleanLatexText(m[1]) !== candidateName) {
+        headlineMatch = m;
+        headline = cleanLatexText(m[1]);
+        break;
+      }
+    }
+    if (!headlineMatch) {
+      const legacyHeadlineMatch = body.match(
+        new RegExp(String.raw`\\(?:large|normalsize)\s*\\textbf\{${fieldPattern}\}`)
+      );
+      if (legacyHeadlineMatch && cleanLatexText(legacyHeadlineMatch[1]) !== candidateName) {
+        headlineMatch = legacyHeadlineMatch;
+        headline = cleanLatexText(legacyHeadlineMatch[1]);
+      }
     }
 
     // Split into sections
@@ -784,20 +805,21 @@ ${getLatinModernFontFaces()}
       break-inside: avoid;
     }
     .candidate-name {
-      font-size: 18pt;
+      font-size: 21pt;
       font-weight: 700;
-      margin: 0 0 1pt;
-      line-height: 1.1;
+      margin: 0 0 2pt;
+      line-height: 1.15;
       text-align: center;
     }
     .candidate-headline {
-      font-size: 10.5pt;
-      font-weight: 600;
-      margin: 0 0 1pt;
+      font-size: 12.5pt;
+      font-weight: 700;
+      margin: 0 0 2pt;
       text-align: center;
+      line-height: 1.2;
     }
     .contact-line {
-      font-size: 10pt;
+      font-size: 9.5pt;
       color: #222222;
       margin: 0 0 2pt;
       text-align: center;
@@ -816,18 +838,18 @@ ${getLatinModernFontFaces()}
       text-decoration: none;
     }
     .section {
-      margin-top: 5pt;
+      margin-top: 8pt;
     }
     .section-title {
       font-size: 10.5pt;
       font-weight: 700;
       border-bottom: 0.5pt solid #000000;
-      padding-bottom: 1pt;
-      margin: 4pt 0 2pt;
+      padding-bottom: 1.5pt;
+      margin: 5pt 0 3pt;
       break-after: avoid;
     }
     p {
-      margin: 0 0 2pt;
+      margin: 0 0 2.5pt;
       orphans: 2;
       widows: 2;
     }
@@ -850,13 +872,13 @@ ${getLatinModernFontFaces()}
       text-align: right;
     }
     ul {
-      margin: 2pt 0 3pt 14pt;
+      margin: 2pt 0 4pt 14pt;
       padding: 0;
       list-style-type: disc;
     }
     li {
-      margin-bottom: 1.5pt;
-      line-height: 1.24;
+      margin-bottom: 2pt;
+      line-height: 1.26;
       break-inside: avoid;
     }
     a {

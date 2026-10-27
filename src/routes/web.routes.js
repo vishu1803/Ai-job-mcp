@@ -2763,6 +2763,7 @@ export default async function webRoutes(app, opts = {}) {
 
     const resolveField = (key, secObj) => {
       if (body[key] !== undefined) return body[key];
+      if (sections && sections[key] !== undefined) return sections[key];
       if (secObj && secObj[key] !== undefined) return secObj[key];
       return undefined;
     };
@@ -4279,6 +4280,28 @@ export default async function webRoutes(app, opts = {}) {
           readiness: handoffKit?.readiness || [],
           readinessSemantics: handoffKit?.readinessSemantics || null,
         };
+      } else {
+        try {
+          const { ApplicationHandoffService } = await import(
+            '../services/application-handoff.service.js'
+          );
+          const handoffService =
+            applicationHandoffService || new ApplicationHandoffService({ database });
+          handoffKit = await handoffService.buildApplicationHandoffKit({
+            tenantId: tenant.id,
+            userId: user.id,
+            candidateId: application.candidateId,
+            applicationPackage: targetPackage.packagePayload,
+            applicationId: application.id,
+            destinationUrl: application.jobUrl || application.metadata?.destinationUrl,
+            persist: true,
+          });
+        } catch (buildErr) {
+          logger.warn(
+            { error: buildErr.message, applicationId: application.id },
+            'Dynamic handoff kit build fallback failed'
+          );
+        }
       }
     }
 

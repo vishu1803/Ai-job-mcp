@@ -153,20 +153,12 @@ export class MasterResumeStructureService {
         seenCanonical.add('HEADER');
       }
 
-      // Ensure DSA is positioned after PROJECTS per canonical master structure
+      // Ensure DSA is positioned after PROJECTS per canonical master structure only when present
       if (seenCanonical.has('DSA') && seenCanonical.has('PROJECTS')) {
         const dsaIdx = derivedOrder.indexOf('DSA');
         derivedOrder.splice(dsaIdx, 1);
         const projIdx = derivedOrder.indexOf('PROJECTS');
         derivedOrder.splice(projIdx + 1, 0, 'DSA');
-      } else if (!seenCanonical.has('DSA')) {
-        const projIdx = derivedOrder.indexOf('PROJECTS');
-        if (projIdx !== -1) {
-          derivedOrder.splice(projIdx + 1, 0, 'DSA');
-        } else {
-          derivedOrder.push('DSA');
-        }
-        seenCanonical.add('DSA');
       }
 
       // Ensure EDUCATION is positioned after PROJECTS/EXPERIENCE per career stage ordering
@@ -186,8 +178,18 @@ export class MasterResumeStructureService {
         }
       }
 
-      // If key sections were missing from parse, append them in standard order
-      for (const stdKey of DEFAULT_MASTER_SECTION_ORDER) {
+      // If core sections were missing from parse, append them in standard order
+      const CORE_MASTER_SECTIONS = [
+        'HEADER',
+        'SUMMARY',
+        'SKILLS',
+        'PROJECTS',
+        'DSA',
+        'EXPERIENCE',
+        'EDUCATION',
+        'CERTIFICATIONS',
+      ];
+      for (const stdKey of CORE_MASTER_SECTIONS) {
         if (!seenCanonical.has(stdKey)) {
           derivedOrder.push(stdKey);
           seenCanonical.add(stdKey);
@@ -266,17 +268,9 @@ export class MasterResumeStructureService {
           );
           break;
         case 'DSA':
-          // DSA section exists if candidate has LeetCode profile URL, stats, or bullets (Req 9 & 13)
-          hasData = Boolean(
-            isMeaningfulDsa(candidateData.dsa) ||
-            candidateData.dsa?.hasSection ||
-            candidateData.dsa?.profileUrl ||
-            (Array.isArray(candidateData.dsa?.bullets) && candidateData.dsa.bullets.length > 0) ||
-            (Array.isArray(candidateData.portfolioLinks) &&
-              candidateData.portfolioLinks.some((l) => /leetcode\.com/i.test(l.url || ''))) ||
-            (Array.isArray(candidateData.links) &&
-              candidateData.links.some((l) => /leetcode\.com/i.test(l.url || '')))
-          );
+          // DSA section exists ONLY if candidate has meaningful, source-supported accomplishments or authentic statistics (Req 2).
+          // A bare LeetCode/Codeforces URL alone is preserved in header links and must NOT force an independent section.
+          hasData = Boolean(isMeaningfulDsa(candidateData.dsa));
           break;
         case 'EXPERIENCE':
           hasData = Boolean(
@@ -291,16 +285,21 @@ export class MasterResumeStructureService {
           break;
         case 'CERTIFICATIONS':
           hasData = Boolean(
-            Array.isArray(candidateData.certifications) && candidateData.certifications.length > 0
+            (Array.isArray(candidateData.certifications) &&
+              candidateData.certifications.length > 0) ||
+            (Array.isArray(candidateData.profileMetadata?.certifications) &&
+              candidateData.profileMetadata.certifications.length > 0) ||
+            (Array.isArray(candidateData.profileMetadata?.userCustom?.certifications) &&
+              candidateData.profileMetadata.userCustom.certifications.length > 0) ||
+            (Array.isArray(candidateData.profileMetadata?.resumeData?.certifications) &&
+              candidateData.profileMetadata.resumeData.certifications.length > 0) ||
+            (Array.isArray(candidateData.optionalSections?.certifications) &&
+              candidateData.optionalSections.certifications.length > 0)
           );
           break;
         case 'COURSEWORK':
           hasData = Boolean(
-            (Array.isArray(candidateData.coursework) && candidateData.coursework.length > 0) ||
-            (Array.isArray(candidateData.education) &&
-              candidateData.education.some(
-                (e) => Array.isArray(e.coursework) && e.coursework.length > 0
-              ))
+            Array.isArray(candidateData.coursework) && candidateData.coursework.length > 0
           );
           break;
         case 'PUBLICATIONS':

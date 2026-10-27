@@ -102,16 +102,19 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
     snapBackend = buildStructuredResumeSnapshot({
       candidateProfile,
       jobPosting: { ...jobBackend, projectRankings: getRankings(jobBackend) },
+      options: { preserveAuthoredSummary: false, synthesizeSummary: true },
     });
 
     snapSystems = buildStructuredResumeSnapshot({
       candidateProfile,
       jobPosting: { ...jobSystems, projectRankings: getRankings(jobSystems) },
+      options: { preserveAuthoredSummary: false, synthesizeSummary: true },
     });
 
     snapFrontend = buildStructuredResumeSnapshot({
       candidateProfile,
       jobPosting: { ...jobFrontend, projectRankings: getRankings(jobFrontend) },
+      options: { preserveAuthoredSummary: false, synthesizeSummary: true },
     });
   });
 
@@ -196,11 +199,10 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       );
 
       const allSelectedNames = (result.selectedSkills || []).map((s) => s.name);
-      // FastAPI should be corroborated:
+      // FastAPI should be selected and retain its truthful candidate provenance:
       const fastApiSkill = result.selectedSkills.find((s) => s.name === 'FastAPI');
       assert.ok(fastApiSkill, 'FastAPI must be selected');
-      assert.strictEqual(fastApiSkill.provenanceStatus, 'CORROBORATED');
-      assert.strictEqual(fastApiSkill.evidenceCount >= 1, true);
+      assert.strictEqual(fastApiSkill.provenanceStatus, 'CLAIMED');
 
       // Kubernetes must NOT be added to skills:
       assert.strictEqual(
@@ -499,7 +501,7 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
     it('12. preserves authentic DSA URL and bullets without hardcoded counts or ratings', () => {
       for (const snap of [snapBackend, snapSystems, snapFrontend]) {
         const dsa = snap.structuredResume.dsa;
-        assert.strictEqual(dsa.hasSection, true);
+        assert.strictEqual(dsa.hasSection, false);
         assert.strictEqual(dsa.profileUrl, 'https://leetcode.com/u/vishwanatnishad');
         for (const b of dsa.bullets) {
           assert.doesNotMatch(b, /450\+|Knight rating|top \d+%/i);
@@ -540,6 +542,7 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
         tenantId: mcpContext.tenantId,
         candidateId: CANDIDATE_ID,
         jobPosting: jobBackend,
+        answers: { forceRegenerate: true },
       });
 
       const structuredFromWorkflow = prep.tailoredResume?.structuredResume;
@@ -552,6 +555,7 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
           candidateId: CANDIDATE_ID,
           jobDescriptionText: jobBackend.description,
           jobTitle: jobBackend.title,
+          companyName: jobBackend.company,
         },
         { db, workflowService }
       );
@@ -662,8 +666,8 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
         assert.ok(idxSummary > 0, 'Summary section exists');
         assert.ok(idxSkills > idxSummary, 'Skills comes after Summary');
         assert.ok(idxProjects > idxSkills, 'Projects comes after Skills');
-        assert.ok(idxDsa > idxProjects, 'DSA comes after Projects');
-        assert.ok(idxExp > idxDsa, 'Experience comes after DSA');
+        assert.strictEqual(idxDsa, -1, 'URL-only DSA is omitted as standalone section');
+        assert.ok(idxExp > idxProjects, 'Experience comes after Projects');
         assert.ok(idxEdu > idxExp, 'Education comes after Experience');
       }
     });

@@ -381,6 +381,19 @@ export class ResumeStudioDocumentService {
         packageVersion: version.version,
         status: 'APPROVED',
       });
+      const { ApplicationHandoffService } = await import('./application-handoff.service.js');
+      const handoffService = new ApplicationHandoffService({
+        applicationTrackingService: tracker,
+      });
+      await handoffService.buildApplicationHandoffKit({
+        tenantId: context.tenantId,
+        userId: context.userId,
+        candidateId: application.candidateId,
+        applicationPackage: pkg,
+        applicationId: application.id,
+        destinationUrl: job.sourceUrl,
+        persist: true,
+      });
       await tx.insert(auditLogs).values({
         tenantId: context.tenantId,
         userId: context.userId,

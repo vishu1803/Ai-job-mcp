@@ -1740,6 +1740,67 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
       `;
     }
 
+    // 5. Education Section
+    const educations = Array.isArray(sr.education) ? sr.education : [];
+    if (educations.length > 0) {
+      html += `
+        <div class="rs-node-group">
+          <div style="font-weight:700; font-size:0.88rem; color:var(--rs-text-primary); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.04em;">
+            Education
+          </div>
+      `;
+      educations.forEach((edu) => {
+        const degree = edu.degree || 'Degree';
+        const field = edu.fieldOfStudy ? ` in ${escapeHtml(edu.fieldOfStudy)}` : '';
+        const inst = edu.institution ? escapeHtml(edu.institution) : '';
+        const dateRange = [edu.startDate, edu.isCurrent ? 'Present' : edu.endDate]
+          .filter(Boolean)
+          .join(' – ');
+        html += `
+          <div class="rs-card" style="margin-bottom:10px; background:var(--rs-surface);">
+            <div class="rs-entry-header">
+              <div>
+                <strong style="font-size:0.85rem; color:var(--rs-text-primary);">${escapeHtml(degree)}${field}</strong>
+                <span style="font-size:0.8rem; color:var(--rs-text-secondary);">${inst ? ' · ' + inst : ''}</span>
+              </div>
+              <span style="font-size:0.75rem; color:var(--rs-text-muted); font-family:var(--rs-font-mono);">${escapeHtml(dateRange)}</span>
+            </div>
+            ${edu.grade ? `<div style="font-size:0.75rem; color:var(--rs-text-secondary); margin-top:4px;">Grade: ${escapeHtml(edu.grade)}</div>` : ''}
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    // 6. Certifications Section
+    const certs = Array.isArray(sr.certifications) ? sr.certifications : [];
+    if (certs.length > 0) {
+      html += `
+        <div class="rs-node-group" style="border-bottom:none;">
+          <div style="font-weight:700; font-size:0.88rem; color:var(--rs-text-primary); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.04em;">
+            Certifications &amp; Credentials
+          </div>
+      `;
+      certs.forEach((cert) => {
+        const title = cert.name || cert.title || 'Certification';
+        const issuer = cert.issuingOrganization || cert.issuer || '';
+        const dateStr = cert.issueDate ? `Issued: ${escapeHtml(cert.issueDate)}` : '';
+        html += `
+          <div class="rs-card" style="margin-bottom:10px; background:var(--rs-surface);">
+            <div class="rs-entry-header">
+              <div>
+                <strong style="font-size:0.85rem; color:var(--rs-text-primary);">${escapeHtml(title)}</strong>
+                <span style="font-size:0.8rem; color:var(--rs-text-secondary);">${issuer ? ' · ' + escapeHtml(issuer) : ''}</span>
+              </div>
+              <span style="font-size:0.75rem; color:var(--rs-text-muted); font-family:var(--rs-font-mono);">${dateStr}</span>
+            </div>
+            ${cert.credentialId ? `<div style="font-size:0.75rem; color:var(--rs-text-secondary); margin-top:2px; font-family:var(--rs-font-mono);">ID: ${escapeHtml(cert.credentialId)}</div>` : ''}
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
     structuredEditorContainer.innerHTML = html;
     attachEditorEventListeners();
   }

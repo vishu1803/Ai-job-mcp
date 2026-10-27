@@ -967,3 +967,87 @@ export const EvidenceValidationReceipt = EvidenceValidationReceiptSchema;
 export const RESUME_GENERATION_CONTRACT_VERSION = 'P16-001F';
 export const LEGACY_GENERATION_CONTRACT_VERSION = 'LEGACY';
 export const DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION = '2.0.0';
+
+/**
+ * Validates whether a structured resume meets the strict quality, provenance,
+ * and schema standards (non-stale, non-template, candidate-grounded).
+ *
+ * @param {object} resume Structured resume document
+ * @returns {boolean} True if healthy and compliant with modern contracts
+ */
+export function isStructuredResumeHealthy(resume) {
+  if (!resume) return false;
+
+  const validTransformations = new Set([
+    'REWRITE',
+    'CONDENSE',
+    'COMBINE',
+    'EMPHASIZE',
+    'VERBATIM',
+  ]);
+
+  // 1. Summary validation
+  const summary = resume.summary;
+  if (!summary || typeof summary.text !== 'string' || summary.text.trim().length < 60) {
+    return false;
+  }
+  if (summary.transformationType === 'SYNTHESIS') return false;
+  if (summary.transformationType && !validTransformations.has(summary.transformationType)) {
+    return false;
+  }
+  if (!Array.isArray(summary.composedFromFactIds) || summary.composedFromFactIds.length === 0) {
+    return false;
+  }
+  if (!Array.isArray(summary.evidenceRefs) || summary.evidenceRefs.length === 0) {
+    return false;
+  }
+  if (!summary.sourceFact) return false;
+  if (Array.isArray(summary.sentences) && summary.sentences.length > 0) {
+    for (const s of summary.sentences) {
+      if (s.transformationType === 'SYNTHESIS') return false;
+      if (s.transformationType && !validTransformations.has(s.transformationType)) {
+        return false;
+      }
+      if (!Array.isArray(s.composedFromFactIds) || s.composedFromFactIds.length === 0) {
+        return false;
+      }
+      if (!s.sourceFact) return false;
+    }
+  }
+
+  // 2. Project validation
+  if (!Array.isArray(resume.projects) || resume.projects.length < 1) {
+    return false;
+  }
+  for (const proj of resume.projects) {
+    if (!Array.isArray(proj.bullets) || proj.bullets.length < 3) {
+      return false;
+    }
+    for (const bullet of proj.bullets) {
+      if (bullet.transformationType === 'SYNTHESIS') return false;
+      if (bullet.transformationType && !validTransformations.has(bullet.transformationType)) {
+        return false;
+      }
+      if (!Array.isArray(bullet.composedFromFactIds) || bullet.composedFromFactIds.length === 0) {
+        return false;
+      }
+      if (!Array.isArray(bullet.evidenceRefs) || bullet.evidenceRefs.length === 0) {
+        return false;
+      }
+      if (!bullet.sourceFact) return false;
+    }
+  }
+
+  return true;
+}
+
+export function isGenerationHealthy(generation) {
+  if (!generation || !generation.bundle) return false;
+  return isStructuredResumeHealthy(generation.bundle.structuredResume);
+}
+
+export function isApplicationPackageHealthy(pkg) {
+  if (!pkg || !pkg.tailoredResume) return false;
+  return isStructuredResumeHealthy(pkg.tailoredResume.structuredResume);
+}
+

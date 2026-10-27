@@ -61,6 +61,36 @@ export const ATS_DOCUMENT_CONSTRAINTS = Object.freeze({
   },
 });
 
+/**
+ * Fixed document constraints for canonical A4 single-page resumes (210mm x 297mm).
+ * Matches LatexDocumentGenerator geometry (a4paper, margin=0.52in = 37.44pt).
+ */
+export const A4_DOCUMENT_CONSTRAINTS = Object.freeze({
+  pageWidthPt: 595.28, // 210mm at 72.27 dpi
+  pageHeightPt: 841.89, // 297mm at 72.27 dpi
+  marginPt: 37.44, // 0.52in margin
+
+  baseFontSizePt: 10,
+  minFontSizePt: 9,
+  maxFontSizePt: 12,
+  lineHeightMultiplier: 1.2,
+
+  singleColumn: true,
+  linearReadingOrder: true,
+  noLayoutTables: true,
+  noTextBoxes: true,
+  selectableText: true,
+  conventionalHeadings: true,
+
+  get usableWidthPt() {
+    return this.pageWidthPt - 2 * this.marginPt;
+  },
+  get usableHeightPt() {
+    return this.pageHeightPt - 2 * this.marginPt;
+  },
+});
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. SEMANTIC SPACING RELATIONSHIPS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -443,7 +473,7 @@ export class ResumeLayoutEngine {
    * @param {object} [constraints] Override document constraints
    * @returns {object} PageBudget
    */
-  calculatePageBudget(model, constraints = ATS_DOCUMENT_CONSTRAINTS) {
+  calculatePageBudget(model, constraints = A4_DOCUMENT_CONSTRAINTS) {
     const usableHeightPt = constraints.usableHeightPt;
     const lineHeightPt = constraints.baseFontSizePt * constraints.lineHeightMultiplier;
 
@@ -704,9 +734,36 @@ export class ResumeLayoutEngine {
         break;
       }
 
-      case DENSITY_CLASSIFICATION.BALANCED:
+      case DENSITY_CLASSIFICATION.BALANCED: {
         scaleFactor = 1.0;
+        // Bounded vertical expansion for balanced profiles with ample page headroom:
+        // Distribute space into natural rhythm to prevent deep ~45mm bottom voids on A4,
+        // targeting an intentional ~12–18mm margin without any risk of spilling into page 2.
+        const sectionCount = budget.activeSectionCount;
+        const remaining =
+          typeof budget.remainingBudgetPt === 'number' ? budget.remainingBudgetPt : 0;
+        if (sectionCount > 0 && remaining > 30) {
+          const expansionRoom = Math.min(remaining - 25, 75);
+          const extraPerSection = Math.min(expansionRoom / sectionCount, 3.5);
+          adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] += extraPerSection;
+          adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] += Math.min(extraPerSection * 0.5, 2.0);
+          adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] += Math.min(
+            extraPerSection * 0.35,
+            1.2
+          );
+          adapted[SPACING_RELATIONSHIPS.HEADER_TO_SECTION] += Math.min(extraPerSection * 0.5, 2.0);
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] += Math.min(
+            extraPerSection * 0.12,
+            0.5
+          );
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] += Math.min(
+            extraPerSection * 0.2,
+            0.8
+          );
+          adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] += Math.min(extraPerSection * 0.15, 0.6);
+        }
         break;
+      }
 
       case DENSITY_CLASSIFICATION.DENSE: {
         scaleFactor = 0.85;
@@ -841,9 +898,14 @@ export class ResumeLayoutEngine {
    * @param {object} [params.overrides] Optional layout overrides
    * @returns {object} Complete layout result
    */
-  computeLayout({ applicationPackage, candidateProfile = null, overrides = {} }) {
+  computeLayout({
+    applicationPackage,
+    candidateProfile = null,
+    overrides = {},
+    constraints = A4_DOCUMENT_CONSTRAINTS,
+  }) {
     const model = this.buildSemanticModel({ applicationPackage, candidateProfile });
-    const budget = this.calculatePageBudget(model);
+    const budget = this.calculatePageBudget(model, constraints);
     const pageStrategy = this.determinePageStrategy(model, budget);
     const density =
       overrides.density || this.classifyDensity(budget.utilizationRatio, pageStrategy);

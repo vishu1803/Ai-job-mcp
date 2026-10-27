@@ -1670,3 +1670,191 @@
   background: var(--rs-status-missing-bg);
   border-color: var(--rs-status-missing);
 }
+
+/* =========================================================================
+   Resume Studio Structured Editor Workspace Optimizations
+   ========================================================================= */
+
+.rs-source-details {
+  background: var(--rs-elevated);
+  border: 1px solid var(--rs-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+}
+
+.rs-source-details summary {
+  font-weight: 600;
+  color: var(--rs-accent);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rs-source-details .rs-label {
+  margin-top: 10px;
+}
+
+.rs-node-group {
+  background: var(--rs-surface);
+  border: 1px solid var(--rs-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rs-node-group:focus-within {
+  border-color: var(--rs-accent);
+  box-shadow: 0 0 0 1px rgba(135, 152, 189, 0.2);
+}
+
+.rs-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rs-entry-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rs-entry-toggle-wrap input[type="checkbox"] {
+  accent-color: var(--rs-accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Bullet Editing Rows */
+.rs-bullet-edit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--rs-canvas);
+  border: 1px solid var(--rs-border-subtle);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.rs-bullet-edit-row:focus-within {
+  border-color: var(--rs-accent);
+  background: var(--rs-elevated);
+}
+
+.rs-bullet-edit-row.rs-bullet-excluded {
+  opacity: 0.45;
+  background: transparent;
+  border-style: dashed;
+}
+
+.rs-bullet-edit-row .rs-checkbox {
+  margin-top: 6px;
+  accent-color: var(--rs-accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rs-bullet-textarea {
+  flex: 1;
+  min-height: 48px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--rs-text-primary);
+  font-family: var(--rs-font-sans);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.rs-bullet-textarea:focus {
+  background: var(--rs-canvas);
+  border-color: var(--rs-border);
+}
+
+.rs-btn-propose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid var(--rs-border);
+  background: var(--rs-surface);
+  color: var(--rs-accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.rs-btn-propose:hover {
+  background: var(--rs-accent);
+  color: #101114;
+  border-color: var(--rs-accent);
+}
+
+/* Status Tags */
+.rs-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: var(--rs-font-mono);
+}
+
+.rs-status-tag-VERIFIED {
+  background: var(--rs-status-verified-bg);
+  color: var(--rs-status-verified);
+  border: 1px solid rgba(133, 210, 174, 0.3);
+}
+
+.rs-status-tag-CLAIMED {
+  background: var(--rs-status-claimed-bg);
+  color: var(--rs-status-claimed);
+  border: 1px solid rgba(232, 193, 122, 0.3);
+}
+
+.rs-status-tag-INFERRED {
+  background: var(--rs-status-inferred-bg);
+  color: var(--rs-status-inferred);
+  border: 1px solid rgba(173, 186, 203, 0.3);
+}
+
+.rs-status-tag-MISSING {
+  background: var(--rs-status-missing-bg);
+  color: var(--rs-status-missing);
+  border: 1px solid rgba(179, 63, 69, 0.3);
+}
+
+.rs-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.rs-proposal-slot {
+  margin-top: -4px;
+  margin-bottom: 8px;
+}

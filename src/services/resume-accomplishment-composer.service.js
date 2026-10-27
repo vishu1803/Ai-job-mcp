@@ -27,7 +27,10 @@
 import { ValidationError } from '../errors/index.js';
 import { composeSourceGroundedSummary } from './source-grounded-summary.service.js';
 import { defaultResumeClaimPlannerService } from './resume-claim-planner.service.js';
-import { defaultResumeClaimValidationService } from './resume-claim-validation.service.js';
+import {
+  defaultResumeClaimValidationService,
+  hasUnsupportedOutcomeOrMetric,
+} from './resume-claim-validation.service.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import {
@@ -62,6 +65,7 @@ import {
   validateRephrasingSafety,
   calculateTokenOverlap,
   splitSentences,
+  sanitizeGroundedAccomplishment,
 } from './resume-composition-primitives.js';
 
 export {
@@ -289,11 +293,19 @@ function assembleRealizedClaim({
       ? planned.factIds
       : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
 
+  let candidateText = realizedText;
+  if (hasUnsupportedOutcomeOrMetric(candidateText, contributingFacts)) {
+    const sanitized = sanitizeGroundedAccomplishment(candidateText);
+    if (sanitized) {
+      candidateText = sanitized.endsWith('.') ? sanitized : `${sanitized}.`;
+    }
+  }
+
   // Claim Validation Check across 20 invariants
-  const validationResult = defaultResumeClaimValidationService.validateClaim(
+  let validationResult = defaultResumeClaimValidationService.validateClaim(
     {
       claimId: planned.claimId,
-      text: realizedText,
+      text: candidateText,
       factIds: composedFromFactIds,
       semanticDimensions: planned.semanticDimensions || [],
       metricsUsed: planned.allowedMetrics || [],
@@ -310,9 +322,38 @@ function assembleRealizedClaim({
   );
 
   if (!validationResult.valid) {
+    const sanitized = sanitizeGroundedAccomplishment(candidateText);
+    if (sanitized && sanitized !== candidateText) {
+      const retryText = sanitized.endsWith('.') ? sanitized : `${sanitized}.`;
+      const retryVal = defaultResumeClaimValidationService.validateClaim(
+        {
+          claimId: planned.claimId,
+          text: retryText,
+          factIds: composedFromFactIds,
+          semanticDimensions: planned.semanticDimensions || [],
+          metricsUsed: planned.allowedMetrics || [],
+          technologiesUsed: planned.technologies || [],
+        },
+        {
+          factInventory: allFacts,
+          candidateProfile,
+          sectionOwnerType: 'PROJECT',
+          sectionOwnerId: project?.id || project?.projectId || project?.name,
+          alreadyRenderedClaims: bullets,
+          project,
+        }
+      );
+      if (retryVal.valid) {
+        candidateText = retryText;
+        validationResult = retryVal;
+      }
+    }
+  }
+
+  if (!validationResult.valid) {
     omittedFacts.push({
       factId: composedFromFactIds[0] || 'unknown',
-      text: realizedText,
+      text: candidateText,
       reason: validationResult.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
     });
     return false;
@@ -320,13 +361,13 @@ function assembleRealizedClaim({
 
   // Check redundancy with accepted bullets
   const isRedundant = bullets.some(
-    (kept) => calculateFactSemanticOverlap(kept.text, realizedText) >= REDUNDANCY_OVERLAP_THRESHOLD
+    (kept) => calculateFactSemanticOverlap(kept.text, candidateText) >= REDUNDANCY_OVERLAP_THRESHOLD
   );
 
   if (isRedundant) {
     omittedFacts.push({
       factId: composedFromFactIds[0] || 'unknown',
-      text: realizedText,
+      text: candidateText,
       reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
     });
     return false;
@@ -343,6 +384,11 @@ function assembleRealizedClaim({
     }
   }
 
+  if (evidenceRefs.length === 0 && primaryFact) {
+    const ref = toEvidenceReference(primaryFact, primaryFact.provenanceStatus || 'CLAIMED');
+    if (ref) evidenceRefs.push(ref);
+  }
+
   const matchedRequirementIds = [];
   for (const f of contributingFacts) {
     if (Array.isArray(f.matchedRequirementIds)) {
@@ -353,14 +399,16 @@ function assembleRealizedClaim({
   }
 
   bullets.push({
-    text: realizedText,
+    text: candidateText,
     evidenceRefs,
     matchedRequirementIds,
-    provenanceStatus: primaryFact?.provenance || 'CLAIMED',
+    provenanceStatus: primaryFact?.provenanceStatus || primaryFact?.provenance || 'CLAIMED',
     composedFromFactIds,
     semanticDimensions:
       planned.semanticDimensions || (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
     realizationSource,
+    sourceFact: primaryFact?.text || primaryFact?.claim || candidateText,
+    transformationType: planned.transformationType || (compFact ? 'COMBINE' : 'REWRITE'),
   });
 
   for (const fid of composedFromFactIds) usedFactIds.add(fid);

@@ -495,7 +495,7 @@ export const SCORING_POLICIES = Object.freeze({
   }),
 });
 
-export const DEFAULT_SCORE_VERSION = 'p83.0';
+export const DEFAULT_SCORE_VERSION = 'p82.0';
 
 /**
  * Retrieves a frozen scoring policy by version tag.

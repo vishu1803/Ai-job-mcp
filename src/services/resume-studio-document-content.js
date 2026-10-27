@@ -193,9 +193,7 @@ export function studioDocumentContent(draft) {
           .map((entry) => {
             if (typeof entry === 'string') return entry;
             const name = entry.language || entry.name || '';
-            const prof = entry.proficiency
-              ? ` (${entry.proficiency.charAt(0).toUpperCase() + entry.proficiency.slice(1).toLowerCase()})`
-              : '';
+            const prof = entry.proficiency ? ` (${entry.proficiency})` : '';
             return name ? `${name}${prof}` : null;
           })
           .filter(Boolean);

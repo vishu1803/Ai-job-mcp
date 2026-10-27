@@ -165,13 +165,22 @@ export class AiResumeContentGeneratorService {
       // Match facts associated with this project
       const projFacts = this._getProjectFacts(proj, inventory);
 
-      const bullets = await this.generateJobConditionedProjectBullets({
-        project: proj,
-        candidateProfile,
-        targetJobPosting,
-        projectFacts: projFacts.length > 0 ? projFacts : proj.bullets || [],
-        aiProvider: activeProvider,
-      });
+      let bullets = [];
+      try {
+        bullets = await this.generateJobConditionedProjectBullets({
+          project: proj,
+          candidateProfile,
+          targetJobPosting,
+          projectFacts: projFacts.length > 0 ? projFacts : proj.bullets || [],
+          aiProvider: activeProvider,
+        });
+      } catch (err) {
+        if (err.code === 'INSUFFICIENT_SOURCE_EVIDENCE') {
+          bullets = [];
+        } else {
+          throw err;
+        }
+      }
 
       projectWriting.push(bulletProviderStatuses.get(bullets) || { status: 'UNAVAILABLE' });
       const slugName = projName
@@ -446,9 +455,13 @@ export class AiResumeContentGeneratorService {
       })
       .filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
 
-    // No model or filler may compensate for absent grounded facts.
-    if (availableFacts.length === 0) {
-      return [];
+    // Minimum 3 grounded facts required; fail closed with INSUFFICIENT_SOURCE_EVIDENCE
+    if (availableFacts.length < 3) {
+      const err = new Error(
+        `INSUFFICIENT_SOURCE_EVIDENCE: Project "${proj.name || projectOwnerId}" lacks minimum 3 grounded accomplishment facts (found ${availableFacts.length})`
+      );
+      err.code = 'INSUFFICIENT_SOURCE_EVIDENCE';
+      throw err;
     }
 
     // Target job context

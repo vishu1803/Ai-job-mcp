@@ -11,6 +11,9 @@ import {
 } from '../../src/services/resume-studio-draft-content.js';
 import { compileStudioDocument } from '../../src/services/resume-studio-document-compiler.js';
 
+process.env.NODE_ENV = 'test';
+delete process.env.GEMINI_API_KEY;
+delete process.env.GOOGLE_CLOUD_PROJECT;
 assert.equal(process.env.NODE_ENV, 'test');
 assert.ok(!process.env.GEMINI_API_KEY && !process.env.GOOGLE_CLOUD_PROJECT);
 const output = process.argv[2]

@@ -95,7 +95,12 @@ export function renderProfilePage({
   // Experience, Education, Projects, Credentials
   const experienceList = profile?.recentExperience || userCustom.experience || [];
   const educationList = profile?.education || userCustom.education || [];
-  const certsList = profile?.certifications || userCustom.certifications || [];
+  const certsList =
+    profile?.certifications ||
+    userCustom.certifications ||
+    candidate?.profileMetadata?.certifications ||
+    candidate?.certifications ||
+    [];
   const languagesList = profile?.languages || userCustom.languages || [];
   const portfolioLinksList = profile?.portfolioLinks || userCustom.portfolioLinks || [];
   const projectsList = profile?.highlightedProjects || userCustom.projects || [];
@@ -1225,6 +1230,61 @@ export function renderProfilePage({
         color: #F87171;
         border: 1px solid rgba(239, 68, 68, 0.3);
       }
+
+      /* Accessible Modal Dialog */
+      .profile-modal {
+        background: #1F2937;
+        color: #F9FAFB;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 1.5rem;
+        max-width: 540px;
+        width: 90vw;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+      }
+
+      .profile-modal::backdrop {
+        background: rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(4px);
+      }
+
+      .profile-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 0.75rem;
+      }
+
+      .profile-modal-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0;
+        color: #F3F4F6;
+      }
+
+      .profile-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .record-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .record-card-header-flex {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
     </style>
 
     <!-- Hidden Anchors for Backward Compatibility & Deep Links -->
@@ -1882,20 +1942,41 @@ export function renderProfilePage({
 
             <div class="credentials-split-grid">
               <div>
-                <h3 class="sub-heading">Certifications (${certsList.length})</h3>
-                <div class="records-container">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.75rem;">
+                  <h3 class="sub-heading" id="certsHeading" style="margin-bottom:0;">Certifications (${certsList.length})</h3>
+                  <button type="button" class="btn btn-secondary btn-sm" id="addCertificationBtn">
+                    + Add Certification
+                  </button>
+                </div>
+                <div class="records-container" id="certificationsContainer">
                   ${certsList
                     .map(
-                      (c) => `
-                    <div class="record-card">
-                      <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
-                      <span class="record-subtitle">${escapeHtml(c.issuingOrganization || c.issuer || 'Issuer not provided')} • ${escapeHtml(c.issueDate || '')}</span>
+                      (c, idx) => `
+                    <div class="record-card cert-record-card cert-card" data-index="${idx}">
+                      <div class="record-card-header-flex">
+                        <div>
+                          <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
+                          <span class="record-subtitle">
+                            ${escapeHtml(c.issuingOrganization || c.issuer || 'Issuer not provided')}
+                            ${c.issueDate ? ` • Issued: ${escapeHtml(c.issueDate)}` : ''}
+                            ${c.expirationDate ? ` • Expires: ${escapeHtml(c.expirationDate)}` : c.doesNotExpire ? ' • Does not expire' : ''}
+                          </span>
+                        </div>
+                        <div class="record-card-actions">
+                          <button type="button" class="btn btn-ghost btn-sm edit-cert-btn cert-btn-edit" data-index="${idx}">Edit</button>
+                          <button type="button" class="btn btn-ghost btn-sm delete-cert-btn cert-btn-delete" data-index="${idx}" style="color:#EF4444;">Delete</button>
+                        </div>
+                      </div>
+                      ${c.credentialId ? `<p style="font-size:0.8rem; color:#9CA3AF; margin:4px 0 0;">Credential ID: <code>${escapeHtml(c.credentialId)}</code></p>` : ''}
+                      ${c.credentialUrl ? `<div style="margin-top:6px;"><a href="${escapeHtml(c.credentialUrl)}" target="_blank" rel="noopener noreferrer" class="link-icon-btn" style="display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#818CF8;"><span>View Credential</span> <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a></div>` : ''}
+                      ${c.description || c.notes ? `<p class="record-description" style="margin-top:6px; font-size:0.85rem; color:#D1D5DB;">${escapeHtml(c.description || c.notes)}</p>` : ''}
                     </div>
                   `
                     )
                     .join('')}
-                  ${certsList.length === 0 ? '<p class="text-muted">No certifications recorded.</p>' : ''}
+                  ${certsList.length === 0 ? '<p class="text-muted certs-empty-state" id="certsEmptyNotice">No certifications recorded. Click "+ Add Certification" to add your professional credentials.</p>' : ''}
                 </div>
+                <input type="hidden" name="certifications" id="certificationsHiddenInput" value="${escapeHtml(JSON.stringify(certsList))}">
               </div>
 
               <div>
@@ -2158,6 +2239,61 @@ export function renderProfilePage({
       </form>
     </div>
 
+    <!-- Certification Modal Dialog -->
+    <dialog id="certificationModal" class="profile-modal" aria-labelledby="certModalTitle">
+      <div class="profile-modal-header">
+        <h3 id="certModalTitle" class="profile-modal-title">Add Certification</h3>
+        <button type="button" class="btn btn-ghost btn-sm" id="closeCertModalX" aria-label="Close modal">✕</button>
+      </div>
+      <form id="certificationModalForm" method="dialog">
+        <input type="hidden" id="certIndex" value="-1">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="certNameInput">Certification Name <span class="required-star">*</span></label>
+          <input type="text" id="certNameInput" class="form-control" placeholder="e.g. AWS Certified Solutions Architect - Associate" required>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="certIssuerInput">Issuing Organization <span class="required-star">*</span></label>
+          <input type="text" id="certIssuerInput" class="form-control" placeholder="e.g. Amazon Web Services (AWS)" required>
+        </div>
+        <div class="form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+          <div class="form-group">
+            <label for="certIssueDateInput">Issue Date</label>
+            <input type="text" id="certIssueDateInput" class="form-control" placeholder="YYYY or YYYY-MM">
+            <span class="field-hint">e.g. 2024-03</span>
+          </div>
+          <div class="form-group">
+            <label for="certExpirationDateInput">Expiration Date</label>
+            <input type="text" id="certExpirationDateInput" class="form-control" placeholder="YYYY or YYYY-MM">
+            <span class="field-hint">Leave blank if no expiration</span>
+          </div>
+        </div>
+        <div class="form-group checkbox-group" style="margin-bottom:1rem;">
+          <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="certDoesNotExpireCheckbox">
+            <span>This credential does not expire</span>
+          </label>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="certCredentialIdInput">Credential ID</label>
+          <input type="text" id="certCredentialIdInput" class="form-control" placeholder="e.g. ABC123XYZ456">
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="certCredentialUrlInput">Verification URL</label>
+          <input type="url" id="certCredentialUrlInput" class="form-control" placeholder="https://www.credly.com/badges/...">
+          <span class="field-hint">Public link to verify or view the credential badge</span>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="certDescriptionInput">Description / Notes</label>
+          <textarea id="certDescriptionInput" class="form-control" rows="2" placeholder="Key skills validated or certification scope..."></textarea>
+        </div>
+        <div id="certModalError" style="color:#EF4444; font-size:0.85rem; margin-bottom:0.75rem; display:none;"></div>
+        <div class="profile-modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelCertModalBtn">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveCertModalBtn">Save Certification</button>
+        </div>
+      </form>
+    </dialog>
+
     <!-- Embedded Initial Profile State for AJAX / Dirty Tracking -->
     <script>
       window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
@@ -2176,6 +2312,13 @@ export function renderProfilePage({
         const form = document.getElementById('careerProfileForm');
 
         let isDirty = false;
+        let certList = [];
+        try {
+          const raw = document.getElementById('certificationsHiddenInput')?.value;
+          certList = raw ? JSON.parse(raw) : [];
+        } catch {
+          certList = [];
+        }
 
         const TAB_ALIASES = {
           'links': 'contact',
@@ -2429,6 +2572,7 @@ export function renderProfilePage({
                   workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser') === 'true',
                   visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser') === 'true',
                 },
+                certifications: certList,
               },
             };
 
@@ -2464,6 +2608,322 @@ export function renderProfilePage({
             }
           });
         }
+
+        // ── Certifications Interactive Controller ──
+        const certsModal = document.getElementById('certificationModal');
+        const certsContainer = document.getElementById('certificationsContainer');
+        const certsHeading = document.getElementById('certsHeading');
+        const certsHiddenInput = document.getElementById('certificationsHiddenInput');
+        const addCertBtn = document.getElementById('addCertificationBtn');
+        const saveCertModalBtn = document.getElementById('saveCertModalBtn');
+        const cancelCertModalBtn = document.getElementById('cancelCertModalBtn');
+        const closeCertModalX = document.getElementById('closeCertModalX');
+        const certModalError = document.getElementById('certModalError');
+        const certDoesNotExpireCheckbox = document.getElementById('certDoesNotExpireCheckbox');
+        const certExpirationDateInput = document.getElementById('certExpirationDateInput');
+
+        function escapeText(str) {
+          if (!str) return '';
+          const div = document.createElement('div');
+          div.textContent = str;
+          return div.innerHTML;
+        }
+
+        function renderCertList() {
+          if (!certsContainer) return;
+          certsContainer.innerHTML = '';
+          if (certList.length === 0) {
+            var notice = document.createElement('p');
+            notice.className = 'text-muted certs-empty-state';
+            notice.id = 'certsEmptyNotice';
+            notice.textContent = 'No certifications recorded. Click "+ Add Certification" to add your professional credentials.';
+            certsContainer.appendChild(notice);
+          } else {
+            certList.forEach(function (c, idx) {
+              var card = document.createElement('div');
+              card.className = 'record-card cert-record-card cert-card';
+              card.setAttribute('data-index', String(idx));
+
+              var headerFlex = document.createElement('div');
+              headerFlex.className = 'record-card-header-flex';
+
+              var titleCol = document.createElement('div');
+              var title = document.createElement('h4');
+              title.className = 'record-title';
+              title.textContent = c.name || 'Certification';
+              titleCol.appendChild(title);
+
+              var subtitle = document.createElement('span');
+              subtitle.className = 'record-subtitle';
+              var subParts = [c.issuingOrganization || c.issuer || 'Issuer not provided'];
+              if (c.issueDate) subParts.push('Issued: ' + c.issueDate);
+              if (c.expirationDate) subParts.push('Expires: ' + c.expirationDate);
+              else if (c.doesNotExpire) subParts.push('Does not expire');
+              subtitle.textContent = subParts.join(' • ');
+              titleCol.appendChild(subtitle);
+              headerFlex.appendChild(titleCol);
+
+              var actions = document.createElement('div');
+              actions.className = 'record-card-actions';
+
+              var editBtn = document.createElement('button');
+              editBtn.type = 'button';
+              editBtn.className = 'btn btn-ghost btn-sm edit-cert-btn cert-btn-edit';
+              editBtn.setAttribute('data-index', String(idx));
+              editBtn.textContent = 'Edit';
+              actions.appendChild(editBtn);
+
+              var deleteBtn = document.createElement('button');
+              deleteBtn.type = 'button';
+              deleteBtn.className = 'btn btn-ghost btn-sm delete-cert-btn cert-btn-delete';
+              deleteBtn.setAttribute('data-index', String(idx));
+              deleteBtn.style.color = '#EF4444';
+              deleteBtn.textContent = 'Delete';
+              actions.appendChild(deleteBtn);
+
+              headerFlex.appendChild(actions);
+              card.appendChild(headerFlex);
+
+              if (c.credentialId) {
+                var credP = document.createElement('p');
+                credP.style.cssText = 'font-size:0.8rem; color:#9CA3AF; margin:4px 0 0;';
+                credP.innerHTML = 'ID: <code>' + escapeText(c.credentialId) + '</code>';
+                card.appendChild(credP);
+              }
+
+              if (c.credentialUrl) {
+                var linkDiv = document.createElement('div');
+                linkDiv.style.marginTop = '6px';
+                var a = document.createElement('a');
+                a.href = c.credentialUrl;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.className = 'link-icon-btn';
+                a.style.cssText = 'display:inline-flex; align-items:center; gap:4px; font-size:0.8rem; color:#818CF8;';
+                a.innerHTML = '<span>View Credential ↗</span>';
+                linkDiv.appendChild(a);
+                card.appendChild(linkDiv);
+              }
+
+              if (c.description || c.notes) {
+                var descP = document.createElement('p');
+                descP.className = 'record-description';
+                descP.style.cssText = 'margin-top:6px; font-size:0.85rem; color:#D1D5DB;';
+                descP.textContent = c.description || c.notes;
+                card.appendChild(descP);
+              }
+
+              certsContainer.appendChild(card);
+            });
+          }
+          if (certsHeading) {
+            certsHeading.textContent = 'Certifications (' + certList.length + ')';
+          }
+          if (certsHiddenInput) {
+            certsHiddenInput.value = JSON.stringify(certList);
+          }
+          attachCertActionListeners();
+        }
+
+        function attachCertActionListeners() {
+          document.querySelectorAll('.edit-cert-btn').forEach((btn) => {
+            btn.onclick = function () {
+              const idx = parseInt(this.getAttribute('data-index'), 10);
+              openCertModal(idx);
+            };
+          });
+          document.querySelectorAll('.delete-cert-btn').forEach((btn) => {
+            btn.onclick = async function () {
+              const idx = parseInt(this.getAttribute('data-index'), 10);
+              if (confirm('Are you sure you want to delete this certification?')) {
+                certList.splice(idx, 1);
+                renderCertList();
+                await markDirtyAndAutoSave();
+              }
+            };
+          });
+        }
+
+        function openCertModal(idx = -1) {
+          if (!certsModal) return;
+          const titleEl = document.getElementById('certModalTitle');
+          const indexEl = document.getElementById('certIndex');
+          const nameEl = document.getElementById('certNameInput');
+          const issuerEl = document.getElementById('certIssuerInput');
+          const issueDateEl = document.getElementById('certIssueDateInput');
+          const expDateEl = document.getElementById('certExpirationDateInput');
+          const noExpEl = document.getElementById('certDoesNotExpireCheckbox');
+          const credIdEl = document.getElementById('certCredentialIdInput');
+          const credUrlEl = document.getElementById('certCredentialUrlInput');
+          const descEl = document.getElementById('certDescriptionInput');
+
+          if (certModalError) {
+            certModalError.textContent = '';
+            certModalError.style.display = 'none';
+          }
+
+          if (idx >= 0 && certList[idx]) {
+            const cert = certList[idx];
+            if (titleEl) titleEl.textContent = 'Edit Certification';
+            if (indexEl) indexEl.value = String(idx);
+            if (nameEl) nameEl.value = cert.name || '';
+            if (issuerEl) issuerEl.value = cert.issuingOrganization || cert.issuer || '';
+            if (issueDateEl) issueDateEl.value = cert.issueDate || '';
+            if (expDateEl) expDateEl.value = cert.expirationDate || '';
+            if (noExpEl) noExpEl.checked = Boolean(cert.doesNotExpire || !cert.expirationDate);
+            if (expDateEl) expDateEl.disabled = Boolean(noExpEl?.checked);
+            if (credIdEl) credIdEl.value = cert.credentialId || '';
+            if (credUrlEl) credUrlEl.value = cert.credentialUrl || '';
+            if (descEl) descEl.value = cert.description || cert.notes || '';
+          } else {
+            if (titleEl) titleEl.textContent = 'Add Certification';
+            if (indexEl) indexEl.value = '-1';
+            if (nameEl) nameEl.value = '';
+            if (issuerEl) issuerEl.value = '';
+            if (issueDateEl) issueDateEl.value = '';
+            if (expDateEl) {
+              expDateEl.value = '';
+              expDateEl.disabled = false;
+            }
+            if (noExpEl) noExpEl.checked = false;
+            if (credIdEl) credIdEl.value = '';
+            if (credUrlEl) credUrlEl.value = '';
+            if (descEl) descEl.value = '';
+          }
+
+          if (typeof certsModal.showModal === 'function') {
+            certsModal.showModal();
+          } else {
+            certsModal.setAttribute('open', '');
+          }
+        }
+
+        function closeCertModal() {
+          if (!certsModal) return;
+          if (typeof certsModal.close === 'function') {
+            certsModal.close();
+          } else {
+            certsModal.removeAttribute('open');
+          }
+        }
+
+        if (certDoesNotExpireCheckbox && certExpirationDateInput) {
+          certDoesNotExpireCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+              certExpirationDateInput.value = '';
+              certExpirationDateInput.disabled = true;
+            } else {
+              certExpirationDateInput.disabled = false;
+            }
+          });
+        }
+
+        if (addCertBtn) {
+          addCertBtn.addEventListener('click', () => openCertModal(-1));
+        }
+        if (cancelCertModalBtn) {
+          cancelCertModalBtn.addEventListener('click', closeCertModal);
+        }
+        if (closeCertModalX) {
+          closeCertModalX.addEventListener('click', closeCertModal);
+        }
+
+        if (saveCertModalBtn) {
+          saveCertModalBtn.addEventListener('click', async function (e) {
+            e.preventDefault();
+            const index = parseInt(document.getElementById('certIndex')?.value || '-1', 10);
+            const name = document.getElementById('certNameInput')?.value?.trim();
+            const issuer = document.getElementById('certIssuerInput')?.value?.trim();
+            const issueDate = document.getElementById('certIssueDateInput')?.value?.trim() || null;
+            const doesNotExpire = document.getElementById('certDoesNotExpireCheckbox')?.checked;
+            const expirationDate = doesNotExpire
+              ? null
+              : document.getElementById('certExpirationDateInput')?.value?.trim() || null;
+            const credentialId = document.getElementById('certCredentialIdInput')?.value?.trim() || null;
+            const credentialUrl = document.getElementById('certCredentialUrlInput')?.value?.trim() || null;
+            const description = document.getElementById('certDescriptionInput')?.value?.trim() || null;
+
+            if (!name) {
+              showModalError('Certification name is required.');
+              return;
+            }
+            if (!issuer) {
+              showModalError('Issuing organization is required.');
+              return;
+            }
+            if (credentialUrl && !credentialUrl.startsWith('http://') && !credentialUrl.startsWith('https://')) {
+              showModalError('Verification URL must start with http:// or https://');
+              return;
+            }
+            if (issueDate && expirationDate && issueDate > expirationDate) {
+              showModalError('Issue date cannot be after expiration date.');
+              return;
+            }
+
+            const existingCert = index >= 0 ? certList[index] : null;
+            const certData = {
+              id: existingCert?.id || ('cert-' + Date.now()),
+              name,
+              issuingOrganization: issuer,
+              issuer,
+              issueDate,
+              expirationDate,
+              doesNotExpire: Boolean(doesNotExpire),
+              credentialId,
+              credentialUrl,
+              description,
+              notes: description,
+            };
+
+            if (index >= 0) {
+              certList[index] = certData;
+            } else {
+              certList.push(certData);
+            }
+
+            renderCertList();
+            closeCertModal();
+            await markDirtyAndAutoSave();
+          });
+        }
+
+        function showModalError(msg) {
+          if (!certModalError) return;
+          certModalError.textContent = msg;
+          certModalError.style.display = 'block';
+        }
+
+        async function markDirtyAndAutoSave() {
+          isDirty = true;
+          updateSaveUI('DIRTY');
+          try {
+            updateSaveUI('SAVING');
+            const csrf = form ? (new FormData(form).get('csrfToken') || new FormData(form).get('_csrf') || '') : '';
+            const res = await fetch('/api/profile', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'x-csrf-token': csrf,
+              },
+              body: JSON.stringify({
+                sections: {
+                  certifications: certList,
+                },
+              }),
+            });
+            if (res.ok) {
+              isDirty = false;
+              updateSaveUI('SUCCESS');
+            } else {
+              updateSaveUI('DIRTY');
+            }
+          } catch {
+            updateSaveUI('DIRTY');
+          }
+        }
+
+        attachCertActionListeners();
 
         // Beforeunload confirmation to prevent accidental data loss
         window.addEventListener('beforeunload', function (e) {

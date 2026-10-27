@@ -1,7 +1,14 @@
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import { buildResumeAiContext } from './ai-context-sanitizer.service.js';
 import { validateClaimEvidenceGrounding } from './resume-claim-validation.service.js';
-import { toEvidenceReference } from './resume-composition-primitives.js';
+import {
+  toEvidenceReference,
+  areBulletsSemanticallyRedundant,
+} from './resume-composition-primitives.js';
+import {
+  FORBIDDEN_UNBACKED_SUMMARY_TERMS,
+  hasEvidenceForPhrase,
+} from './structured-resume.service.js';
 
 // Writing may change; material qualifications must remain in the cited source.
 // Canonicalize common grammatical inflections and conservative writing equivalents.
@@ -146,7 +153,8 @@ const TECHNICAL_VOCABULARY = new Set(
     'board boards search searches searching searched assistant assistants ' +
     'recommend recommends recommending recommended recommendation recommendations ' +
     'candidate candidates collaborative collaboration collaborations explore explores exploring explored explorer explorers ' +
-    'filter filters filtering filtered prompt prompts prompting prompted metric metrics tailor tailors tailoring tailored'
+    'filter filters filtering filtered prompt prompts prompting prompted metric metrics tailor tailors tailoring tailored ' +
+    'dynamic complemented complement complements complementing guarantee guarantees guaranteeing guaranteed boundary boundaries algorithm algorithms submission submissions'
   ).split(/\s+/)
 );
 
@@ -331,7 +339,7 @@ export function validateProviderResumeClaim(claim, context) {
 
   // 5. Check for truncated metric context (e.g. "achieving a 40% reduction" without measured outcome)
   if (
-    /\b(?:achieving|resulting in)\s+a\s+\d+%\s*(?:reduction|decrease|increase|improvement)\s*[\.]?$/i.test(
+    /\b(?:achieving|resulting in)\s+a\s+\d+%\s*(?:reduction|decrease|increase|improvement)\s*[.]?$/i.test(
       claim.text.trim()
     ) ||
     /\b\d+%\s*(?:reduction|decrease|increase|improvement)\s*\./i.test(claim.text)
@@ -372,6 +380,35 @@ export function validateProviderResumeClaim(claim, context) {
           code: 'SUMMARY_DUPLICATES_EXPERIENCE_BULLET',
           message:
             'Professional summary must synthesize profile qualifications rather than copying experience bullets verbatim.',
+        });
+        break;
+      }
+    }
+
+    // 5d. Unbacked buzzwords check for summary
+    for (const term of FORBIDDEN_UNBACKED_SUMMARY_TERMS) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[-_]/g, '[-_\\s]+');
+      const termRegex = new RegExp(`(?:^|[^a-zA-Z0-9_])${escaped}(?:$|[^a-zA-Z0-9_])`, 'i');
+      if (termRegex.test(claim.text)) {
+        if (!hasEvidenceForPhrase(term, {}, { candidateProfile: context.candidateProfile })) {
+          result.violations.push({
+            code: 'UNSUPPORTED_MATERIAL_WORDING',
+            message: `Summary contains unsupported claim/buzzword '${term}' without candidate evidence support.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // 5e. Duplicate project accomplishment check (Req 3)
+  if (context.sectionOwnerType === 'PROJECT' && Array.isArray(context.alreadyRenderedClaims)) {
+    for (const existing of context.alreadyRenderedClaims) {
+      if (areBulletsSemanticallyRedundant(existing, claim)) {
+        result.violations.push({
+          code: 'DUPLICATE_PROJECT_ACCOMPLISHMENT',
+          message:
+            'Proposed wording duplicates an already realized accomplishment for this project.',
         });
         break;
       }
@@ -514,6 +551,10 @@ export async function realizeResumeWriting({
         alreadyRenderedClaims: claims,
       });
       if (!validation.valid) {
+        if (validation.violations[0]?.code === 'DUPLICATE_PROJECT_ACCOMPLISHMENT') {
+          // Skip redundant bullet rather than rejecting entire project realization (Req 3)
+          continue;
+        }
         // Log detailed violation diagnostics for observability
         console.error('Provider claim rejected:', {
           text: claim.text,
