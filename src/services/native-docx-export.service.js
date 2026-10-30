@@ -20,6 +20,26 @@ export function buildStudioDocx(blocks, { marginIn = 0.5, lineHeight = 1.1 } = {
       const isBullet = style === 'Bullet';
       const pPr = `<w:pPr><w:pStyle w:val="${style}"/>${isBullet ? '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' : ''}</w:pPr>`;
       if (Array.isArray(hyperlinks) && hyperlinks.length > 0) {
+        if (
+          hyperlinks.length === 1 &&
+          text &&
+          text.includes(hyperlinks[0].text) &&
+          text !== hyperlinks[0].text
+        ) {
+          const item = hyperlinks[0];
+          const relId = `rId${nextRelId++}`;
+          hyperlinkRels.push({ id: relId, target: item.url });
+          const idx = text.indexOf(item.text);
+          const before = text.slice(0, idx);
+          const after = text.slice(idx + item.text.length);
+          const runElements = [];
+          if (before) runElements.push(`<w:r><w:t xml:space="preserve">${xml(before)}</w:t></w:r>`);
+          runElements.push(
+            `<w:hyperlink r:id="${relId}" w:history="1"><w:r><w:rPr><w:rStyle w:val="Hyperlink"/><w:color w:val="000000"/><w:u w:val="none"/></w:rPr><w:t xml:space="preserve">${xml(item.text)}</w:t></w:r></w:hyperlink>`
+          );
+          if (after) runElements.push(`<w:r><w:t xml:space="preserve">${xml(after)}</w:t></w:r>`);
+          return `<w:p>${pPr}${runElements.join('')}</w:p>`;
+        }
         const runElements = [];
         for (let i = 0; i < hyperlinks.length; i++) {
           const item = hyperlinks[i];

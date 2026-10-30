@@ -1,257 +1,257 @@
 {
-  "startedAt": "2026-10-16T18:48:11.033Z",
+  "startedAt": "2026-10-29T04:41:24.649Z",
   "checks": [
     {
       "title": "Landing page renders HTTP 200 with hero heading and brand navigation",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:39.305Z"
+      "timestamp": "2026-10-29T04:41:29.686Z"
     },
     {
       "title": "Unauthenticated requests to protected views fail-safe to /login redirect",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:39.365Z"
+      "timestamp": "2026-10-29T04:41:29.759Z"
     },
     {
       "title": "Login portal renders GitHub OAuth CTA and dev-login helper cleanly",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:39.714Z"
+      "timestamp": "2026-10-29T04:41:30.137Z"
     },
     {
       "title": "Public MCP specification documentation view renders HTTP 200",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:40.430Z"
+      "timestamp": "2026-10-29T04:41:30.951Z"
     },
     {
       "title": "Static trust & compliance pages (/privacy, /terms, /security, /data-deletion) return 200",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:40.527Z"
+      "timestamp": "2026-10-29T04:41:31.049Z"
     },
     {
       "title": "Persona A (New Candidate) authenticated via dev-login into /dashboard",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:42.468Z"
+      "timestamp": "2026-10-29T04:41:33.316Z"
     },
     {
       "title": "Empty dashboard renders gracefully without NaN% or unhandled exceptions",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:42.785Z"
+      "timestamp": "2026-10-29T04:41:33.684Z"
     },
     {
       "title": "Onboarding setup wizard displays Step 1 profile form",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:44.023Z"
+      "timestamp": "2026-10-29T04:41:34.820Z"
     },
     {
       "title": "Resumes hub displays clean upload prompt for candidate with 0 resumes",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:44.602Z"
+      "timestamp": "2026-10-29T04:41:35.310Z"
     },
     {
       "title": "Applications hub displays calm empty workspace with CTA to Radar",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:45.371Z"
+      "timestamp": "2026-10-29T04:41:36.029Z"
     },
     {
       "title": "Dashboard flags missing phone number readiness prompt for Jordan Lee",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:46.986Z"
+      "timestamp": "2026-10-29T04:41:38.171Z"
     },
     {
       "title": "Skills taxonomy explorer displays claimed skills with CLAIMED provenance badge",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:47.815Z"
+      "timestamp": "2026-10-29T04:41:40.379Z"
     },
     {
       "title": "Profile contact tab loads cleanly without errors",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:48.109Z"
+      "timestamp": "2026-10-29T04:41:41.092Z"
     },
     {
       "title": "Dashboard showcases verified project and top verified skills chips",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:49.535Z"
+      "timestamp": "2026-10-29T04:41:43.103Z"
     },
     {
       "title": "Projects portfolio renders verified Library Lending API card",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:49.937Z"
+      "timestamp": "2026-10-29T04:41:43.766Z"
     },
     {
       "title": "Skills taxonomy explorer displays verified skills with evidence links",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:50.369Z"
+      "timestamp": "2026-10-29T04:41:44.641Z"
     },
     {
       "title": "Resumes hub displays master resume with BASE_RESUME badge",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:50.744Z"
+      "timestamp": "2026-10-29T04:41:45.279Z"
     },
     {
       "title": "Radar Job Fit page renders discovery view and saved job matches",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:51.169Z"
+      "timestamp": "2026-10-29T04:41:46.091Z"
     },
     {
       "title": "Dashboard displays 4 active application pipeline stages for Morgan Vance",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:52.963Z"
+      "timestamp": "2026-10-29T04:41:48.446Z"
     },
     {
       "title": "Radar discovery renders curated job cards from JobDiscoveryService",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:53.802Z"
+      "timestamp": "2026-10-29T04:41:49.242Z"
     },
     {
       "title": "Resume Studio loads target job context bar",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:54.503Z"
+      "timestamp": "2026-10-29T04:41:49.964Z"
     },
     {
       "title": "Resume Studio diagnostics & ATS fit score (37.84) evaluated over CSRF API",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:56.178Z"
+      "timestamp": "2026-10-29T04:41:52.004Z"
     },
     {
       "title": "Synthetic AI bullet proposal generated with source provenance and modal controls",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:57.115Z"
+      "timestamp": "2026-10-29T04:41:53.727Z"
     },
     {
       "title": "Accepted AI proposal cleanly integrates text into candidate bullet",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:57.612Z"
+      "timestamp": "2026-10-29T04:41:54.385Z"
     },
     {
       "title": "Structured bullet editing autosaves revision to backend ledger",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:48:59.510Z"
+      "timestamp": "2026-10-29T04:41:55.827Z"
     },
     {
       "title": "Edited bullet content persists across full browser reload",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:00.309Z"
+      "timestamp": "2026-10-29T04:41:56.408Z"
     },
     {
       "title": "Single-page A4 document preview compiles with PDF & DOCX export enabled",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:13.245Z"
+      "timestamp": "2026-10-29T04:42:19.162Z"
     },
     {
       "title": "Applications kanban board displays all 4 lifecycle states (Saved, Prepared, Handoff Ready, Applied)",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:13.962Z"
+      "timestamp": "2026-10-29T04:42:19.726Z"
     },
     {
       "title": "Handoff Kit workspace displays package integrity hash, QA badge and export button",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:14.600Z"
+      "timestamp": "2026-10-29T04:42:20.479Z"
     },
     {
       "title": "AI Connection Center renders MCP client instructions & token generation shell",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:15.019Z"
+      "timestamp": "2026-10-29T04:42:20.979Z"
     },
     {
       "title": "Account & privacy settings page renders theme preferences and data controls",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:15.295Z"
+      "timestamp": "2026-10-29T04:42:21.315Z"
     },
     {
       "title": "Tenant 2 dashboard displays strict tenant isolation without Tenant 1 data leaks",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:16.960Z"
+      "timestamp": "2026-10-29T04:42:22.630Z"
     },
     {
       "title": "Cross-tenant IDOR attempt on application handoff blocked with 404 Not Found",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:17.024Z"
+      "timestamp": "2026-10-29T04:42:22.685Z"
     },
     {
       "title": "Cross-tenant IDOR attempt on Resume Studio draft blocked with 404 Not Found",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:17.044Z"
+      "timestamp": "2026-10-29T04:42:22.704Z"
     },
     {
       "title": "READONLY role mutation attempt on Resume Studio draft blocked with 403 Forbidden",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:17.063Z"
+      "timestamp": "2026-10-29T04:42:22.720Z"
     },
     {
       "title": "Viewport Tablet-Landscape (1024x768): Zero horizontal overflow, clean responsive layout",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:18.675Z"
+      "timestamp": "2026-10-29T04:42:24.496Z"
     },
     {
       "title": "Viewport Tablet-Portrait (768x1024): Zero horizontal overflow, clean responsive layout",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:20.688Z"
+      "timestamp": "2026-10-29T04:42:26.424Z"
     },
     {
       "title": "Mobile drawer navigation opens smoothly on Tablet-Portrait",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:21.180Z"
+      "timestamp": "2026-10-29T04:42:26.967Z"
     },
     {
       "title": "Viewport Mobile-iPhone-14 (390x844): Zero horizontal overflow, clean responsive layout",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:23.641Z"
+      "timestamp": "2026-10-29T04:42:29.136Z"
     },
     {
       "title": "Mobile drawer navigation opens smoothly on Mobile-iPhone-14",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:24.069Z"
+      "timestamp": "2026-10-29T04:42:29.632Z"
     },
     {
       "title": "Viewport Mobile-iPhone-SE (375x667): Zero horizontal overflow, clean responsive layout",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:25.985Z"
+      "timestamp": "2026-10-29T04:42:31.513Z"
     },
     {
       "title": "Mobile drawer navigation opens smoothly on Mobile-iPhone-SE",
       "status": "PASS",
       "details": {},
-      "timestamp": "2026-10-16T18:49:26.450Z"
+      "timestamp": "2026-10-29T04:42:32.064Z"
     }
   ],
   "screenshots": [
@@ -431,7 +431,7 @@
       "passed": true
     }
   ],
-  "completedAt": "2026-10-16T18:49:26.472Z",
+  "completedAt": "2026-10-29T04:42:32.097Z",
   "totalChecks": 42,
   "passedChecks": 42,
   "totalScreenshots": 29,

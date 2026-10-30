@@ -294,7 +294,6 @@ export function generateGroundedSummary({
     selectedSkills: selectedSkills || candidateProfile.skills || [],
     selectedProjects: selectedProjects || candidateProfile.projects || [],
     options: {
-      synthesizeSummary: true,
       ...options,
       matchAnalysis,
       targetRoleTitle: tailoringPlan?.targetRoleTitle || options.targetRoleTitle,
@@ -992,7 +991,8 @@ export function deriveTargetRoleHeading({
     if (hasFullStackEvidence) candidateHeadline = 'Full-Stack Software Engineer';
     else if (hasBackendEvidence) candidateHeadline = 'Backend Engineer';
     else if (hasFrontendEvidence) candidateHeadline = 'Frontend Engineer';
-    else if (allCandidateCapabilities.length > 0 || hasSoftwareExperience) candidateHeadline = 'Software Engineer';
+    else if (allCandidateCapabilities.length > 0 || hasSoftwareExperience)
+      candidateHeadline = 'Software Engineer';
     else candidateHeadline = defaultNonEngineeringHeadline;
   }
 

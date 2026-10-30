@@ -164,11 +164,12 @@ Requirements:
     const expectedProjectIds = [
       '95a13c93-a198-4473-bf64-5b8a50cbd3b9', // Product Data Explorer
       '389d1357-156a-4296-a1bb-603140897bc3', // Collaborative Task Manager
+      'ea5137c3-2f7f-4e29-a884-28ff3c659ebf', // AI-Powered Code Reviewer
     ];
     assert.deepStrictEqual(
       extProjectIds,
       expectedProjectIds,
-      'Extension must select authoritative top-2 projects'
+      'Extension must select authoritative top-3 projects'
     );
     assert.deepStrictEqual(
       mcpStructuredProjectIds,
@@ -184,7 +185,11 @@ Requirements:
     // 4. Project Names parity
     const extProjectNames = extStructured.projects.map((p) => p.name || p.displayName);
     const mcpProjectNames = mcpResult.resume.projects.map((p) => p.name || p.displayName);
-    const expectedProjectNames = ['Product Data Explorer', 'Collaborative Task Manager'];
+    const expectedProjectNames = [
+      'Product Data Explorer',
+      'Collaborative Task Manager',
+      'AI-Powered Code Review Assistant',
+    ];
     assert.deepStrictEqual(
       extProjectNames,
       expectedProjectNames,
@@ -221,11 +226,11 @@ Requirements:
       'MCP envelope skill categories must exactly match Extension'
     );
 
-    // Total skills count parity (12 candidate skills in 5 categories)
+    // Total skills count parity (16 candidate skills across categories)
     const totalExtSkills = extSkillCategories.reduce((sum, c) => sum + c.skills.length, 0);
     const totalMcpSkills = mcpEnvelopeSkillCategories.reduce((sum, c) => sum + c.skills.length, 0);
-    assert.strictEqual(totalExtSkills, 12, 'Must have 12 candidate skills');
-    assert.strictEqual(totalMcpSkills, 12, 'MCP must have 12 candidate skills');
+    assert.strictEqual(totalExtSkills, 16, 'Must have 16 candidate skills');
+    assert.strictEqual(totalMcpSkills, 16, 'MCP must have 16 candidate skills');
 
     // 6. Professional Summary text parity
     const extSummary = extStructured.summary?.text;

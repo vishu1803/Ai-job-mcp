@@ -41,7 +41,7 @@ export class AiResumeContentGeneratorService {
   constructor(options = {}) {
     this.aiProvider = options.aiProvider !== undefined ? options.aiProvider : undefined;
     this.writingTimeoutMs =
-      options.writingTimeoutMs || Number(process.env.RESUME_AI_TIMEOUT_MS) || 45000;
+      options.writingTimeoutMs || Number(process.env.RESUME_AI_TIMEOUT_MS) || 120000;
   }
 
   /**

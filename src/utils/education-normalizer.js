@@ -415,8 +415,10 @@ export class EducationNormalizer {
       );
       if (gpaMatch && currentEntry && currentEntry.institution) {
         currentEntry.gradeOrGpa = gpaMatch[1].trim();
-        currentEntry.rawText += `\n${line}`;
-        continue;
+        if (!line.includes('|') && !DEGREE_PATTERNS.some((dp) => dp.regex.test(line))) {
+          currentEntry.rawText += `\n${line}`;
+          continue;
+        }
       }
 
       // 3. Check for standalone Date line
@@ -425,7 +427,9 @@ export class EducationNormalizer {
         !dateMatch.isUncertain &&
         currentEntry &&
         currentEntry.institution &&
-        !currentEntry.endDate
+        !currentEntry.endDate &&
+        !line.includes('|') &&
+        !DEGREE_PATTERNS.some((dp) => dp.regex.test(line))
       ) {
         const isGraduationOnly =
           /^graduation\s*:/i.test(line) || /^(?:completed|graduated)\b/i.test(line);
@@ -456,6 +460,13 @@ export class EducationNormalizer {
         let degPart = null;
         let loc = null;
         let datePart = null;
+
+        // Remove standalone GPA/CGPA segments from piped parts
+        for (let i = parts.length - 1; i >= 0; i--) {
+          if (/^(?:GPA|CGPA|Grade|Percentage|Score)\b/i.test(parts[i])) {
+            parts.splice(i, 1);
+          }
+        }
 
         // Find date part if any
         for (let i = 0; i < parts.length; i++) {
@@ -508,8 +519,15 @@ export class EducationNormalizer {
           (/^graduation\s*:/i.test(datePart) || /^(?:completed|graduated)\b/i.test(datePart))
         );
 
-        // If currentEntry already has the same institution, update it rather than creating a new entry
-        if (currentEntry && currentEntry.institution.toLowerCase() === instPart.toLowerCase()) {
+        // If currentEntry already has the same institution (or piped line has only degree/dates/GPA for currentEntry), update it rather than creating a new entry
+        if (
+          currentEntry &&
+          (currentEntry.institution.toLowerCase() === instPart.toLowerCase() ||
+            (instPart === 'Institution' &&
+              degPart &&
+              currentEntry.institution !== 'Institution' &&
+              (!currentEntry.degree || currentEntry.degreeType === 'OTHER')))
+        ) {
           if (degPart && (!currentEntry.degree || currentEntry.degreeType === 'OTHER')) {
             currentEntry.degree = degPart;
             currentEntry.degreeType = degType;
@@ -521,6 +539,9 @@ export class EducationNormalizer {
             currentEntry.endDate = dNorm.endDate;
             currentEntry.isCurrent = Boolean(!dNorm.endDate && dNorm.isCurrent);
             currentEntry.rawDateRange = dNorm.rawDateRange;
+          }
+          if (gpaMatch && !currentEntry.gradeOrGpa) {
+            currentEntry.gradeOrGpa = gpaMatch[1].trim();
           }
           currentEntry.rawText += `\n${line}`;
           continue;

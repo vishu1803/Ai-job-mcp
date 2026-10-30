@@ -134,7 +134,11 @@ describe('Evidence Matching — SELF_DECLARED Skills', () => {
       confidenceScore: overrides.confidenceScore || 0.0,
       evidenceCount: overrides.evidenceCount || 0,
       proficiency: overrides.proficiency || 'WORKING_KNOWLEDGE',
-      source: overrides.source || 'CANDIDATE_DECLARED',
+      source:
+        overrides.source ||
+        (['SELF_DECLARED', 'LEARNING', 'CLAIMED'].includes(provenanceStatus)
+          ? 'CANDIDATE_DECLARED'
+          : 'REPOSITORY'),
       ...overrides,
     };
   }

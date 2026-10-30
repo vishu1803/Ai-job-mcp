@@ -230,13 +230,14 @@ export class ResumeGenerationVersionService {
           )
         );
       if (existing) {
+        if (!request.forceRegenerate && existing.requestHash !== requestHash) {
+          throw new ConflictError('Idempotency key belongs to a different generation request');
+        }
         let isHealthy = false;
         try {
           const decoded = this.decode(existing);
           isHealthy = !request.forceRegenerate && isGenerationHealthy(decoded);
           if (isHealthy) {
-            if (existing.requestHash !== requestHash)
-              throw new ConflictError('Idempotency key belongs to a different generation request');
             return decoded;
           }
         } catch (err) {
@@ -251,9 +252,7 @@ export class ResumeGenerationVersionService {
           for (const child of children) {
             await deleteGenerationCascade(child.id);
           }
-          await tx
-            .delete(resumeStudioDrafts)
-            .where(eq(resumeStudioDrafts.generationId, genId));
+          await tx.delete(resumeStudioDrafts).where(eq(resumeStudioDrafts.generationId, genId));
           await tx.delete(resumeGenerations).where(eq(resumeGenerations.id, genId));
         };
         await deleteGenerationCascade(existing.id);

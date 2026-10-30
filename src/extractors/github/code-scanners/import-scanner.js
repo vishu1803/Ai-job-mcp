@@ -72,8 +72,16 @@ export class ImportScanner {
       return []; // Includes TS/JSX, malformed input and unsupported grammar. No regex fallback.
     }
     const extracted = [];
+    const hasEsmSyntax = ast.body.some((n) =>
+      [
+        'ImportDeclaration',
+        'ExportNamedDeclaration',
+        'ExportAllDeclaration',
+        'ExportDefaultDeclaration',
+      ].includes(n.type)
+    );
     // ESM declarations are unambiguous static references. CommonJS require can be
-    // shadowed; don't claim verified references without scope-aware binding resolution.
+    // shadowed in ESM modules; only extract top-level require() in pure CommonJS modules.
     for (const node of ast.body) {
       if (
         ['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(node.type)
@@ -101,7 +109,7 @@ export class ImportScanner {
           rawExcerpt: content.slice(node.start, node.end),
           lineRange: { start: node.loc.start.line, end: node.loc.end.line },
         });
-      } else if (node.type === 'VariableDeclaration') {
+      } else if (!hasEsmSyntax && node.type === 'VariableDeclaration') {
         for (const decl of node.declarations || []) {
           if (
             decl.init?.type === 'CallExpression' &&

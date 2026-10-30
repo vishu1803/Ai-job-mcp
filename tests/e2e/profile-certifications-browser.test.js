@@ -37,6 +37,10 @@ describe('Profile Certifications — Browser E2E Lifecycle', () => {
     const cleanMeta = {
       ...(candidateRecord.profileMetadata || {}),
       certifications: [],
+      userCustom: {
+        ...(candidateRecord.profileMetadata?.userCustom || {}),
+        certifications: [],
+      },
     };
     await db
       .update(candidates)
@@ -99,8 +103,12 @@ describe('Profile Certifications — Browser E2E Lifecycle', () => {
       'https://cp.certmetrics.com/amazon/en/public/verify/cert/123456'
     );
 
-    // Save
-    await page.click('#saveCertModalBtn');
+    // Save and wait for PATCH /api/profile network completion
+    const [saveRes] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/profile') && r.status() === 200),
+      page.click('#saveCertModalBtn'),
+    ]);
+    assert.strictEqual(saveRes.status(), 200);
 
     // Wait for card to render
     const card = page.locator('.cert-card').first();
@@ -117,10 +125,7 @@ describe('Profile Certifications — Browser E2E Lifecycle', () => {
     const link = card.locator('a[target="_blank"]');
     assert.ok(await link.isVisible(), 'View Credential link must be visible');
     const href = await link.getAttribute('href');
-    assert.strictEqual(
-      href,
-      'https://cp.certmetrics.com/amazon/en/public/verify/cert/123456'
-    );
+    assert.strictEqual(href, 'https://cp.certmetrics.com/amazon/en/public/verify/cert/123456');
   });
 
   it('persists credential in database under candidate profileMetadata.certifications', async () => {
@@ -154,12 +159,14 @@ describe('Profile Certifications — Browser E2E Lifecycle', () => {
     const nameVal = await page.inputValue('#certNameInput');
     assert.strictEqual(nameVal, 'AWS Certified Solutions Architect - Associate');
 
-    // Update name to Professional
+    // Update name to Professional and wait for PATCH /api/profile
     await page.fill('#certNameInput', 'AWS Certified Solutions Architect - Professional');
-    await page.click('#saveCertModalBtn');
+    const [editRes] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/profile') && r.status() === 200),
+      page.click('#saveCertModalBtn'),
+    ]);
+    assert.strictEqual(editRes.status(), 200);
 
-    // Wait for card update
-    await page.waitForTimeout(500);
     const card = page.locator('.cert-card').first();
     const cardText = await card.innerText();
     assert.match(cardText, /AWS Certified Solutions Architect - Professional/);
@@ -182,9 +189,12 @@ describe('Profile Certifications — Browser E2E Lifecycle', () => {
       await dialog.accept();
     });
 
-    // Click delete
-    await page.click('.cert-card .cert-btn-delete');
-    await page.waitForTimeout(500);
+    // Click delete and wait for PATCH /api/profile
+    const [delRes] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/profile') && r.status() === 200),
+      page.click('.cert-card .cert-btn-delete'),
+    ]);
+    assert.strictEqual(delRes.status(), 200);
 
     // Verify card removed from DOM
     const cardCount = await page.locator('.cert-card').count();

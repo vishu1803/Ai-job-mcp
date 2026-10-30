@@ -109,6 +109,8 @@ describe('Step 1D: End-to-End Multi-Repository Selection HTTP Flow', () => {
       })
       .returning();
 
+    await db.delete(resourceConnections).where(eq(resourceConnections.installationId, '155430459'));
+
     [_testConnection] = await db
       .insert(resourceConnections)
       .values({
@@ -123,12 +125,22 @@ describe('Step 1D: End-to-End Multi-Repository Selection HTTP Flow', () => {
         installationId: '155430459',
         encryptedCredentials: 'enc:v1:dummy',
         status: 'ACTIVE',
+        metadata: {
+          account: 'vishu1803',
+          authorityPolicy: 'personal-owner-or-org-owner-v1',
+        },
       })
       .returning();
 
     app = buildApp({
       logger: false,
       database: db,
+      installationService: {
+        verifyGitHubInstallation: async (id) => ({
+          id: Number(id),
+          account: { id: 155430459, login: 'vishu1803', type: 'User' },
+        }),
+      },
     });
     await app.ready();
 

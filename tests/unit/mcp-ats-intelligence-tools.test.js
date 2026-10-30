@@ -10,9 +10,9 @@ import { McpServerWrapper } from '../../src/mcp/server.js';
 
 describe('MCP ATS Intelligence Tools (Phase 20)', () => {
   const mockContext = {
-    tenantId: '11111111-1111-1111-1111-111111111111',
-    candidateId: '22222222-2222-2222-2222-222222222222',
-    userId: '33333333-3333-3333-3333-333333333333',
+    tenantId: '11111111-1111-4111-8111-111111111111',
+    candidateId: '22222222-2222-4222-8222-222222222222',
+    userId: '33333333-3333-4333-8333-333333333333',
     role: 'MEMBER',
     tokenScopes: ['career:read', 'career:write'],
     authMethod: 'MCP_API_TOKEN',

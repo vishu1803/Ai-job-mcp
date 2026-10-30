@@ -3,7 +3,7 @@
   "port": 4330,
   "database": "product_audit_resume_studio",
   "databasePort": 55447,
-  "startedAt": "2026-10-16T18:48:36.930Z",
+  "startedAt": "2026-10-29T04:41:27.062Z",
   "personas": [
     {
       "key": "A",
@@ -11,9 +11,9 @@
       "email": "alex.rivers@careerhub.test",
       "displayName": "Alex Rivers",
       "role": "MEMBER",
-      "tenantId": "d5dda928-b9b5-43b9-a5f5-3e0265cc4e1b",
-      "candidateId": "797b6133-5aef-4aca-ba8f-2c4ed9d722f8",
-      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=81ee29bc-da22-4c77-9654-ccb1c88ad2e2&returnTo=/dashboard",
+      "tenantId": "3185eecc-c1be-45f2-88cd-04e9b6359d60",
+      "candidateId": "a19f2b3f-7dd2-4bff-9901-dfb1f55156b9",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=f99b15c3-6583-477b-a418-a5e4a1616a91&returnTo=/dashboard",
       "draftId": null,
       "appD3Id": null,
       "studioUrl": null
@@ -24,9 +24,9 @@
       "email": "jordan.lee@careerhub.test",
       "displayName": "Jordan Lee",
       "role": "MEMBER",
-      "tenantId": "d5dda928-b9b5-43b9-a5f5-3e0265cc4e1b",
-      "candidateId": "8d07a885-9158-42f5-a42c-83301245831a",
-      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=80837fe5-2ed8-48b2-94fa-f5ca67e7b19f&returnTo=/dashboard",
+      "tenantId": "3185eecc-c1be-45f2-88cd-04e9b6359d60",
+      "candidateId": "d0785f8a-5df6-4065-8b59-9962a410cda9",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=6163a927-ac71-467a-a1e1-fc4f34b272be&returnTo=/dashboard",
       "draftId": null,
       "appD3Id": null,
       "studioUrl": null
@@ -37,12 +37,12 @@
       "email": "taylor.coder@careerhub.test",
       "displayName": "Taylor Coder",
       "role": "MEMBER",
-      "tenantId": "d5dda928-b9b5-43b9-a5f5-3e0265cc4e1b",
-      "candidateId": "b349657b-47c0-4379-8b8f-4565e1c09b64",
-      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=df8c5149-6419-4b0b-bc68-bf73e8c13f0e&returnTo=/dashboard",
-      "draftId": "64f5837f-99bf-4d33-a82f-59c03caf2995",
+      "tenantId": "3185eecc-c1be-45f2-88cd-04e9b6359d60",
+      "candidateId": "8afe6991-fbcd-467c-b509-0693c3714a7e",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=a6833712-72b9-4c89-ac16-cb6d8adaf776&returnTo=/dashboard",
+      "draftId": "d046bb3b-f369-4b06-afcf-d493ab079616",
       "appD3Id": null,
-      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=64f5837f-99bf-4d33-a82f-59c03caf2995"
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=d046bb3b-f369-4b06-afcf-d493ab079616"
     },
     {
       "key": "D",
@@ -50,12 +50,12 @@
       "email": "morgan.vance@careerhub.test",
       "displayName": "Morgan Vance",
       "role": "OWNER",
-      "tenantId": "d5dda928-b9b5-43b9-a5f5-3e0265cc4e1b",
-      "candidateId": "55fe03bf-b277-4ba8-98a8-832bfcc65332",
-      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=a1576832-ea9a-41b4-8cab-0684f3f8c029&returnTo=/dashboard",
-      "draftId": "d92df5b2-355a-448d-a671-9b88a81f8cac",
-      "appD3Id": "19f79b08-2e74-4f4d-ba5a-35da1cdde861",
-      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=d92df5b2-355a-448d-a671-9b88a81f8cac"
+      "tenantId": "3185eecc-c1be-45f2-88cd-04e9b6359d60",
+      "candidateId": "417557dd-daec-4d28-9fd8-727b7aeb4f75",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=8ae942ff-68c9-4ca3-b5a1-80d53ad29812&returnTo=/dashboard",
+      "draftId": "908dc4ee-4e4e-47e6-9fdf-64b08288687d",
+      "appD3Id": "cf767f8f-6041-4513-912e-2fd6be10a354",
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=908dc4ee-4e4e-47e6-9fdf-64b08288687d"
     },
     {
       "key": "E",
@@ -63,12 +63,12 @@
       "email": "sam.security@isolated.test",
       "displayName": "Sam Security",
       "role": "READONLY",
-      "tenantId": "31f894aa-0cf6-4fa6-b9e5-b87932882e2a",
-      "candidateId": "d2fb98b4-2de8-4eee-8911-1dc123870ccf",
-      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=ec3ef708-3baf-4bb9-bc1b-bf9d641beb8b&returnTo=/dashboard",
-      "draftId": "d9552363-6cb8-430d-8d1d-73489ac8ea4d",
+      "tenantId": "f3d640ff-0ac8-490e-b505-3a901edcb43f",
+      "candidateId": "3e15b3c0-bed5-4ae1-b82e-0950434b4efc",
+      "loginUrl": "http://127.0.0.1:4330/auth/dev-login?userId=55744508-7d96-4af2-841d-205ce07f7e9b&returnTo=/dashboard",
+      "draftId": "2e9c4eb9-7614-4a16-9117-f60c2e41ff07",
       "appD3Id": null,
-      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=d9552363-6cb8-430d-8d1d-73489ac8ea4d"
+      "studioUrl": "http://127.0.0.1:4330/resume-studio?draftId=2e9c4eb9-7614-4a16-9117-f60c2e41ff07"
     }
   ],
   "routes": [
@@ -122,7 +122,7 @@
     },
     {
       "name": "Snowflake Handoff Kit",
-      "path": "/applications/19f79b08-2e74-4f4d-ba5a-35da1cdde861/handoff"
+      "path": "/applications/cf767f8f-6041-4513-912e-2fd6be10a354/handoff"
     },
     {
       "name": "AI Connection Center",

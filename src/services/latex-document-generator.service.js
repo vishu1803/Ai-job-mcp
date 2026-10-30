@@ -819,7 +819,11 @@ export class LatexDocumentGenerator {
           if (!name) return null;
           const issuer = (c.issuingOrganization || c.issuer || '').trim();
           const rawUrl =
-            c.credentialUrl && isRealUrl(c.credentialUrl) ? c.credentialUrl.trim() : null;
+            c.credentialUrl &&
+            (isRealUrl(c.credentialUrl) ||
+              /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}/i.test(c.credentialUrl.trim()))
+              ? c.credentialUrl.trim()
+              : null;
           const url = rawUrl ? normalizeHyperlinkDestination(rawUrl) : null;
 
           let titleText = escapeLatex(name);
@@ -833,6 +837,10 @@ export class LatexDocumentGenerator {
           }
 
           const parts = [titleText];
+
+          if (c.credentialId) {
+            parts.push(escapeLatex(c.credentialId));
+          }
 
           // Year / date representation
           if (c.issueDate) {
@@ -855,6 +863,8 @@ export class LatexDocumentGenerator {
             }
             if (isExpired) {
               parts.push(`\\textit{Expired: ${escapeLatex(expNorm)}}`);
+            } else if (expNorm) {
+              parts.push(escapeLatex(expNorm));
             }
           }
 
@@ -1021,8 +1031,8 @@ ${optional.awards.map((a) => `  \\item ${optionalEntryLatex(a)}`).join('\n')}
     if (!authoritativeOrder.includes('CERTIFICATIONS')) {
       const certHasRealContent = Boolean(
         certLatexSection &&
-          typeof certLatexSection === 'string' &&
-          certLatexSection.trim().length > 0
+        typeof certLatexSection === 'string' &&
+        certLatexSection.trim().length > 0
       );
       if (certHasRealContent) {
         const eduIdx = authoritativeOrder.indexOf('EDUCATION');

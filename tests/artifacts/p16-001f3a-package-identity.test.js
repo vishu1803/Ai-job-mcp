@@ -25,6 +25,15 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { computeApplicationPackageHash } from '../../src/services/job-application-workflow.service.js';
 import {
+  APPLICATION_APPROVAL_FORMAT,
+  applicationExecutionPayload,
+  canonicalPackageJson,
+} from '../../src/domain/job/application-package-identity.js';
+import {
+  sealGeneratedPackage,
+  sealHandoffManifest,
+} from '../../src/services/evidence/artifact-policy.js';
+import {
   ApplicationPackageSchema,
   RESUME_GENERATION_CONTRACT_VERSION,
   LEGACY_GENERATION_CONTRACT_VERSION,
@@ -34,11 +43,16 @@ import { ApplicationTrackingService } from '../../src/services/application-track
 import { ApplicationHandoffService } from '../../src/services/application-handoff.service.js';
 
 describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
-  const tenantId = '11111111-1111-1111-1111-111111111111';
-  const userId = '22222222-2222-2222-2222-222222222222';
-  const candidateId = '33333333-3333-3333-3333-333333333333';
-  const applicationId = '44444444-4444-4444-4444-444444444444';
+  const tenantId = '11111111-1111-4111-8111-111111111111';
+  const userId = '22222222-2222-4222-8222-222222222222';
+  const candidateId = '33333333-3333-4333-8333-333333333333';
+  const applicationId = '44444444-4444-4444-8444-444444444444';
   const context = { tenantId, userId, role: 'MEMBER' };
+  const stubDb = {
+    select: () => ({
+      from: () => ({ leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }) }),
+    }),
+  };
 
   const basePackagePayload = {
     candidateId,
@@ -93,24 +107,8 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     assert.strictEqual(typeof hash, 'string');
     assert.strictEqual(hash.length, 64, 'Must be a 64-char hex SHA-256 hash');
 
-    // Canonical representation must match explicit LEGACY contract
-    const expectedCanonical = {
-      candidateId: legacyPkg.candidateId,
-      candidateName: legacyPkg.candidateName,
-      candidateEmail: legacyPkg.candidateEmail,
-      jobId: legacyPkg.targetJob.id,
-      jobTitle: legacyPkg.targetJob.title,
-      company: legacyPkg.targetJob.company,
-      resumeContent: legacyPkg.tailoredResume.markdownContent,
-      coverLetterContent: legacyPkg.coverLetter.markdownContent,
-      answers: legacyPkg.answers,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-    };
-    const expectedHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(expectedCanonical), 'utf8')
-      .digest('hex');
+    const expectedEnvelope = `{"format":${JSON.stringify(APPLICATION_APPROVAL_FORMAT)},"package":${canonicalPackageJson(applicationExecutionPayload(legacyPkg))}}`;
+    const expectedHash = crypto.createHash('sha256').update(expectedEnvelope, 'utf8').digest('hex');
     assert.strictEqual(hash, expectedHash);
   });
 
@@ -133,23 +131,8 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     assert.strictEqual(typeof hash, 'string');
     assert.strictEqual(hash.length, 64);
 
-    const expectedCanonical = {
-      candidateId: structuredPkg.candidateId,
-      candidateName: structuredPkg.candidateName,
-      candidateEmail: structuredPkg.candidateEmail,
-      jobId: structuredPkg.targetJob.id,
-      jobTitle: structuredPkg.targetJob.title,
-      company: structuredPkg.targetJob.company,
-      resumeContent: structuredPkg.tailoredResume.markdownContent,
-      coverLetterContent: structuredPkg.coverLetter.markdownContent,
-      answers: structuredPkg.answers,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-    };
-    const expectedHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(expectedCanonical), 'utf8')
-      .digest('hex');
+    const expectedEnvelope = `{"format":${JSON.stringify(APPLICATION_APPROVAL_FORMAT)},"package":${canonicalPackageJson(applicationExecutionPayload(structuredPkg))}}`;
+    const expectedHash = crypto.createHash('sha256').update(expectedEnvelope, 'utf8').digest('hex');
     assert.strictEqual(hash, expectedHash);
   });
 
@@ -181,9 +164,9 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // D. Changing structuredResume internal fields preserves packageHash
+  // D. Changing structuredResume internal fields invalidates packageHash (ISSUE-02)
   // ---------------------------------------------------------------------------
-  it('D. Changing structuredResume internal fields without changing contract or markdown preserves packageHash', () => {
+  it('D. Changing structuredResume internal fields changes packageHash while bookkeeping fields preserve it', () => {
     const pkg1 = {
       ...basePackagePayload,
       generationContractVersion: 'P16-001F',
@@ -206,13 +189,27 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       },
     };
 
+    const pkg1BookkeepingChanged = {
+      ...pkg1,
+      preparedAt: '2026-10-01T00:00:00.000Z',
+      packageVersion: 3,
+      packageStatus: 'CURRENT',
+      lifecycleAction: 'REUSED',
+    };
+
     const hash1 = computeApplicationPackageHash(pkg1);
     const hash2 = computeApplicationPackageHash(pkg2);
+    const hash1Bookkeeping = computeApplicationPackageHash(pkg1BookkeepingChanged);
 
-    assert.strictEqual(
+    assert.notStrictEqual(
       hash1,
       hash2,
-      'Package hash must be contract-bound and invariant to internal structuredResume object edits when markdown is unchanged'
+      'Full-payload canonical hash must change when structuredResume content changes'
+    );
+    assert.strictEqual(
+      hash1,
+      hash1Bookkeeping,
+      'Transport/ledger bookkeeping fields must not alter packageHash'
     );
   });
 
@@ -269,20 +266,21 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // G. Missing structuredResumeSchemaVersion on structured package defaults safely
+  // G. Undefined properties are omitted identically to PostgreSQL JSONB
   // ---------------------------------------------------------------------------
-  it('G. Missing structuredResumeSchemaVersion on structured package defaults safely to 2.0.0', () => {
-    const pkgWithoutSchemaVer = {
+  it('G. Undefined properties on structured package are omitted deterministically in canonical hash', () => {
+    const pkgWithUndefined = {
       ...basePackagePayload,
       generationContractVersion: 'P16-001F',
-      // structuredResumeSchemaVersion omitted
+      structuredResumeSchemaVersion: '2.0.0',
       structuredResume: {
-        // schemaVersion omitted
+        schemaVersion: '2.0.0',
         metadata: {},
+        optionalUndefined: undefined,
       },
     };
 
-    const pkgWithExplicitSchemaVer = {
+    const pkgClean = {
       ...basePackagePayload,
       generationContractVersion: 'P16-001F',
       structuredResumeSchemaVersion: '2.0.0',
@@ -292,39 +290,45 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       },
     };
 
-    const hashDefaulted = computeApplicationPackageHash(pkgWithoutSchemaVer);
-    const hashExplicit = computeApplicationPackageHash(pkgWithExplicitSchemaVer);
+    const hashUndefined = computeApplicationPackageHash(pkgWithUndefined);
+    const hashClean = computeApplicationPackageHash(pkgClean);
 
     assert.strictEqual(
-      hashDefaulted,
-      hashExplicit,
-      'Missing schema version on structured contract must default safely to 2.0.0'
+      hashUndefined,
+      hashClean,
+      'Undefined object properties must be omitted deterministically'
     );
   });
 
   // ---------------------------------------------------------------------------
-  // H. Missing structuredResumeSchemaVersion on legacy package resolves to null
+  // H. Key insertion order does not alter canonical packageHash
   // ---------------------------------------------------------------------------
-  it('H. Missing structuredResumeSchemaVersion on legacy package resolves safely to null', () => {
-    const legacyPkgOmitted = {
-      ...basePackagePayload,
-      // generationContractVersion omitted, structuredResume omitted => legacy default
-    };
-
-    const legacyPkgExplicitNull = {
+  it('H. Different property insertion orders produce identical canonical packageHash', () => {
+    const pkgOrderA = {
       ...basePackagePayload,
       generationContractVersion: 'LEGACY',
       structuredResumeSchemaVersion: null,
     };
 
-    const hashOmitted = computeApplicationPackageHash(legacyPkgOmitted);
-    const hashExplicit = computeApplicationPackageHash(legacyPkgExplicitNull);
+    const pkgOrderB = {
+      structuredResumeSchemaVersion: null,
+      generationContractVersion: 'LEGACY',
+      answers: basePackagePayload.answers,
+      portfolioLinks: basePackagePayload.portfolioLinks,
+      claimedSkills: basePackagePayload.claimedSkills,
+      verifiedSkills: basePackagePayload.verifiedSkills,
+      coverLetter: basePackagePayload.coverLetter,
+      tailoredResume: basePackagePayload.tailoredResume,
+      targetJob: basePackagePayload.targetJob,
+      candidateEmail: basePackagePayload.candidateEmail,
+      candidateName: basePackagePayload.candidateName,
+      candidateId: basePackagePayload.candidateId,
+    };
 
-    assert.strictEqual(
-      hashOmitted,
-      hashExplicit,
-      'Unspecified legacy package must hash with schemaVersion null'
-    );
+    const hashA = computeApplicationPackageHash(pkgOrderA);
+    const hashB = computeApplicationPackageHash(pkgOrderB);
+
+    assert.strictEqual(hashA, hashB, 'Lexical canonicalization must be key-order invariant');
   });
 
   // ---------------------------------------------------------------------------
@@ -344,10 +348,12 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const auditEvents = [];
 
     const mockDb = {
+      select: stubDb.select,
       transaction: async (cb) => {
         const tx = {
           select: (fields) => ({
             from: (_table) => ({
+              leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }),
               where: (condition) => ({
                 for: () => {
                   // If fields specifies id/candidateId or notes/metadata, it's querying jobApplications
@@ -460,16 +466,15 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const { mockDb, packages } = createMockTrackingDatabase();
     const service = new ApplicationTrackingService({ database: mockDb });
 
-    const legacyPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-      packageHash: computeApplicationPackageHash({
+    const legacyPkg = await sealGeneratedPackage(
+      mockDb,
+      { tenantId, candidateId },
+      {
         ...basePackagePayload,
         generationContractVersion: 'LEGACY',
         structuredResumeSchemaVersion: null,
-      }),
-    };
+      }
+    );
 
     const recorded = await service.recordApplicationPackage(context, applicationId, legacyPkg);
 
@@ -485,16 +490,15 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const { mockDb } = createMockTrackingDatabase();
     const service = new ApplicationTrackingService({ database: mockDb });
 
-    const legacyPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-      packageHash: computeApplicationPackageHash({
+    const legacyPkg = await sealGeneratedPackage(
+      mockDb,
+      { tenantId, candidateId },
+      {
         ...basePackagePayload,
         generationContractVersion: 'LEGACY',
         structuredResumeSchemaVersion: null,
-      }),
-    };
+      }
+    );
 
     // First record
     await service.recordApplicationPackage(context, applicationId, legacyPkg);
@@ -521,16 +525,15 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const { mockDb, packages } = createMockTrackingDatabase();
     const service = new ApplicationTrackingService({ database: mockDb });
 
-    const legacyPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-      packageHash: computeApplicationPackageHash({
+    const legacyPkg = await sealGeneratedPackage(
+      mockDb,
+      { tenantId, candidateId },
+      {
         ...basePackagePayload,
         generationContractVersion: 'LEGACY',
         structuredResumeSchemaVersion: null,
-      }),
-    };
+      }
+    );
 
     // 1. Record legacy v1
     await service.recordApplicationPackage(context, applicationId, legacyPkg);
@@ -538,17 +541,16 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     assert.strictEqual(packages[0].lifecycleState, 'CURRENT');
 
     // 2. Prepare structured package with new hash
-    const structuredPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-      structuredResume: { schemaVersion: '2.0.0' },
-      packageHash: computeApplicationPackageHash({
+    const structuredPkg = await sealGeneratedPackage(
+      mockDb,
+      { tenantId, candidateId },
+      {
         ...basePackagePayload,
         generationContractVersion: 'P16-001F',
         structuredResumeSchemaVersion: '2.0.0',
-      }),
-    };
+        structuredResume: { schemaVersion: '2.0.0' },
+      }
+    );
 
     const structuredRecorded = await service.recordApplicationPackage(
       context,
@@ -573,17 +575,16 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     const { mockDb } = createMockTrackingDatabase();
     const service = new ApplicationTrackingService({ database: mockDb });
 
-    const structuredPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-      structuredResume: { schemaVersion: '2.0.0' },
-      packageHash: computeApplicationPackageHash({
+    const structuredPkg = await sealGeneratedPackage(
+      mockDb,
+      { tenantId, candidateId },
+      {
         ...basePackagePayload,
         generationContractVersion: 'P16-001F',
         structuredResumeSchemaVersion: '2.0.0',
-      }),
-    };
+        structuredResume: { schemaVersion: '2.0.0' },
+      }
+    );
 
     // First record: version 1 (or version 2 if preceded by legacy)
     const first = await service.recordApplicationPackage(context, applicationId, structuredPkg);
@@ -603,39 +604,49 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
   // M. Handoff service: legacy handoff kit reused by legacy package
   // ---------------------------------------------------------------------------
   it('M. Handoff service: legacy handoff kit reused only by matching legacy package', async () => {
-    const legacyHash = computeApplicationPackageHash({
-      ...basePackagePayload,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-    });
+    const legacyPkg = await sealGeneratedPackage(
+      stubDb,
+      { tenantId, candidateId },
+      {
+        ...basePackagePayload,
+        generationContractVersion: 'LEGACY',
+        structuredResumeSchemaVersion: null,
+      }
+    );
+    const legacyHash = legacyPkg.packageHash;
 
-    const mockLegacyKit = {
-      status: 'HANDOFF_READY',
-      packageHash: legacyHash,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-      applicationId,
-      resume: {
-        filename: 'tailored-resume.pdf',
-        mimeType: 'application/pdf',
-        storageKey: 'storage-legacy-key-1',
-        contentHash: 'pdfhash1',
+    const mockLegacyKit = sealHandoffManifest(
+      {
+        status: 'HANDOFF_READY',
+        packageHash: legacyHash,
         generationContractVersion: 'LEGACY',
         structuredResumeSchemaVersion: null,
+        applicationId,
+        resume: {
+          filename: 'tailored-resume.pdf',
+          mimeType: 'application/pdf',
+          storageKey: 'storage-legacy-key-1',
+          contentHash: 'pdfhash1',
+          generationContractVersion: 'LEGACY',
+          structuredResumeSchemaVersion: null,
+        },
+        coverLetter: {
+          filename: 'tailored-cover-letter.pdf',
+          mimeType: 'application/pdf',
+          storageKey: 'storage-legacy-cl-1',
+          contentHash: 'pdfhashcl1',
+          generationContractVersion: 'LEGACY',
+          structuredResumeSchemaVersion: null,
+        },
       },
-      coverLetter: {
-        filename: 'tailored-cover-letter.pdf',
-        mimeType: 'application/pdf',
-        storageKey: 'storage-legacy-cl-1',
-        contentHash: 'pdfhashcl1',
-        generationContractVersion: 'LEGACY',
-        structuredResumeSchemaVersion: null,
-      },
-    };
+      { tenantId, candidateId },
+      legacyPkg
+    );
 
     let compileCalled = false;
     const handoffService = new ApplicationHandoffService({
       applicationTrackingService: {
+        db: stubDb,
         getApplication: async () => ({
           id: applicationId,
           metadata: { handoffKit: mockLegacyKit, currentPackageHash: legacyHash },
@@ -657,13 +668,6 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
         },
       },
     });
-
-    const legacyPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'LEGACY',
-      structuredResumeSchemaVersion: null,
-      packageHash: legacyHash,
-    };
 
     const kit = await handoffService.buildApplicationHandoffKit({
       tenantId,
@@ -687,11 +691,16 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
   // ---------------------------------------------------------------------------
   it('N. Handoff service: legacy handoff kit rejected by structured package and triggers regeneration', async () => {
     const legacyHash = 'legacy-hash-00000000000000000000000000000000000000000000000000000000';
-    const structuredHash = computeApplicationPackageHash({
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-    });
+    const structuredPkg = await sealGeneratedPackage(
+      stubDb,
+      { tenantId, candidateId },
+      {
+        ...basePackagePayload,
+        generationContractVersion: 'P16-001F',
+        structuredResumeSchemaVersion: '2.0.0',
+        structuredResume: { schemaVersion: '2.0.0' },
+      }
+    );
 
     const mockLegacyKit = {
       status: 'HANDOFF_READY',
@@ -719,6 +728,7 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
     let compileCalled = 0;
     const handoffService = new ApplicationHandoffService({
       applicationTrackingService: {
+        db: stubDb,
         getApplication: async () => ({
           id: applicationId,
           metadata: { handoffKit: mockLegacyKit, currentPackageHash: legacyHash },
@@ -768,14 +778,6 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
       },
     });
 
-    const structuredPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-      structuredResume: { schemaVersion: '2.0.0' },
-      packageHash: structuredHash,
-    };
-
     const kit = await handoffService.buildApplicationHandoffKit({
       tenantId,
       userId,
@@ -800,39 +802,50 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
   // O. Handoff service: structured handoff kit reused by identical structured package
   // ---------------------------------------------------------------------------
   it('O. Handoff service: structured handoff kit reused by identical structured package', async () => {
-    const structuredHash = computeApplicationPackageHash({
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-    });
+    const structuredPkg = await sealGeneratedPackage(
+      stubDb,
+      { tenantId, candidateId },
+      {
+        ...basePackagePayload,
+        generationContractVersion: 'P16-001F',
+        structuredResumeSchemaVersion: '2.0.0',
+        structuredResume: { schemaVersion: '2.0.0' },
+      }
+    );
+    const structuredHash = structuredPkg.packageHash;
 
-    const mockStructuredKit = {
-      status: 'HANDOFF_READY',
-      packageHash: structuredHash,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-      applicationId,
-      resume: {
-        filename: 'tailored-resume.pdf',
-        mimeType: 'application/pdf',
-        storageKey: 'storage-structured-key-1',
-        contentHash: 'pdfhash-struct-1',
+    const mockStructuredKit = sealHandoffManifest(
+      {
+        status: 'HANDOFF_READY',
+        packageHash: structuredHash,
         generationContractVersion: 'P16-001F',
         structuredResumeSchemaVersion: '2.0.0',
+        applicationId,
+        resume: {
+          filename: 'tailored-resume.pdf',
+          mimeType: 'application/pdf',
+          storageKey: 'storage-structured-key-1',
+          contentHash: 'pdfhash-struct-1',
+          generationContractVersion: 'P16-001F',
+          structuredResumeSchemaVersion: '2.0.0',
+        },
+        coverLetter: {
+          filename: 'tailored-cover-letter.pdf',
+          mimeType: 'application/pdf',
+          storageKey: 'storage-structured-cl-1',
+          contentHash: 'pdfhash-cl-struct-1',
+          generationContractVersion: 'P16-001F',
+          structuredResumeSchemaVersion: '2.0.0',
+        },
       },
-      coverLetter: {
-        filename: 'tailored-cover-letter.pdf',
-        mimeType: 'application/pdf',
-        storageKey: 'storage-structured-cl-1',
-        contentHash: 'pdfhash-cl-struct-1',
-        generationContractVersion: 'P16-001F',
-        structuredResumeSchemaVersion: '2.0.0',
-      },
-    };
+      { tenantId, candidateId },
+      structuredPkg
+    );
 
     let compileCalled = false;
     const handoffService = new ApplicationHandoffService({
       applicationTrackingService: {
+        db: stubDb,
         getApplication: async () => ({
           id: applicationId,
           metadata: { handoffKit: mockStructuredKit, currentPackageHash: structuredHash },
@@ -854,14 +867,6 @@ describe('P16-001F-3A: Version-Bound Package Identity & Artifact Reuse', () => {
         },
       },
     });
-
-    const structuredPkg = {
-      ...basePackagePayload,
-      generationContractVersion: 'P16-001F',
-      structuredResumeSchemaVersion: '2.0.0',
-      structuredResume: { schemaVersion: '2.0.0' },
-      packageHash: structuredHash,
-    };
 
     const kit = await handoffService.buildApplicationHandoffKit({
       tenantId,

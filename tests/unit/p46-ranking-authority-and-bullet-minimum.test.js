@@ -188,6 +188,10 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
         ...jobPosting,
         projectRankings: authoritativeRankings,
       },
+      options: {
+        minBulletsPerProject: 3,
+        projectBudget: 2,
+      },
     });
 
     // Alpha has 4 bullets, Beta has 3 bullets — both meet the ≥3 minimum.
@@ -260,6 +264,9 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
         ...jobPosting,
         projectRankings: thinRankings,
       },
+      options: {
+        minBulletsPerProject: 3,
+      },
     });
 
     const renderedProjects = result.projects || [];
@@ -306,6 +313,9 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
       jobPosting: {
         ...jobPosting,
         projectRankings: onlyGamma,
+      },
+      options: {
+        minBulletsPerProject: 3,
       },
     });
 
@@ -364,7 +374,10 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
       experience: [],
     };
 
-    const result = assessPreRenderQuality({ structuredResume });
+    const result = assessPreRenderQuality({
+      structuredResume,
+      options: { minBulletsPerProject: 3 },
+    });
     assert.strictEqual(
       result.passed,
       false,
@@ -396,6 +409,9 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
       jobPosting: {
         ...jobPosting,
         projectRankings: onlyDelta,
+      },
+      options: {
+        minBulletsPerProject: 3,
       },
     });
 
@@ -458,7 +474,7 @@ describe('P46: Project Ranking Authority & Minimum 3 Bullets Per Project', () =>
       summary: { text: 'Experienced software engineer.' },
     };
 
-    const receipt = validateStructuredResumeIntegrity(doc);
+    const receipt = validateStructuredResumeIntegrity(doc, { minBulletsPerProject: 3 });
     assert.strictEqual(
       receipt.overallStatus,
       'FAIL',

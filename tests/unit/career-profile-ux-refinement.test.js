@@ -315,6 +315,7 @@ describe('Career Profile UX & Data Model Refinement', () => {
 
       assert.equal(result.languages.length, 2);
       assert.deepEqual(result.languages[1], {
+        id: result.languages[1].id,
         language: 'German',
         proficiency: 'INTERMEDIATE',
         provenanceStatus: 'USER_PROVIDED',

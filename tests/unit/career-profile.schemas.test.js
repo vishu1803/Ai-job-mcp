@@ -104,8 +104,8 @@ describe('Career Preferences & Profile Domain Schemas (P14-004C)', () => {
 
   it('5. validates CandidateCareerProfileSchema complete view', () => {
     const profileInput = {
-      candidateId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
-      tenantId: 'b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e',
+      candidateId: 'a1b2c3d4-e5f6-4a8b-9c0d-1e2f3a4b5c6d',
+      tenantId: 'b2c3d4e5-f6a7-4b9c-8d1e-2f3a4b5c6d7e',
       displayName: 'Alex Mercer',
       headline: 'Staff Distributed Systems Engineer',
       summary: 'Passionate about high-throughput distributed systems.',

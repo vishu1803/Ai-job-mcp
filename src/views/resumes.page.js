@@ -63,7 +63,7 @@ function renderResumeStatusBadge(status, isBase = false) {
  */
 export function renderResumesPage({
   user = null,
-  candidate: _candidate = null,
+  candidate = null,
   tenant: _tenant = null,
   resumesList = [],
   studioLibrary = null,
@@ -74,6 +74,9 @@ export function renderResumesPage({
   const drafts = studioLibrary?.drafts || [],
     master = resumesList.find((r) => r.isBaseResume),
     e = escapeHtml;
+  const candidateMetaHtml = candidate
+    ? `<p class="ch-note">${e(candidate.displayName || user?.displayName || '')}${candidate.headline ? ' &middot; ' + e(candidate.headline) : ''}${candidate.canonicalEmail ? ' &middot; ' + e(candidate.canonicalEmail) : ''}</p>`
+    : '';
   const sourceRows = resumesList
     .map(
       (r) =>
@@ -87,7 +90,7 @@ export function renderResumesPage({
   ${studioLibrary?.nextOffset !== null && studioLibrary?.nextOffset !== undefined ? `<p class="ch-note"><a href="/resumes?draftOffset=${studioLibrary.nextOffset}">More saved drafts</a></p>` : ''}
   <div class="ch-section-header"><h2>Master &amp; imported sources</h2><a href="#import-resume">Import another version</a></div>${sourceRows ? `<div class="ch-list">${sourceRows}</div>` : '<div class="ch-list ch-empty"><p>No resume imported yet. Upload a document, then review its facts to make it your master.</p></div>'}
   <details class="ch-import" id="import-resume"><summary>Import a resume</summary><p class="ch-note">PDF, DOCX, TXT or Markdown ? up to 10 MB. Review imported facts before choosing a master.</p><form action="/resumes/upload" method="POST" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="${e(csrfToken)}"><label for="resumeFileInput" class="ch-visually-hidden">Resume file</label><input type="file" name="resumeFile" id="resumeFileInput" accept=".pdf,.docx,.txt,.md" required><div class="ch-actions"><button type="submit" class="ch-button ch-button-primary">Import and review</button></div></form></details></div>
-  <aside><section class="ch-panel"><p class="ch-eyebrow">ONE SOURCE, MANY STORIES</p><h2 style="margin-top:12px">Tailor with confidence.</h2><p>Your master holds the original narrative. Each tailored draft keeps its own wording and content choices.</p><p class="ch-note">Candidate-reported claims stay distinct from independently supported evidence.</p><div class="ch-actions">${action('/profile', 'Career profile')}</div></section><section class="ch-panel"><h2>Versions &amp; approvals</h2><p>Open a draft to inspect its saved history and exported versions. Application approval is a separate review of the exact package.</p><div class="ch-actions">${action('/applications', 'Applications')}</div></section></aside></div></div>`;
+  <aside><section class="ch-panel"><p class="ch-eyebrow">ONE SOURCE, MANY STORIES</p><h2 style="margin-top:12px">Tailor with confidence.</h2>${candidateMetaHtml}<p>Your master holds the original narrative. Each tailored draft keeps its own wording and content choices.</p><p class="ch-note">Candidate-reported claims stay distinct from independently supported evidence.</p><div class="ch-actions">${action('/profile', 'Career profile')}</div></section><section class="ch-panel"><h2>Versions &amp; approvals</h2><p>Open a draft to inspect its saved history and exported versions. Application approval is a separate review of the exact package.</p><div class="ch-actions">${action('/applications', 'Applications')}</div></section></aside></div></div>`;
   return renderLayout({ title: 'Resumes', activeNav: 'resumes', content, user });
 }
 

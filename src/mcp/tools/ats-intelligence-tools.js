@@ -107,9 +107,9 @@ export async function handleAnalyzeCandidateJobFit(context, args) {
   const inferredRole = roleProfile || resolveRoleFromJobTitle(jobDescription);
 
   const multiDimReport = atsMultiDimensionalIntelligenceService.evaluateAllDimensions({
-    context: { tenantId: context?.tenantId || '00000000-0000-0000-0000-000000000001' },
+    context: { tenantId: context?.tenantId || '00000000-0000-4000-8000-000000000001' },
     candidateProfile: profile,
-    jobDescription: { id: '00000000-0000-0000-0000-000000000002', text: jobDescription },
+    jobDescription: { id: '00000000-0000-4000-8000-000000000002', text: jobDescription },
     extractedText: resumeText,
   });
 
@@ -180,9 +180,9 @@ export async function handleAnalyzeApplicationReadiness(context, args) {
   profile = profile || { skills: [], experience: [], projects: [] };
 
   const multiDimReport = atsMultiDimensionalIntelligenceService.evaluateAllDimensions({
-    context: { tenantId: context?.tenantId || '00000000-0000-0000-0000-000000000001' },
+    context: { tenantId: context?.tenantId || '00000000-0000-4000-8000-000000000001' },
     candidateProfile: profile,
-    jobDescription: { id: '00000000-0000-0000-0000-000000000002', text: jobDescription },
+    jobDescription: { id: '00000000-0000-4000-8000-000000000002', text: jobDescription },
     extractedText: resumeText,
   });
 

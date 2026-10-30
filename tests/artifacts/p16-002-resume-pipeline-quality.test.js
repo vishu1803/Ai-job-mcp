@@ -60,10 +60,10 @@ const richCandidate = {
   email: 'alex.rich@synthetic-test.org',
   headline: 'Backend Developer',
   skills: [
-    { name: 'Node.js', slug: 'nodejs', provenanceStatus: 'VERIFIED' },
-    { name: 'PostgreSQL', slug: 'postgresql', provenanceStatus: 'VERIFIED' },
-    { name: 'Redis', slug: 'redis', provenanceStatus: 'CORROBORATED' },
-    { name: 'Docker', slug: 'docker', provenanceStatus: 'CLAIMED' },
+    { name: 'Node.js', slug: 'nodejs', provenanceStatus: 'VERIFIED', resumeClaim: true },
+    { name: 'PostgreSQL', slug: 'postgresql', provenanceStatus: 'VERIFIED', resumeClaim: true },
+    { name: 'Redis', slug: 'redis', provenanceStatus: 'CORROBORATED', resumeClaim: true },
+    { name: 'Docker', slug: 'docker', provenanceStatus: 'CLAIMED', resumeClaim: true },
   ],
   projects: [
     {

@@ -1014,8 +1014,8 @@ describe('Project Relevance Scoring Service Unit Tests (P5-004)', () => {
     it('stably tie-breaks projects with identical scores by projectId ascending in batch evaluation', () => {
       const job = createMockJobDescription();
 
-      const id1 = '11111111-1111-1111-1111-111111111111';
-      const id2 = '22222222-2222-2222-2222-222222222222';
+      const id1 = '11111111-1111-4111-8111-111111111111';
+      const id2 = '22222222-2222-4222-8222-222222222222';
 
       const projA = createMockProject({
         id: id2,

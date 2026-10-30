@@ -353,7 +353,7 @@ export async function handleProposeProjectImprovement(context, args, deps = {}) 
     candidateProfile,
     jobDescription,
     targetSkillSlugs: validatedArgs.targetSkillSlugs,
-    repositoryId: validatedArgs.targetRepositoryId,
+    repositoryId: validatedArgs.targetRepositoryId || validatedArgs.projectId,
   });
 
   // 4. Resolve Live Base Branch HEAD SHA for Optimistic Concurrency Lock

@@ -470,7 +470,7 @@ export function buildResumeAiContext({
     return transientIds.map(resolveFactId);
   };
 
-  // Clean verified skills (no candidate names or URLs)
+  // Clean verified skills (no candidate names or URLs; exclude unverified CLAIMED skills so AI never cites unbacked technologies)
   const sanitizedSkills = (
     Array.isArray(selectedSkills) && selectedSkills.length > 0
       ? selectedSkills
@@ -480,7 +480,9 @@ export function buildResumeAiContext({
       (skill) =>
         typeof skill !== 'object' ||
         skill === null ||
-        !['MISSING_EVIDENCE', 'UNKNOWN'].includes(normalizeTruthCategory(skillTrustStatus(skill)))
+        !['MISSING_EVIDENCE', 'UNKNOWN', 'CLAIMED'].includes(
+          normalizeTruthCategory(skillTrustStatus(skill))
+        )
     )
     .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.slug || ''))
     .filter(Boolean)

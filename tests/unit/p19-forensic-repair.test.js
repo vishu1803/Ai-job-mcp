@@ -576,7 +576,7 @@ describe('P19 Bug #9: Unified Provenance Rendering', () => {
 describe('P19 Bug #10: Debug Trace Schema', () => {
   it('Case 25: StructuredResumeDocumentSchema accepts debugTrace field', () => {
     const minimalDoc = {
-      documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      documentId: '00000000-0000-4000-8000-000000000001',
       schemaVersion: '2.0.0',
       targetRole: 'Software Engineer',
       sectionOrder: ['SUMMARY', 'SKILLS', 'PROJECTS'],
@@ -621,7 +621,7 @@ describe('P19 Bug #10: Debug Trace Schema', () => {
 
   it('Case 26: debugTrace.domainScoring validates array of domain scores', () => {
     const minimalDoc = {
-      documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      documentId: '00000000-0000-4000-8000-000000000002',
       schemaVersion: '2.0.0',
       targetRole: 'Software Engineer',
       sectionOrder: ['SUMMARY'],
@@ -653,7 +653,7 @@ describe('P19 Bug #10: Debug Trace Schema', () => {
 
   it('Case 27: debugTrace is optional (omitting it is valid)', () => {
     const minimalDoc = {
-      documentId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      documentId: '00000000-0000-4000-8000-000000000003',
       schemaVersion: '2.0.0',
       targetRole: 'Software Engineer',
       sectionOrder: ['SUMMARY'],

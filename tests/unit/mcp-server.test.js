@@ -378,8 +378,8 @@ describe('MCP Server Foundation & Transport Unit Tests (P7-002 — 2026-07-28 St
   it('21. McpRequestContextSchema validates well-formed security context with 2026-07-28 protocol version', () => {
     const rawContext = {
       requestId: '550e8400-e29b-41d4-a716-446655440000',
-      tenantId: '11111111-1111-1111-1111-111111111111',
-      userId: '22222222-2222-2222-2222-222222222222',
+      tenantId: '11111111-1111-4111-8111-111111111111',
+      userId: '22222222-2222-4222-8222-222222222222',
       role: 'OWNER',
       tokenScopes: ['career:read', 'career:write'],
       clientInfo: {

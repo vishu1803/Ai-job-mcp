@@ -72,7 +72,18 @@ export const StudioCreateDraftRequestSchema = z.union([
   z
     .object({
       source: z.object({ kind: z.literal('RESUME'), resumeId: id }).strict(),
-      jobTarget: StudioJobTargetSchema,
+      jobTarget: StudioJobTargetSchema.extend({
+        rawDescription: z.string().trim().min(100).max(250000),
+      }),
+    })
+    .strict(),
+  z
+    .object({
+      source: z.object({ kind: z.literal('RESUME'), resumeId: id }).strict(),
+      applicationId: id,
+      jobTarget: StudioJobTargetSchema.extend({
+        rawDescription: z.string().trim().min(1).max(250000),
+      }).optional(),
     })
     .strict(),
 ]);

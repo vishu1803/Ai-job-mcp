@@ -154,8 +154,15 @@ const TECHNICAL_VOCABULARY = new Set(
     'recommend recommends recommending recommended recommendation recommendations ' +
     'candidate candidates collaborative collaboration collaborations explore explores exploring explored explorer explorers ' +
     'filter filters filtering filtered prompt prompts prompting prompted metric metrics tailor tailors tailoring tailored ' +
-    'dynamic complemented complement complements complementing guarantee guarantees guaranteeing guaranteed boundary boundaries algorithm algorithms submission submissions'
-  ).split(/\s+/)
+    'dynamic complemented complement complements complementing guarantee guarantees guaranteeing guaranteed boundary boundaries algorithm algorithms submission submissions ' +
+    'apply applies applied applying protect protects protected protecting protection protective allow allows allowed allowing prevent prevents prevented preventing ' +
+    'maintainability extensibility extensible reusability consistent consistency accurate accuracy container containers compose ' +
+    'ingest ingests ingesting ingested ingestion consume consumes consuming consumed parse parses parsing parsed emit emits emitting emitted expose exposes exposing exposed ' +
+    'render renders rendering rendered display displays displaying displayed fetch fetches fetching fetched connect connects connecting connected connection connections ' +
+    'interactive interactivity view views page pages form forms store stores storing stored storage index indexes indexing indexed ' +
+    'fast faster rapid rapidly quick quickly smooth smoothly cleanly clear clearly strict strictly type types typed typing safe safety safely end ends ending ended ' +
+    'openapi swagger graphql jwt oauth ssr ssg spa ui ux dom cli sdk ide ast llm llms'
+  ).split(/[\s-]+/)
 );
 
 const words = (value) =>
@@ -174,6 +181,18 @@ function isRecognizedWord(word, allowedSets) {
     const base = norm.slice(0, -3);
     for (const s of allowedSets) {
       if (s.has(base) || s.has(base + 'e')) return true;
+    }
+  }
+  if (norm.endsWith('ied') && norm.length > 4) {
+    const base = norm.slice(0, -3) + 'y';
+    for (const s of allowedSets) {
+      if (s.has(base)) return true;
+    }
+  }
+  if (norm.endsWith('ies') && norm.length > 4) {
+    const base = norm.slice(0, -3) + 'y';
+    for (const s of allowedSets) {
+      if (s.has(base)) return true;
     }
   }
   if (norm.endsWith('ed') && norm.length > 4) {
@@ -451,7 +470,7 @@ export async function realizeResumeWriting({
   selectedProjects = [],
   selectedSkills = [],
   facts = [],
-  timeoutMs = 60000,
+  timeoutMs = 120000,
   sectionOwnerType = 'PROJECT',
 }) {
   const candidateId = candidateProfile.id || candidateProfile.candidate?.id;
@@ -485,28 +504,46 @@ export async function realizeResumeWriting({
     factInventory: facts,
     taskType,
   });
-  let timer;
+  const maxAttempts = timeoutMs >= 30000 ? 2 : 1;
+  const perAttemptMs = maxAttempts > 1 ? Math.min(45000, Math.floor(timeoutMs / 2)) : timeoutMs;
   try {
-    const response = await Promise.race([
-      provider.generateStructured({
-        taskType,
-        prompt:
-          taskType === 'RESUME_SUMMARY_SYNTHESIS'
-            ? "Write a concise, job-specific 2 to 3 sentence professional career summary synthesizing the candidate's engineering profile across their verified skills, projects, and experiences for the target role. Do NOT copy or concatenate individual project or experience bullets verbatim. Highlight core competencies, architectural patterns, and relevant technologies. Never fabricate credentials, seniority, or ungrounded metrics. Return the required JSON and cite the supplied transient fact IDs."
-            : 'Write concise, job-specific professional prose from the supplied facts. Paraphrase and combine supported contributions; never add a qualification, metric, technology, employer, seniority or outcome. When a source fact contains a quantitative metric or percentage (such as "40% reduction in page load time"), you MUST preserve that exact numerical metric and its measured dimension in the synthesized bullet. Never drop supported metrics or generalize them into vague statements. Return the required JSON and cite the supplied transient fact IDs.',
-        candidateFacts: envelope.context,
-        jobRequirements: envelope.context.targetJob,
-        responseSchema: policy.responseSchema,
-        timeoutMs,
-      }),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => {
-          const error = new Error('Writing timeout');
-          error.code = 'WRITING_TIMEOUT';
-          reject(error);
-        }, timeoutMs);
-      }),
-    ]);
+    let response;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let timer;
+      const controller = new AbortController();
+      try {
+        response = await Promise.race([
+          provider.generateStructured(
+            {
+              taskType,
+              ...(attempt > 1 ? { modelId: 'gemini-2.5-flash' } : {}),
+              prompt:
+                taskType === 'RESUME_SUMMARY_SYNTHESIS'
+                  ? "Write a concise, job-specific 2 to 3 sentence professional career summary synthesizing the candidate's engineering profile across their verified skills, projects, and experiences for the target role. Do NOT copy or concatenate individual project or experience bullets verbatim. Highlight core competencies, architectural patterns, and relevant technologies. Never fabricate credentials, seniority, or ungrounded metrics. Return the required JSON and cite the supplied transient fact IDs."
+                  : 'Write concise, job-specific professional prose from the supplied facts. Paraphrase and combine supported contributions; never add a qualification, metric, technology, employer, seniority or outcome. When a source fact contains a quantitative metric or percentage (such as "40% reduction in page load time"), you MUST preserve that exact numerical metric and its measured dimension in the synthesized bullet. Never drop supported metrics or generalize them into vague statements. Return the required JSON and cite the supplied transient fact IDs.',
+              candidateFacts: envelope.context,
+              jobRequirements: envelope.context.targetJob,
+              responseSchema: policy.responseSchema,
+              timeoutMs: perAttemptMs,
+            },
+            { signal: controller.signal }
+          ),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              controller.abort();
+              const error = new Error('Writing timeout');
+              error.code = 'WRITING_TIMEOUT';
+              reject(error);
+            }, perAttemptMs);
+          }),
+        ]);
+        break;
+      } catch (err) {
+        if (attempt === maxAttempts) throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
     const parsed = policy.responseSchema.safeParse(response?.data);
     if (!parsed.success) return { status: 'REJECTED', reason: 'MALFORMED_OUTPUT', claims: [] };
     const proposed =
@@ -580,7 +617,5 @@ export async function realizeResumeWriting({
       reason: error.code === 'WRITING_TIMEOUT' ? 'TIMEOUT' : 'PROVIDER_FAILURE',
       claims: [],
     };
-  } finally {
-    clearTimeout(timer);
   }
 }

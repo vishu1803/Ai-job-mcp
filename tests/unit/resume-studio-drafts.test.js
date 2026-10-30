@@ -72,8 +72,8 @@ describe('Studio draft source preservation, patch and encryption contracts', () 
       studioMasterFacts.projects[0].evidenceLinks
     );
   });
-  it('default selection preserves all content and includes two source-order projects', () => {
-    assert.equal(payload.selection.projectIds.length, 2);
+  it('default selection preserves all content and includes three source-order projects', () => {
+    assert.equal(payload.selection.projectIds.length, 3);
     assert.equal(payload.selection.bulletIds.length, 7);
     assert.equal(payload.selection.skillIds.length, 3);
   });

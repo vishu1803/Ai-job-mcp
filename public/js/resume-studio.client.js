@@ -175,11 +175,15 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
   }
 
   // Display Alerts
-  function showAlert(message, type = 'error') {
+  function showAlert(message, type = 'error', options = {}) {
     if (!alertContainer) return;
+    const actionHtml =
+      options.actionHref && options.actionLabel
+        ? ` <a href="${escapeHtml(options.actionHref)}" class="rs-alert-action-link" style="color:var(--color-primary,#6366f1);text-decoration:underline;font-weight:600;">${escapeHtml(options.actionLabel)}</a>`
+        : '';
     alertContainer.innerHTML = `
       <div class="rs-alert rs-alert-${type}" role="alert">
-        ${escapeHtml(message)}
+        <span>${escapeHtml(message)}</span>${actionHtml}
       </div>
     `;
     alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -493,14 +497,15 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     const company = (jobCompanyInput ? jobCompanyInput.value : '').trim();
     const sourceUrl = (jobUrlInput ? jobUrlInput.value : '').trim();
     const rawDescription = (jobDescTextarea ? jobDescTextarea.value : '').trim();
+    const applicationId = new URLSearchParams(window.location.search).get('applicationId');
 
-    if (rawDescription.length < 100) {
+    if (!applicationId && rawDescription.length < 100) {
       showAlert('Job description must be at least 100 characters to create a tailored draft.');
       if (jobDescTextarea) jobDescTextarea.focus();
       return;
     }
 
-    const jobTarget = { rawDescription };
+    const jobTarget = { rawDescription: rawDescription || title || 'Software Engineer' };
     if (title) jobTarget.title = title;
     if (company) jobTarget.company = company;
     if (sourceUrl) jobTarget.sourceUrl = sourceUrl;
@@ -508,6 +513,7 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
     const payload = {
       source: { kind: 'RESUME', resumeId },
       jobTarget,
+      ...(applicationId ? { applicationId } : {}),
     };
 
     const csrfToken = getCsrfToken();
@@ -622,7 +628,10 @@ import { sameIds, compareDrafts, selectionKeys } from './resume-studio-state.js'
         if (response.status === 401) {
           showAlert('Session expired. Please sign in again.');
         } else if (response.status === 404) {
-          showAlert('Persisted draft not found or unauthorized.');
+          showAlert('Draft not found or expired. Select a resume to create a new draft.', 'error', {
+            actionHref: '/resumes',
+            actionLabel: 'Return to Resume Library',
+          });
         } else {
           showAlert(json?.error?.message || `Failed to load draft (HTTP ${response.status}).`);
         }

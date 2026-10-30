@@ -110,7 +110,7 @@ describe('Production Bug Fix Suite: Truth Categories & Requirement Semantics', (
       };
       assert.throws(
         () => CareerAssertionSchema.parse(invalidLegacyAssertion),
-        /Invalid enum value/
+        /Invalid (enum value|option)/
       );
 
       // With normalization, it parses cleanly

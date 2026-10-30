@@ -616,6 +616,7 @@ export const CandidateCareerProfileSchema = z.strictObject({
     .default([]),
   jobPreferences: CareerPreferencesSchema,
   verifiedSkillsSummary: z.array(z.string()).default([]),
+  reportedSkillsSummary: z.array(z.string()).optional().default([]),
   topSkills: z
     .array(
       z.object({
@@ -706,10 +707,12 @@ export const CandidateCareerProfileSchema = z.strictObject({
         endDate: z.string().nullable().optional(),
         linkedResourceCount: z.number().int().nonnegative().optional(),
         verifiedSignalCount: z.number().int().nonnegative().optional(),
+        observedSignalCount: z.number().int().nonnegative().optional(),
         provenanceStatus: z
-          .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED', 'USER_PROVIDED'])
+          .enum(['VERIFIED', 'CORROBORATED', 'INFERRED', 'CLAIMED', 'UNVERIFIED', 'USER_PROVIDED'])
           .optional()
           .default('CLAIMED'),
+        source: z.string().optional(),
       })
     )
     .optional()
@@ -730,8 +733,9 @@ export const CandidateCareerProfileSchema = z.strictObject({
         bullets: z.array(z.string()).optional().default([]),
         technologies: z.array(z.string()).optional().default([]),
         verifiedSkillsUsed: z.array(z.string()).optional().default([]),
+        reportedSkillsUsed: z.array(z.string()).optional().default([]),
         provenanceStatus: z
-          .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
           .optional()
           .default('CLAIMED'),
       })

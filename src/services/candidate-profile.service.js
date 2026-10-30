@@ -177,7 +177,8 @@ export class CandidateProfileService {
     resumeSkillNames = new Set(),
     metadata = {},
   }) {
-    const hasGithubEvidence = false; // Repository detection does not verify candidate competence.
+    const hasGithubEvidence =
+      dbProvenanceStatus === 'VERIFIED' || dbProvenanceStatus === 'CORROBORATED';
 
     const hasResumeClaim =
       dbProvenanceStatus === 'CLAIMED' ||
@@ -593,7 +594,12 @@ export class CandidateProfileService {
         EvidenceRefMapper.toEvidenceRef(row, cs.provenanceStatus)
       );
 
-      const isUserClaim = cs.provenanceStatus === 'CLAIMED' || cs.metadata?.isUserClaim === true;
+      const isUserClaim =
+        cs.provenanceStatus === 'CLAIMED' ||
+        cs.metadata?.isUserClaim === true ||
+        Boolean(cs.metadata?.additionalSkillDeclaration) ||
+        cs.source === 'CANDIDATE_DECLARED' ||
+        cs.source === 'USER_PROVIDED';
 
       skillList.push({
         skillId: cs.skillId,
@@ -1883,6 +1889,9 @@ export class CandidateProfileService {
         (Number(s.evidenceCount) > 0 && Number(s.confidenceScore) > 0);
 
       const hasResumeClaim =
+        s.resumeClaim === true ||
+        s.source === 'BOTH' ||
+        s.source === 'RESUME' ||
         s.provenanceStatus === 'CLAIMED' ||
         s.metadata?.source === 'RESUME_UPLOAD' ||
         s.metadata?.isUserClaim === true ||
@@ -2137,7 +2146,12 @@ export class CandidateProfileService {
     // Shared projection preserves complete records and explicit empty-state overrides.
     const sourceSections = normalizeResumeSourceSections(candidate);
     const recentExperience = sourceSections.experience;
-    const education = sourceSections.education;
+    const education = sourceSections.education.map((edu) => ({
+      ...edu,
+      ...(edu.degreeType || edu.legacyFields?.degreeType
+        ? { degreeType: edu.degreeType || edu.legacyFields?.degreeType }
+        : {}),
+    }));
     const certifications = sourceSections.certifications;
 
     // 10. Derive Tenure, Seniority, Career Status, Current Employment, Current Role

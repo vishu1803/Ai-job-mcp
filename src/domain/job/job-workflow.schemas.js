@@ -61,39 +61,46 @@ export const SearchJobsInputSchema = z.object({
   offset: z.number().int().min(0).optional().default(0),
 });
 
-export const NormalizedJobPostingSchema = z.object({
-  id: z.string().min(1, 'id is required'),
-  canonicalJobId: z.string().nullable().optional().describe('Canonical job identifier'),
-  source: JobSourceEnum,
-  provider: JobSourceEnum.nullable().optional().describe('Provider that supplied the job'),
-  externalJobId: z
-    .string()
-    .nullable()
-    .optional()
-    .describe('Provider-specific external job identifier (e.g. gh-vercel-5430088004)'),
-  company: z.string().min(1),
-  title: z.string().min(1),
-  location: z.string().default('Remote'),
-  workplaceType: WorkplaceTypeEnum.default('REMOTE'),
-  employmentType: EmploymentTypeEnum.default('FULL_TIME'),
-  description: z.string().min(1),
-  responsibilities: z.array(z.string()).default([]),
-  requirements: z.array(z.string()).default([]),
-  skills: z.array(z.string()).default([]),
-  salary: z
-    .object({
-      min: z.number().optional(),
-      max: z.number().optional(),
-      currency: z.string().default('USD'),
-      period: z.enum(['YEARLY', 'MONTHLY', 'HOURLY']).default('YEARLY'),
-    })
-    .optional(),
-  applicationUrl: z.string().url(),
-  directPortalUrl: z.string().nullable().optional().describe('Direct portal application URL'),
-  sourceUrl: z.string().url().nullable().optional(),
-  postedAt: z.string().nullable().optional(),
-  retrievedAt: z.string(),
-});
+export const NormalizedJobPostingSchema = z
+  .object({
+    id: z.string().min(1, 'id is required'),
+    canonicalJobId: z.string().nullable().optional().describe('Canonical job identifier'),
+    source: JobSourceEnum,
+    provider: JobSourceEnum.nullable().optional().describe('Provider that supplied the job'),
+    externalJobId: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Provider-specific external job identifier (e.g. gh-vercel-5430088004)'),
+    company: z.string().min(1),
+    title: z.string().min(1),
+    location: z.string().default('Remote'),
+    workplaceType: WorkplaceTypeEnum.default('REMOTE'),
+    employmentType: EmploymentTypeEnum.default('FULL_TIME'),
+    description: z.string().min(1),
+    responsibilities: z.array(z.string()).default([]),
+    requirements: z.array(z.string()).default([]),
+    skills: z.array(z.string()).default([]),
+    salary: z
+      .object({
+        min: z.number().optional(),
+        max: z.number().optional(),
+        currency: z.string().default('USD'),
+        period: z.enum(['YEARLY', 'MONTHLY', 'HOURLY']).default('YEARLY'),
+      })
+      .optional(),
+    applicationUrl: z.string().url(),
+    directPortalUrl: z.string().nullable().optional().describe('Direct portal application URL'),
+    sourceUrl: z.string().url().nullable().optional(),
+    postedAt: z.string().nullable().optional(),
+    retrievedAt: z.string(),
+    isRoleOnly: z.boolean().optional(),
+    tailoringScope: z.enum(['ROLE_BASED', 'JOB_SPECIFIC']).optional(),
+    rawJobDescription: z.string().optional(),
+    rawDescription: z.string().optional(),
+    projectRankings: z.array(z.any()).optional(),
+  })
+  .passthrough();
 
 export const GetJobPostingInputSchema = z.object({
   jobId: z.string().min(1, 'jobId is required'),

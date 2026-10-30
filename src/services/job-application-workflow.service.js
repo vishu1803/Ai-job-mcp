@@ -177,6 +177,16 @@ async function persistPreparedPackage({
         jobUrl: directUrl,
         source: appSource,
         packageHash: preparedPackage.packageHash,
+        rawJobDescription:
+          targetJob.description || targetJob.rawDescription || targetJob.rawJobDescription || null,
+        parsedJobDescription:
+          targetJob.requirements || targetJob.responsibilities || targetJob.skills
+            ? {
+                requirements: targetJob.requirements || [],
+                responsibilities: targetJob.responsibilities || [],
+                skills: targetJob.skills || [],
+              }
+            : null,
       }
     );
 
@@ -863,6 +873,7 @@ export class JobApplicationWorkflowService {
 
       if (
         currentPkgRow?.packagePayload &&
+        !answers?.forceRegenerate &&
         currentPkgRow.packageHash === computeApplicationPackageHash(currentPkgRow.packagePayload) &&
         canonicalPackageJson({ ...currentPkgRow.packagePayload.answers, ...answers }) ===
           canonicalPackageJson(currentPkgRow.packagePayload.answers || {}) &&
@@ -992,56 +1003,157 @@ export class JobApplicationWorkflowService {
       throw new NotFoundError('Canonical candidate profile could not be resolved');
     }
 
+    // Reconcile incoming jobPosting with server-side existingAppRow authority so a shorter
+    // title or empty/partial client payload never replaces the saved full job description.
+    const savedAppDesc = String(
+      existingAppRow?.rawJobDescription || existingAppRow?.metadata?.jobDescription || ''
+    ).trim();
+    const incomingJobDesc = String(
+      jobPosting?.description || jobPosting?.rawJobDescription || jobPosting?.rawDescription || ''
+    ).trim();
+    const effectiveJobTitle = String(
+      jobPosting?.title || existingAppRow?.jobTitle || 'Target Role'
+    ).trim();
+    const savedParsed =
+      existingAppRow?.parsedJobDescription &&
+      typeof existingAppRow.parsedJobDescription === 'object'
+        ? existingAppRow.parsedJobDescription
+        : {};
+    const authoritativeDescription =
+      savedAppDesc &&
+      (!incomingJobDesc ||
+        incomingJobDesc.toLowerCase() === effectiveJobTitle.toLowerCase() ||
+        incomingJobDesc.length < savedAppDesc.length)
+        ? savedAppDesc
+        : incomingJobDesc || savedAppDesc;
+
+    const mergedIncomingJobPosting = {
+      ...jobPosting,
+      title: effectiveJobTitle,
+      company: jobPosting?.company || existingAppRow?.companyName || 'Company',
+      ...(authoritativeDescription
+        ? {
+            description: authoritativeDescription,
+            rawDescription: authoritativeDescription,
+            rawJobDescription: authoritativeDescription,
+          }
+        : {}),
+      requirements:
+        Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0
+          ? jobPosting.requirements
+          : Array.isArray(savedParsed.requirements)
+            ? savedParsed.requirements
+            : [],
+      responsibilities:
+        Array.isArray(jobPosting?.responsibilities) && jobPosting.responsibilities.length > 0
+          ? jobPosting.responsibilities
+          : Array.isArray(savedParsed.responsibilities)
+            ? savedParsed.responsibilities
+            : [],
+      skills:
+        Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0
+          ? jobPosting.skills
+          : Array.isArray(savedParsed.requiredSkills) && savedParsed.requiredSkills.length > 0
+            ? savedParsed.requiredSkills
+            : Array.isArray(savedParsed.skills)
+              ? savedParsed.skills
+              : [],
+    };
+
     // Resolve or compute Job Fit Analysis upfront (strictly analyze_job_fit passthrough)
     const jobFitAnalysis = await this._resolveOrComputeJobFit({
       context: { tenantId, userId: cand.userId, role: 'MEMBER' },
       candidateId,
-      targetJobPosting: jobPosting,
+      targetJobPosting: mergedIncomingJobPosting,
       answers,
     });
 
-    const canonicalJob = normalizeJobInput(jobPosting);
+    const canonicalJob = normalizeJobInput(mergedIncomingJobPosting);
     const targetJobPosting = {
       id:
         resolvedCanonicalJobId ||
-        jobPosting?.id ||
-        jobPosting?.canonicalJobId ||
+        mergedIncomingJobPosting?.id ||
+        mergedIncomingJobPosting?.canonicalJobId ||
         canonicalJob?.canonicalJobId ||
         crypto.randomUUID(),
       canonicalJobId:
         resolvedCanonicalJobId ||
-        jobPosting?.canonicalJobId ||
-        jobPosting?.id ||
+        mergedIncomingJobPosting?.canonicalJobId ||
+        mergedIncomingJobPosting?.id ||
         canonicalJob?.canonicalJobId,
-      source: jobPosting?.source || 'MANUAL',
-      provider: jobPosting?.provider || jobPosting?.source || 'MANUAL',
+      source: mergedIncomingJobPosting?.source || 'MANUAL',
+      provider: mergedIncomingJobPosting?.provider || mergedIncomingJobPosting?.source || 'MANUAL',
       applicationUrl:
-        jobPosting?.applicationUrl || jobPosting?.sourceUrl || 'https://example.com/apply',
-      retrievedAt: jobPosting?.retrievedAt || new Date().toISOString(),
-      location: jobPosting?.location || 'Remote',
-      workplaceType: jobPosting?.workplaceType || jobPosting?.workplace || 'REMOTE',
-      employmentType: jobPosting?.employmentType || 'FULL_TIME',
-      ...jobPosting,
+        mergedIncomingJobPosting?.applicationUrl ||
+        mergedIncomingJobPosting?.sourceUrl ||
+        existingAppRow?.jobUrl ||
+        'https://example.com/apply',
+      retrievedAt: mergedIncomingJobPosting?.retrievedAt || new Date().toISOString(),
+      location: mergedIncomingJobPosting?.location || existingAppRow?.location || 'Remote',
+      workplaceType:
+        mergedIncomingJobPosting?.workplaceType ||
+        mergedIncomingJobPosting?.workplace ||
+        existingAppRow?.workplaceType ||
+        'REMOTE',
+      employmentType:
+        mergedIncomingJobPosting?.employmentType || existingAppRow?.employmentType || 'FULL_TIME',
+      ...mergedIncomingJobPosting,
       ...canonicalJob,
       requirements:
-        Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0
-          ? jobPosting.requirements
+        Array.isArray(mergedIncomingJobPosting?.requirements) &&
+        mergedIncomingJobPosting.requirements.length > 0
+          ? mergedIncomingJobPosting.requirements
           : canonicalJob.requirements ||
             canonicalJob.normalizedRequirements?.map((r) => r.text) ||
             [],
       responsibilities:
-        Array.isArray(jobPosting?.responsibilities) && jobPosting.responsibilities.length > 0
-          ? jobPosting.responsibilities
+        Array.isArray(mergedIncomingJobPosting?.responsibilities) &&
+        mergedIncomingJobPosting.responsibilities.length > 0
+          ? mergedIncomingJobPosting.responsibilities
           : canonicalJob.responsibilities,
       skills:
-        Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0
-          ? jobPosting.skills
+        Array.isArray(mergedIncomingJobPosting?.skills) &&
+        mergedIncomingJobPosting.skills.length > 0
+          ? mergedIncomingJobPosting.skills
               .map((s) => (typeof s === 'string' ? s : s.name || s.slug || ''))
               .filter(Boolean)
           : canonicalJob.normalizedRequirements
               .filter((r) => r.class === 'TECHNOLOGY')
               .map((r) => r.text),
     };
+
+    const allowTitleOnlyJob = Boolean(
+      existingAppRow || jobPosting?.isRoleOnly || jobPosting?.tailoringScope === 'ROLE_BASED'
+    );
+    const resolvedJobDesc =
+      authoritativeDescription ||
+      String(
+        targetJobPosting.description ||
+          targetJobPosting.rawJobDescription ||
+          targetJobPosting.rawDescription ||
+          existingAppRow?.rawJobDescription ||
+          ''
+      ).trim() ||
+      (allowTitleOnlyJob ? targetJobPosting.title || 'Target Role' : '');
+
+    if (!resolvedJobDesc) {
+      throw new ValidationError(
+        'Invalid job posting: description is required to prepare an application package.',
+        'INVALID_JOB_DESCRIPTION'
+      );
+    }
+
+    targetJobPosting.description = resolvedJobDesc;
+    targetJobPosting.rawDescription = resolvedJobDesc;
+    targetJobPosting.rawJobDescription = authoritativeDescription || undefined;
+
+    const isRoleOnly =
+      !authoritativeDescription ||
+      resolvedJobDesc.toLowerCase() === (targetJobPosting.title || '').trim().toLowerCase() ||
+      resolvedJobDesc.length < 50;
+
+    targetJobPosting.isRoleOnly = isRoleOnly;
+    targetJobPosting.tailoringScope = isRoleOnly ? 'ROLE_BASED' : 'JOB_SPECIFIC';
 
     // Authoritative project rankings from ProjectRelevanceService
     let authoritativeRankings =
@@ -1083,8 +1195,18 @@ export class JobApplicationWorkflowService {
     }
 
     if (jobFitAnalysis) {
-      jobFitAnalysis.projectRankings = authoritativeRankings;
-      jobFitAnalysis.topRelevantProjects = authoritativeRankings;
+      if (
+        !Array.isArray(jobFitAnalysis.projectRankings) ||
+        jobFitAnalysis.projectRankings.length === 0
+      ) {
+        jobFitAnalysis.projectRankings = authoritativeRankings;
+      }
+      if (
+        !Array.isArray(jobFitAnalysis.topRelevantProjects) ||
+        jobFitAnalysis.topRelevantProjects.length === 0
+      ) {
+        jobFitAnalysis.topRelevantProjects = authoritativeRankings;
+      }
     }
 
     // Preserve user-provided recommendedProjects strictly as advisory metadata; never mutate with derived selections
@@ -1218,8 +1340,18 @@ export class JobApplicationWorkflowService {
     if (generation.bundle.metadata?.projectRanking) {
       targetJobPosting.projectRankings = generation.bundle.metadata.projectRanking.projectRankings;
       if (jobFitAnalysis) {
-        jobFitAnalysis.projectRankings = targetJobPosting.projectRankings;
-        jobFitAnalysis.topRelevantProjects = targetJobPosting.projectRankings;
+        if (
+          !Array.isArray(jobFitAnalysis.projectRankings) ||
+          jobFitAnalysis.projectRankings.length === 0
+        ) {
+          jobFitAnalysis.projectRankings = targetJobPosting.projectRankings;
+        }
+        if (
+          !Array.isArray(jobFitAnalysis.topRelevantProjects) ||
+          jobFitAnalysis.topRelevantProjects.length === 0
+        ) {
+          jobFitAnalysis.topRelevantProjects = targetJobPosting.projectRankings;
+        }
       }
     }
     const {
@@ -1244,11 +1376,14 @@ export class JobApplicationWorkflowService {
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
         title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
-        markdownContent: onePageResumeMarkdown(safeStructuredResume),
-        contentHash: crypto
-          .createHash('sha256')
-          .update(onePageResumeMarkdown(safeStructuredResume))
-          .digest('hex'),
+        markdownContent:
+          tailoredResumeResult.markdownContent || onePageResumeMarkdown(safeStructuredResume),
+        contentHash:
+          tailoredResumeResult.contentHash ||
+          crypto
+            .createHash('sha256')
+            .update(onePageResumeMarkdown(safeStructuredResume))
+            .digest('hex'),
         fitScore: effectiveFitScore,
         selectedProjects: selectedProjectsList,
         selectedSections:
@@ -1296,7 +1431,7 @@ export class JobApplicationWorkflowService {
       artifacts: {
         resume: {
           filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
-          text: onePageResumeMarkdown(safeStructuredResume),
+          text: tailoredResumeResult.markdownContent || onePageResumeMarkdown(safeStructuredResume),
           ready: false,
         },
         coverLetter: {
@@ -1655,26 +1790,53 @@ export class JobApplicationWorkflowService {
     ];
     const jobSource = validSources.includes(application.source) ? application.source : 'MANUAL';
 
+    const candidateDescriptions = [
+      application.rawJobDescription,
+      currentPkg?.targetJob?.rawDescription,
+      currentPkg?.targetJob?.description,
+      application.metadata?.jobDescription,
+    ]
+      .map((d) => String(d || '').trim())
+      .filter(
+        (d) =>
+          d &&
+          d.toLowerCase() !==
+            String(application.jobTitle || '')
+              .trim()
+              .toLowerCase()
+      );
+    candidateDescriptions.sort((a, b) => b.length - a.length);
+
+    const resolvedDescription = candidateDescriptions[0] || application.jobTitle;
+
+    const isRoleOnly =
+      !resolvedDescription ||
+      resolvedDescription === application.jobTitle ||
+      resolvedDescription.length < 50;
+
     const jobPosting = {
       id: application.id,
       source: jobSource,
       company: application.companyName,
       title: application.jobTitle,
       location: application.location || 'Remote',
-      description:
-        application.rawJobDescription ||
-        application.metadata?.jobDescription ||
-        currentPkg?.targetJob?.description ||
-        application.jobTitle,
+      description: resolvedDescription,
       responsibilities:
         application.parsedJobDescription?.responsibilities ||
         currentPkg?.targetJob?.responsibilities ||
         [],
       requirements:
         application.parsedJobDescription?.requirements || currentPkg?.targetJob?.requirements || [],
-      skills: application.parsedJobDescription?.skills || currentPkg?.targetJob?.skills || [],
+      skills:
+        application.parsedJobDescription?.skills ||
+        application.parsedJobDescription?.requiredSkills ||
+        currentPkg?.targetJob?.skills ||
+        [],
       applicationUrl: application.jobUrl || application.metadata?.destinationUrl,
       retrievedAt: new Date().toISOString(),
+      ...(isRoleOnly
+        ? { isRoleOnly: true, tailoringScope: 'ROLE_BASED' }
+        : { tailoringScope: 'JOB_SPECIFIC' }),
     };
 
     const jobValidation = NormalizedJobPostingSchema.safeParse(jobPosting);
@@ -1701,6 +1863,12 @@ export class JobApplicationWorkflowService {
           requestRole: role || 'MEMBER',
           applicationId: application.id,
           aiProvider: this.aiProvider,
+          generator:
+            this.applicationHandoffService?.latexGenerator ||
+            this.applicationHandoffService?.resumeOptimizer?.latexGenerator,
+          compiler:
+            this.applicationHandoffService?.resumeOptimizer?.latexCompiler ||
+            this.applicationHandoffService?.latexCompiler,
           parentGenerationId:
             currentPkg?.resumeGeneration?.id || currentPkg?.resumeStudio?.generationId || null,
           generationIdempotencyKey: currentPkg?.packageHash
@@ -1738,14 +1906,275 @@ export class JobApplicationWorkflowService {
         'GENERATION_NOT_SAVED'
       );
 
-    // Regeneration is a saved alternative. Only explicit Studio review/approval may
-    // bind it to the application. No package promotion, kit mutation or edit transfer.
+    if (generation.isPersisted !== false) {
+      // Regeneration is a saved alternative. Only explicit Studio review/approval may
+      // bind it to the application. No package promotion, kit mutation or edit transfer.
+      return {
+        generationId: generation.id,
+        parentGenerationId: generation.parentGenerationId,
+        studioUrl: '/resume-studio?generationId=' + generation.id,
+        reviewRequired: true,
+        currentPackageHash: appDetails.currentPackage?.packageHash || null,
+        documentsStatus: 'DOCUMENTS_READY',
+        artifactsReady: true,
+      };
+    }
+
+    // Profile-backed / missing-master recovery path: build, seal, QA-audit, and promote
+    // the recovered package as CURRENT so applications without a durable resume_generations
+    // row can recover from missing or quarantined historical packages.
+    const candidateSkillsList = await this.db
+      .select({
+        skillName: skills.name,
+        candidateSkillId: candidateSkills.id,
+        metadata: candidateSkills.metadata,
+        provenanceStatus: candidateSkills.provenanceStatus,
+        evidenceId: candidateSkills.primaryEvidenceId,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .where(
+        and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
+      );
+
+    const { verifiedSkills, claimedSkills, skillGaps } =
+      projectApplicationSkills(candidateSkillsList);
+
+    const generatedIdentity =
+      documentContent.generation?.bundle?.structuredResume?.candidateIdentity;
+    const tailoredResumeResult = documentContent.resume;
+    const coverLetterResult = documentContent.coverLetter;
+
+    const selectedProjectsList =
+      documentContent.resume?.selectedProjects || documentContent.selectedProjects || [];
+
+    const portfolioLinks = (
+      selectedProjectsList.length > 0
+        ? selectedProjectsList
+        : (documentContent.evidence.projectNamesUsed || []).map((name) => ({
+            name,
+            bullets: [],
+          }))
+    ).map((project) => {
+      const projName = project.name || project.projectName;
+      const stored =
+        documentContent.projectUrlByName?.[projName] || project.repositoryUrl || project.url;
+      const rawHighlights =
+        Array.isArray(project.bullets) && project.bullets.length > 0
+          ? project.bullets
+          : project.summary
+            ? [project.summary]
+            : [];
+      const cleanHighlights = rawHighlights.filter(
+        (h) => !/Evidence-backed project referenced in tailored documents/i.test(h)
+      );
+      return {
+        projectName: projName,
+        repositoryUrl: stored || undefined,
+        highlights: cleanHighlights,
+      };
+    });
+
+    const contentAudit = CandidateArtifactContentService.auditDocumentContent(
+      tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
+      {
+        requiredTokens: [
+          generatedIdentity?.displayName || cand.displayName,
+          generatedIdentity?.email || candidateEmail,
+        ].filter(Boolean),
+        forbiddenTokens: [
+          /Dedicated software engineer with verified technical skills/i,
+          /Software Development Experience Verified/i,
+          /Independent \/ Open Source Engineering/i,
+          /Academic \/ Technical Foundation/i,
+          /Accredited Institution/i,
+          /Evidence-backed project referenced in tailored documents/i,
+        ],
+      }
+    );
+    if (!contentAudit.passed) {
+      throw new ValidationError(
+        `Application document content audit failed during regeneration: ${contentAudit.violations.join('; ')}`
+      );
+    }
+
+    const previousAnswers =
+      currentPkg?.answers && typeof currentPkg.answers === 'object' ? currentPkg.answers : {};
+    const answers = {
+      ...previousAnswers,
+      ...(reason ? { regenerationReason: String(reason).trim() } : {}),
+      ...(scope ? { regenerationScope: scope } : {}),
+      regenerationTimestamp: new Date().toISOString(),
+    };
+
+    if (generation.bundle.metadata?.projectRanking)
+      jobPosting.projectRankings = generation.bundle.metadata.projectRanking.projectRankings;
+    const {
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
+    } = generation.bundle;
+
+    const preparedPackage = {
+      resumeGeneration: {
+        id: generation.id,
+        contentHash: generation.contentHash,
+        sourceResumeId: generation.sourceResumeId,
+        sourceVersion: generation.sourceVersion,
+      },
+      candidateId,
+      candidateName: generatedIdentity.displayName,
+      candidateEmail: generatedIdentity.email,
+      candidatePhone: generatedIdentity.phone || undefined,
+      targetJob: jobPosting,
+      tailoredResume: {
+        documentId: tailoredResumeResult.documentId || undefined,
+        title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
+        markdownContent: onePageResumeMarkdown(safeStructuredResume),
+        contentHash: crypto
+          .createHash('sha256')
+          .update(onePageResumeMarkdown(safeStructuredResume))
+          .digest('hex'),
+        fitScore: tailoredResumeResult.fitScore ?? 0,
+        selectedProjects: selectedProjectsList,
+        selectedSections:
+          tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+        sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
+        structuredResume: safeStructuredResume,
+        tailoringPlan: safeTailoringPlan,
+        evidenceValidationReceipt: safeEvidenceReceipt,
+        generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+        structuredResumeSchemaVersion:
+          safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
+      },
+      coverLetter: {
+        documentId: coverLetterResult.documentId || undefined,
+        title: coverLetterResult.title || `Cover Letter - ${jobPosting.company}`,
+        markdownContent:
+          coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+        contentHash: coverLetterResult.contentHash || crypto.randomBytes(16).toString('hex'),
+      },
+      verifiedSkills,
+      claimedSkills,
+      skillGaps,
+      portfolioLinks,
+      candidate: {
+        id: candidateId,
+        firstName:
+          cand.firstName || (cand.displayName ? cand.displayName.split(' ')[0] : 'Candidate'),
+        lastName:
+          cand.lastName || (cand.displayName ? cand.displayName.split(' ').slice(1).join(' ') : ''),
+        fullName: cand.displayName || 'Candidate',
+        displayName: cand.displayName || 'Candidate',
+        email: candidateEmail,
+        canonicalEmail: candidateEmail,
+        phone: cand.phone || undefined,
+        location: cand.location || undefined,
+        contact: {
+          email: candidateEmail,
+          phone: cand.phone || undefined,
+          address: cand.location || undefined,
+        },
+      },
+      artifacts: {
+        resume: {
+          filename: `Resume - ${jobPosting.company || 'Job'}.pdf`,
+          text: onePageResumeMarkdown(safeStructuredResume),
+          ready: false,
+        },
+        coverLetter: {
+          filename: `Cover Letter - ${jobPosting.company || 'Job'}.pdf`,
+          text: coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+          ready: false,
+        },
+      },
+      selectedSections:
+        tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
+      sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
+      answers,
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
+      generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+      structuredResumeSchemaVersion:
+        safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
+      packageHash: '',
+      preparedAt: new Date().toISOString(),
+    };
+
+    preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
+    const validatedPackage = await sealGeneratedPackage(
+      this.db,
+      { tenantId, candidateId },
+      ApplicationPackageSchema.parse(preparedPackage)
+    );
+
+    const handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
+      tenantId,
+      userId: cand.userId,
+      candidateId,
+      applicationPackage: validatedPackage,
+      applicationId: application.id,
+      destinationUrl: jobPosting.applicationUrl,
+      persist: false,
+    });
+
+    const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);
+    const clQaPassed = Boolean(handoffKit?.coverLetter?.qaAudit?.passed);
+    const hasStorageKeys = Boolean(
+      handoffKit?.resume?.storageKey && handoffKit?.coverLetter?.storageKey
+    );
+
+    if (!resumeQaPassed || !clQaPassed || !hasStorageKeys) {
+      const failureReason = [
+        !resumeQaPassed
+          ? `Resume QA failed: ${handoffKit?.resume?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+          : null,
+        !clQaPassed
+          ? `Cover letter QA failed: ${handoffKit?.coverLetter?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+          : null,
+        !hasStorageKeys ? 'Encrypted artifact storage keys missing' : null,
+      ]
+        .filter(Boolean)
+        .join('; ');
+
+      throw new ValidationError(
+        `Regeneration aborted: pre-exposure QA check failed (${failureReason}). Current package preserved.`,
+        'PRE_EXPOSURE_QA_FAILED'
+      );
+    }
+
+    const current = await this.db.transaction(async (tx) => {
+      await tx
+        .select({ id: jobApplications.id })
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, application.id), eq(jobApplications.tenantId, tenantId)))
+        .for('update');
+      const tracking = new ApplicationTrackingService({ database: tx });
+      const packageRow = await tracking.recordApplicationPackage(
+        context,
+        application.id,
+        validatedPackage,
+        { source: 'REGENERATE_PACKAGE' }
+      );
+      await this.applicationHandoffService._attachTailoredDocumentSnapshots({
+        tenantId,
+        userId: cand.userId,
+        applicationId: application.id,
+        applicationPackage: validatedPackage,
+        handoffKit,
+        trackingService: tracking,
+      });
+      await tracking.setApplicationHandoffKit(context, application.id, handoffKit);
+      return packageRow;
+    });
+
     return {
+      package: current,
       generationId: generation.id,
-      parentGenerationId: generation.parentGenerationId,
-      studioUrl: '/resume-studio?generationId=' + generation.id,
-      reviewRequired: true,
-      currentPackageHash: appDetails.currentPackage?.packageHash || null,
+      parentGenerationId: generation.parentGenerationId || null,
+      studioUrl: `/applications/${application.id}/handoff?success=${encodeURIComponent(`Package regenerated (v${current.version})`)}`,
+      handoffKit,
       documentsStatus: 'DOCUMENTS_READY',
       artifactsReady: true,
     };
@@ -2835,10 +3264,9 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     try {
       const portalType = detectPortalType(destinationUrl);
       const activeAdapter =
-        this.portalAdapterRegistry?.resolve(destinationUrl) ||
         this.submissionAdapters.find(
           (adapter) => typeof adapter?.canSubmit === 'function' && adapter.canSubmit(destinationUrl)
-        );
+        ) || this.portalAdapterRegistry?.resolve(destinationUrl);
       const method =
         typeof activeAdapter?.submitOrHandoff === 'function'
           ? 'submitOrHandoff'
@@ -2889,7 +3317,10 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           adapterResult.status === 'SUBMITTED' &&
           !adapterResult.finalSubmitBlocked &&
           !adapterResult.handoffKit?.finalSubmitBlocked &&
-          adapterResult.authorizedSubmissionExecuted === true;
+          (adapterResult.authorizedSubmissionExecuted === true ||
+            (method === 'submit' &&
+              adapterResult.authorizedSubmissionExecuted !== false &&
+              Boolean(adapterResult.externalReference)));
         const status = submitted
           ? 'SUBMITTED'
           : adapterResult.status === 'HANDOFF_READY'

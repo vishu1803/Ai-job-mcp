@@ -457,31 +457,31 @@ describe('Zero-Hallucination Integrity Gate Service Unit Tests (P5-006)', () => 
   it('16. deterministically sorts evidence refs by quality weight and caps at 5', () => {
     const items = [
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000001',
+        id: '00000000-0000-4000-8000-000000000001',
         evidenceType: 'README_SPECIFICATION',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000002',
+        id: '00000000-0000-4000-8000-000000000002',
         evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000003',
+        id: '00000000-0000-4000-8000-000000000003',
         evidenceType: 'CODE_IMPORT_USAGE',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000004',
+        id: '00000000-0000-4000-8000-000000000004',
         evidenceType: 'CONFIG_SYNTAX_DECLARATION',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000005',
+        id: '00000000-0000-4000-8000-000000000005',
         evidenceType: 'COMMIT_CONTRIBUTION',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000006',
+        id: '00000000-0000-4000-8000-000000000006',
         evidenceType: 'FILE_PATTERN_MATCH',
       }),
       createSampleEvidenceItem({
-        id: '00000000-0000-0000-0000-000000000007',
+        id: '00000000-0000-4000-8000-000000000007',
         evidenceType: 'DOCUMENT_CLAIM',
       }),
     ];

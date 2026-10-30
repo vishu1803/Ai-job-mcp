@@ -174,12 +174,22 @@ function skillKey(s) {
  * @param {object} [params.targetRole] Target role title text (used only via the generic taxonomy)
  * @returns {{ passed: boolean, severity: string, findings: Array<object>, metrics: object }}
  */
-export function assessPreRenderQuality({ structuredResume, pageBudget = null, targetRole = null }) {
+export function assessPreRenderQuality({
+  structuredResume,
+  pageBudget = null,
+  targetRole = null,
+  options = {},
+}) {
   const findings = [];
   const doc = structuredResume || {};
 
   const projects = Array.isArray(doc.projects) ? doc.projects : [];
   const experience = Array.isArray(doc.experience) ? doc.experience : [];
+
+  const minBulletsPerProject =
+    typeof options?.minBulletsPerProject === 'number'
+      ? options.minBulletsPerProject
+      : MIN_BULLETS_PER_PROJECT;
 
   // ── Check 1: Too few project bullets when more are available ──
   let backfillAvailableCount = 0;
@@ -187,7 +197,7 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
     const bullets = (Array.isArray(p.bullets) ? p.bullets : [])
       .map((b) => (typeof b === 'string' ? b : b?.text || '').trim())
       .filter(Boolean);
-    if (bullets.length > 0 && bullets.length < MIN_BULLETS_PER_PROJECT) {
+    if (bullets.length > 0 && bullets.length < minBulletsPerProject) {
       // Remediable only when the snapshot itself carries no additional bullets
       // (the dynamic budget already exhausted the candidate-owned pool).
       backfillAvailableCount += 1;
@@ -195,7 +205,7 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
         code: GATE_FINDING_CODES.TOO_FEW_PROJECT_BULLETS,
         severity: GATE_SEVERITY.FAIL,
         remediable: false,
-        message: `Selected project '${p.displayName || p.name || 'unnamed'}' renders with ${bullets.length} bullet(s); minimum required is ${MIN_BULLETS_PER_PROJECT}.`,
+        message: `Selected project '${p.displayName || p.name || 'unnamed'}' renders with ${bullets.length} bullet(s); minimum required is ${minBulletsPerProject}.`,
       });
     }
   }

@@ -64,7 +64,7 @@ export class ResumeOptimizationLoopService {
     const baselineMultiDim = atsMultiDimensionalIntelligenceService.evaluateAllDimensions({
       context: { tenantId },
       candidateProfile: profile,
-      jobDescription: { id: '00000000-0000-0000-0000-000000000010', text: jobDescription },
+      jobDescription: { id: '00000000-0000-4000-8000-000000000010', text: jobDescription },
       extractedText: originalResumeText,
     });
 
@@ -178,7 +178,7 @@ ${candEdu
     const postMultiDim = atsMultiDimensionalIntelligenceService.evaluateAllDimensions({
       context: { tenantId },
       candidateProfile: tailoredCanonical,
-      jobDescription: { id: '00000000-0000-0000-0000-000000000010', text: jobDescription },
+      jobDescription: { id: '00000000-0000-4000-8000-000000000010', text: jobDescription },
       extractedText: optimizedResumeText,
     });
 

@@ -119,6 +119,13 @@ export const RecommendPortfolioProjectsInputSchema = z
     jobFamily: JobFamilyEnum.optional().describe(
       'Optional job family classification override (e.g., "BACKEND", "FRONTEND", "FULLSTACK", "DEVOPS_CLOUD", "DATA_ML", "AI_ENGINEERING", "GENERAL_SOFTWARE").'
     ),
+    maxProjects: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe('Maximum number of recommended projects (1 to 5, default 3).'),
     maxFeaturedProjects: z
       .number()
       .int()
@@ -396,6 +403,11 @@ export const GenerateTailoredResumeInputSchema = z
     existingResumeFormat: SourceDocumentFormatEnum.optional().describe(
       'Format of the provided existing resume: "MARKDOWN", "PLAIN_TEXT", "DOCX", or "PDF".'
     ),
+    format: z
+      .enum(['MARKDOWN', 'PLAIN_TEXT', 'JSON_RESUME'])
+      .default('MARKDOWN')
+      .optional()
+      .describe('Output document format (default: MARKDOWN).'),
     templateId: ResumeTemplateIdEnum.default('ATS_FOCUSED').describe(
       'Visual template style when GENERATE_NEW mode is used: "ATS_FOCUSED", "PROFESSIONAL", "MODERN", "MINIMAL", or "TRADITIONAL".'
     ),

@@ -294,12 +294,14 @@ export function resumeSkillInputs(source) {
       : skill
   );
   const master = meta.resumeData || source.resumeData;
-  const claims =
-    !override &&
-    master?.sourceResumeId &&
+  const hasReviewedResume =
+    Boolean(master?.sourceResumeId) &&
     Number.isInteger(master.sourceVersion) &&
-    master.sourceVersion > 0
-      ? (Array.isArray(master.skills) ? master.skills : []).flatMap((skill) => {
+    master.sourceVersion > 0;
+  const hasProfileResumeSkills = !master?.sourceResumeId && inventory.length === 0;
+  const claims =
+    !override && (hasReviewedResume || hasProfileResumeSkills)
+      ? (Array.isArray(master?.skills) ? master.skills : []).flatMap((skill) => {
           const name = typeof skill === 'string' ? skill : skill?.name || skill?.skillName;
           const status = typeof skill === 'string' ? 'CLAIMED' : skillTrustStatus(skill || {});
           return name && ['CLAIMED', 'USER_PROVIDED', 'SELF_DECLARED'].includes(status)
@@ -725,7 +727,7 @@ export function buildStructuredResumeDocument({
         if (p.slug) candProjMap.set(slugifyProject(p.slug), p);
       }
 
-      const eligibleAuthoritativeProjectIds = [];
+      let eligibleAuthoritativeProjectIds = [];
       for (const r of resolvedAuthoritativeRankings) {
         const rId = r.projectId || r.id;
         const rSlug = slugifyProject(r.projectName || r.name || r.title || r.slug || '');
@@ -781,6 +783,8 @@ export function buildStructuredResumeDocument({
         }
       }
       // Prioritize projects with substantive candidate accomplishment bullets over projects with only a generic purpose statement
+      const minAccomplishmentBullets =
+        typeof options?.minBulletsPerProject === 'number' ? options.minBulletsPerProject : 2;
       const hasSubstantiveAccomplishments = (id) => {
         const p = candProjMap.get(id);
         if (!p) return 0;
@@ -790,12 +794,19 @@ export function buildStructuredResumeDocument({
           (Array.isArray(p.highlights) ? p.highlights.length : 0);
         const isFeatured =
           p.portfolioStatus === 'FEATURED' || p.metadata?.portfolioStatus === 'FEATURED';
-        return bulletsCount >= 2 || isFeatured ? 1 : 0;
+        return bulletsCount >= minAccomplishmentBullets || isFeatured ? 1 : 0;
       };
 
       eligibleAuthoritativeProjectIds.sort((a, b) => {
         return hasSubstantiveAccomplishments(b) - hasSubstantiveAccomplishments(a);
       });
+
+      const substantiveProjectIds = eligibleAuthoritativeProjectIds.filter(
+        (id) => hasSubstantiveAccomplishments(id) === 1
+      );
+      if (substantiveProjectIds.length >= 2) {
+        eligibleAuthoritativeProjectIds = substantiveProjectIds;
+      }
 
       authoritativeEligibleProjectCount = eligibleAuthoritativeProjectIds.length;
       selectedProjectIds = eligibleAuthoritativeProjectIds.slice(0, effectiveProjectCapacity);
@@ -1005,8 +1016,9 @@ export function buildStructuredResumeDocument({
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: canonicalJob?.id || null,
-    targetRoleTitle:
-      jobPosting?.title || tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
+    targetRoleTitle: tailoredHeadingInfo.seniorityAdjusted
+      ? tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading || jobPosting?.title
+      : jobPosting?.title || tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
     targetCompany: canonicalJob?.company || null,
     candidateArchetype: tailoredHeadingInfo.candidateArchetype || 'EXPERIENCED',
     pageTarget: 'ONE_PAGE_STRICT',
@@ -1250,7 +1262,11 @@ export function buildStructuredResumeDocument({
       }
 
       if (candidateAiBullets.length >= 1) {
-        if (candidateAiBullets.length < 3 && projectFacts.length >= candidateAiBullets.length + 1) {
+        const targetAiBulletCount = Math.min(aiBullets?.length || 3, 3);
+        if (
+          candidateAiBullets.length < targetAiBulletCount &&
+          projectFacts.length >= candidateAiBullets.length + 1
+        ) {
           const composed = composeProfessionalProjectBullets({
             facts: projectFacts,
             project: enrichedProj,
@@ -1401,15 +1417,19 @@ export function buildStructuredResumeDocument({
           typeof projectOptions.maxBullets === 'number'
             ? projectOptions.maxBullets
             : candidateBullets.length;
-        pBullets = candidateBullets.slice(0, bulletLimit).map((b, bIdx) => ({
-          text: compressProfessionalBullet(
-            sanitizeGroundedAccomplishment(typeof b === 'string' ? b : b.text)
-          ),
-          evidenceRefs: [],
-          matchedRequirementIds: [],
-          composedFromFactIds: [],
-          provenanceStatus: 'USER_PROVIDED',
-        }));
+        pBullets = candidateBullets.slice(0, bulletLimit).map((b, bIdx) => {
+          const rawText = typeof b === 'string' ? b : b.text || '';
+          const factId = `claim-${selectedId}-${bIdx + 1}`;
+          return {
+            text: compressProfessionalBullet(sanitizeGroundedAccomplishment(rawText)),
+            evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'CLAIMED' })],
+            matchedRequirementIds: [],
+            composedFromFactIds: [factId],
+            provenanceStatus: 'CLAIMED',
+            sourceFact: rawText,
+            transformationType: 'VERBATIM',
+          };
+        });
       }
     }
 
@@ -1433,7 +1453,12 @@ export function buildStructuredResumeDocument({
         );
       });
 
-    const MIN_BULLETS_PER_RENDERED_PROJECT = 1;
+    const MIN_BULLETS_PER_RENDERED_PROJECT =
+      typeof options.minBulletsPerProject === 'number'
+        ? options.minBulletsPerProject
+        : typeof projectOptions.minBullets === 'number'
+          ? projectOptions.minBullets
+          : 1;
     const minRequiredBullets =
       typeof projectOptions.maxBullets === 'number'
         ? Math.min(MIN_BULLETS_PER_RENDERED_PROJECT, projectOptions.maxBullets)
@@ -1530,6 +1555,7 @@ export function buildStructuredResumeDocument({
         ? { description: proj.description || proj.metadata.description }
         : {}),
       liveUrl: proj.liveUrl || null,
+      technologies: rawTechs.length > 0 ? formatTechnologyStack(rawTechs) : [],
       bullets: pBullets.map(
         ({ semanticDimensions, realizationSource, claimId, ...cleanBullet }) => cleanBullet
       ),
@@ -1689,9 +1715,12 @@ export function buildStructuredResumeDocument({
     typeof authoredSummary === 'object' && authoredSummary !== null
       ? authoredSummary.text
       : authoredSummary;
+  const aiSummaryObj =
+    typeof options?.aiContent?.summary === 'string'
+      ? { text: options.aiContent.summary }
+      : options?.aiContent?.summary;
   const generatedSummary =
-    typeof options?.aiContent?.summary?.text === 'string' &&
-    options.aiContent.summary.text.trim().length > 0;
+    typeof aiSummaryObj?.text === 'string' && aiSummaryObj.text.trim().length > 0;
   const shouldPreserveAuthored = options?.preserveAuthoredSummary !== false;
   if (
     !generatedSummary &&
@@ -1706,42 +1735,40 @@ export function buildStructuredResumeDocument({
       sourceFact: authoredSummaryText.trim(),
     };
   } else if (
-    options?.aiContent?.summary &&
-    typeof options.aiContent.summary === 'object' &&
-    typeof options.aiContent.summary.text === 'string' &&
-    options.aiContent.summary.text.trim().length > 0
+    aiSummaryObj &&
+    typeof aiSummaryObj === 'object' &&
+    typeof aiSummaryObj.text === 'string' &&
+    aiSummaryObj.text.trim().length > 0
   ) {
-    const rawRefPIds = options.aiContent.summary.referencedProjectIds || [];
+    const rawRefPIds = aiSummaryObj.referencedProjectIds || [];
     const validRefPIds = rawRefPIds.filter((id) => renderedPIdSet.has(id));
     const summaryFactIds =
-      Array.isArray(options.aiContent.summary.composedFromFactIds) &&
-      options.aiContent.summary.composedFromFactIds.length > 0
-        ? options.aiContent.summary.composedFromFactIds
+      Array.isArray(aiSummaryObj.composedFromFactIds) && aiSummaryObj.composedFromFactIds.length > 0
+        ? aiSummaryObj.composedFromFactIds
         : [];
     summary = {
-      text: options.aiContent.summary.text,
-      referencedSkillSlugs: options.aiContent.summary.referencedSkillSlugs || [],
+      text: aiSummaryObj.text,
+      referencedSkillSlugs: aiSummaryObj.referencedSkillSlugs || [],
       referencedProjectIds: validRefPIds,
       evidenceRefs:
-        Array.isArray(options.aiContent.summary.evidenceRefs) &&
-        options.aiContent.summary.evidenceRefs.length > 0
-          ? options.aiContent.summary.evidenceRefs
+        Array.isArray(aiSummaryObj.evidenceRefs) && aiSummaryObj.evidenceRefs.length > 0
+          ? aiSummaryObj.evidenceRefs
           : summaryFactIds.map((id) =>
               toEvidenceReference({ factId: id, truthCategory: 'CLAIMED' })
             ),
-      matchedRequirementIds: options.aiContent.summary.matchedRequirementIds || [],
+      matchedRequirementIds: aiSummaryObj.matchedRequirementIds || [],
       composedFromFactIds: summaryFactIds,
-      provenanceStatus: options.aiContent.summary.provenanceStatus || 'CLAIMED',
-      provenance: options.aiContent.summary.provenance || null,
-      sourceFact: options.aiContent.summary.sourceFact || options.aiContent.summary.text,
+      provenanceStatus: aiSummaryObj.provenanceStatus || 'CLAIMED',
+      provenance: aiSummaryObj.provenance || null,
+      sourceFact: aiSummaryObj.sourceFact || aiSummaryObj.text,
       transformationType: ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(
-        options.aiContent.summary.transformationType
+        aiSummaryObj.transformationType
       )
-        ? options.aiContent.summary.transformationType
+        ? aiSummaryObj.transformationType
         : 'COMBINE',
-      ...(options.aiContent.summary.sentences
+      ...(aiSummaryObj.sentences
         ? {
-            sentences: options.aiContent.summary.sentences.map((s) => ({
+            sentences: aiSummaryObj.sentences.map((s) => ({
               ...s,
               projectIds: (s.projectIds || []).filter((id) => renderedPIdSet.has(id)),
               transformationType: [
@@ -1878,10 +1905,12 @@ export function buildStructuredResumeDocument({
         : null,
     },
     summary,
-    writing: options.aiContent?.writing || {
-      method: 'SOURCE_GROUNDED_DETERMINISTIC',
-      providerUsed: false,
-      providerStatus: 'UNAVAILABLE',
+    writing: {
+      summaryStatus: options.aiContent?.writing?.summaryStatus || 'UNAVAILABLE',
+      method: options.aiContent?.writing?.method || 'SOURCE_GROUNDED_DETERMINISTIC',
+      providerUsed: options.aiContent?.writing?.providerUsed || false,
+      providerStatus: options.aiContent?.writing?.providerStatus || 'UNAVAILABLE',
+      ...(options.aiContent?.writing || {}),
       missingDataGuidance: summary.text
         ? []
         : ['Add a factual summary or documented career information.'],
@@ -2160,14 +2189,19 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
     }
   }
 
+  const minRequiredBullets =
+    typeof options?.minBulletsPerProject === 'number' ? options.minBulletsPerProject : 1;
   for (const proj of renderedProjects) {
-    if (!Array.isArray(proj.bullets) || proj.bullets.length < 1) {
+    if (!Array.isArray(proj.bullets) || proj.bullets.length < minRequiredBullets) {
       violations.push({
         section: 'PROJECTS',
         field: 'bullets',
         claimText: proj.displayName || proj.name || 'unnamed',
         violationType: 'SCHEMA_VALIDATION_ERROR',
-        message: `Selected project '${proj.displayName || proj.name || 'unnamed'}' requires at least one genuine source-grounded bullet; do not fabricate padding.`,
+        message:
+          minRequiredBullets === 1
+            ? `Selected project '${proj.displayName || proj.name || 'unnamed'}' requires at least one genuine source-grounded bullet; do not fabricate padding.`
+            : `Selected project '${proj.displayName || proj.name || 'unnamed'}' renders with ${proj.bullets?.length || 0} bullet(s); minimum required is ${minRequiredBullets}.`,
       });
     }
     for (const bullet of proj.bullets || []) {
@@ -2552,11 +2586,16 @@ export function buildStructuredResumeSnapshot({
   // Preserve the authoritative source context for the existing grounding checks.
   // An authored summary remains CLAIMED; its text is not independent verification.
   // Legacy profiles store that same scalar under profileMetadata.userCustom.
+  const rawValidationSummary = resumeSourceValue(candidateProfile, 'summary');
   const validationSource = {
     ...candidateProfile,
     summary:
+      (typeof rawValidationSummary === 'object' && rawValidationSummary !== null
+        ? rawValidationSummary.text
+        : rawValidationSummary) ??
       candidateProfile.summary?.text ??
       candidateProfile.summary ??
+      candidateProfile.candidate?.summary ??
       candidateProfile.profileMetadata?.userCustom?.summary ??
       candidateProfile.profileMetadata?.summary,
   };

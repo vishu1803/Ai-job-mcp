@@ -256,6 +256,7 @@ describe('Job Application Submission Truth Regression Suite (P14-005AZ)', () => 
 
     const partnerJob = {
       ...mockJob,
+      id: crypto.randomUUID(),
       applicationUrl: 'https://partner-portal.com/greenhouse/apply/123',
     };
 

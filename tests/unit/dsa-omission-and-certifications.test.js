@@ -62,11 +62,7 @@ describe('DSA Section Omission and Meaningful Criteria', () => {
       problemsSolved: 450,
       rating: 1850,
     };
-    assert.strictEqual(
-      isMeaningfulDsa(dsaStats),
-      true,
-      'Authentic stats must make DSA meaningful'
-    );
+    assert.strictEqual(isMeaningfulDsa(dsaStats), true, 'Authentic stats must make DSA meaningful');
   });
 
   it('omits DSA when hasSection is explicitly false regardless of bullets', () => {
@@ -324,14 +320,8 @@ describe('LaTeX Typography and Section Formatting', () => {
       texContent.includes('\\href{https://aws.amazon.com/verify/12345}'),
       'Clickable hyperlink to credential URL must render'
     );
-    assert.ok(
-      texContent.includes('AWS Solutions Architect'),
-      'Certification title must render'
-    );
-    assert.ok(
-      texContent.includes('Amazon Web Services'),
-      'Issuer must render'
-    );
+    assert.ok(texContent.includes('AWS Solutions Architect'), 'Certification title must render');
+    assert.ok(texContent.includes('Amazon Web Services'), 'Issuer must render');
   });
 });
 
@@ -373,9 +363,6 @@ describe('Certifications Normalization & Validation', () => {
       ],
     };
 
-    assert.throws(
-      () => normalizeResumeSourceSections(rawProfile),
-      /Invalid resume source fields/
-    );
+    assert.throws(() => normalizeResumeSourceSections(rawProfile), /Invalid resume source fields/);
   });
 });

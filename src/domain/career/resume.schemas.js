@@ -978,49 +978,52 @@ export const DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION = '2.0.0';
 export function isStructuredResumeHealthy(resume) {
   if (!resume) return false;
 
-  const validTransformations = new Set([
-    'REWRITE',
-    'CONDENSE',
-    'COMBINE',
-    'EMPHASIZE',
-    'VERBATIM',
-  ]);
+  const validTransformations = new Set(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']);
 
-  // 1. Summary validation
+  // 1. Summary validation (optional under PRD-002 when no authored/AI summary exists)
   const summary = resume.summary;
-  if (!summary || typeof summary.text !== 'string' || summary.text.trim().length < 60) {
-    return false;
-  }
-  if (summary.transformationType === 'SYNTHESIS') return false;
-  if (summary.transformationType && !validTransformations.has(summary.transformationType)) {
-    return false;
-  }
-  if (!Array.isArray(summary.composedFromFactIds) || summary.composedFromFactIds.length === 0) {
-    return false;
-  }
-  if (!Array.isArray(summary.evidenceRefs) || summary.evidenceRefs.length === 0) {
-    return false;
-  }
-  if (!summary.sourceFact) return false;
-  if (Array.isArray(summary.sentences) && summary.sentences.length > 0) {
-    for (const s of summary.sentences) {
-      if (s.transformationType === 'SYNTHESIS') return false;
-      if (s.transformationType && !validTransformations.has(s.transformationType)) {
+  const hasSummaryText =
+    summary && typeof summary.text === 'string' && summary.text.trim().length > 0;
+  if (hasSummaryText) {
+    if (summary.text.trim().length < 20) {
+      return false;
+    }
+    if (summary.transformationType === 'SYNTHESIS') return false;
+    if (summary.transformationType && !validTransformations.has(summary.transformationType)) {
+      return false;
+    }
+    if (summary.transformationType !== 'VERBATIM') {
+      if (!Array.isArray(summary.composedFromFactIds) || summary.composedFromFactIds.length === 0) {
         return false;
       }
-      if (!Array.isArray(s.composedFromFactIds) || s.composedFromFactIds.length === 0) {
+      if (!Array.isArray(summary.evidenceRefs) || summary.evidenceRefs.length === 0) {
         return false;
       }
-      if (!s.sourceFact) return false;
+    }
+    if (!summary.sourceFact) return false;
+    if (Array.isArray(summary.sentences) && summary.sentences.length > 0) {
+      for (const s of summary.sentences) {
+        if (s.transformationType === 'SYNTHESIS') return false;
+        if (s.transformationType && !validTransformations.has(s.transformationType)) {
+          return false;
+        }
+        if (
+          s.transformationType !== 'VERBATIM' &&
+          (!Array.isArray(s.composedFromFactIds) || s.composedFromFactIds.length === 0)
+        ) {
+          return false;
+        }
+        if (!s.sourceFact) return false;
+      }
     }
   }
 
   // 2. Project validation
-  if (!Array.isArray(resume.projects) || resume.projects.length < 1) {
+  if (!Array.isArray(resume.projects)) {
     return false;
   }
   for (const proj of resume.projects) {
-    if (!Array.isArray(proj.bullets) || proj.bullets.length < 3) {
+    if (!Array.isArray(proj.bullets) || proj.bullets.length < 1) {
       return false;
     }
     for (const bullet of proj.bullets) {
@@ -1038,6 +1041,22 @@ export function isStructuredResumeHealthy(resume) {
     }
   }
 
+  const hasSkills =
+    (Array.isArray(resume.skills) && resume.skills.length > 0) ||
+    (Array.isArray(resume.skills?.grouped) && resume.skills.grouped.length > 0) ||
+    (Array.isArray(resume.skills?.highlighted) && resume.skills.highlighted.length > 0) ||
+    (Array.isArray(resume.skills?.categories) &&
+      resume.skills.categories.some((c) => Array.isArray(c.skills) && c.skills.length > 0));
+  const hasPopulatedSection =
+    Boolean(hasSummaryText) ||
+    resume.projects.length > 0 ||
+    (Array.isArray(resume.experience) && resume.experience.length > 0) ||
+    (Array.isArray(resume.education) && resume.education.length > 0) ||
+    hasSkills;
+  if (!hasPopulatedSection) {
+    return false;
+  }
+
   return true;
 }
 
@@ -1050,4 +1069,3 @@ export function isApplicationPackageHealthy(pkg) {
   if (!pkg || !pkg.tailoredResume) return false;
   return isStructuredResumeHealthy(pkg.tailoredResume.structuredResume);
 }
-

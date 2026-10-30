@@ -77,7 +77,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
             defaultBranch: 'main',
           }),
           createNormalizedResource({
-            id: 'repo-101',
+            id: '101',
             name: 'cloud-mesh-kernel',
             fullName: 'AlexMercer/cloud-mesh-kernel',
             type: 'REPOSITORY',
@@ -98,7 +98,16 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
         verifiedSkills: ['Distributed Systems'],
       }),
     };
-    app = buildApp({ db, ingestionService: mockIngestionService });
+    app = buildApp({
+      db,
+      ingestionService: mockIngestionService,
+      installationService: {
+        verifyGitHubInstallation: async (id) => ({
+          id: Number(id),
+          account: { id: 123456, login: 'AlexMercer', type: 'User' },
+        }),
+      },
+    });
     await app.ready();
 
     // 1. Provision Tenant A & User A
@@ -171,6 +180,10 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       installationId: '887766',
       encryptedCredentials: encryptSecret('mock_credentials'),
       status: 'ACTIVE',
+      metadata: {
+        account: 'AlexMercer',
+        authorityPolicy: 'personal-owner-or-org-owner-v1',
+      },
     });
 
     await db.insert(resources).values({
@@ -180,7 +193,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       connectionId: connectionIdA,
       provider: 'GITHUB_APP',
       resourceType: 'REPOSITORY',
-      externalResourceId: 'repo-101',
+      externalResourceId: '101',
       name: 'AlexMercer/cloud-mesh-kernel',
       displayName: 'AlexMercer/cloud-mesh-kernel',
       url: 'https://github.com/AlexMercer/cloud-mesh-kernel',
@@ -384,8 +397,8 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
         career_hub_session: rawSessionTokenA,
       },
       payload: new URLSearchParams([
-        ['repositories', 'AlexMercer/new-showcase-repo'],
-        ['repositories', 'AlexMercer/cloud-mesh-kernel'],
+        ['repositories', '12345678'],
+        ['repositories', '101'],
       ]).toString(),
     });
 

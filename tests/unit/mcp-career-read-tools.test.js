@@ -423,11 +423,11 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
   it('5. validates pagination boundaries (page >= 1, pageSize <= 50)', () => {
     assert.throws(
       () => ListVerifiedSkillsInputSchema.parse({ page: 0 }),
-      /Number must be greater than 0/
+      /Number must be greater than 0|>= ?1|> ?0/i
     );
     assert.throws(
       () => ListVerifiedSkillsInputSchema.parse({ pageSize: 51 }),
-      /Number must be less than or equal to 50/
+      /Number must be less than or equal to 50|<= ?50/i
     );
   });
 

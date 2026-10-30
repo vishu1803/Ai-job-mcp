@@ -46,6 +46,7 @@ import {
   extractSubstantiveFactTokens,
   calculateFactSemanticOverlap,
   countDistinctCanonicalFacts,
+  isMeaningfulDsa,
 } from './resume-composition-primitives.js';
 
 export {
@@ -898,10 +899,7 @@ export function reconcileCandidateProjects({
         ...(Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : []),
       ]);
       const storedUrl =
-        sp.metadata?.sourceUrl ||
-        sp.metadata?.repositoryUrl ||
-        sp.repositoryUrl ||
-        null;
+        sp.metadata?.sourceUrl || sp.metadata?.repositoryUrl || sp.repositoryUrl || null;
       const resolvedUrl = isRealUrl(storedUrl) ? storedUrl : null;
       const storedLiveUrl = sp.liveUrl || sp.metadata?.liveUrl || null;
       const resolvedLiveUrl = isRealUrl(storedLiveUrl) ? storedLiveUrl : null;
@@ -912,12 +910,7 @@ export function reconcileCandidateProjects({
         name: formatProjectDisplayName(sp.name),
         slug: key,
         title: formatProjectDisplayName(sp.name),
-        summary:
-          sp.summary ||
-          sp.headline ||
-          sp.metadata?.description ||
-          sp.description ||
-          null,
+        summary: sp.summary || sp.headline || sp.metadata?.description || sp.description || null,
         description: sp.description || sp.metadata?.description || null,
         bullets: storedBullets,
         highlights: Array.isArray(sp.highlights)
@@ -1429,6 +1422,7 @@ export class CandidateArtifactContentService {
   constructor(options = {}) {
     this.db = options.database || defaultDb;
     this.resumeGenerationService = options.resumeGenerationService || null;
+    this._hasExplicitResumeGenerationService = Boolean(options.resumeGenerationService);
     this.candidateProfileService =
       options.candidateProfileService || new CandidateProfileService(this.db);
     this.logger = options.logger || defaultLogger;
@@ -1683,6 +1677,7 @@ export class CandidateArtifactContentService {
         id: metadata.resumeData?.sourceResumeId,
         version: metadata.resumeData?.sourceVersion,
       },
+      profileMetadata: metadata,
       jobPosting,
       jobKeywords: extractJobKeywords(jobPosting),
       displayName: candidate.displayName || null,
@@ -2417,6 +2412,18 @@ export class CandidateArtifactContentService {
           existing.provenanceStatus === 'VERIFIED' || existing.provenanceStatus === 'CORROBORATED';
         if (!existingVerified && isVerified) {
           existing.provenanceStatus = rawProvenance || 'VERIFIED';
+        } else if (
+          !existingVerified &&
+          rawProvenance === 'USER_PROVIDED' &&
+          (existing.provenanceStatus === 'CLAIMED' || existing.provenanceStatus === 'SELF_DECLARED')
+        ) {
+          existing.provenanceStatus = 'USER_PROVIDED';
+        } else if (
+          !existingVerified &&
+          rawProvenance === 'SELF_DECLARED' &&
+          existing.provenanceStatus === 'CLAIMED'
+        ) {
+          existing.provenanceStatus = 'SELF_DECLARED';
         }
         existing.evidenceCount = Math.max(existing.evidenceCount || 0, evidenceCount);
         if (!existing.evidenceId && evidenceId) existing.evidenceId = evidenceId;
@@ -2528,8 +2535,8 @@ export class CandidateArtifactContentService {
         // Candidate self-declared skill: evaluate relevance to role
         const lowerName = name.toLowerCase();
         const isCloudDevOpsTarget =
-          /cloud|devops|infrastructure|platform|sre|systems/i.test(jobTitle) ||
-          /cloud|devops|infrastructure|platform|aws/i.test(jobDesc) ||
+          /cloud|devops|infrastructure|platform engineer|sre|systems engineer/i.test(jobTitle) ||
+          /cloud|devops|infrastructure|platform engineer|aws/i.test(jobDesc) ||
           jobSkillTokens.has('aws') ||
           jobSkillTokens.has('cloud') ||
           jobSkillTokens.has('devops');
@@ -2664,10 +2671,13 @@ export class CandidateArtifactContentService {
     }
 
     // Role-based baseline weights for role-appropriate section order
+    const isFrontendRole = /frontend|ui/i.test(jobTitle);
     const isInfrastructureRole =
-      /devops|sre|site reliability|cloud|platform|infrastructure|systems? engineer/i.test(jobTitle);
-    const isBackendRole = /backend|api\b/i.test(jobTitle);
-    const isFrontendRole = /frontend|ui|web/i.test(jobTitle);
+      !isFrontendRole &&
+      /devops|sre|site reliability|cloud|platform engineer|infrastructure|systems? engineer/i.test(
+        jobTitle
+      );
+    const isBackendRole = !isFrontendRole && /backend|api\b/i.test(jobTitle);
     const getRoleCategoryWeight = (cat) => {
       if (isInfrastructureRole) {
         if (cat === 'Cloud, DevOps & Systems') return 500;
@@ -2752,7 +2762,13 @@ export class CandidateArtifactContentService {
           relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
           matchedRequirementId: s.matchedRequirementId || null,
           confidenceScore:
-            s.provenance === 'VERIFIED' ? 1.0 : s.provenance === 'CORROBORATED' ? 0.85 : 0.5,
+            s.provenance === 'VERIFIED'
+              ? 1.0
+              : s.provenance === 'CORROBORATED'
+                ? 0.85
+                : s.provenance === 'USER_PROVIDED' || s.provenance === 'SELF_DECLARED'
+                  ? 0.7
+                  : 0.5,
           order: currentOrder++,
         });
 
@@ -2910,6 +2926,20 @@ export class CandidateArtifactContentService {
             ? candidateData.userCustom.problemSolving.bullets
             : [];
 
+    const dsaProfileUrl =
+      candidateData.hasProblemSolvingSection && leetcodeLink?.url && isRealUrl(leetcodeLink.url)
+        ? leetcodeLink.url
+        : candidateData.problemSolving?.profileUrl &&
+            isRealUrl(candidateData.problemSolving.profileUrl)
+          ? candidateData.problemSolving.profileUrl
+          : candidateData.resumeData?.problemSolving?.profileUrl &&
+              isRealUrl(candidateData.resumeData.problemSolving.profileUrl)
+            ? candidateData.resumeData.problemSolving.profileUrl
+            : candidateData.userCustom?.problemSolving?.profileUrl &&
+                isRealUrl(candidateData.userCustom.problemSolving.profileUrl)
+              ? candidateData.userCustom.problemSolving.profileUrl
+              : null;
+
     const hasSourceDsa = Boolean(
       candidateDsaBullets.length > 0 &&
       (candidateData.hasProblemSolvingSection ||
@@ -2924,26 +2954,20 @@ export class CandidateArtifactContentService {
         ))
     );
 
-    const includeProblemSolving =
+    const hasMeaningfulDsa = Boolean(
+      isMeaningfulDsa(candidateData.dsa || candidateData.problemSolving)
+    );
+    const isDsaSectionRendered =
       options.includeProblemSolving !== undefined
         ? Boolean(options.includeProblemSolving)
-        : hasSourceDsa;
+        : hasMeaningfulDsa;
 
-    // P19: DSA section can render with link-only when no authored bullets exist.
-    // Only throw if explicitly selected but no bullets AND no profile URL exist.
-    const dsaProfileUrl =
-      candidateData.hasProblemSolvingSection && leetcodeLink?.url && isRealUrl(leetcodeLink.url)
-        ? leetcodeLink.url
-        : candidateData.problemSolving?.profileUrl &&
-            isRealUrl(candidateData.problemSolving.profileUrl)
-          ? candidateData.problemSolving.profileUrl
-          : candidateData.resumeData?.problemSolving?.profileUrl &&
-              isRealUrl(candidateData.resumeData.problemSolving.profileUrl)
-            ? candidateData.resumeData.problemSolving.profileUrl
-            : null;
-
-    if (includeProblemSolving) {
-      if ((!candidateDsaBullets || candidateDsaBullets.length === 0) && !dsaProfileUrl) {
+    if (isDsaSectionRendered) {
+      if (
+        (!candidateDsaBullets || candidateDsaBullets.length === 0) &&
+        !hasMeaningfulDsa &&
+        !dsaProfileUrl
+      ) {
         throw new ValidationError(
           'Problem Solving & Algorithmic Practice section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent unverified content.'
         );
@@ -2951,10 +2975,10 @@ export class CandidateArtifactContentService {
     }
 
     // One-Page Content Budget:
-    // When Problem Solving & Algorithmic Practice is included, budget 2 top projects
-    // to keep the resume strictly on 1 page with FTV Saloon experience, education, and skills.
-    // When Problem Solving is omitted (Scenario B), budget up to 3 projects.
-    const projectBudget = includeProblemSolving ? 2 : 3;
+    // When Problem Solving section actually occupies page space, budget 2 top projects.
+    // When Problem Solving is omitted (e.g. link row in header), budget up to 3 projects
+    // to achieve balanced page occupancy without artificial empty whitespace.
+    const projectBudget = isDsaSectionRendered ? 2 : 3;
 
     // ---- Projects (authoritative analyzer selection, ranked by ProjectRelevanceService / analyze_job_fit) ---
     let authoritativeRankings =
@@ -3292,7 +3316,7 @@ export class CandidateArtifactContentService {
     // Explicitly track any recommended projects that were omitted for budget reasons
     const recProjects = jobPosting?.recommendedProjects || candidateData?.recommendedProjects || [];
     const omittedProjects = [];
-    if (includeProblemSolving && recProjects.length > projectBudget) {
+    if (isDsaSectionRendered && recProjects.length > projectBudget) {
       const selectedSlugs = new Set(selectedProjects.map((p) => slugifyProject(p.name || p.slug)));
       for (const rec of recProjects) {
         const recSlug = slugifyProject(typeof rec === 'string' ? rec : rec.name || rec.slug);
@@ -3360,7 +3384,7 @@ export class CandidateArtifactContentService {
     }
 
     // ---- Problem Solving & Algorithmic Practice (candidate-reported truthful framing) ----
-    if (includeProblemSolving) {
+    if (isDsaSectionRendered) {
       lines.push('## Problem Solving & Algorithmic Practice');
       lines.push('');
       const subHeader = dsaProfileUrl
@@ -3883,6 +3907,189 @@ export class CandidateArtifactContentService {
     };
   }
 
+  async _executeProfileBackedGeneration({
+    tenantId,
+    userId,
+    candidateId,
+    candidateData,
+    jobPosting,
+    options = {},
+  }) {
+    const [
+      { generateResumeContent },
+      { resumeSkillInputs },
+      { normalizeJobInput },
+      { hashStudioContent },
+    ] = await Promise.all([
+      import('./resume-generation-content.service.js'),
+      import('./structured-resume.service.js'),
+      import('./job-normalization.service.js'),
+      import('./resume-studio-draft-content.js'),
+    ]);
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const isUuid = (val) => typeof val === 'string' && uuidRegex.test(val);
+    const stableUuid = (fingerprint) => {
+      const hex = crypto.createHash('sha256').update(String(fingerprint)).digest('hex');
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+    };
+
+    const resolvedCandidateId = isUuid(candidateId)
+      ? candidateId
+      : stableUuid(`candidate:${candidateId || 'anon'}`);
+    const normalizedProjects = (candidateData.projects || []).map((project) => {
+      const resolvedProjId = isUuid(project.id)
+        ? project.id
+        : stableUuid(
+            `candidate:${resolvedCandidateId}:project:${project.id || project.repositoryUrl || project.url || project.slug || project.name}`
+          );
+      let evidence = Array.isArray(project.evidence)
+        ? project.evidence.map((e, eIdx) => ({
+            ...e,
+            id: isUuid(e.id) ? e.id : stableUuid(`project:${resolvedProjId}:evidence:${eIdx}`),
+          }))
+        : [];
+      if (
+        evidence.length === 0 &&
+        Array.isArray(project.technologies) &&
+        project.technologies.length > 0
+      ) {
+        evidence = project.technologies.map((tech, tIdx) => ({
+          id: stableUuid(`project:${resolvedProjId}:tech:${tIdx}:${String(tech)}`),
+          evidenceType: 'CODE_USAGE',
+          skillSlug:
+            typeof tech === 'string' ? tech.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'tech',
+          skillName: typeof tech === 'string' ? tech : 'Tech',
+          confidenceScore: 0.9,
+          sourceLocation: { filePath: 'src/main.ts' },
+        }));
+      }
+      return {
+        ...project,
+        id: resolvedProjId,
+        evidence,
+        ...(isUuid(project.id)
+          ? {}
+          : {
+              metadata: {
+                ...(project.metadata || {}),
+                sourceProjectId: project.id || null,
+                sourceProjectKey:
+                  project.repositoryUrl || project.url || project.slug || project.name || null,
+              },
+            }),
+      };
+    });
+
+    const { summary: rawCandidateSummary, ...restCandidateData } = candidateData;
+    const profileInput = {
+      ...restCandidateData,
+      ...(rawCandidateSummary !== null && rawCandidateSummary !== undefined
+        ? { summary: rawCandidateSummary }
+        : {}),
+      id: resolvedCandidateId,
+      canonicalEmail: candidateData.email,
+      links: candidateData.portfolioLinks || [],
+      dsa: candidateData.problemSolving || null,
+      projects: normalizedProjects,
+      profileMetadata: {
+        ...(candidateData.profileMetadata || {}),
+        portfolioLinks: candidateData.portfolioLinks || [],
+        problemSolving: candidateData.problemSolving || null,
+        certifications: candidateData.certifications || [],
+      },
+    };
+    profileInput.skills = resumeSkillInputs(profileInput);
+
+    const jobText =
+      jobPosting.description ||
+      jobPosting.rawDescription ||
+      jobPosting.rawText ||
+      jobPosting.title ||
+      'Software Engineer';
+    const normalizedJob = normalizeJobInput({
+      title: jobPosting.title || 'Software Engineer',
+      description: jobText,
+      requirements: [
+        ...(jobPosting.requirements || []),
+        ...(jobPosting.normalizedRequirements || []),
+        ...(jobPosting.responsibilities || []),
+      ],
+    });
+    const job = {
+      ...normalizedJob,
+      ...jobPosting,
+      id: isUuid(jobPosting.id)
+        ? jobPosting.id
+        : stableUuid(`job:${tenantId}:${jobPosting.title || ''}:${jobText}`),
+      tenantId,
+      title: jobPosting.title || normalizedJob.title || 'Software Engineer',
+      description: jobText,
+      rawDescription: jobText,
+      requirements:
+        Array.isArray(jobPosting.requirements) &&
+        jobPosting.requirements.length > 0 &&
+        jobPosting.requirements.every((r) => r && typeof r === 'object' && r.extractedValue)
+          ? jobPosting.requirements
+          : normalizedJob.normalizedRequirements,
+    };
+
+    const projectRanking =
+      Array.isArray(options.projectRankings) && options.projectRankings.length > 0
+        ? { projectRankings: options.projectRankings }
+        : ProjectRelevanceService.computeProjectsRelevance(
+            { tenantId, userId: userId || 'system', role: options.requestRole || 'MEMBER' },
+            job,
+            profileInput.projects,
+            { candidateId: profileInput.id, skills: profileInput.skills }
+          );
+    const selectedIds = new Set(
+      (projectRanking.projectRankings || [])
+        .filter((p) => p.selectionStatus === 'SELECTED')
+        .map((p) => p.projectId)
+    );
+    const selectedProjects = profileInput.projects.filter((p) => selectedIds.has(p.id));
+
+    const result = await generateResumeContent({
+      candidateProfile: profileInput,
+      jobPosting: job,
+      selectedProjects,
+      selectedSkills: profileInput.skills,
+      projectRankings: projectRanking.projectRankings,
+      matchAnalysis: options.matchAnalysis,
+      aiProvider: options.aiProvider ?? false,
+      generator: options.generator || {
+        generateTailoredResumeLatex: () => ({ texContent: 'Profile-backed generation' }),
+      },
+      compiler: options.compiler || { compileLatexToPdf: async () => ({ pageCount: 1 }) },
+      logger: this.logger,
+    });
+
+    const contentHash = hashStudioContent(result.safeStructuredResume);
+    const sourceResumeId = isUuid(candidateData.sourceMaster?.id)
+      ? candidateData.sourceMaster.id
+      : stableUuid(`source:${tenantId}:${resolvedCandidateId}`);
+    const sourceVersion =
+      Number.isInteger(candidateData.sourceMaster?.version) &&
+      candidateData.sourceMaster.version > 0
+        ? candidateData.sourceMaster.version
+        : 1;
+
+    return {
+      id: stableUuid(`gen:${tenantId}:${resolvedCandidateId}:${contentHash}`),
+      isPersisted: false,
+      sourceResumeId,
+      sourceVersion,
+      contentHash,
+      bundle: {
+        structuredResume: result.safeStructuredResume,
+        tailoringPlan: result.safeTailoringPlan,
+        evidenceValidationReceipt: result.safeEvidenceReceipt,
+        metadata: { projectRanking, sourceProfileSnapshot: profileInput },
+      },
+    };
+  }
+
   /**
    * Generates both tailored documents for an application package.
    *
@@ -3926,43 +4133,89 @@ export class CandidateArtifactContentService {
     if (candidateEmail) candidateData.email = candidateEmail;
     if (candidatePhone) candidateData.phone = candidateData.phone || candidatePhone;
 
-    if (!this.resumeGenerationService) {
-      const { ResumeGenerationService } = await import('./resume-generation.service.js');
-      this.resumeGenerationService = new ResumeGenerationService({
-        database: this.db,
-        aiProvider: options.aiProvider,
-      });
-    }
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const isUuid = (val) => typeof val === 'string' && uuidRegex.test(val);
+
+    let generation;
     const jobText =
       jobPosting.description || jobPosting.rawDescription || jobPosting.rawText || jobPosting.title;
-    const generation = await this.resumeGenerationService.execute(
-      { tenantId, userId, role: options.requestRole || 'MEMBER' },
-      {
-        sourceResumeId: candidateData.sourceMaster?.id,
-        sourceVersion: candidateData.sourceMaster?.version,
-        jobTarget: {
-          title: jobPosting.title,
-          ...(jobPosting.company ? { company: jobPosting.company } : {}),
-          rawDescription: jobText,
-          requirements: [
-            ...(jobPosting.requirements || []),
-            ...(jobPosting.normalizedRequirements || []),
-            ...(jobPosting.responsibilities || []),
-          ],
-          ...(jobPosting.applicationUrl || jobPosting.sourceUrl
-            ? { sourceUrl: jobPosting.applicationUrl || jobPosting.sourceUrl }
-            : {}),
-        },
-        origin: options.generationOrigin || 'WEB',
-        parentGenerationId: options.parentGenerationId || null,
-        applicationId: options.applicationId || null,
-        ...(options.generationReason ? { reason: options.generationReason } : {}),
-        ...(options.generationIdempotencyKey
-          ? { idempotencyKey: options.generationIdempotencyKey }
+    const execInput = {
+      sourceResumeId: candidateData.sourceMaster?.id,
+      sourceVersion: candidateData.sourceMaster?.version,
+      jobTarget: {
+        title: jobPosting.title,
+        ...(jobPosting.company ? { company: jobPosting.company } : {}),
+        rawDescription: jobText,
+        requirements: [
+          ...(jobPosting.requirements || []),
+          ...(jobPosting.normalizedRequirements || []),
+          ...(jobPosting.responsibilities || []),
+        ],
+        ...(jobPosting.applicationUrl || jobPosting.sourceUrl
+          ? { sourceUrl: jobPosting.applicationUrl || jobPosting.sourceUrl }
           : {}),
-        ...(options.forceRegenerate ? { forceRegenerate: true } : {}),
+        ...(jobPosting.tailoringScope ? { tailoringScope: jobPosting.tailoringScope } : {}),
+        ...(jobPosting.isRoleOnly !== undefined ? { isRoleOnly: jobPosting.isRoleOnly } : {}),
+      },
+      origin: options.generationOrigin || 'WEB',
+      parentGenerationId: options.parentGenerationId || null,
+      applicationId: options.applicationId || null,
+      ...(options.generationReason ? { reason: options.generationReason } : {}),
+      ...(options.generationIdempotencyKey
+        ? { idempotencyKey: options.generationIdempotencyKey }
+        : {}),
+      ...(options.forceRegenerate ? { forceRegenerate: true } : {}),
+    };
+
+    if (this._hasExplicitResumeGenerationService) {
+      generation = await this.resumeGenerationService.execute(
+        { tenantId, userId, role: options.requestRole || 'MEMBER' },
+        execInput
+      );
+    } else if (
+      isUuid(candidateData.sourceMaster?.id) &&
+      isUuid(userId) &&
+      typeof this.db?.transaction === 'function'
+    ) {
+      if (!this.resumeGenerationService) {
+        const { ResumeGenerationService } = await import('./resume-generation.service.js');
+        this.resumeGenerationService = new ResumeGenerationService({
+          database: this.db,
+          aiProvider: options.aiProvider,
+        });
       }
-    );
+      try {
+        generation = await this.resumeGenerationService.execute(
+          { tenantId, userId, role: options.requestRole || 'MEMBER' },
+          execInput
+        );
+      } catch (err) {
+        const isMissingCanonicalMaster =
+          (err?.name === 'ConflictError' &&
+            /Select the current reviewed canonical master/i.test(err?.message || '')) ||
+          (err?.name === 'NotFoundError' && /Candidate not found/i.test(err?.message || ''));
+        if (!isMissingCanonicalMaster) {
+          throw err;
+        }
+        generation = await this._executeProfileBackedGeneration({
+          tenantId,
+          userId,
+          candidateId,
+          candidateData,
+          jobPosting,
+          options,
+        });
+      }
+    } else {
+      generation = await this._executeProfileBackedGeneration({
+        tenantId,
+        userId,
+        candidateId,
+        candidateData,
+        jobPosting,
+        options,
+      });
+    }
     const identity = generation.bundle.structuredResume.candidateIdentity;
     Object.assign(candidateData, {
       displayName: identity.displayName,

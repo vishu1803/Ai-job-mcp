@@ -128,7 +128,7 @@ export class ResumeStudioAnalysisService {
       context,
       job,
       profile.projects,
-      { candidateId: candidate.id, maxProjects: 2 }
+      { candidateId: candidate.id }
     );
     const candidateFit = parsed.requirements.length
       ? AtsFitScoreService.calculateCandidateJobFit(

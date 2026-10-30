@@ -20,12 +20,16 @@ export const StudioJobTargetSchema = z
       }, 'Use an HTTP(S) URL without credentials')
       .optional(),
     rawDescription: z.string().trim().min(1).max(250000),
+    tailoringScope: z.enum(['ROLE_BASED', 'JOB_SPECIFIC']).optional(),
+    isRoleOnly: z.boolean().optional(),
   })
   .strict();
 
 export const StudioAnalyzeRequestSchema = z
   .object({
-    jobTarget: StudioJobTargetSchema,
+    jobTarget: StudioJobTargetSchema.extend({
+      rawDescription: z.string().trim().min(100).max(250000),
+    }),
   })
   .strict();
 

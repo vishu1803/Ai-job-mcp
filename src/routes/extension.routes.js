@@ -1198,6 +1198,9 @@ export default async function extensionRoutes(app, opts = {}) {
         packageHash,
         packageStatus: preparedResult.packageStatus || 'SAVED',
         artifactStatus: preparedResult.artifactStatus || 'READY',
+        ...(preparedResult.artifactFailureReason
+          ? { artifactFailureReason: preparedResult.artifactFailureReason }
+          : {}),
         lifecycleAction: preparedResult.lifecycleAction || 'CREATED',
         resumeQuality: preparedResult.resumeQuality || null,
         layoutDiagnostics: preparedResult.layoutDiagnostics || null,

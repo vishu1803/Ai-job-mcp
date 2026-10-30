@@ -1,5 +1,6 @@
-import { ResumeGenerationService } from './resume-generation.service.js';
 import { resumeStudioDrafts } from '../db/resume-studio.schema.js';
+import { candidates, resumes, jobApplications } from '../db/schema.js';
+import { ResumeRepository } from '../db/repositories/resume.repository.js';
 import { ResumeGenerationVersionService } from './resume-generation-version.service.js';
 import { generatedResumeStudioContent } from './resume-studio-generation-content.js';
 import {
@@ -14,6 +15,7 @@ import { JobDescriptionParser } from '../domain/career/job-parser.js';
 import { boundStudioJobText } from './resume-studio-analysis.service.js';
 import {
   AuthorizationError,
+  NotFoundError,
   ConflictError,
   ValidationError,
   InternalServerError,
@@ -142,13 +144,146 @@ export class ResumeStudioDraftService {
     requireContext(context, true);
     const body = parseInput(StudioCreateDraftRequestSchema, input);
     if (body.generationId) return this.createFromGeneration(context, body.generationId);
-    this.generationService ||= new ResumeGenerationService({ database: this.db });
-    const generation = await this.generationService.execute(context, {
-      sourceResumeId: body.source.resumeId,
-      jobTarget: body.jobTarget,
-      origin: 'STUDIO_ENTRY',
+    if (this.generationService) {
+      const generation = await this.generationService.execute(context, {
+        sourceResumeId: body.source.resumeId,
+        jobTarget: body.jobTarget || {
+          rawDescription: 'Role-based tailored draft',
+          isRoleOnly: true,
+          tailoringScope: 'ROLE_BASED',
+        },
+        ...(body.applicationId ? { applicationId: body.applicationId } : {}),
+        origin: 'STUDIO_ENTRY',
+      });
+      return this.createFromGeneration(context, generation.id);
+    }
+    const bounded = boundStudioJobText(body.jobTarget.rawDescription);
+    const parsed = await JobDescriptionParser.parse(
+      {
+        source: 'PASTE',
+        rawText: bounded.text,
+        ...(body.jobTarget.title ? { title: body.jobTarget.title } : {}),
+        ...(body.jobTarget.company ? { company: body.jobTarget.company } : {}),
+        metadata: body.jobTarget.sourceUrl ? { sourceUrl: body.jobTarget.sourceUrl } : {},
+      },
+      { tenantId: context.tenantId }
+    );
+    return this.db.transaction(async (tx) => {
+      const [owner] = await tx
+        .select()
+        .from(candidates)
+        .where(
+          and(
+            eq(candidates.tenantId, context.tenantId),
+            eq(candidates.userId, context.userId),
+            eq(candidates.status, 'ACTIVE')
+          )
+        )
+        .for('share');
+      if (!owner) throw new NotFoundError('Master resume not found');
+      const repo = new ResumeRepository(tx);
+      const master = await repo.getResumeById({
+        id: body.source.resumeId,
+        tenantId: context.tenantId,
+        candidateId: owner.id,
+      });
+      // Lock the source lifecycle/version through draft insert; no source updates.
+      await tx
+        .select({ id: resumes.id })
+        .from(resumes)
+        .where(eq(resumes.id, master.id))
+        .for('share');
+      const lockedMaster = await repo.getResumeById({
+        id: master.id,
+        tenantId: context.tenantId,
+        candidateId: owner.id,
+      });
+      if (!lockedMaster.isBaseResume || lockedMaster.lifecycleState !== 'BASE_RESUME') {
+        throw new ConflictError('Select a reviewed canonical master resume', [
+          { reason: 'MASTER_NOT_READY' },
+        ]);
+      }
+      const rawCanonical = owner.profileMetadata?.resumeData;
+      if (
+        !rawCanonical ||
+        rawCanonical.sourceResumeId !== master.id ||
+        rawCanonical.sourceVersion !== lockedMaster.version
+      ) {
+        throw new ConflictError('Reviewed master snapshot is unavailable or stale', [
+          { reason: 'MASTER_SNAPSHOT_UNAVAILABLE' },
+        ]);
+      }
+      const [sections, claims] = await Promise.all([
+        repo.getResumeSections({ resumeId: master.id, tenantId: context.tenantId }),
+        repo.getCandidateClaims({
+          resumeId: master.id,
+          tenantId: context.tenantId,
+          candidateId: owner.id,
+        }),
+      ]);
+      const id = crypto.randomUUID();
+      const masterSnapshot = normalizeStudioMaster(rawCanonical, master.id);
+      const structuredResume = structuredClone(masterSnapshot);
+      structuredResume.documentId = id;
+      const nodes = createStudioNodes(structuredResume);
+      const snapshot = JSON.parse(
+        JSON.stringify({
+          sourceResumeId: master.id,
+          sourceVersion: lockedMaster.version,
+          sourceContentHash: lockedMaster.contentHash,
+          rawCanonical,
+          sections,
+          claims,
+          masterSnapshot,
+        })
+      );
+      const sourceSnapshotHash = hashStudioContent(snapshot);
+      const payload = {
+        jobTarget: { ...body.jobTarget, rawDescription: bounded.text },
+        jobDescription: { ...parsed.jobDescription, requirements: parsed.requirements },
+        warnings: bounded.truncated
+          ? [
+              {
+                code: 'JOB_DESCRIPTION_TRUNCATED',
+                message:
+                  'Job description was truncated to the parser character/UTF-8 byte budget. Review extracted requirements.',
+              },
+            ]
+          : [],
+        structuredResume,
+        nodes,
+        selection: {
+          ...defaultStudioSelection(nodes),
+          projectIds: defaultStudioSelection(nodes).projectIds.slice(0, 2),
+        },
+        nodeProvenance: Object.fromEntries(
+          nodes.map((node) => [node.nodeId, { truthState: 'CLAIMED', editedAtRevision: null }])
+        ),
+      };
+      const row = {
+        id,
+        tenantId: context.tenantId,
+        userId: context.userId,
+        candidateId: owner.id,
+        sourceResumeId: master.id,
+        sourceVersion: lockedMaster.version,
+        sourceContentHash: lockedMaster.contentHash,
+        sourceSnapshotHash,
+        revision: 1,
+        contentHash: hashStudioContent(payload),
+      };
+      row.encryptedSource = encryptStudioPayload({ binding: binding(row), snapshot });
+      row.encryptedContent = encryptStudioPayload({
+        binding: { ...binding(row), revision: 1, sourceSnapshotHash },
+        payload,
+      });
+      const drafts = new ResumeStudioRepository(tx);
+      const created = await drafts.insert(row);
+      // Validate the exact persisted contract before committing history/audit.
+      const response = this._response(created);
+      await drafts.appendRevision(created, context, 'draft_created');
+      return response;
     });
-    return this.createFromGeneration(context, generation.id);
   }
 
   async createFromGeneration(context, generationId) {
@@ -169,8 +304,42 @@ export class ResumeStudioDraftService {
         );
       if (existing) return this._response(existing);
       const request = generation.request;
-      const job = request.jobSnapshot;
-      const bounded = boundStudioJobText(job.rawDescription || job.description || '');
+      const job = { ...request.jobSnapshot };
+      if (generation.applicationId) {
+        const [appRow] = await tx
+          .select()
+          .from(jobApplications)
+          .where(
+            and(
+              eq(jobApplications.id, generation.applicationId),
+              eq(jobApplications.tenantId, context.tenantId),
+              eq(jobApplications.candidateId, generation.candidateId)
+            )
+          );
+        if (appRow) {
+          const appRawDesc = String(
+            appRow.rawJobDescription || appRow.metadata?.jobDescription || ''
+          ).trim();
+          const currentDesc = String(job.rawDescription || job.description || '').trim();
+          const isCurrentTitleOnly =
+            !currentDesc ||
+            (appRow.jobTitle && currentDesc.toLowerCase() === appRow.jobTitle.toLowerCase()) ||
+            (job.title && currentDesc.toLowerCase() === job.title.toLowerCase());
+          if (appRawDesc && (isCurrentTitleOnly || appRawDesc.length > currentDesc.length)) {
+            job.rawDescription = appRawDesc;
+            job.description = appRawDesc;
+          }
+          if (!job.title && appRow.jobTitle) job.title = appRow.jobTitle;
+          if (!job.company && appRow.companyName) job.company = appRow.companyName;
+          const appUrl = appRow.jobUrl || appRow.metadata?.destinationUrl;
+          if (!job.sourceUrl && appUrl && /^https?:\/\//i.test(appUrl)) job.sourceUrl = appUrl;
+        }
+      }
+      const rawTextToBound =
+        (job.rawDescription || job.description || '').trim().length >= 10
+          ? job.rawDescription || job.description
+          : `Target Role: ${job.rawDescription || job.description || job.title || 'Software Engineer'}`;
+      const bounded = boundStudioJobText(rawTextToBound);
       const parsed = await JobDescriptionParser.parse(
         {
           source: 'PASTE',

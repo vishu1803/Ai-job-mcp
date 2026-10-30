@@ -107,13 +107,15 @@ export function buildStudioProposalScope(row, payload, request) {
       }
     }
   }
-  const variants = [
+  const baseVariants = [
     ...new Set([
       finish(sentenceCase(normalizeWhitespace(originalText))),
       finish(sentenceCase(compressProfessionalBullet(originalText))),
-      ...rephrased,
     ]),
   ].filter((text) => text !== originalText);
+  const variants = baseVariants.length
+    ? baseVariants
+    : [...new Set(rephrased)].filter((text) => text !== originalText);
   if (!variants.length) refuse('NO_WORDING_CHANGE');
   const requirements = payload.jobDescription.requirements;
   const cover = (requirement) => {

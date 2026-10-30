@@ -315,7 +315,7 @@ export class GeminiProviderAdapter extends AiProvider {
       if (!parseResult.success) {
         throw new AiOutputSchemaError(
           'Gemini structured output failed Zod schema contract validation.',
-          { errors: parseResult.error.errors, parsed },
+          { errors: parseResult.error.errors || parseResult.error.issues, parsed },
           'gemini'
         );
       }

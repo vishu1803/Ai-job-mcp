@@ -884,13 +884,21 @@ export class ResumeClaimValidationService {
       if (Array.isArray(profile.skills)) {
         for (const s of profile.skills.filter(isVerifiedSkill)) {
           const name = s.name || s.slug || '';
-          if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
+          if (name) {
+            techSet.add(normalizeTechnologyName(name).toLowerCase());
+            const stripped = name.replace(/\s*\([^)]*\)\s*/g, '').trim();
+            if (stripped) techSet.add(normalizeTechnologyName(stripped).toLowerCase());
+          }
         }
       } else if (profile.skills && Array.isArray(profile.skills.categories)) {
         for (const cat of profile.skills.categories) {
           for (const s of (cat.skills || []).filter(isVerifiedSkill)) {
             const name = s.name || s.slug || '';
-            if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
+            if (name) {
+              techSet.add(normalizeTechnologyName(name).toLowerCase());
+              const stripped = name.replace(/\s*\([^)]*\)\s*/g, '').trim();
+              if (stripped) techSet.add(normalizeTechnologyName(stripped).toLowerCase());
+            }
           }
         }
       }

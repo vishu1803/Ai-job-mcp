@@ -68,7 +68,7 @@ it('preserves language, volunteer, leadership and supported custom content', () 
   const text = tex(build());
   for (const expected of [
     'Hindi',
-    'NATIVE',
+    'Native',
     'Workshop Facilitator',
     'Fixture Community',
     'Student Representative',

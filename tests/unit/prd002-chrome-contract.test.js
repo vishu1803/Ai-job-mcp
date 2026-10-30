@@ -107,9 +107,9 @@ test('strict overflow is propagated instead of being swallowed by an engine fall
 test('readable A4 CSS retains text and links without hidden overflow or font shrinking', () => {
   const html = compiler()._convertLatexToAtsHtml(resumeTex);
   assert.match(html, /size: A4/);
-  assert.match(html, /\.contact-line\s*\{\s*font-size: 10pt/);
+  assert.match(html, /\.contact-line\s*\{\s*font-size: (?:9\.5|10)pt/);
   assert.match(html, /font-size: 10\.5pt/);
-  assert.match(html, /font-size: 18pt/);
+  assert.match(html, /font-size: (?:18|21)pt/);
   assert.match(html, /data-renderer-version="chrome-ats-a4-v2"/);
   assert.match(html, /href="mailto:fixture@example.test"/);
   assert.match(html, /href="https:\/\/fixture.example.test\/profile\?a=1&amp;b=2"/);

@@ -93,7 +93,7 @@ function date(value) {
     }
   }
   if (
-    !/^(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|\d{1,2}[/-]\d{4})$/i.test(
+    !/^(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|\d{1,2}[/-]\d{4})$/i.test(
       raw
     )
   )
@@ -145,7 +145,7 @@ function entries(input, prefix, schema, convert) {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw))
         throw new ValidationError(`Invalid ${prefix} entry`, 'INVALID_RESUME_SOURCE');
       const converted = convert(raw);
-      const shape = (schema instanceof z.ZodEffects ? schema.innerType() : schema).shape;
+      const shape = (typeof schema?.innerType === 'function' ? schema.innerType() : schema).shape;
       const aliases = new Set(
         prefix === 'exp'
           ? ['role', 'employer', 'organization', 'highlights', 'responsibilities']
@@ -340,7 +340,11 @@ export function normalizeResumeSourceSections(profile) {
         ResumeOptionalEntrySchema,
         (r) => {
           const converted = {};
-          for (const key of Object.keys(ResumeOptionalEntrySchema.innerType().shape))
+          const optShape =
+            typeof ResumeOptionalEntrySchema.innerType === 'function'
+              ? ResumeOptionalEntrySchema.innerType().shape
+              : ResumeOptionalEntrySchema.shape;
+          for (const key of Object.keys(optShape))
             if (Object.hasOwn(r, key)) converted[key] = r[key];
           for (const key of ['date', 'startDate', 'endDate'])
             if (converted[key] !== undefined) converted[key] = date(converted[key]);

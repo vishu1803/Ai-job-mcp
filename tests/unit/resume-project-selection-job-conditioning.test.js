@@ -26,17 +26,17 @@ import {
 } from '../../src/services/resume-accomplishment-composer.service.js';
 
 describe('Resume Project Selection & Job-Conditioned Content', () => {
-  const TENANT_ID = '00000000-0000-0000-0000-000000000001';
-  const CANDIDATE_ID = '00000000-0000-0000-0000-000000000002';
+  const TENANT_ID = '00000000-0000-4000-8000-000000000001';
+  const CANDIDATE_ID = '00000000-0000-4000-8000-000000000002';
 
-  const projFullStackId = '10000000-0000-0000-0000-000000000001';
-  const projPythonAiId = '10000000-0000-0000-0000-000000000002';
-  const projFrontendId = '10000000-0000-0000-0000-000000000003';
-  const projComputerVisionId = '10000000-0000-0000-0000-000000000004';
-  const projDevOpsId = '10000000-0000-0000-0000-000000000005';
-  const projWeakEvidenceId = '10000000-0000-0000-0000-000000000006';
-  const rogueProjId = '90000000-0000-0000-0000-000000000009';
-  const differentProjId = '80000000-0000-0000-0000-000000000008';
+  const projFullStackId = '10000000-0000-4000-8000-000000000001';
+  const projPythonAiId = '10000000-0000-4000-8000-000000000002';
+  const projFrontendId = '10000000-0000-4000-8000-000000000003';
+  const projComputerVisionId = '10000000-0000-4000-8000-000000000004';
+  const projDevOpsId = '10000000-0000-4000-8000-000000000005';
+  const projWeakEvidenceId = '10000000-0000-4000-8000-000000000006';
+  const rogueProjId = '90000000-0000-4000-8000-000000000009';
+  const differentProjId = '80000000-0000-4000-8000-000000000008';
 
   // 5 Distinct Project Archetypes with authentic bullets and valid UUIDs
   const projectFullStack = {
@@ -195,7 +195,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('ranks Python AI project as #1 for AI/ML job posting', () => {
     const aiJob = {
-      id: '20000000-0000-0000-0000-000000000001',
+      id: '20000000-0000-4000-8000-000000000001',
       tenantId: TENANT_ID,
       title: 'Senior AI / Machine Learning Engineer',
       description:
@@ -227,7 +227,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('ranks Computer Vision project as #1 for OpenCV / Computer Vision job posting', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000002',
+      id: '20000000-0000-4000-8000-000000000002',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description:
@@ -262,7 +262,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('ranks Frontend Component Studio as #1 for Frontend React / Next.js job posting', () => {
     const frontendJob = {
-      id: '20000000-0000-0000-0000-000000000003',
+      id: '20000000-0000-4000-8000-000000000003',
       tenantId: TENANT_ID,
       title: 'Frontend Engineer',
       description: 'Building accessible modern web user experiences with React, Next.js, and CSS.',
@@ -288,7 +288,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('enforces zero-match gating when candidate projects have no match for job requirements', () => {
     const blockchainJob = {
-      id: '20000000-0000-0000-0000-000000000004',
+      id: '20000000-0000-4000-8000-000000000004',
       tenantId: TENANT_ID,
       title: 'Solana Smart Contract Engineer',
       description:
@@ -336,7 +336,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('StructuredResumeDocument populates authoritative audit fields on TailoredProjectEntry', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000005',
+      id: '20000000-0000-4000-8000-000000000005',
       tenantId: TENANT_ID,
       title: 'Computer Vision Specialist',
       description: 'OpenCV and Python image processing pipelines.',
@@ -373,7 +373,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('composeExperienceRecords reorders experience bullets so job-relevant accomplishments appear first', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000006',
+      id: '20000000-0000-4000-8000-000000000006',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python computer vision pipelines.',
@@ -402,7 +402,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('composeProfessionalSummary citations strictly align with selected projects without leakage', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000007',
+      id: '20000000-0000-4000-8000-000000000007',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python computer vision.',
@@ -435,7 +435,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('validateStructuredResumeIntegrity returns overallStatus PASS for valid document', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000008',
+      id: '20000000-0000-4000-8000-000000000008',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python computer vision.',
@@ -472,7 +472,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('validateStructuredResumeIntegrity catches FABRICATED_PROJECT if unranked project is injected', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000009',
+      id: '20000000-0000-4000-8000-000000000009',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python.',
@@ -528,7 +528,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
   // -------------------------------------------------------------------------
   it('validateStructuredResumeIntegrity detects cross-project bullet attribution', () => {
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000010',
+      id: '20000000-0000-4000-8000-000000000010',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python.',
@@ -591,7 +591,7 @@ describe('Resume Project Selection & Job-Conditioned Content', () => {
     };
 
     const cvJob = {
-      id: '20000000-0000-0000-0000-000000000011',
+      id: '20000000-0000-4000-8000-000000000011',
       tenantId: TENANT_ID,
       title: 'Computer Vision Engineer',
       description: 'OpenCV and Python.',

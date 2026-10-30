@@ -1701,7 +1701,9 @@
   border-radius: 8px;
   padding: 18px 20px;
   margin-bottom: 20px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .rs-node-group:focus-within {
@@ -1726,7 +1728,7 @@
   user-select: none;
 }
 
-.rs-entry-toggle-wrap input[type="checkbox"] {
+.rs-entry-toggle-wrap input[type='checkbox'] {
   accent-color: var(--rs-accent);
   width: 15px;
   height: 15px;
@@ -1779,7 +1781,9 @@
   line-height: 1.5;
   resize: vertical;
   outline: none;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .rs-bullet-textarea:focus {

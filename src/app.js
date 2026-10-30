@@ -20,6 +20,7 @@ import resumeStudioRoutes from './routes/resume-studio.routes.js';
 import { config } from './config/env.js';
 import { assertApprovalSecrets } from './config/approval-secrets.js';
 import { createProxyPolicy, installProxyPolicy } from './security/proxy-policy.js';
+import { getDefaultAiProvider } from './clients/ai/ai-provider-factory.js';
 import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -363,7 +364,7 @@ export function buildApp(opts = {}) {
   app.register(resumeStudioRoutes, {
     prefix: '/api/v1/resume-studio',
     analysisService: opts.resumeStudioAnalysisService,
-    aiProvider: opts.resumeStudioAiProvider,
+    aiProvider: opts.resumeStudioAiProvider || getDefaultAiProvider(),
   });
 
   app.register(webRoutes, {

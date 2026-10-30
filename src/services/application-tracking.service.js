@@ -266,6 +266,38 @@ export class ApplicationTrackingService {
         if (!matchedExisting.normalizedJobUrl && normalizedJobUrl) {
           updates.normalizedJobUrl = normalizedJobUrl;
         }
+        const incomingRawDesc = String(validatedInput.rawJobDescription || '').trim() || null;
+        if (
+          incomingRawDesc &&
+          incomingRawDesc.toLowerCase() !==
+            String(matchedExisting.jobTitle || validatedInput.jobTitle || '')
+              .trim()
+              .toLowerCase() &&
+          (!matchedExisting.rawJobDescription ||
+            incomingRawDesc.length > matchedExisting.rawJobDescription.length)
+        ) {
+          updates.rawJobDescription = incomingRawDesc;
+        }
+        if (validatedInput.parsedJobDescription) {
+          const existingParsed =
+            matchedExisting.parsedJobDescription &&
+            typeof matchedExisting.parsedJobDescription === 'object'
+              ? matchedExisting.parsedJobDescription
+              : {};
+          const nextParsed = { ...existingParsed };
+          for (const key of ['requiredSkills', 'skills', 'requirements', 'responsibilities']) {
+            if (
+              Array.isArray(validatedInput.parsedJobDescription[key]) &&
+              validatedInput.parsedJobDescription[key].length > 0 &&
+              (!Array.isArray(existingParsed[key]) || existingParsed[key].length === 0)
+            ) {
+              nextParsed[key] = validatedInput.parsedJobDescription[key];
+            }
+          }
+          if (JSON.stringify(nextParsed) !== JSON.stringify(existingParsed)) {
+            updates.parsedJobDescription = nextParsed;
+          }
+        }
         if (Object.keys(updates).length > 0) {
           // Only stamped when a backfill actually happens, so the guard above keeps its meaning.
           updates.updatedAt = new Date();
@@ -811,6 +843,21 @@ export class ApplicationTrackingService {
       const updates = {};
       if (!app.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
       if (!app.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
+      const incomingExplicitDesc =
+        String(target.rawJobDescription || target.description || '').trim() || null;
+      if (
+        incomingExplicitDesc &&
+        incomingExplicitDesc.toLowerCase() !==
+          String(app.jobTitle || jobTitle || '')
+            .trim()
+            .toLowerCase() &&
+        (!app.rawJobDescription || incomingExplicitDesc.length > app.rawJobDescription.length)
+      ) {
+        updates.rawJobDescription = incomingExplicitDesc;
+      }
+      if (target.parsedJobDescription && !app.parsedJobDescription) {
+        updates.parsedJobDescription = target.parsedJobDescription;
+      }
       if (Object.keys(updates).length > 0) {
         updates.updatedAt = new Date();
         const [updated] = await this.db
@@ -889,6 +936,17 @@ export class ApplicationTrackingService {
       if (!matched.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
       if (!matched.normalizedJobUrl && normalizedJobUrl)
         updates.normalizedJobUrl = normalizedJobUrl;
+      const incomingRawDesc =
+        String(target.rawJobDescription || target.description || '').trim() || null;
+      if (
+        incomingRawDesc &&
+        (!matched.rawJobDescription || incomingRawDesc.length > matched.rawJobDescription.length)
+      ) {
+        updates.rawJobDescription = incomingRawDesc;
+      }
+      if (target.parsedJobDescription && !matched.parsedJobDescription) {
+        updates.parsedJobDescription = target.parsedJobDescription;
+      }
       if (Object.keys(updates).length > 0) {
         updates.updatedAt = new Date();
         const [updated] = await this.db
@@ -915,6 +973,9 @@ export class ApplicationTrackingService {
       ? String(target.source).toUpperCase()
       : 'COMPANY_CAREERS';
 
+    const incomingRawDesc =
+      String(target.rawJobDescription || target.description || '').trim() || null;
+
     return this.createApplication(context, candidateId, {
       companyName,
       jobTitle,
@@ -924,6 +985,8 @@ export class ApplicationTrackingService {
       source: normalizedSource,
       status: 'SAVED',
       notes: target.notes || null,
+      rawJobDescription: incomingRawDesc,
+      parsedJobDescription: target.parsedJobDescription || null,
       metadata: {
         ...(canonicalJobId ? { canonicalJobId, jobId: canonicalJobId } : {}),
         ...(target.metadata || {}),

@@ -613,10 +613,18 @@ export class LatexCompilerService {
     // not the closing delimiter of the surrounding TeX command.
     const fieldPattern = String.raw`((?:\\[a-zA-Z]+\{\}|\\[{}]|[^{}])+)`;
     const nameMatch =
-      body.match(new RegExp(String.raw`\\fontsize\{(?:2[0-9]|1[8-9])(?:\.[0-9]+)?pt\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`)) ||
+      body.match(
+        new RegExp(
+          String.raw`\\fontsize\{(?:2[0-9]|1[8-9])(?:\.[0-9]+)?pt\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`
+        )
+      ) ||
       body.match(new RegExp(String.raw`\\(?:Huge|LARGE)\s*\\textbf\{${fieldPattern}\}`)) ||
       body.match(new RegExp(String.raw`\\textbf\{\\Huge\s+${fieldPattern}\}`)) ||
-      body.match(new RegExp(String.raw`\\fontsize\{[0-9.]+(?:pt)?\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`)) ||
+      body.match(
+        new RegExp(
+          String.raw`\\fontsize\{[0-9.]+(?:pt)?\}\{[0-9.]+(?:pt)?\}\s*\\selectfont\s*\\textbf\{${fieldPattern}\}`
+        )
+      ) ||
       body.match(new RegExp(String.raw`\\textbf\{${fieldPattern}\}`));
     if (nameMatch) {
       candidateName = cleanLatexText(nameMatch[1]);

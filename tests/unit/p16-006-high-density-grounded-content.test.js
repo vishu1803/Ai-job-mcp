@@ -247,7 +247,7 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
     assert.ok(summaryObj && summaryObj.text);
     assert.ok(summaryObj.text.length >= 100, `Summary too short: ${summaryObj.text.length} chars`);
     assert.match(summaryObj.text, /Python|FastAPI/i);
-    assert.equal(summaryObj.provenanceStatus, 'VERIFIED');
+    assert.equal(summaryObj.provenanceStatus, 'CLAIMED');
   });
 
   // Test 9: Project bullets conform strictly to TailoredProjectBulletSchema
@@ -365,8 +365,14 @@ describe('P16-006: High-Density Grounded Content & Layout Invariants', () => {
     const tex = latexResult.texContent;
 
     // 4-tier centered header assertions
-    assert.match(tex, /\\Huge\s+\\textbf\{Vishwanath Nishad\}/);
-    assert.match(tex, /\\large\s+\\textbf\{Full-Stack \\& Backend Developer\}/);
+    assert.match(
+      tex,
+      /(?:\\Huge|\\fontsize\{21pt\}\{25pt\}\\selectfont)\s+\\textbf\{Vishwanath Nishad\}/
+    );
+    assert.match(
+      tex,
+      /(?:\\large|\\fontsize\{12\.5pt\}\{15pt\}\\selectfont)\s+\\textbf\{Full-Stack \\& Backend Developer\}/
+    );
     assert.match(tex, /7905087928/);
     assert.match(tex, /vishwanatnishad@gmail\.com/);
     assert.match(tex, /linkedin/i);

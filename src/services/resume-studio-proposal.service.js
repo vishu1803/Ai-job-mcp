@@ -6,6 +6,7 @@ import { ResumeStudioRepository } from '../db/repositories/resume-studio.reposit
 import { ResumeStudioProposalRepository } from '../db/repositories/resume-studio-proposal.repository.js';
 import { ResumeStudioDraftService } from './resume-studio-draft.service.js';
 import { AiResumeContentGeneratorService } from './ai-resume-content-generator.service.js';
+import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
 import {
   applyStudioEdits,
   hashStudioContent,
@@ -136,7 +137,11 @@ export class ResumeStudioProposalService {
     return parsed.data;
   }
   async _model(scope) {
-    const provider = this.generator._resolveActiveProvider();
+    const provider =
+      this.generator._resolveActiveProvider() ||
+      (this.generator.aiProvider !== false && this.generator.aiProvider !== null
+        ? getDefaultAiProvider()
+        : null);
     if (typeof provider?.generateStructured !== 'function')
       throw new AppError(
         'Rewrite provider unavailable. Draft edits remain available.',

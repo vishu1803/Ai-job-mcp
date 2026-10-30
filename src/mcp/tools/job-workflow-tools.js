@@ -355,7 +355,12 @@ export function registerJobWorkflowTools(
         jobTitle: app.jobTitle,
         jobUrl: app.jobUrl,
         status: submissionStatus,
-        trackingStatus: app.status,
+        trackingStatus:
+          app.status === 'HANDOFF_READY' || app.status === 'READY_FOR_FINAL_REVIEW'
+            ? 'SAVED'
+            : app.status === 'SUBMITTED'
+              ? 'APPLIED'
+              : app.status,
         externalReference,
         packageHash,
         appliedAt: app.appliedAt ? new Date(app.appliedAt).toISOString() : null,

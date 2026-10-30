@@ -12,22 +12,36 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { buildApp } from '../../src/app.js';
 import { db, closeDatabase } from '../../src/db/index.js';
 import {
   users,
   tenants,
   candidates,
+  resumes,
   resourceConnections,
   resources,
   jobApplications,
+  applicationPackages,
+  tailoredDocuments,
 } from '../../src/db/schema.js';
+import { resumeGenerations } from '../../src/db/resume-generation.schema.js';
+import { resumeStudioDrafts } from '../../src/db/resume-studio.schema.js';
 import { createSession } from '../../src/security/session.service.js';
 import { BaseResourceConnector } from '../../src/connectors/base/resource-connector.js';
 import { connectorRegistry } from '../../src/connectors/registry/connector-registry.js';
 import { defaultTaskPolicyRegistry } from '../../src/clients/ai/task-policy.js';
 import { JobDiscoveryService } from '../../src/services/job-discovery.service.js';
+import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
+import { CandidateArtifactContentService } from '../../src/services/candidate-artifact-content.service.js';
+import { ResumeGenerationService } from '../../src/services/resume-generation.service.js';
+import { ResumeStudioDraftService } from '../../src/services/resume-studio-draft.service.js';
+import { DocumentStorageService } from '../../src/services/document-storage.service.js';
+import { studioMasterFacts } from '../fixtures/resume-studio-master.js';
 
 describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', () => {
   let app;
@@ -89,7 +103,7 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
       .values({
         id: userId,
         tenantId: testTenant.id,
-        email: `candidate-${Date.now()}@p88.example.com`,
+        email: `alex.rivera.${Date.now()}@rivera-systems.dev`,
         displayName: 'P88 Test Candidate',
         role: 'MEMBER',
       })
@@ -112,6 +126,9 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
       })
       .returning();
 
+    // Clean up any leftover installationId from interrupted test runs
+    await db.delete(resourceConnections).where(eq(resourceConnections.installationId, '987654'));
+
     // Create GitHub Connection
     await db.insert(resourceConnections).values({
       id: crypto.randomUUID(),
@@ -125,12 +142,21 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
       installationId: '987654',
       encryptedCredentials: 'enc:v1:dummy',
       status: 'ACTIVE',
-      metadata: { account: 'testuser' },
+      metadata: {
+        account: 'testuser',
+        authorityPolicy: 'personal-owner-or-org-owner-v1',
+      },
     });
 
     app = buildApp({
       logger: false,
       database: db,
+      installationService: {
+        verifyGitHubInstallation: async (id) => ({
+          id: Number(id),
+          account: { id: 987654, login: 'testuser', type: 'User' },
+        }),
+      },
     });
     await app.ready();
 
@@ -147,6 +173,16 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
   after(async () => {
     if (app) await app.close();
     for (const tid of createdTenantIds) {
+      await db.delete(resumeStudioDrafts).where(eq(resumeStudioDrafts.tenantId, tid));
+      await db
+        .delete(resumeGenerations)
+        .where(
+          and(eq(resumeGenerations.tenantId, tid), isNotNull(resumeGenerations.parentGenerationId))
+        );
+      await db.delete(resumeGenerations).where(eq(resumeGenerations.tenantId, tid));
+      await db.delete(applicationPackages).where(eq(applicationPackages.tenantId, tid));
+      await db.delete(tailoredDocuments).where(eq(tailoredDocuments.tenantId, tid));
+      await db.delete(resumes).where(eq(resumes.tenantId, tid));
       await db.delete(jobApplications).where(eq(jobApplications.tenantId, tid));
       await db.delete(resources).where(eq(resources.tenantId, tid));
       await db.delete(resourceConnections).where(eq(resourceConnections.tenantId, tid));
@@ -330,7 +366,7 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
       assert.equal(res.statusCode, 200);
       assert.match(res.payload, /Principal Systems Architect/);
       assert.match(res.payload, /HyperScale Systems/);
-      assert.match(res.payload, /Prepare Application/);
+      assert.match(res.payload, /Tailor resume/i);
     });
 
     it('POST /jobs/unsave marks the application as ARCHIVED and removes from active saved pipeline', async () => {
@@ -378,6 +414,335 @@ describe('P88: Production Verification and Fix — Radar, Sources & AI Policy', 
 
       assert.equal(tabRes.statusCode, 200);
       assert.match(tabRes.payload, /No Saved Jobs in Pipeline/);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 6. Authoritative Job Snapshot Across Save → Prepare → Generate → Regenerate → Studio
+  // ---------------------------------------------------------------------------
+  describe('6. Authoritative Job Snapshot Across Save → Prepare → Generate → Regenerate → Studio', () => {
+    let baseResumeId;
+    let storageDir;
+    let genEngine;
+    let workflowSvc;
+    let draftSvc;
+
+    const fullJobDescription =
+      'Design, build, and operate fault-tolerant distributed storage and consensus services in Node.js, Go, and PostgreSQL. Own API reliability, schema migrations, and zero-downtime deployment pipelines across multi-region clusters.';
+    const fullRequirements = [
+      '5+ years building distributed backend systems with Node.js and PostgreSQL',
+      'Strong experience with REST APIs, database schema migrations, and automated testing',
+    ];
+    const fullResponsibilities = [
+      'Architect resilient microservices and maintain high-throughput data pipelines',
+      'Collaborate with product and infrastructure teams on reliability and observability',
+    ];
+
+    before(async () => {
+      storageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'p88-job-snapshot-'));
+      const storage = new DocumentStorageService({ database: db, storageDir });
+      baseResumeId = crypto.randomUUID();
+      const sourceHash = 'a'.repeat(64);
+
+      const resumeSource = {
+        ...structuredClone(studioMasterFacts),
+        sourceResumeId: baseResumeId,
+        sourceVersion: 1,
+      };
+
+      await db.insert(resumes).values({
+        id: baseResumeId,
+        tenantId: testTenant.id,
+        candidateId: testCandidate.id,
+        version: 1,
+        fileName: 'master-resume.pdf',
+        mimeType: 'application/pdf',
+        fileSizeBytes: 1024,
+        storageKey: 'test-master-key',
+        contentHash: sourceHash,
+        isBaseResume: true,
+        lifecycleState: 'BASE_RESUME',
+      });
+
+      await db
+        .update(candidates)
+        .set({
+          profileMetadata: {
+            targetRoles: ['Staff Distributed Systems Engineer', 'Senior Backend Engineer'],
+            userCustom: { specialization: 'Systems' },
+            resumeData: resumeSource,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(candidates.id, testCandidate.id));
+
+      genEngine = new ResumeGenerationService({
+        database: db,
+        aiProvider: null,
+        storage,
+        generator: {
+          generateTailoredResumeLatex: () => ({ texContent: 'Controlled layout fixture' }),
+        },
+        compiler: { compileLatexToPdf: async () => ({ pageCount: 1 }) },
+        compileDocument: async () => ({
+          pdf: Buffer.from('Snapshot test PDF bytes').toString('base64'),
+          docx: Buffer.from('Snapshot test DOCX bytes').toString('base64'),
+          verification: {
+            failedChecks: [],
+            pageCount: 1,
+            a4: true,
+            textPreserved: true,
+            minimumFontPt: 10,
+            fontsEmbedded: true,
+            unicodeMaps: true,
+            wordSpacing: true,
+            readingOrder: true,
+            noClipping: true,
+            noOverlaps: true,
+            glyphsSafe: true,
+            docxTextPreserved: true,
+            marginIn: 0.6,
+            lineHeight: 1.24,
+            compiler: 'chrome_headless',
+          },
+        }),
+      });
+
+      workflowSvc = new JobApplicationWorkflowService({
+        database: db,
+        aiProvider: null,
+        candidateArtifactContentService: new CandidateArtifactContentService({
+          database: db,
+          resumeGenerationService: genEngine,
+        }),
+      });
+
+      draftSvc = new ResumeStudioDraftService({ database: db });
+    });
+
+    after(async () => {
+      if (storageDir) {
+        await fs.rm(storageDir, { recursive: true, force: true });
+      }
+    });
+
+    it('preserves full job description across Save → partial Save → Prepare → Generate → Regenerate → Studio without replacing with shorter title', async () => {
+      const ctx = {
+        tenantId: testTenant.id,
+        userId: testUser.id,
+        candidateId: testCandidate.id,
+        role: 'MEMBER',
+      };
+
+      // Step 1: Save full job description
+      const saveRes = await app.inject({
+        method: 'POST',
+        url: '/jobs/save',
+        cookies: { career_hub_session: rawSessionToken },
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          jobId: 'EXT-FULL-SNAPSHOT-01',
+          title: 'Staff Distributed Systems Engineer',
+          company: 'CloudScale Corp',
+          location: 'Remote',
+          workplaceType: 'REMOTE',
+          url: 'https://careers.cloudscale.example.com/jobs/101',
+          description: fullJobDescription,
+          requirements: fullRequirements,
+          responsibilities: fullResponsibilities,
+          skills: ['Node.js', 'PostgreSQL', 'Go'],
+          atsScore: 94,
+        }),
+      });
+      assert.equal(saveRes.statusCode, 200);
+      const saveBody = JSON.parse(saveRes.payload);
+      assert.ok(saveBody.applicationId);
+
+      // Step 2: Subsequent untrusted partial/title-only POST /jobs/save must NOT erase saved description or requirements
+      const partialRes = await app.inject({
+        method: 'POST',
+        url: '/jobs/save',
+        cookies: { career_hub_session: rawSessionToken },
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          jobId: 'EXT-FULL-SNAPSHOT-01',
+          title: 'Staff Distributed Systems Engineer',
+          company: 'CloudScale Corp',
+          description: 'Staff Distributed Systems Engineer',
+          requirements: [],
+          responsibilities: [],
+          skills: [],
+        }),
+      });
+      assert.equal(partialRes.statusCode, 200);
+
+      const [savedApp] = await db
+        .select()
+        .from(jobApplications)
+        .where(eq(jobApplications.id, saveBody.applicationId));
+      assert.equal(savedApp.rawJobDescription, fullJobDescription);
+      assert.deepEqual(savedApp.parsedJobDescription.requirements, fullRequirements);
+      assert.deepEqual(savedApp.parsedJobDescription.responsibilities, fullResponsibilities);
+      assert.deepEqual(savedApp.parsedJobDescription.requiredSkills, [
+        'Node.js',
+        'PostgreSQL',
+        'Go',
+      ]);
+
+      // Step 3: Prepare application even when caller passes only the bare title in jobPosting.description
+      const prepared = await workflowSvc.prepareJobApplication({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        candidateId: testCandidate.id,
+        applicationId: savedApp.id,
+        jobPosting: {
+          title: 'Staff Distributed Systems Engineer',
+          company: 'CloudScale Corp',
+          description: 'Staff Distributed Systems Engineer',
+          canonicalJobId: 'EXT-FULL-SNAPSHOT-01',
+        },
+        options: {
+          persistTracking: true,
+          includeCoverLetter: false,
+        },
+      });
+      assert.equal(prepared.targetJob.rawDescription, fullJobDescription);
+      assert.equal(prepared.targetJob.isRoleOnly, false);
+
+      // Step 4: Generate resume version with applicationId and title-only rawDescription -> reconciles to full description
+      const generated = await genEngine.execute(ctx, {
+        sourceResumeId: baseResumeId,
+        applicationId: savedApp.id,
+        origin: 'STUDIO_ENTRY',
+        idempotencyKey: 'full-snapshot-gen-1',
+        jobTarget: {
+          title: 'Staff Distributed Systems Engineer',
+          company: 'CloudScale Corp',
+          rawDescription: 'Staff Distributed Systems Engineer',
+        },
+      });
+      assert.equal(generated.request.jobSnapshot.rawDescription, fullJobDescription);
+      assert.equal(generated.request.jobSnapshot.isRoleOnly, false);
+      assert.equal(generated.request.jobSnapshot.tailoringScope, 'JOB_SPECIFIC');
+
+      // Step 5: Regenerate child generation -> inherits applicationId and preserves full job description
+      const regeneratedGen = await genEngine.execute(ctx, {
+        sourceResumeId: baseResumeId,
+        parentGenerationId: generated.id,
+        origin: 'REGENERATION',
+        idempotencyKey: 'full-snapshot-gen-2',
+        forceRegenerate: true,
+        jobTarget: {
+          title: 'Staff Distributed Systems Engineer',
+          company: 'CloudScale Corp',
+          rawDescription: 'Staff Distributed Systems Engineer',
+        },
+      });
+      assert.equal(regeneratedGen.applicationId, savedApp.id);
+      assert.equal(regeneratedGen.request.jobSnapshot.rawDescription, fullJobDescription);
+
+      // Step 6: Open Studio draft from generation and GET /resume-studio?applicationId=...
+      const studioDraft = await draftSvc.create(ctx, {
+        generationId: regeneratedGen.id,
+      });
+      assert.equal(studioDraft.jobTarget.rawDescription, fullJobDescription);
+
+      const studioPageRes = await app.inject({
+        method: 'GET',
+        url: `/resume-studio?applicationId=${savedApp.id}&draftId=${studioDraft.id}`,
+        cookies: { career_hub_session: rawSessionToken },
+      });
+      assert.equal(studioPageRes.statusCode, 200);
+      assert.ok(
+        studioPageRes.payload.includes('fault-tolerant distributed storage and consensus services'),
+        'Studio page must embed the full authoritative job description'
+      );
+    });
+
+    it('supports genuinely title-only saved applications across Save → Prepare → Generate → Studio in role-only mode', async () => {
+      const ctx = {
+        tenantId: testTenant.id,
+        userId: testUser.id,
+        candidateId: testCandidate.id,
+        role: 'MEMBER',
+      };
+
+      // Step 1: Save a title-only job (no full description)
+      const saveRes = await app.inject({
+        method: 'POST',
+        url: '/jobs/save',
+        cookies: { career_hub_session: rawSessionToken },
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          jobId: 'EXT-TITLE-ONLY-02',
+          title: 'Backend Engineer',
+          company: 'Minimalist Labs',
+          location: 'Remote',
+          workplaceType: 'REMOTE',
+        }),
+      });
+      assert.equal(saveRes.statusCode, 200);
+      const saveBody = JSON.parse(saveRes.payload);
+      assert.ok(saveBody.applicationId);
+
+      const [titleOnlyApp] = await db
+        .select()
+        .from(jobApplications)
+        .where(eq(jobApplications.id, saveBody.applicationId));
+      assert.equal(titleOnlyApp.rawJobDescription, null);
+
+      // Step 2: Prepare application in role-only mode
+      const prepared = await workflowSvc.prepareJobApplication({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        candidateId: testCandidate.id,
+        applicationId: titleOnlyApp.id,
+        jobPosting: {
+          title: 'Backend Engineer',
+          company: 'Minimalist Labs',
+          description: 'Backend Engineer',
+          canonicalJobId: 'EXT-TITLE-ONLY-02',
+          isRoleOnly: true,
+          tailoringScope: 'ROLE_BASED',
+        },
+        options: {
+          persistTracking: true,
+          includeCoverLetter: false,
+        },
+      });
+      assert.equal(prepared.targetJob.isRoleOnly, true);
+      assert.equal(prepared.targetJob.tailoringScope, 'ROLE_BASED');
+
+      // Step 3: Generate resume version for title-only application
+      const generated = await genEngine.execute(ctx, {
+        sourceResumeId: baseResumeId,
+        applicationId: titleOnlyApp.id,
+        origin: 'STUDIO_ENTRY',
+        idempotencyKey: 'title-only-gen-1',
+        jobTarget: {
+          title: 'Backend Engineer',
+          company: 'Minimalist Labs',
+          rawDescription: 'Backend Engineer',
+          isRoleOnly: true,
+          tailoringScope: 'ROLE_BASED',
+        },
+      });
+      assert.equal(generated.request.jobSnapshot.isRoleOnly, true);
+      assert.equal(generated.request.jobSnapshot.tailoringScope, 'ROLE_BASED');
+
+      // Step 4: Create Studio draft and load GET /resume-studio?applicationId=...
+      const studioDraft = await draftSvc.create(ctx, {
+        generationId: generated.id,
+      });
+      assert.equal(studioDraft.jobTarget.title, 'Backend Engineer');
+
+      const studioPageRes = await app.inject({
+        method: 'GET',
+        url: `/resume-studio?applicationId=${titleOnlyApp.id}`,
+        cookies: { career_hub_session: rawSessionToken },
+      });
+      assert.equal(studioPageRes.statusCode, 200);
+      assert.ok(studioPageRes.payload.includes('Backend Engineer'));
     });
   });
 });

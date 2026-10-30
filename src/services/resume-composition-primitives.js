@@ -688,18 +688,12 @@ export function areBulletsSemanticallyRedundant(bulletA, bulletB) {
 
   // 1. Check underlying fact IDs
   const factIdsA = new Set(
-    (Array.isArray(bulletA?.composedFromFactIds)
-      ? bulletA.composedFromFactIds
-      : [bulletA?.factId]
-    )
+    (Array.isArray(bulletA?.composedFromFactIds) ? bulletA.composedFromFactIds : [bulletA?.factId])
       .filter(Boolean)
       .map(String)
   );
   const factIdsB = new Set(
-    (Array.isArray(bulletB?.composedFromFactIds)
-      ? bulletB.composedFromFactIds
-      : [bulletB?.factId]
-    )
+    (Array.isArray(bulletB?.composedFromFactIds) ? bulletB.composedFromFactIds : [bulletB?.factId])
       .filter(Boolean)
       .map(String)
   );
@@ -1734,6 +1728,10 @@ export function sanitizeGroundedAccomplishment(text) {
 
   cleaned = cleaned.replace(/,\s*resulting\s+in\s+[^.]+\.?$/i, '.');
   cleaned = cleaned.replace(/,\s*leading\s+to\s+[^.]+\.?$/i, '.');
+  cleaned = cleaned.replace(
+    /,\s*(?:ensuring|providing|guaranteeing|maximizing)\s+(?:high\s+)?(?:concurrency|availability|throughput|scalability|fault\s+tolerance)(?:\s+and\s+(?:application\s+|system\s+)?(?:high\s+)?(?:concurrency|availability|throughput|scalability|fault\s+tolerance))?\s*\.?$/i,
+    '.'
+  );
 
   // 2. Transform leading outcome phrases with 'by <verb>ing'
   // e.g. 'Reduced average manual code review time across multiple repositories by automating code evaluation.'

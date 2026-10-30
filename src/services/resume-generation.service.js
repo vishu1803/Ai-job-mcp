@@ -45,7 +45,7 @@ const inputSchema = z
     sourceResumeId: z.string().uuid(),
     sourceVersion: z.number().int().positive().optional(),
     jobTarget: StudioJobTargetSchema.extend({
-      rawDescription: z.string().trim().min(10).max(250000),
+      rawDescription: z.string().trim().min(1).max(250000),
       requirements: z
         .array(z.union([z.string().trim().min(1).max(2000), z.record(z.unknown())]))
         .max(500)
@@ -59,7 +59,17 @@ const inputSchema = z
     template: z.literal('CLASSIC_LATIN_MODERN_A4').default('CLASSIC_LATIN_MODERN_A4'),
     forceRegenerate: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) =>
+      Boolean(data.applicationId) ||
+      Boolean(data.jobTarget?.isRoleOnly) ||
+      data.jobTarget.rawDescription.length >= 10,
+    {
+      path: ['jobTarget', 'rawDescription'],
+      message: 'Job description must be at least 10 characters',
+    }
+  );
 const json = (value) => JSON.parse(JSON.stringify(value));
 const stableJobId = (fingerprint) => {
   const hex = crypto.createHash('sha256').update(fingerprint).digest('hex');
@@ -85,6 +95,11 @@ export function buildGenerationProfile(source, view) {
       (!isSyntheticEmail(view.candidate?.canonicalEmail) && view.candidate.canonicalEmail) ||
       (!isSyntheticEmail(masterIdentity.email) && masterIdentity.email) ||
       (!isSyntheticEmail(source.owner?.canonicalEmail) && source.owner.canonicalEmail) ||
+      (!isSyntheticEmail(view.userEmail || source.owner?.userEmail) &&
+        (view.userEmail || source.owner?.userEmail)) ||
+      masterIdentity.email ||
+      view.candidate?.canonicalEmail ||
+      source.owner?.canonicalEmail ||
       resolveCandidateEmail(
         {
           ...view.candidate,
@@ -94,7 +109,6 @@ export function buildGenerationProfile(source, view) {
         view.userEmail || source.owner?.userEmail,
         { allowNullable: true }
       ) ||
-      source.owner?.canonicalEmail ||
       null,
     phone: resumeSourceValue(masterInput, 'phone', ['canonicalPhone', 'phoneNumber']),
     location: resumeSourceValue(masterInput, 'location'),
@@ -147,14 +161,14 @@ export function buildGenerationProfile(source, view) {
 export class ResumeGenerationService {
   constructor({
     database = defaultDb,
-    aiProvider = getDefaultAiProvider(),
+    aiProvider,
     compileDocument = compileStudioDocument,
     storage,
     generator = new LatexDocumentGenerator(),
     compiler = new LatexCompilerService(),
   } = {}) {
     this.db = database;
-    this.aiProvider = aiProvider;
+    this.aiProvider = aiProvider === undefined ? getDefaultAiProvider() : aiProvider;
     this.compileDocument = compileDocument;
     this.storage = storage || new DocumentStorageService({ database });
     this.generator = generator;
@@ -171,9 +185,6 @@ export class ResumeGenerationService {
         parsedInput.error.issues.map(({ path, message }) => ({ path, message }))
       );
     const body = parsedInput.data;
-    const bounded = boundStudioJobText(body.jobTarget.rawDescription);
-    if (Buffer.byteLength(JSON.stringify(body.jobTarget.requirements || []), 'utf8') > 51200)
-      throw new ValidationError('Job requirements exceed the bounded snapshot limit');
     const source = await this.db.transaction(async (tx) => {
       const [owner] = await tx
         .select()
@@ -207,8 +218,9 @@ export class ResumeGenerationService {
         (body.sourceVersion && body.sourceVersion !== master.version)
       )
         throw new ConflictError('Select the current reviewed canonical master');
+      let application = null;
       if (body.applicationId) {
-        const [application] = await tx
+        const [appRow] = await tx
           .select()
           .from(jobApplications)
           .where(
@@ -219,19 +231,89 @@ export class ResumeGenerationService {
             )
           )
           .for('share');
-        if (!application) throw new NotFoundError('Application not found');
+        if (!appRow) throw new NotFoundError('Application not found');
+        application = appRow;
       }
-      return json({ owner, master, canonical });
+      return json({ owner, master, canonical, application });
     });
     if (body.parentGenerationId) {
       const parent = await this.versions.get(context, body.parentGenerationId);
       if (parent.candidateId !== source.owner.id)
         throw new NotFoundError('Parent generation not found');
+      if (!body.applicationId && parent.applicationId) {
+        body.applicationId = parent.applicationId;
+        const [appRow] = await this.db
+          .select()
+          .from(jobApplications)
+          .where(
+            and(
+              eq(jobApplications.id, parent.applicationId),
+              eq(jobApplications.tenantId, context.tenantId),
+              eq(jobApplications.candidateId, source.owner.id)
+            )
+          );
+        if (appRow) source.application = json(appRow);
+      }
     }
+    if (source.application) {
+      const appTitle = String(source.application.jobTitle || '').trim();
+      const appCompany = String(source.application.companyName || '').trim();
+      const appUrl = String(
+        source.application.jobUrl || source.application.metadata?.destinationUrl || ''
+      ).trim();
+      const appRawDesc = String(
+        source.application.rawJobDescription || source.application.metadata?.jobDescription || ''
+      ).trim();
+      const incomingDesc = String(body.jobTarget.rawDescription || '').trim();
+      const isIncomingTitleOnly =
+        !incomingDesc ||
+        (appTitle && incomingDesc.toLowerCase() === appTitle.toLowerCase()) ||
+        (body.jobTarget.title && incomingDesc.toLowerCase() === body.jobTarget.title.toLowerCase());
+
+      if (appRawDesc && (isIncomingTitleOnly || appRawDesc.length > incomingDesc.length)) {
+        body.jobTarget.rawDescription = appRawDesc;
+        body.jobTarget.isRoleOnly = false;
+        body.jobTarget.tailoringScope = 'JOB_SPECIFIC';
+      } else if (!appRawDesc && (isIncomingTitleOnly || incomingDesc.length < 50)) {
+        const roleTitle = incomingDesc || appTitle || body.jobTarget.title || 'Software Engineer';
+        body.jobTarget.rawDescription =
+          roleTitle.length >= 10 ? roleTitle : `Target Role: ${roleTitle}`;
+        body.jobTarget.isRoleOnly = true;
+        body.jobTarget.tailoringScope = 'ROLE_BASED';
+      }
+      if (!body.jobTarget.title && appTitle) body.jobTarget.title = appTitle;
+      if (!body.jobTarget.company && appCompany) body.jobTarget.company = appCompany;
+      if (!body.jobTarget.sourceUrl && /^https?:\/\//i.test(appUrl)) {
+        body.jobTarget.sourceUrl = appUrl;
+      }
+      const appParsed = source.application.parsedJobDescription || {};
+      const appReqs = [
+        ...(Array.isArray(appParsed.requirements) ? appParsed.requirements : []),
+        ...(Array.isArray(appParsed.responsibilities) ? appParsed.responsibilities : []),
+      ];
+      if (
+        (!body.jobTarget.requirements || body.jobTarget.requirements.length === 0) &&
+        appReqs.length > 0
+      ) {
+        body.jobTarget.requirements = appReqs;
+      }
+    } else if (body.jobTarget.rawDescription.length < 10) {
+      const roleTitle =
+        body.jobTarget.rawDescription || body.jobTarget.title || 'Software Engineer';
+      body.jobTarget.rawDescription =
+        roleTitle.length >= 10 ? roleTitle : `Target Role: ${roleTitle}`;
+      body.jobTarget.isRoleOnly = true;
+      body.jobTarget.tailoringScope = 'ROLE_BASED';
+    }
+    const bounded = boundStudioJobText(body.jobTarget.rawDescription);
+    if (Buffer.byteLength(JSON.stringify(body.jobTarget.requirements || []), 'utf8') > 51200)
+      throw new ValidationError('Job requirements exceed the bounded snapshot limit');
     const inputHash = hashStudioContent({
       ...body,
       idempotencyKey: undefined,
       origin: undefined,
+      policyVersion: 'repair-021-v3',
+      aiEnabled: Boolean(this.aiProvider),
       sourceVersion: source.master.version,
       sourceContentHash: source.master.contentHash,
       jobTarget: { ...body.jobTarget, rawDescription: bounded.text },
@@ -275,6 +357,10 @@ export class ResumeGenerationService {
         .filter((r) => r.class === 'TECHNOLOGY')
         .map((r) => r.text),
       ...(body.jobTarget.sourceUrl ? { sourceUrl: body.jobTarget.sourceUrl } : {}),
+      tailoringScope:
+        body.jobTarget.tailoringScope ||
+        (body.jobTarget.isRoleOnly ? 'ROLE_BASED' : 'JOB_SPECIFIC'),
+      isRoleOnly: Boolean(body.jobTarget.isRoleOnly),
     };
     const view = await new CandidateProfileService(this.db).getProfile(context, source.owner.id);
     const profile = buildGenerationProfile(source, view);
@@ -288,11 +374,45 @@ export class ResumeGenerationService {
       ...profile,
       resources: view.resources || [],
     });
-    const selected = new Set(
-      ranking.projectRankings
-        .filter((r) => r.selectionStatus === 'SELECTED')
-        .map((r) => r.projectId)
-    );
+    const projById = new Map((profile.projects || []).map((p) => [p.id, p]));
+    const hasSubstantiveBullets = (id) => {
+      const p = projById.get(id);
+      if (!p) return 0;
+      const count =
+        (Array.isArray(p.bullets) ? p.bullets.length : 0) ||
+        (Array.isArray(p.metadata?.bullets) ? p.metadata.bullets.length : 0) ||
+        (Array.isArray(p.highlights) ? p.highlights.length : 0);
+      const isFeatured =
+        p.portfolioStatus === 'FEATURED' || p.metadata?.portfolioStatus === 'FEATURED';
+      return count >= 2 || isFeatured ? 1 : 0;
+    };
+    const eligibleRankedIds = ranking.projectRankings
+      .filter(
+        (r) =>
+          r.selectionStatus !== 'REJECTED' &&
+          (r.selectionStatus === 'SELECTED' ||
+            r.relevanceScore >= 25 ||
+            (r.matchedRequirementIds?.length || 0) > 0)
+      )
+      .map((r) => r.projectId)
+      .filter((id) => projById.has(id));
+    const substantiveIds = eligibleRankedIds.filter((id) => hasSubstantiveBullets(id) === 1);
+    const chosenIds = (substantiveIds.length >= 2 ? substantiveIds : eligibleRankedIds).slice(0, 3);
+    const selected = new Set(chosenIds);
+    if (substantiveIds.length >= 2) {
+      for (const r of ranking.projectRankings) {
+        if (selected.has(r.projectId)) {
+          r.selectionStatus = 'SELECTED';
+          r.selectionReason = r.explanation;
+          r.rejectionReason = null;
+        } else if (r.selectionStatus === 'SELECTED') {
+          r.selectionStatus = 'OMITTED_BUDGET';
+          r.selectionReason = null;
+          r.rejectionReason =
+            'Omitted in favor of projects with substantive candidate accomplishment bullets';
+        }
+      }
+    }
     const content = await generateResumeContent({
       candidateProfile: profile,
       jobPosting: job,

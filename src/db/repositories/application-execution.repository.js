@@ -169,7 +169,7 @@ export async function finishApplicationExecution(
             executionId,
             approvalTicketId: ticket.ticketId,
             destinationUrl: ticket.destinationUrl,
-            externalReference: result.externalReference,
+            externalReference: result.externalReference ?? null,
             externalSubmissionState: result.status,
             externalSubmissionStatus: result.status,
             packageHash: ticket.packageHash,

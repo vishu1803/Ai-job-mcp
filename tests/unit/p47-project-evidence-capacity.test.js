@@ -246,6 +246,7 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
       candidateProfile: candidateWithThinProjects,
       jobPosting: sampleJob,
       options: {
+        minBulletsPerProject: 3,
         projectRankings: [
           {
             id: proj1Id,
@@ -302,7 +303,7 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
   it('5. Validator emits PIPELINE_FAILURE when authoritative projects exist but pipeline failed to select them', () => {
     // Construct a document where authoritative projects existed but projects array is empty without removal records
     const mockDoc = {
-      documentId: '00000000-0000-0000-0000-000000000001',
+      documentId: '11111111-1111-4111-a111-111111111111',
       candidateIdentity: { displayName: 'Alex Morgan' },
       projects: [],
       skills: { categories: [] },
@@ -327,7 +328,7 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
 
   it('6. Allows 0 projects legitimately when candidate genuinely has 0 projects and 0 eligible rankings', () => {
     const mockZeroDoc = {
-      documentId: '00000000-0000-0000-0000-000000000002',
+      documentId: '22222222-2222-4222-a222-222222222222',
       candidateIdentity: { displayName: 'Alex Morgan' },
       projects: [],
       skills: { categories: [] },

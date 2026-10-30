@@ -5,7 +5,21 @@
  * and maps MCP Tool definitions to Gemini FunctionDeclarations.
  */
 
+import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+
+function convertZodToRawJsonSchema(schema) {
+  if (typeof z.toJSONSchema === 'function' && schema?._zod) {
+    return z.toJSONSchema(schema, {
+      target: 'draft-7',
+      unrepresentable: 'any',
+    });
+  }
+  return zodToJsonSchema(schema, {
+    $refStrategy: 'none',
+    target: 'jsonSchema7',
+  });
+}
 
 /**
  * Cleans standard JSON Schema for strict Gemini responseSchema compatibility.
@@ -20,6 +34,7 @@ export function cleanSchemaForGemini(schema) {
   const cleaned = { ...schema };
   delete cleaned.$schema;
   delete cleaned.$ref;
+  delete cleaned.additionalProperties;
 
   // Ensure type is uppercase or standard string compatible
   if (cleaned.type) {
@@ -62,13 +77,11 @@ export function toGeminiResponseSchema(schema) {
 
   // If Zod schema
   if (
+    schema._zod ||
     schema._def ||
     (typeof schema.parse === 'function' && typeof schema.safeParse === 'function')
   ) {
-    const jsonSchema = zodToJsonSchema(schema, {
-      $refStrategy: 'none',
-      target: 'jsonSchema7',
-    });
+    const jsonSchema = convertZodToRawJsonSchema(schema);
     return cleanSchemaForGemini(jsonSchema);
   }
 

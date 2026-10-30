@@ -44,6 +44,20 @@ import { registerCareerMcpApps } from './apps/index.js';
 import { registerCareerResources } from './resources/career-resources.js';
 import { registerCareerPrompts } from './prompts/career-prompts.js';
 
+function convertZodSchema(schema, io = 'input') {
+  if (typeof z.toJSONSchema === 'function' && schema?._zod) {
+    return z.toJSONSchema(schema, {
+      target: 'draft-7',
+      io,
+      unrepresentable: 'any',
+    });
+  }
+  return zodToJsonSchema(schema, {
+    $refStrategy: 'none',
+    target: 'jsonSchema7',
+  });
+}
+
 /**
  * Normalizes inputSchema into a standard JSON schema wrapped with fromJsonSchema.
  *
@@ -62,13 +76,11 @@ function toMcpInputSchema(inputSchema) {
 
   // If Zod schema instance
   if (
+    inputSchema._zod ||
     inputSchema._def ||
     (typeof inputSchema.parse === 'function' && typeof inputSchema.safeParse === 'function')
   ) {
-    const jsonSchema = zodToJsonSchema(inputSchema, {
-      $refStrategy: 'none',
-      target: 'jsonSchema7',
-    });
+    const jsonSchema = convertZodSchema(inputSchema, 'input');
     return fromJsonSchema(jsonSchema);
   }
 
@@ -78,10 +90,7 @@ function toMcpInputSchema(inputSchema) {
       return fromJsonSchema({ type: 'object', properties: {} });
     }
     const wrappedZod = z.object(inputSchema);
-    const jsonSchema = zodToJsonSchema(wrappedZod, {
-      $refStrategy: 'none',
-      target: 'jsonSchema7',
-    });
+    const jsonSchema = convertZodSchema(wrappedZod, 'input');
     return fromJsonSchema(jsonSchema);
   }
 
@@ -95,12 +104,11 @@ function toMcpOutputSchema(outputSchema) {
     return fromJsonSchema(outputSchema);
   }
   if (
+    outputSchema._zod ||
     outputSchema._def ||
     (typeof outputSchema.parse === 'function' && typeof outputSchema.safeParse === 'function')
   ) {
-    return fromJsonSchema(
-      zodToJsonSchema(outputSchema, { $refStrategy: 'none', target: 'jsonSchema7' })
-    );
+    return fromJsonSchema(convertZodSchema(outputSchema, 'output'));
   }
   return undefined;
 }

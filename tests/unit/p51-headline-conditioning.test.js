@@ -420,7 +420,10 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
 
       // 6. Project selection remains authoritative
       assert.ok(Array.isArray(snap.structuredResume.projects));
-      assert.strictEqual(snap.structuredResume.projects.length, 2);
+      assert.ok(
+        snap.structuredResume.projects.length >= 2 && snap.structuredResume.projects.length <= 3,
+        'Should select 2 or 3 projects based on space-aware capacity'
+      );
     });
 
     it('retains "Software Engineer" for Crunchyroll-style comma-separated role specifier', () => {

@@ -88,7 +88,7 @@ describe('P84: Multi-Model Evaluation Schemas & Calibration Engine', () => {
           human_recruiter_strength: 72,
           overall_resume_quality: 70,
         }),
-      /Number must be less than or equal to 100/
+      /(Number must be less than or equal to 100|<=100|too_big)/
     );
 
     // Negative score
@@ -103,7 +103,7 @@ describe('P84: Multi-Model Evaluation Schemas & Calibration Engine', () => {
           human_recruiter_strength: 72,
           overall_resume_quality: 70,
         }),
-      /Number must be greater than or equal to 0/
+      /(Number must be greater than or equal to 0|>=0|too_small)/
     );
   });
 

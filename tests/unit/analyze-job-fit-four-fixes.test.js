@@ -15,7 +15,7 @@ import { EvidenceMatchingService } from '../../src/services/evidence-matching.se
 import { ProjectRelevanceService } from '../../src/services/project-relevance.service.js';
 import { SkillWorthinessGate } from '../../src/domain/career/skill-worthiness-gate.js';
 
-const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+const TENANT_ID = '00000000-0000-4000-8000-000000000001';
 
 describe('Four Targeted Forensic Fixes for analyze_job_fit', () => {
   // ===========================================================================

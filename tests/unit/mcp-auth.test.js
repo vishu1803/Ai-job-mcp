@@ -44,8 +44,8 @@ describe('MCP Authentication Header Extraction', () => {
 });
 
 describe('MCP Authentication Multi-Path Convergence', () => {
-  const tenantId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  const userId = '11111111-1111-1111-1111-111111111111';
+  const tenantId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const userId = '11111111-1111-4111-8111-111111111111';
 
   it('authenticates dedicated personal MCP API tokens (MCP_API_TOKEN)', async () => {
     const mockTokenService = {

@@ -45,12 +45,12 @@ export class GeminiVertexAdapter extends AiProvider {
    */
   constructor(options = {}) {
     super('vertex', 'Google Cloud Vertex AI');
-    this.project =
-      options.project !== undefined ? options.project : process.env.GOOGLE_CLOUD_PROJECT || '';
-    this.location =
-      options.location !== undefined
-        ? options.location
-        : process.env.GOOGLE_CLOUD_LOCATION || 'global';
+    this._explicitProject = options.project !== undefined;
+    this._explicitLocation = options.location !== undefined;
+    this.project = this._explicitProject ? options.project : process.env.GOOGLE_CLOUD_PROJECT || '';
+    this.location = this._explicitLocation
+      ? options.location
+      : process.env.GOOGLE_CLOUD_LOCATION || 'global';
 
     if (options.sdkClient) {
       this.sdkClient = options.sdkClient;
@@ -68,6 +68,23 @@ export class GeminiVertexAdapter extends AiProvider {
     this.taskPolicyRegistry = options.taskPolicyRegistry || defaultTaskPolicyRegistry;
     this.auditService = options.auditService || defaultMcpAuditService;
     this.logger = options.logger || defaultLogger;
+  }
+
+  _getOrInitClient(options = {}) {
+    if (options.sdkClient) return options.sdkClient;
+    if (this.sdkClient) return this.sdkClient;
+    if (!this._explicitProject && !this.project && process.env.GOOGLE_CLOUD_PROJECT) {
+      this.project = process.env.GOOGLE_CLOUD_PROJECT;
+      if (!this._explicitLocation && process.env.GOOGLE_CLOUD_LOCATION) {
+        this.location = process.env.GOOGLE_CLOUD_LOCATION;
+      }
+      this.sdkClient = new GoogleGenAI({
+        vertexai: true,
+        project: this.project,
+        location: this.location,
+      });
+    }
+    return this.sdkClient;
   }
 
   /**
@@ -121,7 +138,7 @@ export class GeminiVertexAdapter extends AiProvider {
     const execConfig = this._resolveExecutionConfig(request);
     const promptEnvelope = buildGeminiPromptEnvelope(request);
 
-    const client = options.sdkClient || this.sdkClient;
+    const client = this._getOrInitClient(options);
     if (!client) {
       throw normalizeGeminiError(
         new Error(
@@ -141,6 +158,7 @@ export class GeminiVertexAdapter extends AiProvider {
           systemInstruction: promptEnvelope.systemInstruction,
           temperature: execConfig.temperature,
           maxOutputTokens: execConfig.maxOutputTokens,
+          ...(options.signal ? { abortSignal: options.signal } : {}),
           ...(options.configOverride || {}),
         };
 
@@ -237,8 +255,9 @@ export class GeminiVertexAdapter extends AiProvider {
           provider: 'vertex',
         });
 
-        // If non-retryable (e.g. 401 auth, safety block, invalid request), throw immediately
+        // If non-retryable (e.g. caller aborted signal, 401 auth, safety block, invalid request), throw immediately
         if (
+          options.signal?.aborted ||
           lastError.code === 'AI_AUTHENTICATION_ERROR' ||
           lastError.code === 'AI_SAFETY_BLOCKED' ||
           lastError.code === 'AI_INVALID_REQUEST'
@@ -316,7 +335,7 @@ export class GeminiVertexAdapter extends AiProvider {
       if (!parseResult.success) {
         throw new AiOutputSchemaError(
           'Vertex AI structured output failed Zod schema contract validation.',
-          { errors: parseResult.error.errors, parsed },
+          { errors: parseResult.error.errors || parseResult.error.issues, parsed },
           'vertex'
         );
       }
@@ -361,7 +380,7 @@ export class GeminiVertexAdapter extends AiProvider {
     }
 
     const geminiTools = toGeminiTools(providedTools);
-    const client = options.sdkClient || this.sdkClient;
+    const client = this._getOrInitClient(options);
     if (!client) {
       throw normalizeGeminiError(
         new Error(
@@ -539,6 +558,7 @@ export class GeminiVertexAdapter extends AiProvider {
    */
   async validateHealth() {
     const start = Date.now();
+    this._getOrInitClient();
     if (!this.project && !this.sdkClient) {
       return {
         healthy: false,

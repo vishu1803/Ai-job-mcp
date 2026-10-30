@@ -93,7 +93,7 @@ export const JobDescriptionInputSchema = z
   .object({
     rawText: z
       .string({
-        required_error: 'rawText is mandatory for job description ingestion',
+        error: 'rawText is mandatory for job description ingestion',
       })
       .trim()
       .min(10, { message: 'Job description text must contain at least 10 characters' })

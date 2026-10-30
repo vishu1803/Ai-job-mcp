@@ -396,13 +396,13 @@ describe('P16-009: Optimizer consumes the canonical inventory', () => {
 });
 
 describe('P16-009: DSA / problem-solving section', () => {
-  test('5. DSA profile URL with no metrics renders a compact truthful section', () => {
+  test('5. DSA profile URL with no metrics is omitted cleanly without fabricating content', () => {
     const candidate = syntheticCandidate();
     const { structuredResume, contentQualityGate } = buildStructuredResumeSnapshot({
       candidateProfile: candidate,
       jobPosting: jobBackend,
     });
-    assert.equal(structuredResume.dsa.hasSection, true);
+    assert.equal(structuredResume.dsa.hasSection, false);
     assert.equal(structuredResume.dsa.profileUrl, 'https://leetcode.com/synthetic-candidate');
     assert.equal(structuredResume.dsa.bullets.length, 0, 'no fabricated DSA bullets');
     assert.ok(structuredResume.sectionOrder.includes('DSA'));

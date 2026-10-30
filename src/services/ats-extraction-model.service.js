@@ -340,50 +340,59 @@ export class AtsExtractionModelService {
     }));
 
     // 5. Education
-    const education = (profile?.education || []).map((edu) => ({
-      id: edu.id || crypto.randomUUID(),
-      institution: this._wrapField({
-        value: edu.institution,
-        confidence: 0.96,
-        section: 'EDUCATION',
-        query: edu.institution,
-        lineIndex,
-      }),
-      degree: this._wrapField({
-        value: edu.degree,
-        confidence: 0.95,
-        section: 'EDUCATION',
-        query: edu.degree,
-        lineIndex,
-      }),
-      fieldOfStudy: this._wrapField({
-        value: edu.fieldOfStudy || null,
-        confidence: edu.fieldOfStudy ? 0.92 : 0.0,
-        section: 'EDUCATION',
-        query: edu.fieldOfStudy,
-        lineIndex,
-      }),
-      dates: this._wrapField({
-        value: edu.startDate ? `${edu.startDate} - ${edu.endDate || ''}` : null,
-        confidence: edu.startDate ? 0.9 : 0.0,
-        section: 'EDUCATION',
-        query: edu.startDate,
-        lineIndex,
-      }),
-      graduationYear: this._wrapField({
-        value: edu.graduationYear ?? null,
-        confidence: edu.graduationYear ? 0.94 : 0.0,
-        section: 'EDUCATION',
-        lineIndex,
-      }),
-      gpa: this._wrapField({
-        value: edu.gpa || null,
-        confidence: edu.gpa ? 0.95 : 0.0,
-        section: 'EDUCATION',
-        query: edu.gpa,
-        lineIndex,
-      }),
-    }));
+    const education = (profile?.education || []).map((edu) => {
+      let cleanDegree = edu.degree || null;
+      if (cleanDegree && edu.fieldOfStudy) {
+        const escapedField = String(edu.fieldOfStudy).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        cleanDegree = cleanDegree
+          .replace(new RegExp(`\\s+(?:in|major in|specialization in)\\s+${escapedField}$`, 'i'), '')
+          .trim();
+      }
+      return {
+        id: edu.id || crypto.randomUUID(),
+        institution: this._wrapField({
+          value: edu.institution,
+          confidence: 0.96,
+          section: 'EDUCATION',
+          query: edu.institution,
+          lineIndex,
+        }),
+        degree: this._wrapField({
+          value: cleanDegree,
+          confidence: 0.95,
+          section: 'EDUCATION',
+          query: edu.degree,
+          lineIndex,
+        }),
+        fieldOfStudy: this._wrapField({
+          value: edu.fieldOfStudy || null,
+          confidence: edu.fieldOfStudy ? 0.92 : 0.0,
+          section: 'EDUCATION',
+          query: edu.fieldOfStudy,
+          lineIndex,
+        }),
+        dates: this._wrapField({
+          value: edu.startDate ? `${edu.startDate} - ${edu.endDate || ''}` : null,
+          confidence: edu.startDate ? 0.9 : 0.0,
+          section: 'EDUCATION',
+          query: edu.startDate,
+          lineIndex,
+        }),
+        graduationYear: this._wrapField({
+          value: edu.graduationYear ?? null,
+          confidence: edu.graduationYear ? 0.94 : 0.0,
+          section: 'EDUCATION',
+          lineIndex,
+        }),
+        gpa: this._wrapField({
+          value: edu.gpa || null,
+          confidence: edu.gpa ? 0.95 : 0.0,
+          section: 'EDUCATION',
+          query: edu.gpa,
+          lineIndex,
+        }),
+      };
+    });
 
     // 6. Certifications
     const certifications = (profile?.certifications || []).map((cert) => ({

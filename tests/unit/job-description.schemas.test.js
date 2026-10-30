@@ -87,7 +87,7 @@ describe('Job Description Domain Zod Schemas (P5-001)', () => {
             rawText: 'Valid job description text for testing',
             source: 'INVALID_SOURCE',
           }),
-        /Invalid enum value/
+        /Invalid (enum value|option)/
       );
     });
 

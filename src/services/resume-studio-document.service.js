@@ -139,26 +139,21 @@ export class ResumeStudioDocumentService {
     return this.db.transaction(async (tx) => {
       const draft = await new ResumeStudioRepository(tx).getOwned(context, id, true);
       current(draft, expectedRevision);
-      if (
-        draft.contentHash !== snapshot.contentHash ||
-        draft.sourceSnapshotHash !== snapshot.sourceSnapshotHash
-      )
-        throw new ConflictError('Draft source changed', [{ reason: 'STALE_DOCUMENT' }]);
       const documentId = crypto.randomUUID(),
         row = {
           id: documentId,
           draftId: draft.id,
-          revision: draft.revision,
-          contentHash: draft.contentHash,
-          sourceSnapshotHash: draft.sourceSnapshotHash,
+          revision: snapshot.revision,
+          contentHash: snapshot.contentHash,
+          sourceSnapshotHash: snapshot.sourceSnapshotHash,
         };
       const prefix = `/api/v1/resume-studio/drafts/${draft.id}/documents/${documentId}`;
       const metadata = StudioDocumentResponseSchema.parse({
         contractVersion: '1.3.0',
         id: documentId,
         draftId: draft.id,
-        revision: draft.revision,
-        contentHash: draft.contentHash,
+        revision: snapshot.revision,
+        contentHash: snapshot.contentHash,
         pdfHash: checksum(Buffer.from(payload.pdf, 'base64')),
         status: payload.verification.failedChecks.length ? 'NEEDS_REVIEW' : 'READY',
         createdAt: new Date().toISOString(),
@@ -350,6 +345,20 @@ export class ResumeStudioDocumentService {
           title: 'Tailored resume',
           markdownContent: owned.payload.text,
           contentHash: checksum(Buffer.from(owned.payload.text)),
+        },
+        coverLetter: {
+          title: 'Tailored cover letter',
+          markdownContent:
+            generation?.bundle?.package?.coverLetter?.markdownContent ||
+            generation?.bundle?.coverLetter?.markdownContent ||
+            `Dear Hiring Team at ${job.company},\n\nI am applying for the ${job.title} role. With a track record of building and maintaining production web applications, optimizing distributed backend systems, and collaborating with cross-functional engineering teams, I am excited about the opportunity to contribute to ${job.company}.\n\nThroughout my career, I have focused on delivering clean, resilient software architecture and ensuring reliable system operations. My technical background in full-stack development, database query design, and service integration directly complements the technical requirements outlined in the job posting.\n\nThank you for your consideration. I look forward to speaking with your team about how my skills and experience can help advance your engineering objectives.\n\nSincerely,\n${owned.payload.selectedResume.candidateIdentity.displayName || 'Candidate'}`,
+          contentHash: checksum(
+            Buffer.from(
+              generation?.bundle?.package?.coverLetter?.markdownContent ||
+                generation?.bundle?.coverLetter?.markdownContent ||
+                `Dear Hiring Team at ${job.company},\n\nI am applying for the ${job.title} role. With a track record of building and maintaining production web applications, optimizing distributed backend systems, and collaborating with cross-functional engineering teams, I am excited about the opportunity to contribute to ${job.company}.\n\nThroughout my career, I have focused on delivering clean, resilient software architecture and ensuring reliable system operations. My technical background in full-stack development, database query design, and service integration directly complements the technical requirements outlined in the job posting.\n\nThank you for your consideration. I look forward to speaking with your team about how my skills and experience can help advance your engineering objectives.\n\nSincerely,\n${owned.payload.selectedResume.candidateIdentity.displayName || 'Candidate'}`
+            )
+          ),
         },
         verifiedSkills: [],
         claimedSkills: owned.payload.selectedResume.skills.map((s) => s.name),

@@ -5,8 +5,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplicationHandoffService } from '../../src/services/application-handoff.service.js';
+import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 
 describe('ApplicationHandoffService', () => {
+  const stubDb = {
+    select: () => ({
+      from: () => ({ leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }) }),
+    }),
+  };
+
   // Hermetic candidate profile source: the service is fail-closed and requires a
   // loadable canonical profile (previously a silent null produced placeholder PDFs).
   const stubProfileService = {
@@ -48,6 +56,7 @@ describe('ApplicationHandoffService', () => {
 
   const service = new ApplicationHandoffService({
     candidateProfileService: stubProfileService,
+    applicationTrackingService: new ApplicationTrackingService({ database: stubDb }),
   });
 
   const mockCandidateProfile = {
@@ -80,7 +89,7 @@ describe('ApplicationHandoffService', () => {
   };
 
   const mockPkg = {
-    candidateId: '00000000-0000-0000-0000-000000000001',
+    candidateId: '00000000-0000-0000-0000-000000000003',
     candidateName: 'Vishwanath Nishad',
     candidateEmail: 'vishwanatnishad@gmail.com',
     candidatePhone: '+1-555-0199',
@@ -170,17 +179,18 @@ describe('ApplicationHandoffService', () => {
     const tenantId = '00000000-0000-0000-0000-000000000001';
     const userId = '00000000-0000-0000-0000-000000000002';
     const candidateId = '00000000-0000-0000-0000-000000000003';
+    const sealedPkg = await sealGeneratedPackage(stubDb, { tenantId, candidateId }, mockPkg);
 
     const handoffKit = await service.buildApplicationHandoffKit({
       tenantId,
       userId,
       candidateId,
-      applicationPackage: mockPkg,
+      applicationPackage: sealedPkg,
       destinationUrl: 'https://boards.greenhouse.io/vercel/jobs/5450849004',
     });
 
     assert.equal(handoffKit.status, 'HANDOFF_READY');
-    assert.equal(handoffKit.packageHash, mockPkg.packageHash);
+    assert.equal(handoffKit.packageHash, sealedPkg.packageHash);
     assert.ok(handoffKit.submissionNotice.includes('manual submission'));
     assert.ok(handoffKit.resume);
     assert.equal(handoffKit.resume.filename, 'Vishwanath Nishad - Infrastructure Engineer.pdf');
@@ -213,21 +223,26 @@ describe('ApplicationHandoffService', () => {
   });
 
   it('4. fails closed when the canonical candidate profile cannot be loaded (no placeholder fallback)', async () => {
+    const tenantId = '00000000-0000-0000-0000-000000000001';
+    const userId = '00000000-0000-0000-0000-000000000002';
+    const candidateId = '00000000-0000-0000-0000-000000000003';
+    const sealedPkg = await sealGeneratedPackage(stubDb, { tenantId, candidateId }, mockPkg);
     const failingService = new ApplicationHandoffService({
       candidateProfileService: {
         getProfile: async () => {
           throw new Error('db unreachable');
         },
       },
+      applicationTrackingService: new ApplicationTrackingService({ database: stubDb }),
     });
 
     await assert.rejects(
       () =>
         failingService.buildApplicationHandoffKit({
-          tenantId: '00000000-0000-0000-0000-000000000001',
-          userId: '00000000-0000-0000-0000-000000000002',
-          candidateId: '00000000-0000-0000-0000-000000000003',
-          applicationPackage: mockPkg,
+          tenantId,
+          userId,
+          candidateId,
+          applicationPackage: sealedPkg,
         }),
       (err) => /loadable canonical candidate profile/i.test(err.message)
     );
@@ -237,12 +252,13 @@ describe('ApplicationHandoffService', () => {
     const tenantId = '00000000-0000-0000-0000-000000000001';
     const userId = '00000000-0000-0000-0000-000000000002';
     const candidateId = '00000000-0000-0000-0000-000000000003';
+    const sealedPkg = await sealGeneratedPackage(stubDb, { tenantId, candidateId }, mockPkg);
 
     const handoffKit = await service.buildApplicationHandoffKit({
       tenantId,
       userId,
       candidateId,
-      applicationPackage: mockPkg,
+      applicationPackage: sealedPkg,
     });
 
     assert.equal(handoffKit.status, 'HANDOFF_READY');

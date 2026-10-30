@@ -2187,9 +2187,22 @@ export default async function webRoutes(app, opts = {}) {
     }
     let initialJobTarget = pastedTarget,
       returnContext = { href: '/resumes', label: 'Back to Resumes', origin: 'Resumes' };
-    const draft = req.query?.draftId
-      ? await studioDrafts.get(context, String(req.query.draftId))
-      : null;
+    let draft = null;
+    if (req.query?.draftId) {
+      try {
+        draft = await studioDrafts.get(context, String(req.query.draftId));
+      } catch (err) {
+        if (err instanceof NotFoundError || err?.code === 'NOT_FOUND') {
+          return reply.redirect(
+            '/resumes?notice=' +
+              encodeURIComponent(
+                'The requested studio draft was not found or has been completed. Select a resume from your library.'
+              )
+          );
+        }
+        throw err;
+      }
+    }
     if (draft) initialJobTarget = draft.jobTarget;
     if (
       req.query?.sourceResumeId &&
@@ -2211,20 +2224,43 @@ export default async function webRoutes(app, opts = {}) {
             .limit(1)
         : [];
       if (!application) throw new NotFoundError('Application not found');
+
+      let resolvedDesc =
+        application.rawJobDescription || application.metadata?.jobDescription || '';
+      if (!resolvedDesc) {
+        const [latestPkg] = await database
+          .select()
+          .from(applicationPackages)
+          .where(eq(applicationPackages.applicationId, application.id))
+          .orderBy(desc(applicationPackages.createdAt))
+          .limit(1);
+        const targetJobDesc =
+          latestPkg?.packagePayload?.targetJob?.description || latestPkg?.targetJob?.description;
+        if (targetJobDesc) {
+          resolvedDesc = targetJobDesc;
+        }
+      }
+
+      const effectiveDesc =
+        String(resolvedDesc || '').trim() || String(application.jobTitle || '').trim();
       const target = {
         title: application.jobTitle,
         company: application.companyName,
-        rawDescription: application.rawJobDescription || '',
+        rawDescription: effectiveDesc,
         ...(application.jobUrl ? { sourceUrl: application.jobUrl } : {}),
+        ...(resolvedDesc ? {} : { isRoleOnly: true, tailoringScope: 'ROLE_BASED' }),
       };
       if (
         draft &&
-        (draft.jobTarget.rawDescription.trim() !== target.rawDescription.trim() ||
-          draft.jobTarget.title !== target.title ||
-          draft.jobTarget.company !== target.company)
-      )
+        (draft.jobTarget.title !== target.title || draft.jobTarget.company !== target.company)
+      ) {
         throw new NotFoundError('Draft context not found');
-      initialJobTarget = draft ? draft.jobTarget : target;
+      }
+      initialJobTarget = draft
+        ? (draft.jobTarget?.rawDescription || '').length < target.rawDescription.length
+          ? { ...draft.jobTarget, rawDescription: target.rawDescription }
+          : draft.jobTarget
+        : target;
       const fromJob = req.query?.from === 'jobs';
       returnContext = {
         href: fromJob ? '/apps/radar?tab=saved' : '/applications/' + application.id + '/apply',
@@ -2262,7 +2298,7 @@ export default async function webRoutes(app, opts = {}) {
       rawDescription: body.jobDescriptionText || '',
       ...(body.sourceUrl ? { sourceUrl: body.sourceUrl } : {}),
     });
-    if (!result.success)
+    if (!result.success || result.data.rawDescription.length < 100)
       throw new ValidationError(
         'Add a complete job description (at least 100 characters) before tailoring.'
       );
@@ -2312,7 +2348,9 @@ export default async function webRoutes(app, opts = {}) {
 
     const flashMessage = req.query?.deleted
       ? 'Resume version permanently deleted from storage.'
-      : '';
+      : req.query?.notice
+        ? String(req.query.notice)
+        : '';
     const errorMessage = req.query?.error ? String(req.query.error) : '';
 
     let studioLibrary = null;
@@ -3572,6 +3610,15 @@ export default async function webRoutes(app, opts = {}) {
       return reply.redirect('/applications?error=Company+name+and+job+title+are+required');
     }
 
+    const rawJobDescription =
+      String(
+        body.rawJobDescription ||
+          body.jobDescription ||
+          body.jobDescriptionText ||
+          body.description ||
+          ''
+      ).trim() || null;
+
     await database.insert(jobApplications).values({
       tenantId: tenant.id,
       candidateId: candidate.id,
@@ -3581,6 +3628,7 @@ export default async function webRoutes(app, opts = {}) {
       compensation: body.salaryRange ? { rawRange: String(body.salaryRange).trim() } : {},
       jobUrl: body.jobUrl ? String(body.jobUrl).trim() : null,
       location: body.location ? String(body.location).trim() : null,
+      rawJobDescription,
       metadata: {},
     });
 
@@ -4282,9 +4330,8 @@ export default async function webRoutes(app, opts = {}) {
         };
       } else {
         try {
-          const { ApplicationHandoffService } = await import(
-            '../services/application-handoff.service.js'
-          );
+          const { ApplicationHandoffService } =
+            await import('../services/application-handoff.service.js');
           const handoffService =
             applicationHandoffService || new ApplicationHandoffService({ database });
           handoffKit = await handoffService.buildApplicationHandoffKit({
@@ -4328,10 +4375,18 @@ export default async function webRoutes(app, opts = {}) {
             company: application.companyName,
             title: application.jobTitle,
             location: application.location || 'Remote',
-            description: application.metadata?.jobDescription || application.jobTitle,
-            responsibilities: [],
-            requirements: [],
-            skills: [],
+            description:
+              application.rawJobDescription ||
+              application.metadata?.jobDescription ||
+              application.jobTitle,
+            rawJobDescription:
+              application.rawJobDescription || application.metadata?.jobDescription || null,
+            responsibilities: application.parsedJobDescription?.responsibilities || [],
+            requirements: application.parsedJobDescription?.requirements || [],
+            skills:
+              application.parsedJobDescription?.skills ||
+              application.parsedJobDescription?.requiredSkills ||
+              [],
             applicationUrl:
               application.jobUrl ||
               application.metadata?.destinationUrl ||
@@ -5497,12 +5552,31 @@ export default async function webRoutes(app, opts = {}) {
     const body = req.body || {};
 
     const jobId = String(body.jobId || body.id || '').trim();
-    const title = String(body.title || body.jobTitle || 'Role').trim();
-    const company = String(body.company || body.companyName || 'Company').trim();
-    const location = body.location ? String(body.location).trim() : null;
-    const workplaceType = body.workplaceType ? String(body.workplaceType).trim() : null;
-    const jobUrl = body.url || body.jobUrl ? String(body.url || body.jobUrl).trim() : null;
-    const rawSkills = Array.isArray(body.skills)
+    const serverJob =
+      jobId && jobDiscoveryService
+        ? await jobDiscoveryService.findJobById(jobId).catch(() => null)
+        : null;
+
+    const rawTitleInput = String(serverJob?.title || body.title || body.jobTitle || '').trim();
+    const rawCompanyInput = String(
+      serverJob?.company || body.company || body.companyName || ''
+    ).trim();
+    const title = rawTitleInput.slice(0, 255);
+    const company = rawCompanyInput.slice(0, 255);
+    const location =
+      String(serverJob?.location || body.location || '')
+        .trim()
+        .slice(0, 255) || null;
+    const workplaceType =
+      String(serverJob?.workplaceType || body.workplaceType || '')
+        .trim()
+        .slice(0, 100) || null;
+    const jobUrl =
+      String(serverJob?.applicationUrl || serverJob?.url || body.url || body.jobUrl || '')
+        .trim()
+        .slice(0, 2048) || null;
+
+    const clientSkills = Array.isArray(body.skills)
       ? body.skills
       : typeof body.skills === 'string'
         ? body.skills
@@ -5510,7 +5584,74 @@ export default async function webRoutes(app, opts = {}) {
             .map((s) => s.trim())
             .filter(Boolean)
         : [];
+    const rawSkills =
+      Array.isArray(serverJob?.skills) && serverJob.skills.length > 0
+        ? serverJob.skills
+        : clientSkills;
     const atsScore = Number.isFinite(Number(body.atsScore)) ? Number(body.atsScore) : 75;
+
+    const serverDesc =
+      typeof serverJob?.description === 'string' ? serverJob.description.trim() : '';
+    const clientDesc =
+      [body.description, body.rawJobDescription, body.rawDescription, body.jobDescriptionText]
+        .find((v) => typeof v === 'string' && v.trim().length > 0)
+        ?.trim() || '';
+    const candidateRawDesc = (serverDesc || clientDesc).slice(0, 50000);
+    const isTitleOnlyDesc =
+      Boolean(candidateRawDesc) &&
+      Boolean(title) &&
+      candidateRawDesc.toLowerCase() === title.toLowerCase();
+    const rawDescription = candidateRawDesc && !isTitleOnlyDesc ? candidateRawDesc : null;
+
+    let parsedJobDescription = null;
+    if (body.parsedJobDescription && typeof body.parsedJobDescription === 'object') {
+      parsedJobDescription = body.parsedJobDescription;
+    } else if (typeof body.parsedJobDescription === 'string') {
+      try {
+        parsedJobDescription = JSON.parse(body.parsedJobDescription);
+      } catch {}
+    }
+    if (!parsedJobDescription) {
+      let reqs =
+        Array.isArray(serverJob?.requirements) && serverJob.requirements.length > 0
+          ? serverJob.requirements
+          : Array.isArray(body.requirements)
+            ? body.requirements
+            : [];
+      let resps =
+        Array.isArray(serverJob?.responsibilities) && serverJob.responsibilities.length > 0
+          ? serverJob.responsibilities
+          : Array.isArray(body.responsibilities)
+            ? body.responsibilities
+            : [];
+      if (reqs.length === 0 && typeof body.requirements === 'string') {
+        try {
+          reqs = JSON.parse(body.requirements);
+        } catch {
+          reqs = body.requirements
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+      if (resps.length === 0 && typeof body.responsibilities === 'string') {
+        try {
+          resps = JSON.parse(body.responsibilities);
+        } catch {
+          resps = body.responsibilities
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+      if (rawSkills.length > 0 || reqs.length > 0 || resps.length > 0) {
+        parsedJobDescription = {
+          ...(rawSkills.length > 0 ? { requiredSkills: rawSkills } : {}),
+          ...(reqs.length > 0 ? { requirements: reqs } : {}),
+          ...(resps.length > 0 ? { responsibilities: resps } : {}),
+        };
+      }
+    }
 
     if (!jobId || !title || !company) {
       const accept = req.headers['accept'] || '';
@@ -5539,17 +5680,59 @@ export default async function webRoutes(app, opts = {}) {
 
     let persistedId;
     if (existing) {
+      const existingDesc = String(existing.rawJobDescription || '').trim();
+      const shouldUpdateDesc =
+        Boolean(rawDescription) &&
+        (!existingDesc || Boolean(serverDesc) || rawDescription.length >= existingDesc.length);
+      const preservedRawDescription = shouldUpdateDesc
+        ? rawDescription
+        : existing.rawJobDescription || rawDescription || null;
+
+      const existingParsed =
+        existing.parsedJobDescription && typeof existing.parsedJobDescription === 'object'
+          ? existing.parsedJobDescription
+          : {};
+      const incomingReqs = Array.isArray(parsedJobDescription?.requirements)
+        ? parsedJobDescription.requirements
+        : [];
+      const incomingResps = Array.isArray(parsedJobDescription?.responsibilities)
+        ? parsedJobDescription.responsibilities
+        : [];
+      const incomingSkills =
+        Array.isArray(parsedJobDescription?.requiredSkills) &&
+        parsedJobDescription.requiredSkills.length > 0
+          ? parsedJobDescription.requiredSkills
+          : rawSkills;
+      const mergedParsedJobDescription = {
+        ...existingParsed,
+        ...(incomingSkills.length > 0
+          ? { requiredSkills: incomingSkills }
+          : Array.isArray(existingParsed.requiredSkills)
+            ? { requiredSkills: existingParsed.requiredSkills }
+            : {}),
+        ...(incomingReqs.length > 0
+          ? { requirements: incomingReqs }
+          : Array.isArray(existingParsed.requirements)
+            ? { requirements: existingParsed.requirements }
+            : {}),
+        ...(incomingResps.length > 0
+          ? { responsibilities: incomingResps }
+          : Array.isArray(existingParsed.responsibilities)
+            ? { responsibilities: existingParsed.responsibilities }
+            : {}),
+      };
+
       await database
         .update(jobApplications)
         .set({
           status: 'SAVED',
-          jobTitle: title,
-          companyName: company,
-          jobUrl,
-          location,
-          workplaceType,
-          parsedJobDescription:
-            rawSkills.length > 0 ? { requiredSkills: rawSkills } : existing.parsedJobDescription,
+          jobTitle: title || existing.jobTitle,
+          companyName: company || existing.companyName,
+          jobUrl: jobUrl || existing.jobUrl,
+          location: location || existing.location,
+          workplaceType: workplaceType || existing.workplaceType,
+          rawJobDescription: preservedRawDescription,
+          parsedJobDescription: mergedParsedJobDescription,
           atsFitSnapshot: { overallScore: atsScore },
           updatedAt: new Date(),
         })
@@ -5569,7 +5752,9 @@ export default async function webRoutes(app, opts = {}) {
           workplaceType,
           source: 'JOB_RADAR',
           status: 'SAVED',
-          parsedJobDescription: rawSkills.length > 0 ? { requiredSkills: rawSkills } : {},
+          rawJobDescription: rawDescription,
+          parsedJobDescription:
+            parsedJobDescription || (rawSkills.length > 0 ? { requiredSkills: rawSkills } : {}),
           atsFitSnapshot: { overallScore: atsScore },
         })
         .returning({ id: jobApplications.id });

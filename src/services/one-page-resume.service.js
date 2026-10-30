@@ -397,40 +397,44 @@ export function planOnePagePresentation(source, job = {}, pass = 0) {
     for (const w of setA) if (setB.has(w)) inter++;
     return inter / new Set([...setA, ...setB]).size;
   };
-  const isDuplicateBullet = (sentence, bulletsList) => {
+  const isAcceptedSynthesis = source.writing?.summaryStatus === 'ACCEPTED';
+
+  const isExactOrVerbatimCopy = (sentence, bulletsList) => {
     const sLower = sentence.toLowerCase().trim();
     return bulletsList.some((b) => {
       const bLower = b.toLowerCase().trim();
-      return bLower === sLower || tokenOverlap(sLower, bLower) >= 0.55;
+      if (bLower === sLower) return true;
+      if (!isAcceptedSynthesis && tokenOverlap(sLower, bLower) >= 0.85) return true;
+      return false;
     });
   };
-  const preserveWrittenSummary =
-    source.writing?.summaryStatus === 'ACCEPTED' ||
-    source.summary?.writingMethod === 'SOURCE_GROUNDED_SYNTHESIS' ||
-    source.summary?.transformationType === 'SYNTHESIS';
+
   const generatedAccomplishmentSummary =
+    !isAcceptedSynthesis &&
     source.summary?.composedFromFactIds?.length > 0 &&
     summarySentences.length > 0 &&
-    summarySentences.some((sentence) => isDuplicateBullet(sentence, sourceBullets));
+    summarySentences.some((sentence) => sourceBullets.includes(sentence));
+
   const nonRepeated = summarySentences
     .map((text, index) => ({ text, index }))
-    .filter((item) => !isDuplicateBullet(item.text, displayedBullets))
+    .filter((item) => !isExactOrVerbatimCopy(item.text, displayedBullets))
     .map((item) => item.index);
+
   if (
-    !preserveWrittenSummary &&
     summary &&
     summarySentences.length &&
     (!nonRepeated.length || generatedAccomplishmentSummary)
   ) {
-    condensations.length = 0;
-    omit(
-      'summary.text',
-      generatedAccomplishmentSummary
-        ? 'Generated summary repeats source accomplishments; relevant project and experience details take priority. Full source facts are retained.'
-        : 'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
-    );
+    if (!isAcceptedSynthesis) {
+      condensations.length = 0;
+      omit(
+        'summary.text',
+        generatedAccomplishmentSummary
+          ? 'Generated summary repeats source accomplishments; relevant project and experience details take priority. Full source facts are retained.'
+          : 'Summary repeats selected accomplishment bullets; facts remain in the displayed projects or experience.'
+      );
+    }
   } else if (
-    !preserveWrittenSummary &&
     summarySentences.length > 1 &&
     nonRepeated.length < summarySentences.length &&
     nonRepeated.length <= 2
@@ -599,7 +603,9 @@ export function onePageResumeMarkdown(source) {
     additionalSkills: 'ADDITIONAL_SKILLS',
     customSections: 'CUSTOM',
   };
-  for (const [key, entries] of Object.entries(view.optionalSections || {})) {
+  for (const key of OPTIONAL) {
+    const entries = view.optionalSections?.[key];
+    if (!entries) continue;
     sections[optionalKeys[key] || key.toUpperCase()] = [
       `## ${key.replace(/([A-Z])/g, ' $1')}`,
       ...entries.map(formatResumeSourceEntry),
@@ -608,12 +614,16 @@ export function onePageResumeMarkdown(source) {
   if (view.dsa?.hasSection)
     sections.DSA = ['## Problem Solving', view.dsa.profileUrl, ...(view.dsa.bullets || [])];
   const identity = view.candidateIdentity || {};
+  const orderedKeys = [
+    ...(view.sectionOrder || []),
+    ...Object.keys(sections).filter((key) => !(view.sectionOrder || []).includes(key)),
+  ];
   return [
     `# ${identity.displayName}`,
     identity.headline,
     [identity.email, identity.phone, identity.location].filter(Boolean).join(' | '),
     ...(identity.links || []).map((l) => `${l.label}: ${l.url}`),
-    ...view.sectionOrder.flatMap((key) => {
+    ...orderedKeys.flatMap((key) => {
       const lines = (sections[key] || []).filter(Boolean);
       return lines.length > 1 ? lines : [];
     }),

@@ -81,12 +81,17 @@ export function generatedApplicationResume(generation, candidateData = {}) {
           (skill) =>
             !selectedSkills.some((selected) => normalized(selected.name) === normalized(skill.name))
         )
-        .map((skill) => ({
-          skill: skill.name,
-          provenance: skillTrustStatus(skill),
-          included: false,
-          reason: 'Not selected by saved generation; source assertion retained',
-        })),
+        .map((skill) => {
+          const rawTrust = skillTrustStatus(skill);
+          return {
+            skill: skill.name,
+            provenance: ['SELF_DECLARED', 'USER_PROVIDED'].includes(rawTrust)
+              ? 'CLAIMED'
+              : rawTrust,
+            included: false,
+            reason: 'Not selected by saved generation; source assertion retained',
+          };
+        }),
     ],
     selectedSkills,
     selectedSkillSlugs: selectedSkills.map((skill) => skill.slug),

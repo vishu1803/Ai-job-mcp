@@ -110,7 +110,9 @@ describe('MCP Registry Contract & Documentation Reconciliation Suite', () => {
             (typeof zodType.isOptional === 'function' && zodType.isOptional()) ||
             (typeof zodType.isNullable === 'function' && zodType.isNullable()) ||
             zodType._def?.typeName === 'ZodOptional' ||
-            zodType._def?.typeName === 'ZodDefault';
+            zodType._def?.typeName === 'ZodDefault' ||
+            zodType._def?.type === 'optional' ||
+            zodType._def?.type === 'default';
 
           if (!isOptional) {
             const docParam = doc.parameters.find((p) => p.name === key);

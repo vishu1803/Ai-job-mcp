@@ -663,7 +663,7 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
       selectedProj.bullets[0].text,
       'Engineered asynchronous REST APIs using FastAPI and PostgreSQL handling 15,000 req/sec.'
     );
-    assert.equal(selectedProj.bullets[0].provenanceStatus, 'CORROBORATED');
+    assert.equal(selectedProj.bullets[0].provenanceStatus, 'CLAIMED');
   });
 
   it('Test L: CandidateArtifactContentService consumes authoritative rankings directly', () => {

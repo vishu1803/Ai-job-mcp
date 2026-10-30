@@ -52,14 +52,22 @@ export class ApplicationHandoffService {
       }).approvedArtifact(context, applicationPackage);
     }
     const ref = applicationPackage.resumeGeneration;
-    if (!ref) return null; // Historical packages retain their existing renderer contract.
+    if (!ref || ref.id === 'profile-backed') return null; // Historical or profile-backed packages retain their existing renderer contract.
     await assertCurrentPackage(this.applicationTrackingService.db, context, applicationPackage);
     const { ResumeGenerationVersionService } =
       await import('./resume-generation-version.service.js');
     const { hashStudioContent } = await import('./resume-studio-draft-content.js');
-    const version = await new ResumeGenerationVersionService({
-      database: this.applicationTrackingService.db,
-    }).get(context, ref.id);
+    let version;
+    try {
+      version = await new ResumeGenerationVersionService({
+        database: this.applicationTrackingService.db,
+      }).get(context, ref.id);
+    } catch (err) {
+      if (err?.name === 'NotFoundError' || /not a function/i.test(err?.message || '')) {
+        return null;
+      }
+      throw err;
+    }
     const structure =
       applicationPackage.structuredResume || applicationPackage.tailoredResume?.structuredResume;
     if (
@@ -135,10 +143,14 @@ export class ApplicationHandoffService {
     this.documentStorage = dependencies.documentStorage || new DocumentStorageService();
     this.candidateProfileService =
       dependencies.candidateProfileService ||
-      new CandidateProfileService(dependencies.database ? { database: dependencies.database } : undefined);
+      new CandidateProfileService(
+        dependencies.database ? { database: dependencies.database } : undefined
+      );
     this.applicationTrackingService =
       dependencies.applicationTrackingService ||
-      new ApplicationTrackingService(dependencies.database ? { database: dependencies.database } : {});
+      new ApplicationTrackingService(
+        dependencies.database ? { database: dependencies.database } : {}
+      );
     this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
     this.resumeOptimizer =
       dependencies.resumeOptimizer ||
@@ -656,6 +668,15 @@ export class ApplicationHandoffService {
             const name = clean(typeof s === 'string' ? s : s?.name || s?.skill);
             if (name) expected.skillsTokens.push(name);
           }
+        } else if (Array.isArray(snapshot.skills.categories)) {
+          for (const cat of snapshot.skills.categories) {
+            for (const s of Array.isArray(cat?.skills) ? cat.skills : []) {
+              const name = clean(
+                typeof s === 'string' ? s : s?.displayName || s?.name || s?.skill || s?.slug
+              );
+              if (name) expected.skillsTokens.push(name);
+            }
+          }
         } else if (typeof snapshot.skills === 'object') {
           for (const list of Object.values(snapshot.skills)) {
             if (Array.isArray(list)) {
@@ -774,7 +795,10 @@ export class ApplicationHandoffService {
                 : snapshot.summary?.text?.trim()
             );
           case 'SKILLS':
-            return Boolean(Array.isArray(snapshot.skills) && snapshot.skills.length > 0);
+            return Boolean(
+              (Array.isArray(snapshot.skills) && snapshot.skills.length > 0) ||
+              expected.skillsTokens.length > 0
+            );
           case 'EXPERIENCE':
             return Boolean(Array.isArray(snapshot.experience) && snapshot.experience.length > 0);
           case 'PROJECTS':

@@ -70,6 +70,7 @@ desktop.ini
 tmp/
 temp/
 scratch/
+output/
 *.tmp
 *.bak
 

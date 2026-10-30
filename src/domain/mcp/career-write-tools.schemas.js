@@ -53,6 +53,11 @@ export const ProposeProjectImprovementInputSchema = z
       .uuid('Repository Resource ID must be a valid UUID')
       .optional()
       .describe('Optional specific connected repository resource ID to enhance.'),
+    projectId: z
+      .string()
+      .uuid('Project ID must be a valid UUID')
+      .optional()
+      .describe('Optional specific project codebase UUID alias for targetRepositoryId.'),
   })
   .strict()
   .refine((data) => Boolean(data.jobDescriptionId || data.jobDescriptionText), {

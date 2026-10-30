@@ -184,7 +184,9 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
   const resolvedCompany =
     args?.companyName ||
     args?.company ||
-    (jobPosting?.company && jobPosting.company !== 'Target Company' ? jobPosting.company : undefined);
+    (jobPosting?.company && jobPosting.company !== 'Target Company'
+      ? jobPosting.company
+      : undefined);
 
   const {
     requirements: _rawReqs,
@@ -681,7 +683,7 @@ export async function handleRecommendPortfolioProjects(context, rawArgs, deps = 
     atsFitAnalysis,
     [],
     {
-      maxFeaturedCount: args.maxFeaturedProjects,
+      maxFeaturedCount: args.maxProjects ?? args.maxFeaturedProjects,
       overrides: args.userOverrides,
     }
   );

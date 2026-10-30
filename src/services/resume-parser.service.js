@@ -483,11 +483,23 @@ export class ResumeParserService {
           }
         }
         lineText += c.text;
-        // Track approximate run end using character-count heuristic when the
-        // parser lacks glyph widths (elements carry start x only).
+        // Track approximate run end using glyph-class width heuristic when the
+        // parser lacks glyph widths (elements carry start x only). Wide glyphs
+        // (W, M, @, %) and uppercase glyphs in Latin Modern Roman exceed 0.48em.
         if (c.x !== undefined) {
-          const charWidthEstimate = Math.max(MIN_GAP_PT, fontSize * 0.48);
-          prevEndX = c.x + c.text.length * charWidthEstimate;
+          let estimatedRunWidth = 0;
+          for (const ch of c.text) {
+            if (/[WM@%]/.test(ch)) {
+              estimatedRunWidth += fontSize * 0.88;
+            } else if (/[A-Z]/.test(ch)) {
+              estimatedRunWidth += fontSize * 0.68;
+            } else if (/[mw]/.test(ch)) {
+              estimatedRunWidth += fontSize * 0.72;
+            } else {
+              estimatedRunWidth += Math.max(MIN_GAP_PT, fontSize * 0.48);
+            }
+          }
+          prevEndX = c.x + estimatedRunWidth;
         }
       }
       return lineText;

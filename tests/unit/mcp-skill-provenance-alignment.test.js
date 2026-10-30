@@ -558,6 +558,9 @@ describe('Cross-Tool Provenance Consistency', () => {
       },
     };
 
-    assert.throws(() => ListVerifiedSkillsOutputSchema.parse(output), /Invalid enum value/);
+    assert.throws(
+      () => ListVerifiedSkillsOutputSchema.parse(output),
+      /Invalid (enum value|option)/
+    );
   });
 });

@@ -130,6 +130,9 @@ export function skillTrustStatus(skill = {}) {
     skill.isUserClaim ||
     skill.resumeClaim ||
     skill.metadata?.isUserClaim ||
+    Boolean(skill.metadata?.additionalSkillDeclaration) ||
+    skill.source === 'USER_PROVIDED' ||
+    skill.source === 'CANDIDATE_DECLARED' ||
     ['CLAIMED', 'SELF_DECLARED', 'USER_PROVIDED', 'LEARNING'].includes(status)
   )
     return 'CLAIMED';

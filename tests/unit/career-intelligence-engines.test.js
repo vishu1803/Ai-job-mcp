@@ -106,14 +106,14 @@ describe('Advanced Career Intelligence Engines (Phases 6 - 9)', () => {
     });
 
     it('dynamically configures AtsFitScoreService component weights by roleProfile while preserving 100.0 invariant', () => {
-      const mockContext = { tenantId: '00000000-0000-0000-0000-000000000001' };
+      const mockContext = { tenantId: '00000000-0000-4000-8000-000000000001' };
       const mockJob = {
-        id: '00000000-0000-0000-0000-000000000002',
+        id: '00000000-0000-4000-8000-000000000002',
         tenantId: mockContext.tenantId,
         title: 'Frontend Lead',
       };
       const mockCandidate = {
-        id: '00000000-0000-0000-0000-000000000003',
+        id: '00000000-0000-4000-8000-000000000003',
         tenantId: mockContext.tenantId,
       };
       const mockMatch = {

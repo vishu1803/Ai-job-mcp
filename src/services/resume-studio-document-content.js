@@ -157,19 +157,39 @@ export function studioDocumentContent(draft) {
   if (content.certifications.length) {
     heading('Certifications');
     for (const e of content.certifications) {
+      const titleWithIssuer = e.issuingOrganization
+        ? `${e.name} — ${e.issuingOrganization}`
+        : e.name;
+      const parts = [titleWithIssuer];
+      if (e.credentialId) {
+        parts.push(e.credentialId);
+      }
+      const dateStr = e.issueDate ? formatNormalizedDateRange(e.issueDate, '') : '';
+      if (dateStr) parts.push(dateStr);
+      const expDate = e.expirationDate || e.expiryDate;
+      if (expDate) {
+        const expNorm = formatNormalizedDateRange(expDate, '');
+        let isExpired = false;
+        try {
+          const expTime = new Date(expDate).getTime();
+          if (!Number.isNaN(expTime) && expTime < Date.now()) {
+            isExpired = true;
+          }
+        } catch {
+          // Ignore date parsing failure
+        }
+        if (isExpired) {
+          parts.push(`Expired: ${expNorm}`);
+        } else if (expNorm) {
+          parts.push(expNorm);
+        }
+      }
+      const text = parts.join(' | ');
       add(
-        [
-          e.name,
-          e.issuingOrganization,
-          e.issueDate ? 'Issued: ' + formatNormalizedDateRange(e.issueDate, '') : '',
-          e.expirationDate ? 'Expires: ' + formatNormalizedDateRange(e.expirationDate, '') : '',
-          e.credentialId ? 'ID: ' + e.credentialId : '',
-          e.notes,
-          e.credentialUrl,
-        ]
-          .filter(Boolean)
-          .join(' | '),
-        'Bullet'
+        text,
+        'Bullet',
+        true,
+        e.credentialUrl ? { hyperlinks: [{ text: e.name, url: e.credentialUrl }] } : {}
       );
       if (e.credentialUrl) links.push(e.credentialUrl);
     }

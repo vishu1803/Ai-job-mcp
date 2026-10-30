@@ -40,6 +40,7 @@ import {
 } from '../../src/services/latex-document-generator.service.js';
 import { ApplicationHandoffService } from '../../src/services/application-handoff.service.js';
 import { LatexCompilerService } from '../../src/services/latex-compiler.service.js';
+import { sealGeneratedPackage } from '../../src/services/evidence/artifact-policy.js';
 
 function createMockStructuredResume(overrides = {}) {
   return {
@@ -216,8 +217,20 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
 
   // Test B
   it('B. Mock candidateProfileService.getProfile to throw; structured package still renders', async () => {
+    const tenantId = crypto.randomUUID();
+    const userId = crypto.randomUUID();
     const structuredResume = createMockStructuredResume();
-    const pkg = createMockPackage(structuredResume, { packageHash: 'testhash12345678' });
+    const rawPkg = createMockPackage(structuredResume, { packageHash: 'testhash12345678' });
+    const stubDb = {
+      select: () => ({
+        from: () => ({ leftJoin: () => ({ innerJoin: () => ({ where: async () => [] }) }) }),
+      }),
+    };
+    const pkg = await sealGeneratedPackage(
+      stubDb,
+      { tenantId, candidateId: rawPkg.candidateId },
+      rawPkg
+    );
 
     const throwingProfileService = {
       async getProfile() {
@@ -226,6 +239,7 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
     };
 
     const mockTrackingService = {
+      db: stubDb,
       async getApplication() {
         return null;
       },
@@ -250,8 +264,8 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
 
     // Should succeed despite candidateProfileService throwing
     const kit = await handoffService.buildApplicationHandoffKit({
-      tenantId: crypto.randomUUID(),
-      userId: crypto.randomUUID(),
+      tenantId,
+      userId,
       candidateId: pkg.candidateId,
       applicationPackage: pkg,
     });

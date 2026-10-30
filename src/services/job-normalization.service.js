@@ -757,7 +757,14 @@ export function normalizeJobInput(jobInput) {
     }
   } else {
     // Extract from description or rawText
-    const descText = String(jp.description || jp.jobDescriptionText || jp.rawText || '').trim();
+    const descText = String(
+      jp.rawJobDescription ||
+        jp.rawDescription ||
+        jp.description ||
+        jp.jobDescriptionText ||
+        jp.rawText ||
+        ''
+    ).trim();
     const extracted = parseJobDescriptionSections(descText);
     for (const item of extracted) {
       if (JobDescriptionParser._isCompanyProse(item.text)) {

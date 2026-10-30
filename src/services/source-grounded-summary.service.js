@@ -34,10 +34,7 @@ export function composeSourceGroundedSummary({
   const authored = resumeSourceValue(profile, 'summary');
   const authoredText = typeof authored === 'object' && authored !== null ? authored.text : authored;
   const shouldPreserveAuthored = options.preserveAuthoredSummary !== false;
-  if (
-    shouldPreserveAuthored &&
-    (authored === null || typeof authoredText === 'string')
-  ) {
+  if (shouldPreserveAuthored && (authored === null || typeof authoredText === 'string')) {
     const text = clean(authoredText);
     return {
       text,
@@ -192,7 +189,20 @@ export function composeSourceGroundedSummary({
   let transformationType = 'VERBATIM';
   let writingMethod = 'SOURCE_GROUNDED_DETERMINISTIC';
 
-  if (selected.length > 0 && options.synthesizeSummary === true) {
+  const selectedTextTokens = tokens(selected.map((s) => s.text).join(' '));
+  const hasSkillMention = skills.some((s) => {
+    const name = typeof s === 'string' ? s : s.name || s.skillName || s.slug;
+    return name && [...tokens(name)].some((t) => selectedTextTokens.has(t));
+  });
+  const shouldSynthesize =
+    options.synthesizeSummary === true ||
+    (options.synthesizeSummary !== false &&
+      selected.length === 1 &&
+      wordCount < 8 &&
+      skills.length > 0 &&
+      !hasSkillMention);
+
+  if (selected.length > 0 && shouldSynthesize) {
     const rawRole =
       jobPosting?.title || options.targetRoleTitle || profile.headline || 'Software Engineer';
     const cleanRole = String(rawRole)
@@ -202,15 +212,20 @@ export function composeSourceGroundedSummary({
     const jobText = `${cleanRole} ${jobPosting?.description || ''}`.toLowerCase();
     const isFullStack = /\bfull[- ]?stack\b/i.test(jobText);
     const isFrontend = /\b(?:front[- ]?end|ui|interface|client)\b/i.test(jobText) && !isFullStack;
-    const isDevOps = /\b(?:devops|platform|infrastructure|docker|ci\/cd|automation|pipeline)\b/i.test(jobText);
-    const isBackend = !isFrontend && !isDevOps && (/\b(?:back[- ]?end|api|distributed|server|database|python)\b/i.test(jobText) || !isFullStack);
+    const isDevOps =
+      /\b(?:devops|platform|infrastructure|docker|ci\/cd|automation|pipeline)\b/i.test(jobText);
+    const isBackend =
+      !isFrontend &&
+      !isDevOps &&
+      (/\b(?:back[- ]?end|api|distributed|server|database|python)\b/i.test(jobText) ||
+        !isFullStack);
 
     // Filter and rank candidate skills matching jobTokens first
     const skillList = skills
       .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || s.displayName || s.slug))
       .filter(Boolean);
-    const matchedSkills = skillList.filter((name) =>
-      tokens(name).size > 0 && [...tokens(name)].some((t) => jobTokens.has(t))
+    const matchedSkills = skillList.filter(
+      (name) => tokens(name).size > 0 && [...tokens(name)].some((t) => jobTokens.has(t))
     );
     const fallbackSkills = skillList.filter((name) => !matchedSkills.includes(name));
     const topTechNames = [...matchedSkills, ...fallbackSkills].slice(0, 4);
